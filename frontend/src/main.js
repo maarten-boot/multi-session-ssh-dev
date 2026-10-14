@@ -2,6 +2,7 @@ import './style.css';
 
 import {isMac, TermView} from './terminal';
 import {effectiveColorMode} from './appearance';
+import {rank, score} from './fuzzy';
 import {FilesView} from './files';
 import {$, el, hideMenu, showMenu, store} from './ui';
 import {
@@ -22,6 +23,7 @@ function appKey(e) {
         if (e.shiftKey && e.code === 'BracketRight') return {step: 1};
         if (e.shiftKey && e.code === 'BracketLeft') return {step: -1};
         if (e.shiftKey && e.code === 'KeyN') return {newSession: true};
+        if (e.shiftKey && e.code === 'KeyP') return {switcher: true};
         if (!e.shiftKey && digit) return {session: +digit - 1};
         return null;
     }
@@ -32,6 +34,7 @@ function appKey(e) {
     if (e.code === 'PageDown') return {step: 1};
     if (e.code === 'PageUp') return {step: -1};
     if (e.code === 'KeyN') return {newSession: true};
+    if (e.code === 'KeyP') return {switcher: true};
     return null;
 }
 
@@ -182,6 +185,7 @@ const app = {
     order: [],           // SessionUI in sidebar order
     active: null,
     collapsed: new Set(store.get('collapsed', [])),
+    mru: store.get('mru', []), // session ids, most recent first
 
     async init() {
         await this.reload();
@@ -347,6 +351,8 @@ const app = {
         this.renderMain(); // un-hides the pane area before the terminal measures itself
         if (s) {
             store.set('active', s.id);
+            this.mru = [s.id, ...this.mru.filter(id => id !== s.id)].slice(0, 50);
+            store.set('mru', this.mru);
             s.show();
         }
         document.querySelectorAll('.session').forEach(i => i.classList.toggle('active', s && i.dataset.id === s.id));
@@ -377,12 +383,79 @@ const app = {
         else if (a.session !== undefined) this.order[a.session] && this.select(this.order[a.session]);
         else if (a.step) this.step(a.step);
         else if (a.newSession) sessionDialog();
+        else if (a.switcher) quickSwitcher();
     },
 
     focusActive() {
         this.active?.show();
     },
 };
+
+// ---------------------------------------------------------------- quick switcher
+
+// quickSwitcher lists sessions, most recently used first (the current one
+// last, so Enter on an empty query goes back to the previous session), and
+// fuzzy-filters them by name, host and path as you type.
+function quickSwitcher() {
+    const dlg = $('#dlg-switch');
+    if (dlg.open || !app.order.length) return;
+    const input = dlg.querySelector('input');
+    const list = dlg.querySelector('.switch-list');
+    const recent = app.mru.map(id => app.sessions.get(id)).filter(s => s && s !== app.active);
+    const rest = app.order.filter(s => !recent.includes(s) && s !== app.active);
+    const items = [...recent, ...rest, ...(app.active ? [app.active] : [])];
+    let shown = [];
+    let sel = 0;
+
+    const highlight = (text, q) => {
+        const pos = [];
+        if (q && score(q, text, pos) < 0) pos.length = 0;
+        const span = el('span', {className: 'name'});
+        [...text].forEach((ch, i) => span.append(pos.includes(i) ? el('b', {textContent: ch}) : ch));
+        return span;
+    };
+    const render = () => {
+        const q = input.value.trim();
+        shown = rank(items, q, s => [[s.data.name, 2], [s.data.host, 1], [s.data.local_path, 1]]);
+        sel = Math.min(sel, Math.max(0, shown.length - 1));
+        list.replaceChildren(...shown.map((s, i) => {
+            const row = el('div', {className: 'switch-item' + (i === sel ? ' selected' : '')},
+                el('span', {className: 'dot ' + s.dotClass()}),
+                highlight(s.data.name, q),
+                el('span', {className: 'where', textContent: `${s.data.host} · ${s.data.local_path}`}),
+                s === app.active ? el('span', {className: 'current', textContent: 'current'}) : '');
+            row.onmousedown = e => {
+                e.preventDefault();
+                choose(i);
+            };
+            return row;
+        }));
+        if (!shown.length) list.append(el('div', {className: 'switch-empty', textContent: 'No matching session'}));
+        list.children[sel]?.scrollIntoView({block: 'nearest'});
+    };
+    const choose = i => {
+        const s = shown[i];
+        dlg.close();
+        if (s) app.select(s);
+    };
+    input.value = '';
+    input.oninput = () => {
+        sel = 0;
+        render();
+    };
+    input.onkeydown = e => {
+        if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) sel = (sel + 1) % Math.max(1, shown.length);
+        else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) sel = (sel - 1 + shown.length) % Math.max(1, shown.length);
+        else if (e.key === 'Enter') return choose(sel);
+        else return;
+        e.preventDefault();
+        render();
+    };
+    dlg.addEventListener('close', () => app.focusActive(), {once: true});
+    render();
+    dlg.showModal();
+    input.focus();
+}
 
 // ---------------------------------------------------------------- drag & drop
 

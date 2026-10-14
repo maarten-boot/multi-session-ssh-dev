@@ -707,3 +707,93 @@ button.danger {
 .files-status.bad {
     color: var(--danger);
 }
+
+/* --- quick switcher --- */
+
+dialog.switcher {
+    margin-top: 70px;
+    padding: 6px;
+    width: 560px;
+}
+
+dialog.switcher input {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--input-bg);
+    color: var(--text-strong);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font: 14px system-ui, sans-serif;
+    outline: none;
+}
+
+.switch-list {
+    max-height: 360px;
+    overflow-y: auto;
+    margin-top: 6px;
+}
+
+.switch-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.switch-item.selected {
+    background: var(--focus-selected);
+}
+
+.switch-item .dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dot-idle);
+}
+
+.switch-item .dot.connected {
+    background: var(--ok);
+}
+
+.switch-item .dot.exited {
+    background: var(--warn);
+}
+
+.switch-item .dot.error {
+    background: var(--danger);
+}
+
+.switch-item .name {
+    color: var(--text-strong);
+    white-space: nowrap;
+}
+
+.switch-item .name b {
+    color: var(--accent);
+}
+
+.switch-item .where {
+    flex: 1;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+}
+
+.switch-item .current, .switch-empty {
+    color: var(--faint);
+    font-size: 12px;
+}
+
+.switch-empty {
+    padding: 8px 10px;
+}
