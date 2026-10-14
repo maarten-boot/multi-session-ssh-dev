@@ -22,12 +22,14 @@ function decode(b64) {
 //   isAppKey(e) tells which keys belong to the app rather than the terminal,
 //   onState('connected' | 'exited') reports the process state.
 //   colorMode is 'full' or 'mono' (colors stripped from the output).
+//   onActivity('data', nbytes) / onActivity('bell') reports output.
 export class TermView {
-    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState}) {
+    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity}) {
         this.start = start;
         this.exitHint = exitHint;
         this.isAppKey = isAppKey;
         this.onState = onState || (() => {});
+        this.onActivity = onActivity || (() => {});
         this.id = null;
         this.term = new Terminal({cursorBlink: true, ...termOptions(ui, colorMode)});
         this.setColorFilter(colorMode);
@@ -36,6 +38,7 @@ export class TermView {
         this.term.loadAddon(new WebLinksAddon((e, uri) => BrowserOpenURL(uri)));
         this.term.open(container);
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
+        this.term.onBell(() => this.onActivity('bell'));
         this.term.onData(d => this.id && TermWrite(this.id, d));
         this.term.onResize(({cols, rows}) => this.id && TermResize(this.id, cols, rows));
         this.observer = new ResizeObserver(() => this.fit.fit());
@@ -54,6 +57,7 @@ export class TermView {
             EventsOn(`term:data:${id}`, b64 => {
                 const bytes = decode(b64);
                 this.term.write(this.filter ? this.filter.filter(bytes) : bytes);
+                this.onActivity('data', bytes.length);
             });
             EventsOn(`term:exit:${id}`, info => this.onExit(info));
             this.onState('connected');

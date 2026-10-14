@@ -5,6 +5,7 @@ import {effectiveColorMode} from './appearance';
 import {rank, score} from './fuzzy';
 import {FilesView} from './files';
 import {$, el, hideMenu, showMenu, store} from './ui';
+import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, StartLocal, StartRemote, State, UpdateSession,
@@ -42,6 +43,16 @@ const keyHint = isMac ? '⇧⌘' : 'Ctrl+Shift+';
 
 // ---------------------------------------------------------------- sessions
 
+// Activity detection (SPEC F4). A hidden terminal gets a "bell" badge when
+// it rings the bell (claude waiting for input, with Claude Code's
+// preferredNotifChannel set to terminal_bell), and an "activity" badge when
+// it starts producing real output after being quiet. tmux redraws its
+// status line (~150-300 bytes) when the clock changes; the burst threshold
+// keeps that from counting.
+const IDLE_MS = 10000;
+const BURST_MS = 2000;
+const BURST_MIN = 512;
+
 class Tab {
     constructor(session, label, start, exitHint, onState) {
         this.session = session;
@@ -49,6 +60,9 @@ class Tab {
         this.start = start;
         this.exitHint = exitHint;
         this.onState = onState;
+        this.badge = null; // null | 'activity' | 'bell'
+        this.lastOutput = 0;
+        this.burst = null;
         this.pane = el('div', {className: 'pane', hidden: true});
         session.container.append(this.pane);
         this.view = null;
@@ -60,6 +74,7 @@ class Tab {
                 start: this.start, exitHint: this.exitHint, ui: app.state.ui,
                 colorMode: effectiveColorMode(app.state.ui, this.session.data),
                 isAppKey: e => appKey(e) !== null, onState: this.onState,
+                onActivity: (kind, n) => this.activity(kind, n),
             });
             this.view.spawn();
         }
@@ -69,6 +84,43 @@ class Tab {
     show() {
         this.pane.hidden = false;
         this.ensureView().focus();
+        this.setBadge(null);
+    }
+
+    visible() {
+        return !this.pane.hidden && app.active === this.session && document.hasFocus();
+    }
+
+    activity(kind, n) {
+        const now = Date.now();
+        if (this.visible() || !app.state.ui.activity_badges) {
+            this.lastOutput = now;
+            this.burst = null;
+            return;
+        }
+        if (kind === 'bell') {
+            this.setBadge('bell');
+            return;
+        }
+        if (now - this.lastOutput >= IDLE_MS) this.burst = {start: now, bytes: 0};
+        this.lastOutput = now;
+        if (!this.burst) return;
+        if (now - this.burst.start > BURST_MS) {
+            this.burst = null;
+            return;
+        }
+        this.burst.bytes += n;
+        const min = Math.max(BURST_MIN, 2 * (this.view?.term.cols ?? 80));
+        if (this.burst.bytes >= min) {
+            this.burst = null;
+            if (this.badge !== 'bell') this.setBadge('activity');
+        }
+    }
+
+    setBadge(b) {
+        if (this.badge === b) return;
+        this.badge = b;
+        app.renderBadges(this.session);
     }
 
     hide() {
@@ -86,6 +138,7 @@ class FilesTab {
     constructor(session) {
         this.session = session;
         this.label = 'Files';
+        this.badge = null;
         this.pane = el('div', {className: 'pane files-pane', hidden: true});
         session.container.append(this.pane);
         this.view = null;
@@ -134,6 +187,11 @@ class SessionUI {
 
     dotClass() {
         return this.data.error ? 'error' : this.remoteState;
+    }
+
+    badge() {
+        const b = this.tabs.map(t => t.badge);
+        return b.includes('bell') ? 'bell' : b.includes('activity') ? 'activity' : null;
     }
 
     show() {
@@ -198,6 +256,10 @@ const app = {
             if (!$('#menu').contains(e.target)) hideMenu();
         });
         window.addEventListener('blur', hideMenu);
+        window.addEventListener('focus', () => {
+            const t = this.active?.tabs[this.active.activeTab];
+            t?.setBadge?.(null);
+        });
         $('#btn-new').onclick = () => sessionDialog();
         $('#btn-add-host').onclick = () => hostDialog();
     },
@@ -292,6 +354,7 @@ const app = {
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
                 el('div', {className: 'sub', textContent: '‎' + d.local_path})),
+            el('span', {className: 'badge'}),
             n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
             more);
         item.dataset.id = d.id;
@@ -308,7 +371,28 @@ const app = {
         };
         enableDrag(item);
         s.item = item;
+        this.renderBadges(s);
         return item;
+    },
+
+    // renderBadges updates a session's sidebar badge, its tab badges when it
+    // is the active session, and the window title.
+    renderBadges(s) {
+        const b = s.badge();
+        const badgeEl = s.item?.querySelector(".badge");
+        if (badgeEl) badgeEl.className = 'badge' + (b ? ' ' + b : '');
+        if (s === this.active) {
+            $('#tabs').querySelectorAll('button').forEach((btn, i) => {
+                btn.classList.toggle('bell', s.tabs[i].badge === 'bell');
+                btn.classList.toggle('activity', s.tabs[i].badge === 'activity');
+            });
+        }
+        const n = [...this.sessions.values()].filter(x => x.badge()).length;
+        const title = n ? `(${n}) Session Workbench` : 'Session Workbench';
+        if (title !== this.title) {
+            this.title = title;
+            WindowSetTitle(title);
+        }
     },
 
     renderDot(s) {
@@ -338,6 +422,7 @@ const app = {
             b.onclick = () => this.selectTab(i);
             return b;
         }));
+        this.renderBadges(s);
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
         const host = this.state.hosts.find(h => h.name === d.host);

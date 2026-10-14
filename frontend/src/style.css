@@ -797,3 +797,42 @@ dialog.switcher input {
 .switch-empty {
     padding: 8px 10px;
 }
+
+/* --- activity badges --- */
+
+.session .badge {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.session .badge.activity {
+    border: 2px solid var(--accent);
+    width: 4px;
+    height: 4px;
+}
+
+.session .badge.bell {
+    background: var(--warn);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 30%, transparent);
+}
+
+.session:has(.badge.bell) .name {
+    font-weight: 600;
+}
+
+#tabs button.activity::after, #tabs button.bell::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 6px;
+    border-radius: 50%;
+    vertical-align: middle;
+    background: var(--accent);
+}
+
+#tabs button.bell::after {
+    background: var(--warn);
+}
