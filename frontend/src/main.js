@@ -255,6 +255,11 @@ const app = {
     async reload() {
         this.state = await State();
         applyTheme(this.state.ui.theme);
+        // The Files tree uses the terminal font too.
+        const root = document.documentElement.style;
+        root.setProperty('--mono-size', `${this.state.ui.font_size || 13}px`);
+        if (this.state.ui.font_family) root.setProperty('--mono-family', this.state.ui.font_family);
+        else root.removeProperty('--mono-family');
         keymap = buildKeymap(this.state.keys, isMac);
         const seen = new Set();
         for (const d of this.state.sessions) {
