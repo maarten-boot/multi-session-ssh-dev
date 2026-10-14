@@ -9,7 +9,7 @@ Status: M1 — single local terminal.
 
 ## Build
 
-Requirements: Go 1.25+, Node/npm, Wails CLI v2.16
+Requirements: Go 1.25+, Node 18+ with npm, Wails CLI v2.16
 (`go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0`).
 
 Linux also needs `libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config`.

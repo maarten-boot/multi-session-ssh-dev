@@ -6,7 +6,7 @@ set -u
 MODE=${1:-check}
 WAILS_VERSION=v2.16.0
 GO_MIN=1.25
-NODE_MIN=20.19 # vite 7
+NODE_MIN=18.0 # vite 6 (Ubuntu 24.04 ships 18.19)
 
 missing=()   # human-readable list
 pkgs=()      # system packages to install

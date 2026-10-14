@@ -11,9 +11,9 @@ t() { xdotool type --delay 15 "$1"; xdotool key Return; sleep ${2:-0.8}; }
 t 'printf "\e[1;31mred \e[32mgreen \e[38;2;255;128;0mtruecolor\e[0m  utf8: héllo ✓ 日本\n"; stty size'
 t 'ls --color=always /'
 import -window root $OUT/1-colors.png
-t 'vi /etc/hostname' 1.5
+t 'vi /etc/hostname' 2.5
 import -window root $OUT/2-vi.png
-xdotool type ':q'; xdotool key Return; sleep 0.5
+xdotool key Escape; sleep 0.3; xdotool type ':qa!'; xdotool key Return; sleep 1
 xdotool windowsize $W 800 500; sleep 1.5
 t 'clear; stty size'
 import -window root $OUT/3-resized.png
