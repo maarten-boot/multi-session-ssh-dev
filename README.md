@@ -14,9 +14,11 @@ Requirements: Go 1.25+, Node/npm, Wails CLI v2.16
 
 Linux also needs `libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config`.
 (`wails doctor` falsely reports libwebkit missing on systems that only ship
-webkit2gtk-4.1; the Makefile passes `-tags webkit2_41`.)
+webkit2gtk-4.1; the Makefile adds `-tags webkit2_41` when 4.1 is present.)
 
 ```
+make check   # list missing build requirements
+make deps    # install them (system packages via sudo, wails via go install)
 make build   # → build/bin/session-workbench
 make dev     # live-reload dev mode
 make test    # Go unit tests (race detector)

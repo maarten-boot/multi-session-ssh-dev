@@ -1,16 +1,23 @@
-WAILS ?= $(shell command -v wails || echo $(HOME)/go/bin/wails)
+# Run `make check` to see what is missing, `make deps` to install it.
+WAILS ?= $(shell command -v wails || echo $$(go env GOPATH 2>/dev/null)/bin/wails)
 
-# Ubuntu 24.04+ / Debian 13+ only ship webkit2gtk-4.1.
+# Ubuntu 24.04+ / Debian 13+ only ship webkit2gtk-4.1; older systems use 4.0.
 ifeq ($(shell uname -s),Linux)
-TAGS ?= webkit2_41
+TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: dev build test vet clean smoke
+.PHONY: check deps dev build test vet clean smoke
 
-dev:
+check:
+	@scripts/deps.sh check
+
+deps:
+	@scripts/deps.sh install
+
+dev: check
 	$(WAILS) dev -tags "$(TAGS)"
 
-build:
+build: check
 	$(WAILS) build -tags "$(TAGS)"
 
 test:
