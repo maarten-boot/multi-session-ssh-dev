@@ -105,7 +105,17 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - T1. xterm.js with fit, web-links, search, unicode11 addons; true color; scrollback configurable
   (default 10 000).
 - T2. Copy on select (optional), Ctrl+Shift+C/V copy/paste (Cmd+C/V on macOS), clickable URLs.
-- T3. Font family/size, theme (light/dark), configurable globally.
+- T3. Font family/size, theme (light/dark), configurable globally. The light theme is black text
+  on a white background (the primary user's preference) and must stay readable with programs
+  that assume a dark background:
+  - `color_mode = "full"` — ANSI colors as sent, but with a minimum contrast against the
+    background (xterm.js `minimumContrastRatio`, default ~4.5), so yellow/light green on white
+    get darkened instead of vanishing.
+  - `color_mode = "mono"` — no coloring at all: every foreground rendered in the theme's text
+    color (contrast ratio 21), including 256-color and truecolor output; bold/underline/inverse
+    still shown.
+  - Configurable globally, overridable per session; switchable at runtime without restarting
+    the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
 
 ### 4.6 Keyboard

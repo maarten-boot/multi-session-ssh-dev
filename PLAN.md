@@ -31,7 +31,9 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
 ## M5 — Keyboard + polish (1 day)
 - Keybinding layer (configurable, per-OS defaults), quick switcher.
 - Bell/activity badges; disconnect overlay + reconnect; kill remote session.
-- Theme/font settings.
+- Theme/font settings: light theme (black on white) + dark; `color_mode` full (with
+  minimum-contrast correction) / mono (no colors), global + per-session, live switch (SPEC T3).
+  App chrome (sidebar, dialogs) follows the theme too.
 
 ## M6 — Cross-platform (1–2 days)
 - Windows: ConPTY, pwsh default, path mapping, `start`. macOS: Cmd bindings, `open`.
