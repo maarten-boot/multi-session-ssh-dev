@@ -32,7 +32,6 @@ SSH_TARGET ?= localhost
 test-ssh:
 	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run SSH -v ./internal/remote
 
-
 vet:
 	go vet ./internal/...
 	GOOS=windows go vet ./internal/...
