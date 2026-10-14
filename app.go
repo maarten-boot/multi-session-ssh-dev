@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"session-workbench/internal/config"
+	"session-workbench/internal/fsbrowse"
+	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
 	"session-workbench/internal/terminal"
@@ -85,6 +88,75 @@ func (a *App) BrowseDirectory(start string) (string, error) {
 		DefaultDirectory:     start,
 		CanCreateDirectories: true,
 	})
+}
+
+// --- files ---
+
+// localRoot returns the session's local directory; Files works even when
+// the session's remote side is misconfigured.
+func (a *App) localRoot(id string) (session.Resolved, error) {
+	r, err := a.sessions.Resolve(id)
+	if r.ID == "" {
+		return r, err
+	}
+	return r, nil
+}
+
+func (a *App) ListDir(id, rel string, showHidden bool) (fsbrowse.Listing, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return fsbrowse.Listing{}, err
+	}
+	return fsbrowse.List(r.LocalPath, rel, showHidden)
+}
+
+// OpenPath opens a file with its default application (a directory in the
+// file manager); executables are refused.
+func (a *App) OpenPath(id, rel string) error {
+	p, err := a.nativePath(id, rel)
+	if err != nil {
+		return err
+	}
+	return opener.Open(p)
+}
+
+// RevealPath shows the item in the OS file manager.
+func (a *App) RevealPath(id, rel string) error {
+	p, err := a.nativePath(id, rel)
+	if err != nil {
+		return err
+	}
+	return opener.Reveal(p)
+}
+
+func (a *App) nativePath(id, rel string) (string, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return "", err
+	}
+	return fsbrowse.Resolve(r.LocalPath, rel)
+}
+
+// Paths is an item's path on both machines, for "copy path".
+type Paths struct {
+	Local  string `json:"local"`
+	Remote string `json:"remote"` // empty if the session has no valid mapping
+}
+
+func (a *App) ItemPaths(id, rel string) (Paths, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return Paths{}, err
+	}
+	local, err := fsbrowse.Resolve(r.LocalPath, rel)
+	if err != nil {
+		return Paths{}, err
+	}
+	p := Paths{Local: local}
+	if r.RemotePath != "" {
+		p.Remote = path.Join(r.RemotePath, path.Clean("/"+rel))
+	}
+	return p, nil
 }
 
 // --- terminals ---

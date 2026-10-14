@@ -6,7 +6,7 @@ ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions
+.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions smoke-files
 
 check:
 	@scripts/deps.sh check
@@ -46,6 +46,8 @@ clean:
 # smoke: terminal fidelity in a Local tab.
 # smoke-sessions: sidebar, dialogs, switching, menus, restart; needs
 #   `ssh localhost` without prompts and tmux.
+# smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
+#   fake xdg-open.
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -54,3 +56,6 @@ smoke: build
 smoke-sessions: build
 	$(XVFB) scripts/gui-smoke-sessions.sh build/bin/session-workbench $(SMOKE_OUT)-sessions
 	$(XVFB) scripts/gui-smoke-hosts.sh build/bin/session-workbench $(SMOKE_OUT)-hosts
+
+smoke-files: build
+	$(XVFB) scripts/gui-smoke-files.sh build/bin/session-workbench $(SMOKE_OUT)-files

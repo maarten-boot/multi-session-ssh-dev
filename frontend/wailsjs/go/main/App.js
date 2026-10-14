@@ -18,16 +18,32 @@ export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
 
+export function ItemPaths(arg1, arg2) {
+  return window['go']['main']['App']['ItemPaths'](arg1, arg2);
+}
+
 export function KillRemote(arg1) {
   return window['go']['main']['App']['KillRemote'](arg1);
+}
+
+export function ListDir(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListDir'](arg1, arg2, arg3);
 }
 
 export function MoveSession(arg1, arg2) {
   return window['go']['main']['App']['MoveSession'](arg1, arg2);
 }
 
+export function OpenPath(arg1, arg2) {
+  return window['go']['main']['App']['OpenPath'](arg1, arg2);
+}
+
 export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
+}
+
+export function RevealPath(arg1, arg2) {
+  return window['go']['main']['App']['RevealPath'](arg1, arg2);
 }
 
 export function SaveHost(arg1, arg2) {

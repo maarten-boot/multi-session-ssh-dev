@@ -1,34 +1,12 @@
 import './style.css';
 
 import {isMac, TermView} from './terminal';
+import {FilesView} from './files';
+import {$, el, hideMenu, showMenu, store} from './ui';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, StartLocal, StartRemote, State, UpdateSession,
 } from '../wailsjs/go/main/App';
-
-const $ = sel => document.querySelector(sel);
-const el = (tag, props = {}, ...children) => {
-    const e = Object.assign(document.createElement(tag), props);
-    e.append(...children);
-    return e;
-};
-
-// Small per-machine UI memory (last session, collapsed groups). Optional.
-const store = {
-    get(k, d) {
-        try {
-            return JSON.parse(localStorage.getItem('sw:' + k)) ?? d;
-        } catch {
-            return d;
-        }
-    },
-    set(k, v) {
-        try {
-            localStorage.setItem('sw:' + k, JSON.stringify(v));
-        } catch {
-        }
-    },
-};
 
 // ---------------------------------------------------------------- keyboard
 
@@ -98,6 +76,32 @@ class Tab {
     }
 }
 
+// FilesTab hosts the session's file tree; it refreshes whenever shown.
+class FilesTab {
+    constructor(session) {
+        this.session = session;
+        this.label = 'Files';
+        this.pane = el('div', {className: 'pane files-pane', hidden: true});
+        session.container.append(this.pane);
+        this.view = null;
+    }
+
+    show() {
+        this.pane.hidden = false;
+        if (!this.view) this.view = new FilesView(this.pane, this.session);
+        else this.view.refresh();
+        this.view.focus();
+    }
+
+    hide() {
+        this.pane.hidden = true;
+    }
+
+    dispose() {
+        this.pane.remove();
+    }
+}
+
 class SessionUI {
     constructor(data) {
         this.data = data;
@@ -109,6 +113,7 @@ class SessionUI {
                 {what: 'ssh', again: 'reconnect'}, s => this.setRemoteState(s)),
             new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
                 {what: 'shell', again: 'restart'}),
+            new FilesTab(this),
         ];
         this.activeTab = 0;
     }
@@ -262,7 +267,7 @@ const app = {
     sessionItem(s, n) {
         const d = s.data;
         const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Session actions'});
-        const item = el('div', {className: 'session', draggable: true, title: d.error || d.local_path},
+        const item = el('div', {className: 'session', draggable: true},
             el('span', {className: 'dot ' + s.dotClass()}),
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
@@ -440,27 +445,6 @@ function moveBy(s, delta) {
 }
 
 // ---------------------------------------------------------------- menus
-
-function showMenu(x, y, items) {
-    const m = $('#menu');
-    m.replaceChildren(...items.map(it => {
-        if (it === '-') return el('hr');
-        const b = el('button', {textContent: it.label, className: it.danger ? 'danger' : '', disabled: !!it.disabled});
-        b.onclick = () => {
-            hideMenu();
-            it.action();
-        };
-        return b;
-    }));
-    m.hidden = false;
-    const r = m.getBoundingClientRect();
-    m.style.left = Math.min(x, innerWidth - r.width - 4) + 'px';
-    m.style.top = Math.min(y, innerHeight - r.height - 4) + 'px';
-}
-
-function hideMenu() {
-    $('#menu').hidden = true;
-}
 
 function sessionMenu(s, x, y) {
     showMenu(x, y, [

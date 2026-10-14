@@ -23,7 +23,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
   under workspace roots, start mode).
 - Done when: 5+ sessions persist across restarts and switching is instant.
 
-## M4 — Files tab (1 day)
+## M4 — Files tab (1 day) ✅
 - `internal/fsbrowse`: lazy ListDir (sorted, dirs first, hidden filter).
 - `internal/opener`: xdg-open / open / start; refuse executables.
 - Frontend tree, context menu (open, reveal, copy local/remote path, refresh).

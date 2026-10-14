@@ -5,8 +5,8 @@ is bound to a repository directory and has a **Remote** terminal (ssh → tmux �
 claude on the isolated agent host), a **Local** terminal (host shell for git),
 and a **Files** tab. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
-Status: M3 — multiple sessions with a sidebar, persisted in a config file.
-Next: Files tab (M4), keyboard/polish (M5), cross-platform CI (M6).
+Status: M4 — sessions with Remote, Local and Files tabs.
+Next: keyboard/polish incl. light theme and color modes (M5), cross-platform CI (M6).
 
 ## Build
 
@@ -28,6 +28,7 @@ make test-ssh SSH_TARGET=localhost  # ssh/tmux round trip against a real host
 make vet     # vet for linux, windows, darwin
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
+make smoke-files     # headless GUI test of the Files tab
 ```
 
 ## Usage
@@ -47,12 +48,19 @@ a name, and what a new remote tmux session starts with (`claude`,
   directory. It survives closing the app and lost connections; Enter reconnects.
   When claude exits you get a shell.
 - **Local** (Ctrl+Shift+2): your shell in the directory.
+- **Files** (Ctrl+Shift+3): the directory as a tree, refreshed whenever you
+  switch to it. Double-click or Enter opens a file with its default application
+  (directories expand); arrow keys navigate, F5 refreshes. Right-click to open
+  the containing folder, copy the local or remote path, or refresh. Dotfiles
+  (including `.git`) are hidden unless "Hidden files" is ticked. Programs and
+  files the OS would execute rather than open (`.exe`, `.bat`, `.desktop`,
+  `.app`, ELF/Mach-O binaries, …) are refused.
 
 | Keys (Linux/Windows) | macOS | Action |
 |---|---|---|
 | Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session |
 | Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) |
-| Ctrl+Shift+1 / 2 | ⇧⌘1 / 2 | Remote / Local tab |
+| Ctrl+Shift+1 / 2 / 3 | ⇧⌘1 / 2 / 3 | Remote / Local / Files tab |
 | Ctrl+Shift+N | ⇧⌘N | new session |
 | Ctrl+Shift+C / V | ⌘C / V | copy / paste |
 
@@ -109,6 +117,8 @@ internal/pathmap       host path -> agent-host path
 internal/remote        ssh/tmux command lines (quoting, forced options)
 internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
-frontend/src           vanilla JS UI (main.js app, terminal.js xterm.js view)
+internal/fsbrowse      directory listing for the Files tab
+internal/opener        open / reveal with the OS, refusing executables
+frontend/src           vanilla JS UI (main.js app, terminal.js, files.js, ui.js)
 scripts/gui-smoke*.sh  headless GUI test drivers
 ```

@@ -534,3 +534,130 @@ button.danger {
     position: absolute;
     inset: 0;
 }
+
+/* --- files tab --- */
+
+.pane.files-pane {
+    padding: 0;
+}
+
+.files {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.files-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 8px 4px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.files-root {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+}
+
+.files-hidden {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tree {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+    outline: none;
+    font: 13px "DejaVu Sans Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+.tree .row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding-right: 12px;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+}
+
+.tree .row:hover {
+    background: var(--panel-2);
+}
+
+.tree .row.selected {
+    background: #37373d;
+}
+
+.tree:focus .row.selected {
+    background: #04395e;
+}
+
+.tree .caret {
+    flex: none;
+    width: 14px;
+    color: var(--muted);
+    text-align: center;
+    cursor: pointer;
+}
+
+.tree .row.dir .name {
+    color: #9cdcfe;
+}
+
+.tree .row.hidden-entry .name {
+    opacity: 0.6;
+}
+
+.tree .row.symlink .name {
+    font-style: italic;
+}
+
+.tree .row.note .name {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.tree .row.error .name {
+    color: var(--danger);
+}
+
+.tree .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree .size {
+    margin-left: auto;
+    padding-left: 16px;
+    color: #777;
+    font-size: 11px;
+}
+
+.files-status {
+    min-height: 18px;
+    padding: 3px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.files-status.bad {
+    color: var(--danger);
+}
