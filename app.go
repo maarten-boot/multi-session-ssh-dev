@@ -57,8 +57,12 @@ func (a *App) CreateSession(in session.NewSession) (session.View, error) {
 	return a.sessions.Create(in)
 }
 
-func (a *App) UpdateSession(id, name, startMode string) error {
-	return a.sessions.Update(id, name, startMode)
+func (a *App) UpdateSession(id, name, startMode, colorMode string) error {
+	return a.sessions.Update(id, name, startMode, colorMode)
+}
+
+func (a *App) SaveUI(ui config.UI) error {
+	return a.sessions.SaveUI(ui)
 }
 
 func (a *App) DeleteSession(id string) error {

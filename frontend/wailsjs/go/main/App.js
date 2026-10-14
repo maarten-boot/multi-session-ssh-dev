@@ -50,6 +50,10 @@ export function SaveHost(arg1, arg2) {
   return window['go']['main']['App']['SaveHost'](arg1, arg2);
 }
 
+export function SaveUI(arg1) {
+  return window['go']['main']['App']['SaveUI'](arg1);
+}
+
 export function StartLocal(arg1, arg2, arg3) {
   return window['go']['main']['App']['StartLocal'](arg1, arg2, arg3);
 }
@@ -74,6 +78,6 @@ export function TermWrite(arg1, arg2) {
   return window['go']['main']['App']['TermWrite'](arg1, arg2);
 }
 
-export function UpdateSession(arg1, arg2, arg3) {
-  return window['go']['main']['App']['UpdateSession'](arg1, arg2, arg3);
+export function UpdateSession(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateSession'](arg1, arg2, arg3, arg4);
 }

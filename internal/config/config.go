@@ -30,6 +30,7 @@ type Session struct {
 	StartMode string            `toml:"start_mode" json:"start_mode"`
 	Env       map[string]string `toml:"env,omitempty" json:"env"`               // extra env for the Local tab
 	LocalInit string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
+	ColorMode string            `toml:"color_mode,omitempty" json:"color_mode"` // "" = UI.ColorMode
 }
 
 // Local configures the Local tab's shell; empty means the OS default.
@@ -45,6 +46,17 @@ type UI struct {
 	// ConnectOnStart: "lazy" connects a session's Remote tab when first
 	// viewed, "eager" connects every session at startup.
 	ConnectOnStart string `toml:"connect_on_start,omitempty" json:"connect_on_start"`
+	// Theme is "light" (black on white) or "dark".
+	Theme string `toml:"theme,omitempty" json:"theme"`
+	// ColorMode is "full" (program colors, corrected to MinContrast against
+	// the background) or "mono" (no colors at all).
+	ColorMode   string  `toml:"color_mode,omitempty" json:"color_mode"`
+	MinContrast float64 `toml:"min_contrast,omitempty" json:"min_contrast"` // 1 (off) .. 21
+	// AutoReconnect retries a dropped Remote connection with backoff.
+	AutoReconnect *bool `toml:"auto_reconnect,omitempty" json:"auto_reconnect"`
+	// ActivityBadges marks sessions whose hidden terminals ring the bell or
+	// start producing output after being idle.
+	ActivityBadges *bool `toml:"activity_badges,omitempty" json:"activity_badges"`
 }
 
 type Config struct {
@@ -53,6 +65,9 @@ type Config struct {
 	Local          Local     `toml:"local" json:"local"`
 	Hosts          []Host    `toml:"hosts" json:"hosts"`
 	Sessions       []Session `toml:"sessions" json:"sessions"`
+	// Keys overrides keyboard shortcuts: action name -> key, e.g.
+	// next_session = "Ctrl+Shift+PageDown". See the README for actions.
+	Keys map[string]string `toml:"keys,omitempty" json:"keys"`
 }
 
 // Default returns the configuration used when no file exists.
@@ -72,6 +87,42 @@ func (c *Config) applyDefaults() {
 	if c.UI.ConnectOnStart != "eager" {
 		c.UI.ConnectOnStart = "lazy"
 	}
+	if c.UI.Theme != "dark" {
+		c.UI.Theme = "light"
+	}
+	if c.UI.ColorMode != "mono" {
+		c.UI.ColorMode = "full"
+	}
+	if c.UI.MinContrast < 1 || c.UI.MinContrast > 21 {
+		c.UI.MinContrast = 4.5
+	}
+	if c.UI.AutoReconnect == nil {
+		c.UI.AutoReconnect = ptr(true)
+	}
+	if c.UI.ActivityBadges == nil {
+		c.UI.ActivityBadges = ptr(true)
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// ValidateUI checks UI settings coming from the settings dialog.
+func ValidateUI(u UI) error {
+	switch {
+	case u.Theme != "light" && u.Theme != "dark":
+		return fmt.Errorf("unknown theme %q", u.Theme)
+	case u.ColorMode != "full" && u.ColorMode != "mono":
+		return fmt.Errorf("unknown color mode %q", u.ColorMode)
+	case u.MinContrast < 1 || u.MinContrast > 21:
+		return fmt.Errorf("minimum contrast must be between 1 and 21")
+	case u.FontSize < 6 || u.FontSize > 48:
+		return fmt.Errorf("font size must be between 6 and 48")
+	case u.Scrollback < 0 || u.Scrollback > 1000000:
+		return fmt.Errorf("scrollback must be between 0 and 1000000 lines")
+	case u.ConnectOnStart != "lazy" && u.ConnectOnStart != "eager":
+		return fmt.Errorf("unknown connect_on_start %q", u.ConnectOnStart)
+	}
+	return nil
 }
 
 // DefaultPath is <user config dir>/session-workbench/config.toml:

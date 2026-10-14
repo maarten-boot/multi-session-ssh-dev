@@ -25,6 +25,7 @@ run: build
 
 test:
 	go test -race ./...
+	cd frontend && npm test --silent
 
 # Round trip against a real agent host (needs key auth and tmux there, and
 # the same /tmp path visible on both sides, e.g. localhost).

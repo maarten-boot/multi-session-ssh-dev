@@ -16,7 +16,9 @@ func TestMissingFileGivesDefaults(t *testing.T) {
 	if !reflect.DeepEqual(c, Default()) {
 		t.Errorf("got %+v", c)
 	}
-	if c.UI.FontSize != 13 || c.UI.Scrollback != 10000 || c.UI.ConnectOnStart != "lazy" {
+	if c.UI.FontSize != 13 || c.UI.Scrollback != 10000 || c.UI.ConnectOnStart != "lazy" ||
+		c.UI.Theme != "light" || c.UI.ColorMode != "full" || c.UI.MinContrast != 4.5 ||
+		!*c.UI.AutoReconnect || !*c.UI.ActivityBadges {
 		t.Errorf("defaults not applied: %+v", c.UI)
 	}
 }
@@ -26,6 +28,11 @@ func TestRoundTrip(t *testing.T) {
 	want := Default()
 	want.WorkspaceRoots = []string{"/home/u/share/DEV"}
 	want.UI.FontFamily = "Iosevka"
+	want.UI.Theme = "dark"
+	want.UI.ColorMode = "mono"
+	want.UI.MinContrast = 7
+	want.UI.AutoReconnect = ptr(false)
+	want.Keys = map[string]string{"next_session": "Ctrl+Tab"}
 	want.Local = Local{Shell: "/bin/zsh", Args: []string{"-l"}}
 	want.Hosts = []Host{
 		{Name: "vibe", SSHTarget: "u@vibe", LocalPrefix: "/home/u/share", RemotePrefix: "/net/h/home/u/share"},
@@ -34,7 +41,7 @@ func TestRoundTrip(t *testing.T) {
 	want.Sessions = []Session{
 		{ID: "s-0001", Name: `it's "quoted"`, Host: "vibe", LocalPath: "/home/u/share/a b", StartMode: "claude",
 			Env: map[string]string{"FOO": "bar"}, LocalInit: "git status"},
-		{ID: "s-0002", Name: "lab one", Host: "lab", LocalPath: `C:\Users\u\x`, StartMode: "shell"},
+		{ID: "s-0002", Name: "lab one", Host: "lab", LocalPath: `C:\Users\u\x`, StartMode: "shell", ColorMode: "full"},
 	}
 	if err := Save(path, want); err != nil {
 		t.Fatal(err)
@@ -114,5 +121,26 @@ start_mode = "claude-continue"
 	}
 	if len(c.Hosts) != 1 || c.Hosts[0].SSHTarget != "mboot@vibe-u26" || len(c.Sessions) != 1 || c.Sessions[0].StartMode != "claude-continue" {
 		t.Errorf("parsed %+v", c)
+	}
+}
+
+func TestValidateUI(t *testing.T) {
+	ok := Default().UI
+	if err := ValidateUI(ok); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*UI){
+		"theme":    func(u *UI) { u.Theme = "blue" },
+		"mode":     func(u *UI) { u.ColorMode = "gray" },
+		"contrast": func(u *UI) { u.MinContrast = 30 },
+		"font":     func(u *UI) { u.FontSize = 2 },
+		"scroll":   func(u *UI) { u.Scrollback = -1 },
+		"connect":  func(u *UI) { u.ConnectOnStart = "now" },
+	} {
+		u := ok
+		mut(&u)
+		if ValidateUI(u) == nil {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }

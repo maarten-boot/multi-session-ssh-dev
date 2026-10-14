@@ -1,16 +1,62 @@
-:root {
+:root, :root[data-theme="dark"] {
     color-scheme: dark; /* native controls (select popups, scrollbars) */
     --bg: #1e1e1e;
     --panel: #252526;
     --panel-2: #2d2d30;
     --border: #333;
+    --border-strong: #454545;
     --text: #ccc;
     --text-strong: #eee;
     --muted: #888;
+    --faint: #6a6a6a;
     --accent: #3794ff;
     --danger: #f48771;
+    --danger-bg: #5a1d1d;
+    --danger-text: #f8c4bb;
     --ok: #4ec970;
     --warn: #e5a03b;
+    --dot-idle: #555;
+    --selected: #37373d;
+    --focus-selected: #04395e;
+    --menu-bg: #252526;
+    --input-bg: #3c3c3c;
+    --btn-bg: #3a3a3a;
+    --btn-border: #4a4a4a;
+    --btn-hover: #454545;
+    --dir: #9cdcfe;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --backdrop: rgba(0, 0, 0, 0.45);
+}
+
+/* Light: black on white, chrome in light greys (SPEC T3). */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #f3f3f3;
+    --panel-2: #e8e8e8;
+    --border: #d4d4d4;
+    --border-strong: #c0c0c0;
+    --text: #1f1f1f;
+    --text-strong: #000000;
+    --muted: #5f5f5f;
+    --faint: #8a8a8a;
+    --accent: #005fb8;
+    --danger: #b3261e;
+    --danger-bg: #fde7e6;
+    --danger-text: #8c1d18;
+    --ok: #1e8e3e;
+    --warn: #b06000;
+    --dot-idle: #b5b5b5;
+    --selected: #dcdcdc;
+    --focus-selected: #cce4ff;
+    --menu-bg: #ffffff;
+    --input-bg: #ffffff;
+    --btn-bg: #f5f5f5;
+    --btn-border: #c4c4c4;
+    --btn-hover: #e6e6e6;
+    --dir: #0451a5;
+    --shadow: rgba(0, 0, 0, 0.18);
+    --backdrop: rgba(0, 0, 0, 0.25);
 }
 
 html, body {
@@ -88,8 +134,8 @@ button.link:hover {
     margin: 8px;
     padding: 8px;
     border-radius: 4px;
-    background: #5a1d1d;
-    color: #f8c4bb;
+    background: var(--danger-bg);
+    color: var(--danger-text);
     font-size: 12px;
     word-break: break-word;
 }
@@ -172,7 +218,7 @@ button.link:hover {
 }
 
 .session.active {
-    background: #37373d;
+    background: var(--selected);
     border-left-color: var(--accent);
 }
 
@@ -189,7 +235,7 @@ button.link:hover {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #555;
+    background: var(--dot-idle);
 }
 
 .session .dot.connected {
@@ -227,7 +273,7 @@ button.link:hover {
 }
 
 .session .num {
-    color: #666;
+    color: var(--faint);
     font-size: 11px;
 }
 
@@ -266,23 +312,23 @@ button.link:hover {
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #999;
+    color: var(--muted);
     padding: 8px 12px 6px;
     cursor: pointer;
 }
 
 #tabs button:hover {
-    color: #ddd;
+    color: var(--text-strong);
 }
 
 #tabs button.active {
-    color: #fff;
+    color: var(--text-strong);
     border-bottom-color: var(--accent);
 }
 
 #tabs kbd {
     font: 11px system-ui, sans-serif;
-    color: #777;
+    color: var(--faint);
     margin-left: 6px;
 }
 
@@ -331,10 +377,10 @@ button.link:hover {
     z-index: 10;
     min-width: 180px;
     padding: 4px 0;
-    background: #252526;
-    border: 1px solid #454545;
+    background: var(--menu-bg);
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 16px var(--shadow);
 }
 
 .menu button {
@@ -348,7 +394,7 @@ button.link:hover {
 }
 
 .menu button:hover {
-    background: #04395e;
+    background: var(--focus-selected);
 }
 
 .menu button.danger {
@@ -358,18 +404,18 @@ button.link:hover {
 }
 
 .menu button.danger:hover {
-    background: #5a1d1d;
+    background: var(--danger-bg);
 }
 
 .menu button:disabled {
-    color: #666;
+    color: var(--faint);
     background: none;
     cursor: default;
 }
 
 .menu hr {
     border: none;
-    border-top: 1px solid #454545;
+    border-top: 1px solid var(--border-strong);
     margin: 4px 0;
 }
 
@@ -378,15 +424,15 @@ button.link:hover {
 dialog {
     background: var(--panel);
     color: var(--text);
-    border: 1px solid #454545;
+    border: 1px solid var(--border-strong);
     border-radius: 8px;
     padding: 18px 20px;
     width: 480px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 32px var(--shadow);
 }
 
 dialog::backdrop {
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--backdrop);
 }
 
 dialog h2 {
@@ -416,9 +462,9 @@ dialog input:not([type]), dialog select {
     width: 100%;
     margin-top: 4px;
     padding: 6px 8px;
-    background: #3c3c3c;
+    background-color: var(--input-bg);
     color: var(--text-strong);
-    border: 1px solid #3c3c3c;
+    border: 1px solid var(--btn-border);
     border-radius: 4px;
     font: 13px system-ui, sans-serif;
 }
@@ -426,14 +472,14 @@ dialog input:not([type]), dialog select {
 dialog select {
     appearance: none;
     padding-right: 28px;
-    background-image: linear-gradient(45deg, transparent 50%, #aaa 50%), linear-gradient(135deg, #aaa 50%, transparent 50%);
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
     background-position: right 14px center, right 9px center;
     background-size: 5px 5px;
     background-repeat: no-repeat;
 }
 
 dialog select option {
-    background: #3c3c3c;
+    background: var(--input-bg);
     color: var(--text-strong);
 }
 
@@ -500,13 +546,13 @@ dialog .buttons {
 dialog button, #empty button {
     padding: 6px 14px;
     border-radius: 4px;
-    border: 1px solid #4a4a4a;
-    background: #3a3a3a;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
     cursor: pointer;
 }
 
 dialog button:hover {
-    background: #454545;
+    background: var(--btn-hover);
 }
 
 button.primary {
@@ -599,11 +645,11 @@ button.danger {
 }
 
 .tree .row.selected {
-    background: #37373d;
+    background: var(--selected);
 }
 
 .tree:focus .row.selected {
-    background: #04395e;
+    background: var(--focus-selected);
 }
 
 .tree .caret {
@@ -615,7 +661,7 @@ button.danger {
 }
 
 .tree .row.dir .name {
-    color: #9cdcfe;
+    color: var(--dir);
 }
 
 .tree .row.hidden-entry .name {
@@ -643,7 +689,7 @@ button.danger {
 .tree .size {
     margin-left: auto;
     padding-left: 16px;
-    color: #777;
+    color: var(--faint);
     font-size: 11px;
 }
 

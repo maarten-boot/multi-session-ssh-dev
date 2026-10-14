@@ -79,6 +79,7 @@ func TestCreateValidation(t *testing.T) {
 		"outside":      {Host: "h", LocalPath: outside},
 		"unknown host": {Host: "nope", LocalPath: dir},
 		"bad mode":     {Host: "h", LocalPath: dir, StartMode: "vim"},
+		"bad colors":   {Host: "h", LocalPath: dir, ColorMode: "sepia"},
 		"duplicate":    {Host: "h", LocalPath: dir + "/."},
 	} {
 		if _, err := m.Create(in); err == nil {
@@ -148,14 +149,17 @@ func TestUpdateMoveDelete(t *testing.T) {
 		t.Error("moved unknown session")
 	}
 
-	if err := m.Update(c, "  renamed ", "shell"); err != nil {
+	if err := m.Update(c, "  renamed ", "shell", "mono"); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Update(c, " ", "shell"); err == nil {
+	if err := m.Update(c, " ", "shell", ""); err == nil {
 		t.Error("empty name accepted")
 	}
-	if err := m.Update(c, "x", "bogus"); err == nil {
+	if err := m.Update(c, "x", "bogus", ""); err == nil {
 		t.Error("bad mode accepted")
+	}
+	if err := m.Update(c, "x", "shell", "sepia"); err == nil {
+		t.Error("bad color mode accepted")
 	}
 	if err := m.Delete(b); err != nil {
 		t.Fatal(err)
@@ -165,7 +169,7 @@ func TestUpdateMoveDelete(t *testing.T) {
 	if got, want := ids(&Manager{cfg: mustLoad(t, cfgPath)}), []string{d, c, a}; !slices.Equal(got, want) {
 		t.Errorf("persisted order %v, want %v", got, want)
 	}
-	if st.Sessions[1].Name != "renamed" || st.Sessions[1].StartMode != "shell" {
+	if st.Sessions[1].Name != "renamed" || st.Sessions[1].StartMode != "shell" || st.Sessions[1].ColorMode != "mono" {
 		t.Errorf("update not persisted: %+v", st.Sessions[1])
 	}
 }
@@ -286,5 +290,27 @@ func TestExpandHome(t *testing.T) {
 		if got := ExpandHome(in); got != want {
 			t.Errorf("ExpandHome(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestSaveUI(t *testing.T) {
+	m, _, cfgPath := setup(t)
+	ui := m.State().UI
+	ui.Theme = "dark"
+	ui.ColorMode = "mono"
+	if err := m.SaveUI(ui); err != nil {
+		t.Fatal(err)
+	}
+	if got := Open(cfgPath).State().UI; got.Theme != "dark" || got.ColorMode != "mono" {
+		t.Errorf("not persisted: %+v", got)
+	}
+	ui.Theme = "neon"
+	if err := m.SaveUI(ui); err == nil {
+		t.Error("invalid theme accepted")
+	}
+	ui.Theme = "light"
+	ui.AutoReconnect = nil
+	if err := m.SaveUI(ui); err == nil {
+		t.Error("nil bool accepted")
 	}
 }

@@ -31,6 +31,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "warning:", err)
 	}
 	app := NewApp(sessions)
+	bg := &options.RGBA{R: 255, G: 255, B: 255, A: 1}
+	if sessions.Config().UI.Theme == "dark" {
+		bg = &options.RGBA{R: 30, G: 30, B: 30, A: 1}
+	}
 
 	err = wails.Run(&options.App{
 		Title:  "Session Workbench",
@@ -39,7 +43,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 30, A: 1},
+		BackgroundColour: bg,
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{

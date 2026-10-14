@@ -5,6 +5,7 @@ import {FitAddon} from '@xterm/addon-fit';
 import {WebLinksAddon} from '@xterm/addon-web-links';
 
 import {TermKill, TermResize, TermWrite} from '../wailsjs/go/main/App';
+import {SgrFilter, termOptions} from './appearance';
 import {BrowserOpenURL, ClipboardGetText, ClipboardSetText, EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
 
 export const isMac = navigator.platform.toUpperCase().includes('MAC');
@@ -20,20 +21,16 @@ function decode(b64) {
 //   start(cols, rows) => Promise<id> launches the process,
 //   isAppKey(e) tells which keys belong to the app rather than the terminal,
 //   onState('connected' | 'exited') reports the process state.
+//   colorMode is 'full' or 'mono' (colors stripped from the output).
 export class TermView {
-    constructor(container, {start, exitHint, ui, isAppKey, onState}) {
+    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState}) {
         this.start = start;
         this.exitHint = exitHint;
         this.isAppKey = isAppKey;
         this.onState = onState || (() => {});
         this.id = null;
-        this.term = new Terminal({
-            fontFamily: ui.font_family || '"DejaVu Sans Mono", "Cascadia Mono", Menlo, monospace',
-            fontSize: ui.font_size || 13,
-            scrollback: ui.scrollback || 10000,
-            cursorBlink: true,
-            theme: {background: '#1e1e1e'},
-        });
+        this.term = new Terminal({cursorBlink: true, ...termOptions(ui, colorMode)});
+        this.setColorFilter(colorMode);
         this.fit = new FitAddon();
         this.term.loadAddon(this.fit);
         this.term.loadAddon(new WebLinksAddon((e, uri) => BrowserOpenURL(uri)));
@@ -54,7 +51,10 @@ export class TermView {
             // Resizes while start() was in flight had no id to go to.
             this.fit.fit();
             TermResize(id, this.term.cols, this.term.rows);
-            EventsOn(`term:data:${id}`, b64 => this.term.write(decode(b64)));
+            EventsOn(`term:data:${id}`, b64 => {
+                const bytes = decode(b64);
+                this.term.write(this.filter ? this.filter.filter(bytes) : bytes);
+            });
             EventsOn(`term:exit:${id}`, info => this.onExit(info));
             this.onState('connected');
         } catch (err) {
@@ -93,6 +93,31 @@ export class TermView {
             return false;
         }
         return true;
+    }
+
+    setColorFilter(colorMode) {
+        this.filter = colorMode === 'mono' ? (this.filter ?? new SgrFilter()) : null;
+    }
+
+    // setAppearance applies theme, color mode and font settings live.
+    // Switching to mono also neutralizes colored text already on screen
+    // (via the contrast ratio); new output arrives without colors.
+    setAppearance(ui, colorMode) {
+        const changed = (colorMode === 'mono') !== !!this.filter;
+        Object.assign(this.term.options, termOptions(ui, colorMode));
+        this.setColorFilter(colorMode);
+        this.fit.fit();
+        if (changed && this.id) this.nudgeRedraw();
+    }
+
+    // nudgeRedraw makes full-screen programs (tmux, vim, claude) repaint
+    // everything, so colors drawn before a color-mode switch disappear too:
+    // a one-row resize and back delivers two SIGWINCHs.
+    nudgeRedraw() {
+        const {cols, rows} = this.term;
+        if (rows < 2) return;
+        TermResize(this.id, cols, rows - 1);
+        setTimeout(() => this.id && TermResize(this.id, this.term.cols, this.term.rows), 80);
     }
 
     // disconnect kills the process; the view stays and offers to restart.

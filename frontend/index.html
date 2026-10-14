@@ -4,6 +4,14 @@
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>Session Workbench</title>
+    <script>
+        // Apply the last theme before first paint (main.js updates it from the config).
+        try {
+            document.documentElement.dataset.theme = JSON.parse(localStorage.getItem('sw:theme')) || 'light';
+        } catch {
+            document.documentElement.dataset.theme = 'light';
+        }
+    </script>
 </head>
 <body>
 <aside id="sidebar">
@@ -54,6 +62,13 @@
                 <option value="claude">claude</option>
                 <option value="claude-continue">claude --continue</option>
                 <option value="shell">shell</option>
+            </select>
+        </label>
+        <label>Colors
+            <select name="colors">
+                <option value="">default</option>
+                <option value="full">full (with contrast correction)</option>
+                <option value="mono">mono (no colors)</option>
             </select>
         </label>
         <div class="error"></div>

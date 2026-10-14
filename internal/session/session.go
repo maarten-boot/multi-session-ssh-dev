@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,6 +28,7 @@ type View struct {
 	Host       string `json:"host"`
 	LocalPath  string `json:"local_path"`
 	StartMode  string `json:"start_mode"`
+	ColorMode  string `json:"color_mode"` // "" = follow the global setting
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
 	Error      string `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -34,12 +36,13 @@ type View struct {
 
 // State is everything the frontend needs to render.
 type State struct {
-	Hosts          []config.Host `json:"hosts"`
-	Sessions       []View        `json:"sessions"`
-	WorkspaceRoots []string      `json:"workspace_roots"` // ~ expanded
-	UI             config.UI     `json:"ui"`
-	ConfigPath     string        `json:"config_path"`
-	ConfigError    string        `json:"config_error"` // set: file unreadable, changes are not saved
+	Hosts          []config.Host     `json:"hosts"`
+	Sessions       []View            `json:"sessions"`
+	WorkspaceRoots []string          `json:"workspace_roots"` // ~ expanded
+	UI             config.UI         `json:"ui"`
+	Keys           map[string]string `json:"keys"`
+	ConfigPath     string            `json:"config_path"`
+	ConfigError    string            `json:"config_error"` // set: file unreadable, changes are not saved
 }
 
 // Resolved is a session with its host and computed remote path.
@@ -56,6 +59,7 @@ type NewSession struct {
 	LocalPath string `json:"local_path"`
 	Name      string `json:"name"`
 	StartMode string `json:"start_mode"`
+	ColorMode string `json:"color_mode"` // "" = follow the global setting
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -101,7 +105,11 @@ func (m *Manager) State() State {
 		Hosts:      slices.Clone(m.cfg.Hosts),
 		Sessions:   []View{},
 		UI:         m.cfg.UI,
+		Keys:       maps.Clone(m.cfg.Keys),
 		ConfigPath: m.path,
+	}
+	if s.Keys == nil {
+		s.Keys = map[string]string{}
 	}
 	if s.Hosts == nil {
 		s.Hosts = []config.Host{}
@@ -113,7 +121,8 @@ func (m *Manager) State() State {
 		s.ConfigError = m.loadErr.Error()
 	}
 	for _, se := range m.cfg.Sessions {
-		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode, TmuxName: remote.TmuxName(se.ID)}
+		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
+			ColorMode: se.ColorMode, TmuxName: remote.TmuxName(se.ID)}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -205,11 +214,11 @@ func (m *Manager) Create(in NewSession) (View, error) {
 		return View{}, err
 	}
 	return View{ID: s.ID, Name: s.Name, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
-		RemotePath: r.RemotePath, TmuxName: remote.TmuxName(s.ID)}, nil
+		ColorMode: s.ColorMode, RemotePath: r.RemotePath, TmuxName: remote.TmuxName(s.ID)}, nil
 }
 
 func (m *Manager) newSession(in NewSession) (config.Session, error) {
-	s := config.Session{Host: in.Host, Name: strings.TrimSpace(in.Name), StartMode: in.StartMode}
+	s := config.Session{Host: in.Host, Name: strings.TrimSpace(in.Name), StartMode: in.StartMode, ColorMode: in.ColorMode}
 	if s.StartMode == "" {
 		s.StartMode = string(remote.ModeClaude)
 	}
@@ -228,6 +237,9 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	if err := validMode(s.StartMode); err != nil {
 		return s, err
 	}
+	if err := validColorMode(s.ColorMode); err != nil {
+		return s, err
+	}
 	if _, ok := findHost(m.cfg, s.Host); !ok {
 		return s, fmt.Errorf("host %q is not configured", s.Host)
 	}
@@ -243,6 +255,13 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	}
 	s.ID = m.newID()
 	return s, nil
+}
+
+func validColorMode(mode string) error {
+	if mode != "" && mode != "full" && mode != "mono" {
+		return fmt.Errorf("unknown color mode %q", mode)
+	}
+	return nil
 }
 
 func validMode(mode string) error {
@@ -264,9 +283,10 @@ func (m *Manager) newID() string {
 	}
 }
 
-// Update changes a session's name and start mode. The start mode only
-// matters when its tmux session is next created.
-func (m *Manager) Update(id, name, startMode string) error {
+// Update changes a session's name, start mode and color mode ("" follows
+// the global setting). The start mode only matters when its tmux session
+// is next created.
+func (m *Manager) Update(id, name, startMode, colorMode string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	name = strings.TrimSpace(name)
@@ -276,6 +296,9 @@ func (m *Manager) Update(id, name, startMode string) error {
 	if err := validMode(startMode); err != nil {
 		return err
 	}
+	if err := validColorMode(colorMode); err != nil {
+		return err
+	}
 	return m.update(func(c *config.Config) error {
 		i := indexOf(c, id)
 		if i < 0 {
@@ -283,6 +306,23 @@ func (m *Manager) Update(id, name, startMode string) error {
 		}
 		c.Sessions[i].Name = name
 		c.Sessions[i].StartMode = startMode
+		c.Sessions[i].ColorMode = colorMode
+		return nil
+	})
+}
+
+// SaveUI replaces the UI settings.
+func (m *Manager) SaveUI(ui config.UI) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := config.ValidateUI(ui); err != nil {
+		return err
+	}
+	if ui.AutoReconnect == nil || ui.ActivityBadges == nil {
+		return errors.New("incomplete UI settings")
+	}
+	return m.update(func(c *config.Config) error {
+		c.UI = ui
 		return nil
 	})
 }
@@ -428,6 +468,7 @@ func clone(c *config.Config) *config.Config {
 	n.Local.Args = slices.Clone(c.Local.Args)
 	n.Hosts = slices.Clone(c.Hosts)
 	n.Sessions = slices.Clone(c.Sessions)
+	n.Keys = maps.Clone(c.Keys)
 	return &n
 }
 

@@ -23,6 +23,11 @@ export namespace config {
 	    font_size: number;
 	    scrollback: number;
 	    connect_on_start: string;
+	    theme: string;
+	    color_mode: string;
+	    min_contrast: number;
+	    auto_reconnect?: boolean;
+	    activity_badges?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -34,6 +39,11 @@ export namespace config {
 	        this.font_size = source["font_size"];
 	        this.scrollback = source["scrollback"];
 	        this.connect_on_start = source["connect_on_start"];
+	        this.theme = source["theme"];
+	        this.color_mode = source["color_mode"];
+	        this.min_contrast = source["min_contrast"];
+	        this.auto_reconnect = source["auto_reconnect"];
+	        this.activity_badges = source["activity_badges"];
 	    }
 	}
 
@@ -126,6 +136,7 @@ export namespace session {
 	    local_path: string;
 	    name: string;
 	    start_mode: string;
+	    color_mode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new NewSession(source);
@@ -137,6 +148,7 @@ export namespace session {
 	        this.local_path = source["local_path"];
 	        this.name = source["name"];
 	        this.start_mode = source["start_mode"];
+	        this.color_mode = source["color_mode"];
 	    }
 	}
 	export class Preview {
@@ -163,6 +175,7 @@ export namespace session {
 	    host: string;
 	    local_path: string;
 	    start_mode: string;
+	    color_mode: string;
 	    remote_path: string;
 	    tmux_name: string;
 	    error: string;
@@ -178,6 +191,7 @@ export namespace session {
 	        this.host = source["host"];
 	        this.local_path = source["local_path"];
 	        this.start_mode = source["start_mode"];
+	        this.color_mode = source["color_mode"];
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.error = source["error"];
@@ -188,6 +202,7 @@ export namespace session {
 	    sessions: View[];
 	    workspace_roots: string[];
 	    ui: config.UI;
+	    keys: Record<string, string>;
 	    config_path: string;
 	    config_error: string;
 	
@@ -201,6 +216,7 @@ export namespace session {
 	        this.sessions = this.convertValues(source["sessions"], View);
 	        this.workspace_roots = source["workspace_roots"];
 	        this.ui = this.convertValues(source["ui"], config.UI);
+	        this.keys = source["keys"];
 	        this.config_path = source["config_path"];
 	        this.config_error = source["config_error"];
 	    }

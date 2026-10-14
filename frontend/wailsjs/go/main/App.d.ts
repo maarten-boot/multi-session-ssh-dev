@@ -29,6 +29,8 @@ export function RevealPath(arg1:string,arg2:string):Promise<void>;
 
 export function SaveHost(arg1:string,arg2:config.Host):Promise<void>;
 
+export function SaveUI(arg1:config.UI):Promise<void>;
+
 export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function StartRemote(arg1:string,arg2:number,arg3:number):Promise<string>;
@@ -41,4 +43,4 @@ export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function TermWrite(arg1:string,arg2:string):Promise<void>;
 
-export function UpdateSession(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function UpdateSession(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;

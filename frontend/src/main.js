@@ -1,6 +1,7 @@
 import './style.css';
 
 import {isMac, TermView} from './terminal';
+import {effectiveColorMode} from './appearance';
 import {FilesView} from './files';
 import {$, el, hideMenu, showMenu, store} from './ui';
 import {
@@ -54,6 +55,7 @@ class Tab {
         if (!this.view) {
             this.view = new TermView(this.pane, {
                 start: this.start, exitHint: this.exitHint, ui: app.state.ui,
+                colorMode: effectiveColorMode(app.state.ui, this.session.data),
                 isAppKey: e => appKey(e) !== null, onState: this.onState,
             });
             this.view.spawn();
@@ -150,6 +152,11 @@ class SessionUI {
         this.tabs[0].ensureView();
     }
 
+    applyAppearance(ui) {
+        const mode = effectiveColorMode(ui, this.data);
+        this.tabs.forEach(t => t.view?.setAppearance?.(ui, mode));
+    }
+
     disconnect() {
         this.tabs.forEach(t => t.view?.disconnect());
     }
@@ -161,6 +168,13 @@ class SessionUI {
 }
 
 // ---------------------------------------------------------------- app
+
+// applyTheme switches the app chrome; index.html applies the cached value
+// before first paint to avoid a flash of the wrong theme.
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    store.set('theme', theme);
+}
 
 const app = {
     state: null,
@@ -188,6 +202,7 @@ const app = {
     // terminals of sessions that still exist.
     async reload() {
         this.state = await State();
+        applyTheme(this.state.ui.theme);
         const seen = new Set();
         for (const d of this.state.sessions) {
             seen.add(d.id);
@@ -203,6 +218,7 @@ const app = {
             }
         }
         this.render();
+        for (const s of this.sessions.values()) s.applyAppearance(this.state.ui);
     },
 
     // groups returns [{host, sessions}] in host order; sessions whose host is
@@ -452,6 +468,11 @@ function sessionMenu(s, x, y) {
         {label: 'Move up', action: () => moveBy(s, -1)},
         {label: 'Move down', action: () => moveBy(s, 1)},
         '-',
+        {
+            label: effectiveColorMode(app.state.ui, s.data) === 'mono' ? 'Use full colors' : 'Use mono colors (no colors)',
+            action: () => setSessionColors(s, effectiveColorMode(app.state.ui, s.data) === 'mono' ? 'full' : 'mono'),
+        },
+        '-',
         {label: 'Disconnect', action: () => s.disconnect()},
         {label: 'End remote session…', danger: true, action: () => endRemote(s)},
         {label: 'Delete session…', danger: true, action: () => deleteSession(s)},
@@ -533,6 +554,8 @@ async function sessionDialog(s = null, presetHost = null) {
     f.elements.name.value = s?.data.name ?? '';
     f.elements.name.placeholder = '';
     f.elements.mode.value = s?.data.start_mode ?? store.get('lastMode', 'claude');
+    f.elements.colors.value = s?.data.color_mode ?? '';
+    f.elements.colors.options[0].textContent = `default (${app.state.ui.color_mode})`;
     f.elements.host.disabled = f.elements.dir.disabled = f.elements.browse.disabled = editing;
     const preview = dlg.querySelector('.preview');
     preview.textContent = editing ? `→ ${s.data.remote_path || s.data.error}` : '';
@@ -547,7 +570,7 @@ async function sessionDialog(s = null, presetHost = null) {
             f.elements.name.placeholder = '';
             return;
         }
-        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value});
+        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value, color_mode: ''});
         if (n !== seq) return; // a newer request is in flight
         f.elements.name.placeholder = p.name;
         preview.classList.toggle('bad', !!p.error);
@@ -573,9 +596,12 @@ async function sessionDialog(s = null, presetHost = null) {
     let created = null;
     const ok = await runDialog(dlg, async () => {
         if (editing) {
-            await UpdateSession(s.id, f.elements.name.value || s.data.name, f.elements.mode.value);
+            await UpdateSession(s.id, f.elements.name.value || s.data.name, f.elements.mode.value, f.elements.colors.value);
         } else {
-            created = await CreateSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value, start_mode: f.elements.mode.value});
+            created = await CreateSession({
+                host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value,
+                start_mode: f.elements.mode.value, color_mode: f.elements.colors.value,
+            });
             store.set('lastHost', f.elements.host.value);
             store.set('lastMode', f.elements.mode.value);
         }
@@ -601,6 +627,18 @@ async function hostDialog(h = null, presetName = null) {
     }));
     if (ok) await app.reload();
     return ok;
+}
+
+// setSessionColors stores a per-session override; choosing the global
+// value clears the override so the session follows future global changes.
+async function setSessionColors(s, mode) {
+    const override = mode === app.state.ui.color_mode ? '' : mode;
+    try {
+        await UpdateSession(s.id, s.data.name, s.data.start_mode, override);
+    } catch (err) {
+        await confirmDialog({title: 'Could not change colors', text: String(err), ok: null});
+    }
+    await app.reload();
 }
 
 async function endRemote(s) {
