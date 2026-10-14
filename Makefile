@@ -6,7 +6,7 @@ ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: check deps dev build test vet clean smoke
+.PHONY: check deps dev build run test vet clean smoke
 
 check:
 	@scripts/deps.sh check
@@ -19,6 +19,9 @@ dev: check
 
 build: check
 	$(WAILS) build -tags "$(TAGS)"
+
+run: build
+	build/bin/session-workbench
 
 test:
 	go test -race ./internal/...

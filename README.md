@@ -20,6 +20,7 @@ webkit2gtk-4.1; the Makefile adds `-tags webkit2_41` when 4.1 is present.)
 make check   # list missing build requirements
 make deps    # install them (system packages via sudo, wails via go install)
 make build   # → build/bin/session-workbench
+make run     # build, then start the app
 make dev     # live-reload dev mode
 make test    # Go unit tests (race detector)
 make vet     # vet for linux, windows, darwin
