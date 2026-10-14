@@ -1,13 +1,241 @@
+:root {
+    color-scheme: dark; /* native controls (select popups, scrollbars) */
+    --bg: #1e1e1e;
+    --panel: #252526;
+    --panel-2: #2d2d30;
+    --border: #333;
+    --text: #ccc;
+    --text-strong: #eee;
+    --muted: #888;
+    --accent: #3794ff;
+    --danger: #f48771;
+    --ok: #4ec970;
+    --warn: #e5a03b;
+}
+
 html, body {
     margin: 0;
     height: 100%;
-    background: #1e1e1e;
-    color: #ccc;
+    background: var(--bg);
+    color: var(--text);
     font: 13px system-ui, sans-serif;
     overflow: hidden;
 }
 
 body {
+    display: flex;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+}
+
+/* --- sidebar --- */
+
+#sidebar {
+    width: 240px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+}
+
+#sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 34px;
+    padding: 0 6px 0 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+button.icon {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button.icon:hover {
+    background: var(--panel-2);
+    color: var(--text-strong);
+}
+
+button.link {
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 0;
+    cursor: pointer;
+}
+
+button.link:hover {
+    color: var(--text-strong);
+}
+
+#config-error {
+    margin: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    background: #5a1d1d;
+    color: #f8c4bb;
+    font-size: 12px;
+    word-break: break-word;
+}
+
+#session-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+#sidebar-foot {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.host-group {
+    margin-bottom: 6px;
+}
+
+.host-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px 4px 8px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+}
+
+.host-head .caret {
+    width: 10px;
+    transition: transform 0.1s;
+}
+
+.host-group.collapsed .caret {
+    transform: rotate(-90deg);
+}
+
+.host-group.collapsed .sessions {
+    display: none;
+}
+
+.host-head .label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.host-head .more, .session .more {
+    visibility: hidden;
+    font-size: 14px;
+    width: 22px;
+    height: 20px;
+}
+
+.host-head:hover .more, .session:hover .more, .session.active .more {
+    visibility: visible;
+}
+
+.sessions {
+    min-height: 4px;
+}
+
+.session {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px 5px 18px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+}
+
+.session:hover {
+    background: var(--panel-2);
+}
+
+.session.active {
+    background: #37373d;
+    border-left-color: var(--accent);
+}
+
+.session.drop-before {
+    box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.sessions.drop-end {
+    box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.session .dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+}
+
+.session .dot.connected {
+    background: var(--ok);
+}
+
+.session .dot.exited {
+    background: var(--warn);
+}
+
+.session .dot.error {
+    background: var(--danger);
+}
+
+.session .text {
+    flex: 1;
+    min-width: 0;
+}
+
+.session .name {
+    color: var(--text-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session .sub {
+    color: var(--muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl; /* keep the end of long paths visible */
+    text-align: left;
+}
+
+.session .num {
+    color: #666;
+    font-size: 11px;
+}
+
+/* --- main area --- */
+
+#main {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
 }
@@ -19,14 +247,14 @@ body {
     padding: 0 10px;
     height: 34px;
     flex: none;
-    background: #252526;
-    border-bottom: 1px solid #333;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
 }
 
 #session-name {
     font-weight: 600;
     white-space: nowrap;
-    color: #eee;
+    color: var(--text-strong);
 }
 
 #tabs {
@@ -39,7 +267,6 @@ body {
     border: none;
     border-bottom: 2px solid transparent;
     color: #999;
-    font: inherit;
     padding: 8px 12px 6px;
     cursor: pointer;
 }
@@ -50,7 +277,7 @@ body {
 
 #tabs button.active {
     color: #fff;
-    border-bottom-color: #3794ff;
+    border-bottom-color: var(--accent);
 }
 
 #tabs kbd {
@@ -61,7 +288,7 @@ body {
 
 #session-path {
     margin-left: auto;
-    color: #888;
+    color: var(--muted);
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
@@ -69,7 +296,7 @@ body {
 }
 
 #session-path.error {
-    color: #f48771;
+    color: var(--danger);
 }
 
 #panes {
@@ -83,6 +310,227 @@ body {
     padding: 4px 0 0 6px;
 }
 
-.pane[hidden] {
-    display: none;
+[hidden] {
+    display: none !important;
+}
+
+#empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+}
+
+/* --- menu --- */
+
+.menu {
+    position: fixed;
+    z-index: 10;
+    min-width: 180px;
+    padding: 4px 0;
+    background: #252526;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    cursor: pointer;
+}
+
+.menu button:hover {
+    background: #04395e;
+}
+
+.menu button.danger {
+    background: none;
+    border: none;
+    color: var(--danger);
+}
+
+.menu button.danger:hover {
+    background: #5a1d1d;
+}
+
+.menu button:disabled {
+    color: #666;
+    background: none;
+    cursor: default;
+}
+
+.menu hr {
+    border: none;
+    border-top: 1px solid #454545;
+    margin: 4px 0;
+}
+
+/* --- dialogs --- */
+
+dialog {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid #454545;
+    border-radius: 8px;
+    padding: 18px 20px;
+    width: 480px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+dialog h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    color: var(--text-strong);
+}
+
+dialog label {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+dialog label.check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--text);
+    font-size: 13px;
+}
+
+dialog input:not([type]), dialog select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: #3c3c3c;
+    color: var(--text-strong);
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    font: 13px system-ui, sans-serif;
+}
+
+dialog select {
+    appearance: none;
+    padding-right: 28px;
+    background-image: linear-gradient(45deg, transparent 50%, #aaa 50%), linear-gradient(135deg, #aaa 50%, transparent 50%);
+    background-position: right 14px center, right 9px center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+}
+
+dialog select option {
+    background: #3c3c3c;
+    color: var(--text-strong);
+}
+
+dialog input:focus, dialog select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+dialog input:disabled, dialog select:disabled {
+    opacity: 0.6;
+}
+
+dialog .row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+}
+
+dialog .row input {
+    flex: 1;
+}
+
+dialog .row button {
+    margin-top: 4px;
+}
+
+dialog .preview {
+    margin: -6px 0 12px;
+    font-size: 12px;
+    color: var(--muted);
+    word-break: break-all;
+    min-height: 1em;
+}
+
+dialog .preview.bad, dialog .error {
+    color: var(--danger);
+}
+
+dialog .error {
+    font-size: 12px;
+    min-height: 1em;
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+dialog .hint {
+    margin: 4px 0 10px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+dialog .text {
+    margin: 0 0 12px;
+    line-height: 1.4;
+}
+
+dialog .buttons {
+    display: flex;
+    flex-direction: row-reverse; /* OK first in the DOM = default for Enter */
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+dialog button, #empty button {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #4a4a4a;
+    background: #3a3a3a;
+    cursor: pointer;
+}
+
+dialog button:hover {
+    background: #454545;
+}
+
+button.primary {
+    background: #0e639c;
+    border-color: #0e639c;
+    color: #fff;
+}
+
+button.primary:hover {
+    background: #1177bb;
+}
+
+button.primary:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+button.danger {
+    background: #a1260d;
+    border-color: #a1260d;
+    color: #fff;
+}
+
+.session-panes {
+    position: absolute;
+    inset: 0;
 }

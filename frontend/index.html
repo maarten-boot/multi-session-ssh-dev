@@ -6,12 +6,105 @@
     <title>Session Workbench</title>
 </head>
 <body>
-<header id="bar">
-    <span id="session-name"></span>
-    <nav id="tabs"></nav>
-    <span id="session-path"></span>
-</header>
-<main id="panes"></main>
+<aside id="sidebar">
+    <div id="sidebar-head">
+        <span>Sessions</span>
+        <button id="btn-new" class="icon" title="New session (Ctrl+Shift+N)">+</button>
+    </div>
+    <div id="config-error" hidden></div>
+    <div id="session-list"></div>
+    <div id="sidebar-foot">
+        <button id="btn-add-host" class="link">Add host…</button>
+    </div>
+</aside>
+
+<section id="main">
+    <header id="bar">
+        <span id="session-name"></span>
+        <nav id="tabs"></nav>
+        <span id="session-path"></span>
+    </header>
+    <div id="panes"></div>
+    <div id="empty" hidden>
+        <p id="empty-text"></p>
+        <button id="empty-action" class="primary"></button>
+    </div>
+</section>
+
+<div id="menu" class="menu" hidden></div>
+
+<dialog id="dlg-session">
+    <form method="dialog">
+        <h2></h2>
+        <label>Agent host
+            <select name="host"></select>
+        </label>
+        <label>Directory
+            <span class="row">
+                <input name="dir" autocomplete="off" spellcheck="false" placeholder="/path/to/repository">
+                <button type="button" name="browse">Browse…</button>
+            </span>
+        </label>
+        <div class="preview" data-for="dir"></div>
+        <label>Name
+            <input name="name" autocomplete="off" spellcheck="false">
+        </label>
+        <label>Start in new remote session
+            <select name="mode">
+                <option value="claude">claude</option>
+                <option value="claude-continue">claude --continue</option>
+                <option value="shell">shell</option>
+            </select>
+        </label>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Create</button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-host">
+    <form method="dialog">
+        <h2></h2>
+        <label>Name
+            <input name="name" autocomplete="off" spellcheck="false" placeholder="vibe">
+        </label>
+        <label>SSH target
+            <input name="ssh_target" autocomplete="off" spellcheck="false" placeholder="user@agent-host (anything ssh accepts)">
+        </label>
+        <p class="hint">Path mapping: where the agent host sees your local directories.
+            Leave both empty if paths are the same on both machines.</p>
+        <label>Local prefix
+            <span class="row">
+                <input name="local_prefix" autocomplete="off" spellcheck="false" placeholder="/home/me/share">
+                <button type="button" name="browse">Browse…</button>
+            </span>
+        </label>
+        <label>Remote prefix
+            <input name="remote_prefix" autocomplete="off" spellcheck="false" placeholder="/net/host/home/me/share">
+        </label>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-confirm">
+    <form method="dialog">
+        <h2></h2>
+        <p class="text"></p>
+        <label class="check" hidden><input type="checkbox" name="check"> <span></span></label>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="danger"></button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
 <script src="./src/main.js" type="module"></script>
 </body>
 </html>

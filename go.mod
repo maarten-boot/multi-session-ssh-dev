@@ -3,6 +3,7 @@ module session-workbench
 go 1.25.0
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/aymanbagabas/go-pty v0.2.3
 	github.com/wailsapp/wails/v2 v2.16.0
 )

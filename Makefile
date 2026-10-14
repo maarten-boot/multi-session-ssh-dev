@@ -6,7 +6,7 @@ ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-remote
+.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions
 
 check:
 	@scripts/deps.sh check
@@ -40,12 +40,16 @@ vet:
 clean:
 	rm -rf build/bin frontend/dist/assets
 
-# Headless GUI smoke test (Linux); screenshots land in $(SMOKE_OUT).
+# Headless GUI tests (Linux; need xvfb, xdotool, imagemagick). Screenshots
+# land in $(SMOKE_OUT)-*. They use throwaway configs, never yours.
+# smoke: terminal fidelity in a Local tab.
+# smoke-sessions: sidebar, dialogs, switching, menus, restart; needs
+#   `ssh localhost` without prompts and tmux.
 SMOKE_OUT ?= /tmp/sw-smoke
+XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
-	xvfb-run -a -s "-screen 0 1280x860x24" scripts/gui-smoke.sh build/bin/session-workbench $(SMOKE_OUT)
+	$(XVFB) scripts/gui-smoke.sh build/bin/session-workbench $(SMOKE_OUT)-terminal
 
-# Remote-tab GUI test against $(SSH_TARGET), in this checkout's directory.
-smoke-remote: build
-	xvfb-run -a -s "-screen 0 1280x860x24" scripts/gui-smoke-remote.sh build/bin/session-workbench $(SMOKE_OUT)-remote \
-		-ssh $(SSH_TARGET) -dir $(CURDIR) -mode shell
+smoke-sessions: build
+	$(XVFB) scripts/gui-smoke-sessions.sh build/bin/session-workbench $(SMOKE_OUT)-sessions
+	$(XVFB) scripts/gui-smoke-hosts.sh build/bin/session-workbench $(SMOKE_OUT)-hosts

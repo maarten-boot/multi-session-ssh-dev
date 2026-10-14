@@ -10,33 +10,31 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"session-workbench/internal/remote"
+	"session-workbench/internal/config"
+	"session-workbench/internal/session"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	var opts Options
-	var mode string
-	fs := flag.NewFlagSet("session-workbench", flag.ExitOnError)
-	fs.StringVar(&opts.Dir, "dir", "", "session directory on this machine (default: home directory)")
-	fs.StringVar(&opts.SSHTarget, "ssh", "", "agent host as ssh target, e.g. user@host; enables the Remote tab")
-	fs.StringVar(&opts.LocalPrefix, "local-prefix", "", "local directory that the agent host sees under -remote-prefix")
-	fs.StringVar(&opts.RemotePrefix, "remote-prefix", "", "agent-host path of -local-prefix (default: same paths on both sides)")
-	fs.StringVar(&mode, "mode", string(remote.ModeClaude), "what a new remote tmux session runs: claude, claude-continue or shell")
-	fs.Parse(os.Args[1:])
-	opts.Mode = remote.Mode(mode)
-	if (opts.LocalPrefix == "") != (opts.RemotePrefix == "") {
-		fmt.Fprintln(os.Stderr, "-local-prefix and -remote-prefix must be given together")
-		os.Exit(2)
+	defPath, err := config.DefaultPath()
+	if err != nil {
+		defPath = "config.toml"
 	}
+	fs := flag.NewFlagSet("session-workbench", flag.ExitOnError)
+	cfgPath := fs.String("config", defPath, "config file")
+	fs.Parse(os.Args[1:])
 
-	app := NewApp(opts)
+	sessions := session.Open(*cfgPath)
+	if err := sessions.LoadError(); err != nil {
+		fmt.Fprintln(os.Stderr, "warning:", err)
+	}
+	app := NewApp(sessions)
 
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "Session Workbench",
-		Width:  1200,
+		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{
 			Assets: assets,

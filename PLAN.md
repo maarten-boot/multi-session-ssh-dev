@@ -16,7 +16,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
 - Remote command builder with quoting + tests; forced `ForwardAgent=no`/`ForwardX11=no`.
 - Done when: tab runs `claude` in tmux on the agent host; closing/reopening the app re-attaches.
 
-## M3 — Sessions + config (1–2 days)
+## M3 — Sessions + config (1–2 days) ✅
 - `internal/config`: TOML load/save (atomic), defaults, per-OS location.
 - `internal/session`: CRUD, ordering, start modes, lazy terminal creation.
 - Frontend: sidebar, per-session tab bar (Remote/Local/Files), new-session dialog (dir picker

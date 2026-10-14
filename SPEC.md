@@ -53,8 +53,10 @@ name       = "terminal-app"            # display name, defaults to dir name
 host       = "vibe"
 local_path = "/home/mboot/share-local/workspace/terminal-app"
 start_mode = "claude-continue"         # claude | claude-continue | shell
-order      = 3
+local_init = "git status"              # optional, typed into the Local tab (L2)
+env        = { FOO = "bar" }           # optional, Local tab environment (L2)
 ```
+Sidebar order is the order of `[[sessions]]` in the file (no separate `order` field).
 
 **Workspace root(s)** — directories offered when creating a session (e.g. `~/share-local/workspace`).
 
