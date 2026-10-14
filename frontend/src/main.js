@@ -167,10 +167,13 @@ class SessionUI {
         this.container = el('div', {className: 'session-panes', hidden: true});
         $('#panes').append(this.container);
         this.tabs = [
-            new Tab(this, 'Remote', (c, r) => StartRemote(this.data.id, c, r),
-                {what: 'ssh', again: 'reconnect'}, s => this.setRemoteState(s)),
+            new Tab(this, 'Remote', (c, r) => StartRemote(this.data.id, c, r), {
+                what: 'ssh', again: 'reconnect', remote: true,
+                place: () => this.data.host,
+                autoReconnect: () => app.state.ui.auto_reconnect,
+            }, s => this.setRemoteState(s)),
             new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
-                {what: 'shell', again: 'restart'}),
+                {what: 'shell', again: 'restart', remote: false}),
             new FilesTab(this),
         ];
         this.activeTab = 0;
