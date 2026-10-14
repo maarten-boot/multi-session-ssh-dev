@@ -5,6 +5,8 @@ package terminal
 import (
 	"bytes"
 	"encoding/base64"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -98,6 +100,23 @@ func TestWriteDirAndEnv(t *testing.T) {
 	}
 	if !strings.Contains(out, dir) {
 		t.Errorf("cwd %q not in output %q", dir, out)
+	}
+}
+
+func TestDirThroughSymlinkKeepsLogicalPath(t *testing.T) {
+	r := newRecorder()
+	m := NewManager(r)
+	real := t.TempDir()
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Start(Spec{Command: "/bin/sh", Args: []string{"-c", "echo \"[$(pwd)]\""}, Dir: link}); err != nil {
+		t.Fatal(err)
+	}
+	r.waitExit(t)
+	if !strings.Contains(r.output(), "["+link+"]") {
+		t.Errorf("pwd = %q, want %q", r.output(), link)
 	}
 }
 

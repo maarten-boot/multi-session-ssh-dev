@@ -92,7 +92,13 @@ func (m *Manager) Start(spec Spec) (string, error) {
 	}
 	cmd := p.Command(spec.Command, spec.Args...)
 	cmd.Dir = spec.Dir
-	cmd.Env = append(append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor"), spec.Env...)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	if spec.Dir != "" {
+		// Shells trust PWD when it names the cwd, so a Dir reached through a
+		// symlink is shown as given rather than as its resolved path.
+		cmd.Env = append(cmd.Env, "PWD="+spec.Dir)
+	}
+	cmd.Env = append(cmd.Env, spec.Env...)
 	if err := cmd.Start(); err != nil {
 		p.Close()
 		return "", fmt.Errorf("terminal: start %s: %w", spec.Command, err)

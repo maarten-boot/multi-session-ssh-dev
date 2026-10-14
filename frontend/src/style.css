@@ -2,11 +2,87 @@ html, body {
     margin: 0;
     height: 100%;
     background: #1e1e1e;
+    color: #ccc;
+    font: 13px system-ui, sans-serif;
     overflow: hidden;
 }
 
-#terminal {
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+#bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 10px;
+    height: 34px;
+    flex: none;
+    background: #252526;
+    border-bottom: 1px solid #333;
+}
+
+#session-name {
+    font-weight: 600;
+    white-space: nowrap;
+    color: #eee;
+}
+
+#tabs {
+    display: flex;
+    gap: 2px;
+}
+
+#tabs button {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #999;
+    font: inherit;
+    padding: 8px 12px 6px;
+    cursor: pointer;
+}
+
+#tabs button:hover {
+    color: #ddd;
+}
+
+#tabs button.active {
+    color: #fff;
+    border-bottom-color: #3794ff;
+}
+
+#tabs kbd {
+    font: 11px system-ui, sans-serif;
+    color: #777;
+    margin-left: 6px;
+}
+
+#session-path {
+    margin-left: auto;
+    color: #888;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#session-path.error {
+    color: #f48771;
+}
+
+#panes {
+    position: relative;
+    flex: 1;
+}
+
+.pane {
     position: absolute;
     inset: 0;
     padding: 4px 0 0 6px;
+}
+
+.pane[hidden] {
+    display: none;
 }

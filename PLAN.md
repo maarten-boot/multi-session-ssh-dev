@@ -11,7 +11,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
 - Frontend: single xterm.js + fit addon wired to backend.
 - Done when: bash/zsh runs fully (vim, htop, colors, resize) on Linux.
 
-## M2 — Remote terminal via ssh + tmux (1 day)
+## M2 — Remote terminal via ssh + tmux (1 day) ✅
 - `internal/pathmap`: local→remote mapping + tests (incl. Windows paths).
 - Remote command builder with quoting + tests; forced `ForwardAgent=no`/`ForwardX11=no`.
 - Done when: tab runs `claude` in tmux on the agent host; closing/reopening the app re-attaches.
