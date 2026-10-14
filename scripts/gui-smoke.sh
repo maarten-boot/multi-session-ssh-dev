@@ -37,3 +37,4 @@ t 'echo restarted-ok'
 import -window root $OUT/5-restarted.png
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-smoke'" 2>/dev/null
+exit 0

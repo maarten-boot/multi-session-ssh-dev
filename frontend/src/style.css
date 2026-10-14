@@ -147,6 +147,8 @@ button.link:hover {
 }
 
 #sidebar-foot {
+    display: flex;
+    justify-content: space-between;
     padding: 8px 12px;
     border-top: 1px solid var(--border);
     font-size: 12px;
@@ -883,4 +885,70 @@ dialog.switcher input {
 @keyframes pulse {
     from { opacity: 1; }
     to { opacity: 0.3; }
+}
+
+/* --- settings --- */
+
+dialog.wide {
+    width: 640px;
+}
+
+dialog .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+}
+
+dialog input[type=number] {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: var(--input-bg);
+    color: var(--text-strong);
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    font: 13px system-ui, sans-serif;
+}
+
+dialog .checks {
+    grid-column: 1 / -1;
+}
+
+dialog .checks label.check {
+    margin-bottom: 8px;
+}
+
+.shortcuts {
+    margin: 4px 0 12px;
+    font-size: 12px;
+}
+
+.shortcuts summary {
+    cursor: pointer;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.shortcuts table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.shortcuts td {
+    padding: 3px 8px 3px 0;
+}
+
+.shortcuts td.action {
+    color: var(--faint);
+    font-family: monospace;
+}
+
+.shortcuts kbd {
+    font: 12px system-ui, sans-serif;
+    padding: 1px 6px;
+    border: 1px solid var(--btn-border);
+    border-radius: 3px;
+    background: var(--btn-bg);
 }

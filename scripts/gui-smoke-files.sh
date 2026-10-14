@@ -63,3 +63,4 @@ k space; sleep 0.5                             # and off again
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-files'" 2>/dev/null
 echo "xdg-open calls:"; cat $LOG
+exit 0

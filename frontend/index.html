@@ -23,6 +23,7 @@
     <div id="session-list"></div>
     <div id="sidebar-foot">
         <button id="btn-add-host" class="link">Add host…</button>
+        <button id="btn-settings" class="link">Settings…</button>
     </div>
 </aside>
 
@@ -104,6 +105,58 @@
         <label>Remote prefix
             <input name="remote_prefix" autocomplete="off" spellcheck="false" placeholder="/net/host/home/me/share">
         </label>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-settings" class="wide">
+    <form method="dialog">
+        <h2>Settings</h2>
+        <div class="grid">
+            <label>Theme
+                <select name="theme">
+                    <option value="light">light (black on white)</option>
+                    <option value="dark">dark</option>
+                </select>
+            </label>
+            <label>Colors
+                <select name="color_mode">
+                    <option value="full">full, with contrast correction</option>
+                    <option value="mono">mono (no colors)</option>
+                </select>
+            </label>
+            <label>Minimum contrast (full colors; 1 = off, 21 = black/white)
+                <input name="min_contrast" type="number" min="1" max="21" step="0.5">
+            </label>
+            <label>Scrollback (lines)
+                <input name="scrollback" type="number" min="0" max="1000000" step="1000">
+            </label>
+            <label>Font family
+                <input name="font_family" autocomplete="off" spellcheck="false" placeholder="DejaVu Sans Mono">
+            </label>
+            <label>Font size
+                <input name="font_size" type="number" min="6" max="48">
+            </label>
+            <label>Connect Remote tabs
+                <select name="connect_on_start">
+                    <option value="lazy">when first viewed</option>
+                    <option value="eager">all at startup</option>
+                </select>
+            </label>
+            <div class="checks">
+                <label class="check"><input type="checkbox" name="auto_reconnect"> Reconnect dropped connections automatically</label>
+                <label class="check"><input type="checkbox" name="activity_badges"> Mark sessions with bell / new output</label>
+            </div>
+        </div>
+        <details class="shortcuts">
+            <summary>Keyboard shortcuts</summary>
+            <table></table>
+            <p class="hint"></p>
+        </details>
         <div class="error"></div>
         <div class="buttons">
             <button value="ok" class="primary">Save</button>

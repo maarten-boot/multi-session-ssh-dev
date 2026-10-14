@@ -6,7 +6,7 @@ ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions smoke-files
+.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-all
 
 check:
 	@scripts/deps.sh check
@@ -48,6 +48,8 @@ clean:
 #   `ssh localhost` without prompts and tmux.
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
+# smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
+#   activity badges (the last takes ~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -59,3 +61,12 @@ smoke-sessions: build
 
 smoke-files: build
 	$(XVFB) scripts/gui-smoke-files.sh build/bin/session-workbench $(SMOKE_OUT)-files
+
+smoke-ui: build
+	$(XVFB) scripts/gui-smoke-colors.sh build/bin/session-workbench $(SMOKE_OUT)-colors
+	$(XVFB) scripts/gui-smoke-switcher.sh build/bin/session-workbench $(SMOKE_OUT)-switcher
+	$(XVFB) scripts/gui-smoke-settings.sh build/bin/session-workbench $(SMOKE_OUT)-settings
+	$(XVFB) scripts/gui-smoke-reconnect.sh build/bin/session-workbench $(SMOKE_OUT)-reconnect
+	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
+
+smoke-all: smoke smoke-sessions smoke-files smoke-ui

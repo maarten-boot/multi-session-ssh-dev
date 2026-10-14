@@ -5,8 +5,9 @@ is bound to a repository directory and has a **Remote** terminal (ssh → tmux �
 claude on the isolated agent host), a **Local** terminal (host shell for git),
 and a **Files** tab. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
-Status: M4 — sessions with Remote, Local and Files tabs.
-Next: keyboard/polish incl. light theme and color modes (M5), cross-platform CI (M6).
+Status: M5 — sessions with Remote, Local and Files tabs; themes, color modes,
+quick switcher, activity badges, auto-reconnect, settings. Next: cross-platform
+builds and CI (M6).
 
 ## Build
 
@@ -23,12 +24,14 @@ make deps    # install them (system packages via sudo, wails via go install)
 make build   # → build/bin/session-workbench
 make run     # build, then start the app
 make dev     # live-reload dev mode
-make test    # Go unit tests (race detector)
+make test    # Go unit tests (race detector) + frontend unit tests (node --test)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux round trip against a real host
 make vet     # vet for linux, windows, darwin
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
 make smoke-files     # headless GUI test of the Files tab
+make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges
+make smoke-all       # all GUI tests
 ```
 
 ## Usage
@@ -56,13 +59,38 @@ a name, and what a new remote tmux session starts with (`claude`,
   files the OS would execute rather than open (`.exe`, `.bat`, `.desktop`,
   `.app`, ELF/Mach-O binaries, …) are refused.
 
-| Keys (Linux/Windows) | macOS | Action |
-|---|---|---|
-| Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session |
-| Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) |
-| Ctrl+Shift+1 / 2 / 3 | ⇧⌘1 / 2 / 3 | Remote / Local / Files tab |
-| Ctrl+Shift+N | ⇧⌘N | new session |
-| Ctrl+Shift+C / V | ⌘C / V | copy / paste |
+| Keys (Linux/Windows) | macOS | Action | `[keys]` name |
+|---|---|---|---|
+| Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session | `next_session`, `prev_session` |
+| Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) | `session_1` … `session_9` |
+| Ctrl+Shift+1 / 2 / 3 | ⇧⌘1 / 2 / 3 | Remote / Local / Files tab | `tab_remote`, `tab_local`, `tab_files` |
+| Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first) | `quick_switcher` |
+| Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
+| Ctrl+Shift+, | ⌘, | settings | `settings` |
+| Ctrl+Shift+C / V | ⌘C / V | copy / paste | — |
+
+Rebind in the config, e.g. `[keys]` `next_session = "Ctrl+Tab"`; `Mod` means Cmd on
+macOS and Ctrl elsewhere; `"none"` disables a shortcut. Keys are physical positions,
+so `Ctrl+Alt+1` is the 1 key on any layout. Bad or conflicting bindings are shown in
+the sidebar.
+
+**Colors.** The default theme is black on white. Programs often pick colors for dark
+backgrounds; `full` colors keeps them but enforces a minimum contrast (yellow and
+light green on white get darkened), `mono` removes all colors (16/256/truecolor,
+foreground and background) and keeps bold, underline and inverse. Set it in
+Settings (Ctrl+Shift+,), per session in the session dialog, or with "Use mono
+colors" in the session menu; it switches live.
+
+**Badges.** A session you are not looking at gets an orange dot when one of its
+terminals rings the bell, and a blue ring when it starts printing after being quiet;
+the window title shows how many sessions want attention. To have claude ring the bell
+when it waits for you, run `/config` inside claude on the agent host and set the
+notification channel to *terminal bell* (setting `preferredNotifChannel`, value
+`terminal_bell`).
+
+**Connection drops.** A dropped or failed Remote connection reconnects automatically
+(1, 2, 4 … 30 s; Esc stops it). Detaching tmux or ending the remote session does not
+reconnect; press Enter when you want to.
 
 Right-click a session (or its ⋯) to edit, reorder, disconnect, end its remote
 tmux session, or delete it; drag sessions to reorder them within a host.
@@ -82,11 +110,20 @@ the app shows why and saves nothing, so your file is never overwritten.
 ```toml
 workspace_roots = ["~/share-local/DEV"]   # where "Browse…" starts
 
-[ui]
+[ui]                                      # all of these are in Settings too
+theme = "light"                           # or "dark"
+color_mode = "full"                       # or "mono"
+min_contrast = 4.5                        # 1 (off) .. 21
 font_family = "JetBrains Mono"
 font_size = 13
 scrollback = 10000
 connect_on_start = "lazy"                 # or "eager": connect all Remote tabs at startup
+auto_reconnect = true
+activity_badges = true
+
+[keys]
+next_session = "Ctrl+Tab"
+prev_session = "Ctrl+Shift+Tab"
 
 [local]
 shell = "/bin/zsh"                        # Local tab shell; default $SHELL / pwsh
@@ -104,6 +141,7 @@ name = "workbench"
 host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
 start_mode = "claude-continue"
+color_mode = "mono"                       # optional: overrides [ui] color_mode
 local_init = "git status"                 # optional: typed into the Local tab
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 ```
@@ -119,6 +157,7 @@ internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
 internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
-frontend/src           vanilla JS UI (main.js app, terminal.js, files.js, ui.js)
+frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
+                       appearance.js (themes, mono filter), keys.js, fuzzy.js
 scripts/gui-smoke*.sh  headless GUI test drivers
 ```

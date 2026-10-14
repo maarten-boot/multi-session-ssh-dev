@@ -22,13 +22,15 @@ for d in /tmp /var /usr; do
 	k ctrl+shift+n; typ "$d"; sleep 0.4; k Tab; k Tab; k Tab; k s; k shift+Tab; k Return; sleep 2.5
 done
 shot 03-three
-# Rows are at y=90/133/176; the menu opens at the pointer, items at +20/+50/+80/+119/+150/+185.
+# Rows are at y=90/133/176; the menu opens at the pointer (offsets below).
 click 120 90 3                         # right-click first session (tmp)
 shot 04-menu
 click 150 170                          # "Move down" -> var, tmp, usr
 sleep 1; shot 05-moved
+# Session menu items from the click: Edit +20, Move up +50, Move down +80,
+# Use mono colors +119, Disconnect +158, End remote +189, Delete +220.
 click 120 133 3                        # right-click the second row (now tmp)
-click 150 318                          # "Delete session…"
+click 150 $((133+220))                 # "Delete session…"
 sleep 0.5; k space                     # the checkbox has focus: tick "also end tmux session"
 shot 06-delete-dialog
 k Tab; k Return; sleep 3               # Delete
@@ -39,3 +41,4 @@ cp $CFG $OUT/config-after.toml
 for id in $(sed -n 's/^ *id = "\(.*\)"/\1/p' $CFG); do
 	ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null
 done
+exit 0

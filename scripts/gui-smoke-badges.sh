@@ -31,3 +31,4 @@ k ctrl+alt+1; sleep 1
 shot 4-all-cleared
 kill $APP; wait $APP 2>/dev/null
 for n in alpha beta gamma; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-b$n'" 2>/dev/null; done
+exit 0

@@ -49,3 +49,4 @@ sleep 4
 shot 8-disconnected                             # intentional: no auto-reconnect
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-rok'" 2>/dev/null
+exit 0

@@ -47,3 +47,4 @@ k ctrl+shift+1; sleep 2.5
 shot 5-remote-tmux
 kill $APP; wait $APP 2>/dev/null
 for id in s-full s-mono; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
+exit 0

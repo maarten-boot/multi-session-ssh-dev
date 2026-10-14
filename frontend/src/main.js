@@ -3,43 +3,25 @@ import './style.css';
 import {isMac, TermView} from './terminal';
 import {effectiveColorMode} from './appearance';
 import {rank, score} from './fuzzy';
+import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {$, el, hideMenu, showMenu, store} from './ui';
 import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
-    PreviewSession, SaveHost, StartLocal, StartRemote, State, UpdateSession,
+    PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
 
-// appKey maps a keydown to an app action, or null if it belongs to the
-// terminal. Defaults per SPEC 4.6 (configurable in a later milestone).
-function appKey(e) {
-    if (e.type !== 'keydown') return null;
-    const digit = /^Digit([1-9])$/.exec(e.code)?.[1];
-    if (isMac) {
-        if (!e.metaKey || e.ctrlKey || e.altKey) return null;
-        if (e.shiftKey && digit) return {tab: +digit - 1};
-        if (e.shiftKey && e.code === 'BracketRight') return {step: 1};
-        if (e.shiftKey && e.code === 'BracketLeft') return {step: -1};
-        if (e.shiftKey && e.code === 'KeyN') return {newSession: true};
-        if (e.shiftKey && e.code === 'KeyP') return {switcher: true};
-        if (!e.shiftKey && digit) return {session: +digit - 1};
-        return null;
-    }
-    if (!e.ctrlKey || e.metaKey) return null;
-    if (e.altKey && !e.shiftKey && digit) return {session: +digit - 1};
-    if (e.altKey || !e.shiftKey) return null;
-    if (digit) return {tab: +digit - 1};
-    if (e.code === 'PageDown') return {step: 1};
-    if (e.code === 'PageUp') return {step: -1};
-    if (e.code === 'KeyN') return {newSession: true};
-    if (e.code === 'KeyP') return {switcher: true};
-    return null;
-}
+// keymap is rebuilt from the config on every reload (see keys.js).
+let keymap = buildKeymap({}, isMac);
 
-const keyHint = isMac ? '⇧⌘' : 'Ctrl+Shift+';
+// appKey returns the app action for a keydown, or null if the key belongs
+// to the terminal.
+const appKey = e => actionFor(e, keymap.map);
+const TAB_ACTIONS = ['tab_remote', 'tab_local', 'tab_files'];
+const keyHint = action => format(keymap.map[action], isMac);
 
 // ---------------------------------------------------------------- sessions
 
@@ -265,6 +247,7 @@ const app = {
         });
         $('#btn-new').onclick = () => sessionDialog();
         $('#btn-add-host').onclick = () => hostDialog();
+        $('#btn-settings').onclick = () => settingsDialog();
     },
 
     // reload fetches state from the backend and re-renders, keeping
@@ -272,6 +255,7 @@ const app = {
     async reload() {
         this.state = await State();
         applyTheme(this.state.ui.theme);
+        keymap = buildKeymap(this.state.keys, isMac);
         const seen = new Set();
         for (const d of this.state.sessions) {
             seen.add(d.id);
@@ -309,8 +293,12 @@ const app = {
 
     render() {
         const err = $('#config-error');
-        err.hidden = !this.state.config_error;
-        err.textContent = this.state.config_error ? `Config not loaded — changes will not be saved:\n${this.state.config_error}` : '';
+        const problems = [];
+        if (this.state.config_error) problems.push(`Config not loaded — changes will not be saved:\n${this.state.config_error}`);
+        problems.push(...keymap.errors);
+        err.hidden = !problems.length;
+        err.textContent = problems.join('\n');
+        $('#btn-new').title = `New session (${keyHint('new_session')})`;
 
         const list = $('#session-list');
         list.replaceChildren();
@@ -420,7 +408,7 @@ const app = {
         $('#session-name').textContent = d.name;
         const nav = $('#tabs');
         nav.replaceChildren(...s.tabs.map((t, i) => {
-            const b = el('button', {textContent: t.label}, el('kbd', {textContent: keyHint + (i + 1)}));
+            const b = el('button', {textContent: t.label}, el('kbd', {textContent: keyHint(TAB_ACTIONS[i])}));
             if (i === s.activeTab) b.classList.add('active');
             b.onclick = () => this.selectTab(i);
             return b;
@@ -467,11 +455,14 @@ const app = {
         }
         e.preventDefault();
         hideMenu();
-        if (a.tab !== undefined) this.selectTab(a.tab);
-        else if (a.session !== undefined) this.order[a.session] && this.select(this.order[a.session]);
-        else if (a.step) this.step(a.step);
-        else if (a.newSession) sessionDialog();
-        else if (a.switcher) quickSwitcher();
+        const n = /^session_(\d)$/.exec(a)?.[1];
+        if (n) this.order[n - 1] && this.select(this.order[n - 1]);
+        else if (TAB_ACTIONS.includes(a)) this.selectTab(TAB_ACTIONS.indexOf(a));
+        else if (a === 'next_session') this.step(1);
+        else if (a === 'prev_session') this.step(-1);
+        else if (a === 'new_session') sessionDialog();
+        else if (a === 'quick_switcher') quickSwitcher();
+        else if (a === 'settings') settingsDialog();
     },
 
     focusActive() {
@@ -800,6 +791,43 @@ async function setSessionColors(s, mode) {
         await confirmDialog({title: 'Could not change colors', text: String(err), ok: null});
     }
     await app.reload();
+}
+
+const ACTION_LABELS = {
+    next_session: 'Next session', prev_session: 'Previous session', tab_remote: 'Remote tab',
+    tab_local: 'Local tab', tab_files: 'Files tab', new_session: 'New session',
+    quick_switcher: 'Quick switcher', settings: 'Settings',
+};
+
+async function settingsDialog() {
+    const dlg = $('#dlg-settings');
+    if (dlg.open) return;
+    const f = dlg.querySelector('form').elements;
+    const ui = app.state.ui;
+    for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start']) f[k].value = ui[k] ?? '';
+    f.auto_reconnect.checked = !!ui.auto_reconnect;
+    f.activity_badges.checked = !!ui.activity_badges;
+    const rows = Object.keys(ACTIONS).filter(a => !a.startsWith('session_')).map(a =>
+        el('tr', {}, el('td', {textContent: ACTION_LABELS[a] ?? a}), el('td', {}, el('kbd', {textContent: keyHint(a) || '—'})),
+            el('td', {className: 'action', textContent: a})));
+    rows.push(el('tr', {}, el('td', {textContent: 'Session 1…9'}), el('td', {}, el('kbd', {textContent: keyHint('session_1').replace(/1$/, '1…9')})),
+        el('td', {className: 'action', textContent: 'session_1 … session_9'})));
+    dlg.querySelector('.shortcuts table').replaceChildren(...rows);
+    dlg.querySelector('.shortcuts .hint').textContent =
+        `Change shortcuts in the [keys] section of ${app.state.config_path}, e.g. next_session = "Ctrl+Tab"; "none" disables one. Restart the app after editing.`;
+    const ok = await runDialog(dlg, () => SaveUI({
+        ...ui,
+        theme: f.theme.value,
+        color_mode: f.color_mode.value,
+        min_contrast: Number(f.min_contrast.value),
+        scrollback: Number(f.scrollback.value),
+        font_family: f.font_family.value.trim(),
+        font_size: Number(f.font_size.value),
+        connect_on_start: f.connect_on_start.value,
+        auto_reconnect: f.auto_reconnect.checked,
+        activity_badges: f.activity_badges.checked,
+    }));
+    if (ok) await app.reload();
 }
 
 async function endRemote(s) {

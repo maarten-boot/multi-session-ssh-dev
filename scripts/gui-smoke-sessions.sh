@@ -97,3 +97,4 @@ stop
 for id in $(sed -n 's/^ *id = "\(.*\)"/\1/p' $CFG); do
 	ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null
 done
+exit 0

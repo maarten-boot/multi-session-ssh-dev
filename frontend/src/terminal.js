@@ -35,6 +35,7 @@ export class TermView {
         this.onState = onState || (() => {});
         this.onActivity = onActivity || (() => {});
         this.container = container;
+        this.quietUntil = 0;
         this.id = null;
         this.term = new Terminal({cursorBlink: true, ...termOptions(ui, colorMode)});
         this.setColorFilter(colorMode);
@@ -45,7 +46,7 @@ export class TermView {
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
         this.term.onBell(() => this.onActivity('bell'));
         this.term.onData(d => this.id && TermWrite(this.id, d));
-        this.term.onResize(({cols, rows}) => this.id && TermResize(this.id, cols, rows));
+        this.term.onResize(({cols, rows}) => this.id && this.resizePty(cols, rows));
         this.observer = new ResizeObserver(() => this.fit.fit());
         this.observer.observe(container);
         this.fit.fit();
@@ -60,11 +61,11 @@ export class TermView {
             this.id = id;
             // Resizes while start() was in flight had no id to go to.
             this.fit.fit();
-            TermResize(id, this.term.cols, this.term.rows);
+            this.resizePty(this.term.cols, this.term.rows);
             EventsOn(`term:data:${id}`, b64 => {
                 const bytes = decode(b64);
                 this.term.write(this.filter ? this.filter.filter(bytes) : bytes);
-                this.onActivity('data', bytes.length);
+                if (Date.now() >= this.quietUntil) this.onActivity('data', bytes.length);
             });
             EventsOn(`term:exit:${id}`, info => this.onExit(info));
             this.onState('connected');
@@ -210,8 +211,15 @@ export class TermView {
     nudgeRedraw() {
         const {cols, rows} = this.term;
         if (rows < 2) return;
-        TermResize(this.id, cols, rows - 1);
-        setTimeout(() => this.id && TermResize(this.id, this.term.cols, this.term.rows), 80);
+        this.resizePty(cols, rows - 1);
+        setTimeout(() => this.id && this.resizePty(this.term.cols, this.term.rows), 80);
+    }
+
+    // resizePty tells the pty the new size. The redraw that programs answer
+    // with is not activity, so output is ignored for activity for a moment.
+    resizePty(cols, rows) {
+        this.quietUntil = Date.now() + 1500;
+        TermResize(this.id, cols, rows);
     }
 
     // disconnect kills the process; the view stays and offers to restart.

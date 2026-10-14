@@ -28,7 +28,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
 - `internal/opener`: xdg-open / open / start; refuse executables.
 - Frontend tree, context menu (open, reveal, copy local/remote path, refresh).
 
-## M5 — Keyboard + polish (1 day)
+## M5 — Keyboard + polish (1 day) ✅
 - Keybinding layer (configurable, per-OS defaults), quick switcher.
 - Bell/activity badges; disconnect overlay + reconnect; kill remote session.
 - Theme/font settings: light theme (black on white) + dark; `color_mode` full (with
