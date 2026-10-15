@@ -1,6 +1,9 @@
 # Test and build Session Workbench for Linux, Windows and macOS.
 # Every push and pull request produces downloadable artifacts; pushing a
 # tag v* also publishes them as a GitHub release.
+#
+# Actions are pinned to commit hashes (version in the comment). To update,
+# take the new release tag's commit: git ls-remote https://github.com/<action> refs/tags/<tag>
 name: build
 
 on:
@@ -38,18 +41,18 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0                # git describe needs tags
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 22             # builds the frontend; Vite 6 also works on 18 (Ubuntu 24.04)
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -100,7 +103,7 @@ jobs:
           esac
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: session-workbench-${{ matrix.name }}
           path: ${{ steps.package.outputs.file }}
@@ -113,7 +116,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           merge-multiple: true
