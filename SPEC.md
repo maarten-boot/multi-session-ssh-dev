@@ -124,7 +124,8 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   (remote), refresh.
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
-  `core.fsmonitor=false`, 15 s timeout): a letter per entry (M, A, D, R, U untracked,
+  `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
+  defines `filter.*`, `include*` or `core.fsmonitor`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
   ! conflict), a dot on folders containing changes, ignored entries dimmed; branch and
   ahead/behind in the files bar. Loaded after the listing; works when the session directory is a
   subdirectory of the repository; nothing shown outside a repository or without git.
@@ -217,6 +218,10 @@ frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js,
 ```
 
 ## 6. Security considerations
+See also docs/CONNECTIVITY.md: a shared repository lets the agent host write `.git/hooks` and
+`.git/config`, which git on the host executes. The app never runs such programs itself; users
+must check before running git on the host (planned: a repository check in the Files tab).
+
 - App stores no secrets. Config contains only hostnames and paths.
 - `ForwardAgent=no`, `ForwardX11=no` (plus `ClearAllForwardings=yes`, `RemoteCommand=none`)
   enforced on every ssh invocation regardless of ssh_config; the target follows `--` and may not

@@ -6,8 +6,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParse(t *testing.T) {
@@ -150,5 +152,53 @@ func TestRealRepository(t *testing.T) {
 	none, err := Get(context.Background(), t.TempDir())
 	if err != nil || none.Repo {
 		t.Errorf("outside repo: %+v %v", none, err)
+	}
+}
+
+// A shared repository's config may name programs; status must not run them.
+func TestUnsafeRepositoryConfigIsNotRun(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("the probe filter is a POSIX shell command")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for name, key := range map[string][]string{
+		"clean filter": {"filter.probe.clean"},
+		"include":      {"include.path"},
+		"fsmonitor":    {"core.fsmonitor"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			repo := t.TempDir()
+			marker := filepath.Join(t.TempDir(), "ran")
+			run(t, repo, "init", "-q")
+			write(t, filepath.Join(repo, "a.txt"), "hello\n")
+			write(t, filepath.Join(repo, ".gitattributes"), "* filter=probe\n")
+			run(t, repo, "add", "-A")
+			run(t, repo, "commit", "-q", "-m", "base")
+			probe := "sh -c 'touch " + marker + "; cat'"
+			if key[0] == "include.path" {
+				extra := filepath.Join(t.TempDir(), "extra.cfg")
+				write(t, extra, "[filter \"probe\"]\n\tclean = "+probe+"\n")
+				run(t, repo, "config", "include.path", extra)
+			} else {
+				run(t, repo, "config", key[0], probe)
+			}
+			// Same size, newer timestamp: git must read the content, which
+			// is when it runs the clean filter.
+			os.Chtimes(filepath.Join(repo, "a.txt"), time.Now().Add(time.Minute), time.Now().Add(time.Minute))
+			st, err := Get(context.Background(), repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(st.Skipped, key[0]) || len(st.Files) != 0 || st.Branch != "main" {
+				t.Errorf("status = %+v", st)
+			}
+			if _, err := os.Stat(marker); err == nil {
+				t.Error("the repository's program ran")
+			}
+		})
 	}
 }

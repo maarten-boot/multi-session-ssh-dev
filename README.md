@@ -5,6 +5,10 @@ is bound to a repository directory and has a **Remote** terminal (ssh → tmux �
 claude on the isolated agent host), a **Local** terminal (host shell for git),
 and a **Files** tab. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
+**Setting up the agent host and sharing files with it — and what that means for
+security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
+read its security section if the agent host can write to your repositories.
+
 Status: v1 feature set (M0–M6): sessions with Remote, Local and Files tabs, themes
 and color modes, quick switcher, activity badges, auto-reconnect, settings;
 builds for Linux, Windows and macOS.
@@ -87,7 +91,10 @@ a name, and what a new remote tmux session starts with (`claude`,
   5000 entries. In a git repository each entry gets a letter — **M** modified,
   **A** added, **D** deleted, **R** renamed, **U** untracked, **!** conflict — folders
   with changes get a dot, ignored files are dimmed, and the bar shows the branch with
-  ahead/behind (↑/↓). This needs `git` on the host and only reads (no locks).
+  ahead/behind (↑/↓). This needs `git` on the host and only reads (no locks). If the
+  repository's own config names programs git status would run (filters, includes,
+  fsmonitor), the status is skipped and the bar says so — see
+  [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
 Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
 previous); links are clickable; emoji and CJK characters get their proper two-cell

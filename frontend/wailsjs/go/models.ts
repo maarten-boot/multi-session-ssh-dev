@@ -116,6 +116,7 @@ export namespace gitstatus {
 	
 	export class Status {
 	    repo: boolean;
+	    skipped: string;
 	    branch: string;
 	    detached: boolean;
 	    upstream: string;
@@ -131,6 +132,7 @@ export namespace gitstatus {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.repo = source["repo"];
+	        this.skipped = source["skipped"];
 	        this.branch = source["branch"];
 	        this.detached = source["detached"];
 	        this.upstream = source["upstream"];

@@ -1125,3 +1125,7 @@ dialog .buttons .about {
 .tree .row.git-dir-C .git-mark { color: var(--git-deleted); }
 .tree .row.git-C .name { font-weight: 600; }
 .tree .row.git-I .name { opacity: 0.5; }
+
+.files-branch.warn {
+    color: var(--warn);
+}

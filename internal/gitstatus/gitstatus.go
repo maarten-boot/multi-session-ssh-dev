@@ -1,7 +1,13 @@
 // Package gitstatus reads `git status` for a session directory so the Files
 // tab can mark changed files. It only reads: no index lock is taken (so it
-// never interferes with the user's own git commands) and the repository's
-// fsmonitor hook is disabled (so no repository-configured program runs).
+// never interferes with the user's own git commands).
+//
+// The repository may be shared with the agent host, which can then write
+// its .git/config. git status runs programs named there (fsmonitor, and
+// clean filters for files whose timestamps changed), so the repository's
+// own config is checked first and status is skipped when it names any; see
+// docs/CONNECTIVITY.md. Global and system config are the user's own and
+// are trusted (e.g. git-lfs).
 package gitstatus
 
 import (
@@ -27,7 +33,10 @@ const (
 )
 
 type Status struct {
-	Repo     bool   `json:"repo"` // false: not inside a git work tree (or git missing)
+	Repo bool `json:"repo"` // false: not inside a git work tree (or git missing)
+	// Skipped explains why no status was read: the repository's own config
+	// names programs that git status would run.
+	Skipped  string `json:"skipped"`
 	Branch   string `json:"branch"`
 	Detached bool   `json:"detached"`
 	Upstream string `json:"upstream"`
@@ -78,14 +87,47 @@ func Get(ctx context.Context, dir string) (Status, error) {
 		}
 		return st, err
 	}
+	st.Repo = true
+	if reason, err := unsafeConfig(ctx, dir); err != nil {
+		return st, err
+	} else if reason != "" {
+		st.Skipped = reason
+		if b, err := git(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
+			st.Branch = strings.TrimSpace(string(b))
+		}
+		return st, nil
+	}
+	// Submodules are not entered: each has its own config to vet.
 	out, err := git(ctx, dir, "status", "--porcelain=v2", "-z", "--branch",
-		"--untracked-files=normal", "--ignored=matching", "--", ".")
+		"--untracked-files=normal", "--ignored=matching", "--ignore-submodules=all", "--", ".")
 	if err != nil {
 		return st, err
 	}
-	st.Repo = true
 	parse(&st, out, strings.TrimSpace(string(prefix)))
 	return st, nil
+}
+
+// unsafeConfig returns a reason if the repository's own config (not global
+// or system config) sets something git status would execute or that pulls
+// in other config. Reading config with --no-includes runs nothing.
+func unsafeConfig(ctx context.Context, dir string) (string, error) {
+	out, err := git(ctx, dir, "config", "--local", "--no-includes", "--name-only", "--list")
+	if err != nil {
+		if strings.Contains(err.Error(), "exit status 1") {
+			return "", nil // no local config at all
+		}
+		return "", err
+	}
+	for _, key := range strings.Fields(string(out)) {
+		k := strings.ToLower(key)
+		switch {
+		case strings.HasPrefix(k, "filter."), // clean/smudge/process programs
+			strings.HasPrefix(k, "include."), strings.HasPrefix(k, "includeif."), // more config
+			k == "core.fsmonitor":
+			return "repository config sets " + key, nil
+		}
+	}
+	return "", nil
 }
 
 // parse reads `git status --porcelain=v2 -z --branch` output. Paths in it

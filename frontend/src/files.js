@@ -94,6 +94,14 @@ export class FilesView {
             return;
         }
         if (!g?.repo) return;
+        if (g.skipped) {
+            this.branchLabel.textContent = `⎇ ${g.branch} · git status skipped`;
+            this.branchLabel.title = `${g.skipped}: git status would run a program named by the repository, ` +
+                'which the agent host may have written. Check .git/config (see docs/CONNECTIVITY.md).';
+            this.branchLabel.classList.add('warn');
+            return;
+        }
+        this.branchLabel.classList.remove('warn');
         const changed = Object.values(g.files).filter(c => c !== 'I').length;
         let text = '⎇ ' + (g.detached ? 'detached' : g.branch);
         if (g.ahead) text += ` ↑${g.ahead}`;
