@@ -131,6 +131,9 @@ func readLog(t *testing.T, log string) []string {
 }
 
 func TestAttachCommandExecutes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a POSIX shell, and Windows forbids \" in file names")
+	}
 	// A directory name that breaks naive quoting in every way.
 	dir := filepath.Join(t.TempDir(), `it's a "dir" with $HOME and `+"`id`"+` & ;`)
 	if err := os.Mkdir(dir, 0o755); err != nil {
