@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Session Workbench
+GenericName=Claude Code session manager
+Comment=Many Claude Code sessions side by side: remote (ssh + tmux), local shell and files
+Exec=session-workbench
+Icon=session-workbench
+Terminal=false
+Categories=Development;
+Keywords=claude;ssh;tmux;terminal;
+StartupWMClass=session-workbench

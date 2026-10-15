@@ -1,6 +1,7 @@
 # Session Workbench — Specification
 
-Status: v1.0 — implemented in v0.6.0 (2026-10-15). Sections describe the shipped behaviour.
+Status: v1.1 (2026-10-15) — v1.0 shipped in v0.6.0; v1.1 adds session folders (F5), git status
+in the Files tab (B5) and Linux packages. Sections describe the implemented behaviour.
 
 ## 1. Problem
 
@@ -77,6 +78,11 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   path under `local_prefix`) → name → start mode (`claude`, `claude --continue`, plain shell).
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable).
+- F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
+  gives their order, `group` on a session its folder. The sidebar shows ungrouped sessions first,
+  then each folder (collapsible, with a count), each split by host. Folders can be created,
+  renamed (sessions follow), reordered and deleted (sessions stay, ungrouped). Sessions move
+  between folders via the session dialog, "Move to folder…", or drag onto a folder header.
 - F4. Activity indicator: a session gets a badge when a non-visible terminal rings the bell or
   produces output after being idle (claude waiting for input → bell; user configures Claude Code's
   `preferredNotifChannel` to `terminal_bell`).
@@ -117,6 +123,11 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - B3. Context menu: open, open containing folder in OS file manager, copy path (local), copy path
   (remote), refresh.
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
+- B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
+  `core.fsmonitor=false`, 15 s timeout): a letter per entry (M, A, D, R, U untracked,
+  ! conflict), a dot on folders containing changes, ignored entries dimmed; branch and
+  ahead/behind in the files bar. Loaded after the listing; works when the session directory is a
+  subdirectory of the repository; nothing shown outside a repository or without git.
 
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
@@ -201,6 +212,7 @@ internal/config            TOML config
 internal/session           hosts/sessions logic on top of the config
 internal/fsbrowse          Files tab listing
 internal/opener            open / reveal, refusing executables
+internal/gitstatus         git markers for the Files tab
 frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js, keys.js, fuzzy.js
 ```
 
@@ -219,7 +231,9 @@ frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js,
 
 ## 7. Open questions
 1. ~~Wails v2 vs v3~~ → v2.16 (decided).
-2. Should Files tab also show `git status` markers later (host-side git)? (v2 candidate)
+2. ~~Should Files tab also show `git status` markers?~~ → yes, B5.
 3. ~~Multiple agent hosts?~~ → yes, see F0. Same local dir may be opened against different hosts
    (each gets its own session).
-4. Session groups/folders in the sidebar if session count grows large?
+4. ~~Session groups/folders in the sidebar?~~ → yes, F5.
+5. Distribution: Linux `.deb` (Debian/Ubuntu) and `.rpm` (Fedora) with dependencies, menu entry
+   and icon, alongside a plain tarball; Windows zip; macOS app zip. All unsigned.

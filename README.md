@@ -16,7 +16,9 @@ artifacts); tagged versions (`v*`) are published under **Releases**:
 
 | File | Runs on | Notes |
 |---|---|---|
-| `…-linux-amd64.tar.gz` | Ubuntu 24.04+ / Debian 13+ (x86-64) | needs `libwebkit2gtk-4.1-0` and GTK 3 (`libgtk-3-0t64` on Ubuntu 24.04; installed with most desktops) |
+| `session-workbench_…_amd64.deb` | Ubuntu 24.04+ / Debian 13+ (x86-64) | `sudo apt install ./session-workbench_…_amd64.deb` installs the dependencies and a menu entry |
+| `session-workbench-…x86_64.rpm` | Fedora 40+ (x86-64) | `sudo dnf install ./session-workbench-…x86_64.rpm` installs the dependencies and a menu entry |
+| `…-linux-amd64.tar.gz` | any of the above | just the binary; needs WebKitGTK 4.1 and GTK 3 (Debian/Ubuntu: `libwebkit2gtk-4.1-0`; Fedora: `webkit2gtk4.1 gtk3`) |
 | `…-windows-amd64.zip` | Windows 10/11 (x86-64) | uses the built-in OpenSSH client and the WebView2 runtime (both standard on current Windows). The exe is unsigned: SmartScreen asks once (*More info → Run anyway*). |
 | `…-macos-universal.zip` | macOS 11+ with Safari 16+ (Apple silicon and Intel) | contains `session-workbench.app`; unsigned: the first time, right-click the app → *Open*, or run `xattr -dr com.apple.quarantine session-workbench.app` |
 
@@ -43,6 +45,7 @@ make check   # list missing build requirements
 make deps    # install them (system packages via sudo, wails via go install)
 make build   # → build/bin/session-workbench (version from git describe)
 make build-windows   # → build/bin/session-workbench.exe, cross-built
+make packages        # → dist/*.deb and dist/*.rpm (installs nfpm if needed)
 make run     # build, then start the app
 make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test)
@@ -52,7 +55,8 @@ make vet     # vet for linux and windows (all packages), darwin (internal packag
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
 make smoke-files     # headless GUI test of the Files tab
-make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy
+make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
+                     # folders, git markers
 make smoke-all       # all GUI tests
 ```
 
@@ -80,7 +84,10 @@ a name, and what a new remote tmux session starts with (`claude`,
   (including `.git`) are hidden unless "Hidden files" is ticked. Programs and
   files the OS would execute rather than open (`.exe`, `.bat`, `.desktop`,
   `.app`, ELF/Mach-O binaries, …) are refused. Very large directories show the first
-  5000 entries.
+  5000 entries. In a git repository each entry gets a letter — **M** modified,
+  **A** added, **D** deleted, **R** renamed, **U** untracked, **!** conflict — folders
+  with changes get a dot, ignored files are dimmed, and the bar shows the branch with
+  ahead/behind (↑/↓). This needs `git` on the host and only reads (no locks).
 
 Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
 previous); links are clickable; emoji and CJK characters get their proper two-cell
@@ -120,11 +127,19 @@ notification channel to *terminal bell* (setting `preferredNotifChannel`, value
 (1, 2, 4 … 30 s; Esc stops it). Detaching tmux or ending the remote session does not
 reconnect; press Enter when you want to.
 
-Right-click a session (or its ⋯) to edit it (name, start mode, colors), move it up
-or down, switch it between full and mono colors, disconnect, end its remote tmux
-session, or delete it; drag sessions to reorder them within a host. Click a host
-header to collapse it; right-click it to add a session on that host, edit or delete
-the host. The app remembers the active session and reopens it on start.
+**Folders.** Group sessions into folders such as *Work* and *Private*: "+" →
+*New folder…*, then put sessions in it from the session dialog, with *Move to
+folder…*, or by dragging a session onto the folder header. Right-click a folder to
+rename, reorder or delete it (deleting keeps its sessions). Sessions without a folder
+are listed first.
+
+Right-click a session (or its ⋯) to edit it (name, folder, start mode, colors), move
+it up or down, move it to a folder, switch it between full and mono colors,
+disconnect, end its remote tmux session, or delete it; drag sessions to reorder them
+within their folder and host. Click a folder or host header to collapse it;
+right-click a host to add a session on it, edit or delete it. Menus also work from the
+keyboard (arrows, Enter, first letter). The app remembers the active session and
+reopens it on start.
 
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux`; `claude` is found through the login shell's PATH.
@@ -139,6 +154,7 @@ the app shows why and saves nothing, so your file is never overwritten.
 
 ```toml
 workspace_roots = ["~/share-local/DEV"]   # where "Browse…" starts
+groups = ["Work", "Private"]              # sidebar folders, in this order
 
 [ui]                                      # all of these are in Settings too
 theme = "light"                           # or "dark"
@@ -172,6 +188,7 @@ name = "workbench"
 host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
 start_mode = "claude-continue"
+group = "Work"                            # optional: sidebar folder
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 local_init = "git status"                 # optional: typed into the Local tab
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
@@ -189,6 +206,8 @@ internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
 internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
+internal/gitstatus     git status markers for the Files tab
+packaging/             .desktop file, icons and nfpm config for .deb/.rpm
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js
 scripts/deps.sh        make check / make deps

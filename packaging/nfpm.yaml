@@ -1,0 +1,53 @@
+# Linux packages (.deb and .rpm), built in CI with nfpm:
+#   VERSION=0.7.0 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+# The binary is the same for every distribution; only the dependency names
+# differ.
+name: session-workbench
+arch: amd64
+platform: linux
+version: ${VERSION}
+version_schema: semver
+section: devel
+priority: optional
+maintainer: Maarten Boot <11140490+maarten-boot@users.noreply.github.com>
+description: |
+  Desktop app for running many Claude Code sessions side by side. Each
+  session has a remote terminal (ssh -> tmux -> claude on an agent host),
+  a local shell and a file tree with git status, all for one directory.
+vendor: Maarten Boot
+homepage: https://github.com/maarten-boot/multi-session-ssh-dev
+license: MIT
+
+contents:
+  - src: build/bin/session-workbench
+    dst: /usr/bin/session-workbench
+    file_info:
+      mode: 0755
+  - src: packaging/session-workbench.desktop
+    dst: /usr/share/applications/session-workbench.desktop
+  - src: build/appicon.png
+    dst: /usr/share/icons/hicolor/1024x1024/apps/session-workbench.png
+  - src: packaging/icons/256.png
+    dst: /usr/share/icons/hicolor/256x256/apps/session-workbench.png
+  - src: packaging/icons/128.png
+    dst: /usr/share/icons/hicolor/128x128/apps/session-workbench.png
+  - src: packaging/icons/48.png
+    dst: /usr/share/icons/hicolor/48x48/apps/session-workbench.png
+  - src: LICENSE
+    dst: /usr/share/doc/session-workbench/LICENSE
+
+overrides:
+  deb:
+    depends:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0t64 | libgtk-3-0
+      - openssh-client
+    recommends:
+      - git
+  rpm:
+    depends:
+      - webkit2gtk4.1
+      - gtk3
+      - openssh-clients
+    recommends:
+      - git

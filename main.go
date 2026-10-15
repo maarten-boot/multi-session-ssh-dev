@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/session"
@@ -16,6 +17,9 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed build/appicon.png
+var icon []byte
 
 // version is set with -ldflags "-X main.version=..." by the Makefile and CI.
 var version = "dev"
@@ -53,6 +57,10 @@ func main() {
 		},
 		BackgroundColour: bg,
 		Menu:             appMenu(),
+		Linux: &linux.Options{
+			Icon:        icon,
+			ProgramName: "session-workbench", // WM_CLASS, matches the .desktop file
+		},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{

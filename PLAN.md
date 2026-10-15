@@ -44,6 +44,14 @@ implementation differs from the original plan.
 - *Also: release on `v*` tags, version stamping, macOS app/Edit menu. Windows and macOS are
   tested and built in CI; the apps have not yet been tried interactively on those systems.*
 
+## After v1 (v1.1)
+- Session folders (SPEC F5), keyboard-driven context menus.
+- Git status in the Files tab (SPEC B5).
+- Terminal find bar, Unicode 11 widths, copy on select (SPEC T1/T2, found missing in the
+  docs/code cross-check).
+- Linux `.deb`/`.rpm` packages (nfpm) with desktop entry and an own app icon; verified by
+  installing in clean Ubuntu 24.04 and Fedora 44 containers.
+
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, fsbrowse, opener, terminal incl. a ConPTY test on Windows) —
@@ -52,7 +60,7 @@ implementation differs from the original plan.
 - ssh/tmux round trip against a real host: `make test-ssh`.
 - Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`):
   terminal fidelity, sessions/dialogs/restart, Files, colors, switcher, settings/keys,
-  reconnect, badges, terminal extras (find, unicode widths, copy on select).
+  reconnect, badges, terminal extras (find, unicode widths, copy on select), folders, git markers.
 
 ## Notes on working in this setup
 - All development, builds and tests run on the agent host (Claude's side).

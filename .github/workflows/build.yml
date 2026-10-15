@@ -18,6 +18,7 @@ permissions:
 
 env:
   WAILS_VERSION: v2.16.0
+  NFPM_VERSION: v2.48.0               # .deb / .rpm packaging
 
 jobs:
   build:
@@ -105,21 +106,32 @@ jobs:
           -ldflags "-X main.version=${{ steps.version.outputs.version }}"
 
       - name: Package
-        id: package
         run: |
           base="session-workbench-${{ steps.version.outputs.version }}-${{ matrix.name }}"
-          cd build/bin
+          mkdir dist
           case "$RUNNER_OS" in
-            Linux)   tar czf "../../$base.tar.gz" session-workbench; file="$base.tar.gz" ;;
-            Windows) 7z a -tzip "../../$base.zip" session-workbench.exe >/dev/null; file="$base.zip" ;;
-            macOS)   ditto -c -k --keepParent session-workbench.app "../../$base.zip"; file="$base.zip" ;;
+            Linux)   tar czf "dist/$base.tar.gz" -C build/bin session-workbench ;;
+            Windows) (cd build/bin && 7z a -tzip "../../dist/$base.zip" session-workbench.exe >/dev/null) ;;
+            macOS)   ditto -c -k --keepParent build/bin/session-workbench.app "dist/$base.zip" ;;
           esac
-          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Linux packages (.deb, .rpm)
+        if: runner.os == 'Linux'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@${NFPM_VERSION}
+          # v0.7.0 -> 0.7.0; v0.7.0-3-gabc123 (after a tag) -> 0.7.0+3.gabc123,
+          # which sorts after 0.7.0 (a "-" would make it a pre-release).
+          VERSION=$(git describe --tags --always | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)$/+\1.g\2/')
+          case "$VERSION" in [0-9]*) ;; *) VERSION="0.0.0+g$VERSION" ;; esac
+          export VERSION
+          nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+          nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+          ls -l dist
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: session-workbench-${{ matrix.name }}
-          path: ${{ steps.package.outputs.file }}
+          path: dist/*
           if-no-files-found: error
 
   release:
