@@ -1,4 +1,4 @@
-import {ItemPaths, ListDir, OpenPath, RevealPath} from '../wailsjs/go/main/App';
+import {GitStatus, ItemPaths, ListDir, OpenPath, RevealPath} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {el, showMenu, store} from './ui';
 
@@ -25,10 +25,12 @@ export class FilesView {
         const refreshBtn = el('button', {className: 'icon', textContent: '⟳', title: 'Refresh'});
         refreshBtn.onclick = () => this.refresh();
         this.rootLabel = el('span', {className: 'files-root'});
+        this.branchLabel = el('span', {className: 'files-branch'});
+        this.git = null; // gitstatus.Status, once loaded
         this.tree = el('div', {className: 'tree', tabIndex: 0});
         this.status = el('div', {className: 'files-status'});
         container.append(el('div', {className: 'files'},
-            el('div', {className: 'files-bar'}, this.rootLabel,
+            el('div', {className: 'files-bar'}, this.branchLabel, this.rootLabel,
                 el('label', {className: 'files-hidden'}, this.hiddenBox, ' Hidden files'), refreshBtn),
             this.tree, this.status));
 
@@ -68,6 +70,9 @@ export class FilesView {
         this.rootLabel.textContent = this.session.data.local_path;
         this.rootLabel.title = this.session.data.local_path;
         const dirs = [...this.expanded];
+        // git can be slow on big repositories or NFS: show the tree first and
+        // add the markers when they arrive.
+        const git = GitStatus(this.session.id).catch(err => ({repo: false, error: errText(err)}));
         this.children.clear();
         await Promise.all(dirs.map(d => this.load(d)));
         for (const d of dirs) {
@@ -75,6 +80,42 @@ export class FilesView {
         }
         this.render();
         if (this.selected === null && document.activeElement === this.tree) this.focus();
+        this.git = await git;
+        this.renderBranch();
+        this.render();
+    }
+
+    renderBranch() {
+        const g = this.git;
+        this.branchLabel.hidden = !g?.repo && !g?.error;
+        if (g?.error) {
+            this.branchLabel.textContent = 'git: error';
+            this.branchLabel.title = g.error;
+            return;
+        }
+        if (!g?.repo) return;
+        const changed = Object.values(g.files).filter(c => c !== 'I').length;
+        let text = '⎇ ' + (g.detached ? 'detached' : g.branch);
+        if (g.ahead) text += ` ↑${g.ahead}`;
+        if (g.behind) text += ` ↓${g.behind}`;
+        if (changed) text += ` · ${changed} changed`;
+        this.branchLabel.textContent = text;
+        this.branchLabel.title = g.upstream ? `tracking ${g.upstream}` : 'no upstream branch';
+    }
+
+    // gitCode returns the marker for an entry: its own code, its folder
+    // summary, or I when it lies inside an ignored directory.
+    gitCode(e) {
+        const g = this.git;
+        if (!g?.repo) return '';
+        if (g.files[e.rel]) return g.files[e.rel];
+        if (e.dir && g.dirs[e.rel]) return 'dir-' + g.dirs[e.rel];
+        for (let p = e.rel; p.includes('/');) {
+            p = p.slice(0, p.lastIndexOf('/'));
+            const c = g.files[p];
+            if (c === 'I' || c === '?') return c; // everything inside is ignored / untracked too
+        }
+        return '';
     }
 
     async toggle(rel) {
@@ -126,12 +167,16 @@ export class FilesView {
             row.dataset.rel = e.rel;
             row.classList.add(e.dir ? 'dir' : 'file');
             if (e.hidden) row.classList.add('hidden-entry');
+            const gc = this.gitCode(e);
+            if (gc) row.classList.add('git-' + gc.replace('?', 'U'));
             if (e.symlink) row.classList.add('symlink');
             if (e.rel === this.selected) row.classList.add('selected');
             const caret = e.dir ? (this.expanded.has(e.rel) ? '▾' : '▸') : '';
             row.append(el('span', {className: 'caret', textContent: caret}),
                 el('span', {className: 'name', textContent: e.name + (e.dir ? '/' : '')}));
             if (!e.dir) row.append(el('span', {className: 'size', textContent: fmtSize(e.size)}));
+            const mark = GIT_MARK[gc];
+            if (mark) row.append(el('span', {className: 'git-mark', textContent: mark.text, title: mark.title}));
             return row;
         }));
         this.tree.scrollTop = scroll;
@@ -153,6 +198,10 @@ export class FilesView {
         const parts = [e.rel + (e.dir ? '/' : '')];
         if (e.symlink) parts.push('symlink');
         if (!e.dir) parts.push(fmtSize(e.size));
+        const gc = this.gitCode(e);
+        const label = {M: 'modified', A: 'added', D: 'deleted', R: 'renamed', '?': 'untracked', C: 'merge conflict',
+            I: 'ignored by git', 'dir-M': 'contains changes', 'dir-?': 'contains untracked files', 'dir-C': 'contains conflicts'}[gc];
+        if (label) parts.push(label);
         parts.push('modified ' + new Date(e.mtime * 1000).toLocaleString());
         this.status.textContent = parts.join('  ·  ');
         this.status.classList.remove('bad');
@@ -263,6 +312,19 @@ export class FilesView {
     dispose() {
     }
 }
+
+// Markers are letters (and a dot for folders), so they work without color.
+const GIT_MARK = {
+    M: {text: 'M', title: 'modified'},
+    A: {text: 'A', title: 'added (staged)'},
+    D: {text: 'D', title: 'deleted'},
+    R: {text: 'R', title: 'renamed'},
+    '?': {text: 'U', title: 'untracked'},
+    C: {text: '!', title: 'merge conflict'},
+    'dir-M': {text: '•', title: 'contains changes'},
+    'dir-?': {text: '•', title: 'contains untracked files'},
+    'dir-C': {text: '!', title: 'contains merge conflicts'},
+};
 
 function fmtSize(n) {
     if (n < 1024) return `${n} B`;

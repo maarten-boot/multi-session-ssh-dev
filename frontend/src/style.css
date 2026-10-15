@@ -1,5 +1,9 @@
 :root, :root[data-theme="dark"] {
     color-scheme: dark; /* native controls (select popups, scrollbars) */
+    --git-modified: #e2c08d;
+    --git-added: #81b88b;
+    --git-deleted: #f48771;
+    --git-renamed: #75beff;
     --bg: #1e1e1e;
     --panel: #252526;
     --panel-2: #2d2d30;
@@ -31,6 +35,10 @@
 /* Light: black on white, chrome in light greys (SPEC T3). */
 :root[data-theme="light"] {
     color-scheme: light;
+    --git-modified: #8a5a00;
+    --git-added: #1a7f37;
+    --git-deleted: #b3261e;
+    --git-renamed: #0550ae;
     --bg: #ffffff;
     --panel: #f3f3f3;
     --panel-2: #e8e8e8;
@@ -1085,3 +1093,35 @@ dialog .buttons .about {
     font-size: 12px;
     font-style: italic;
 }
+
+/* --- git markers (letters carry the meaning; color only helps) --- */
+
+.files-branch {
+    flex: none;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.tree .git-mark {
+    flex: none;
+    width: 1.2em;
+    margin-left: 8px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.tree .row.dir .git-mark {
+    margin-left: auto;
+}
+
+.tree .row.git-M .name, .tree .row.git-M .git-mark,
+.tree .row.git-dir-M .git-mark { color: var(--git-modified); }
+.tree .row.git-A .name, .tree .row.git-A .git-mark,
+.tree .row.git-U .name, .tree .row.git-U .git-mark,
+.tree .row.git-dir-U .git-mark { color: var(--git-added); }
+.tree .row.git-R .name, .tree .row.git-R .git-mark { color: var(--git-renamed); }
+.tree .row.git-D .name, .tree .row.git-D .git-mark,
+.tree .row.git-C .name, .tree .row.git-C .git-mark,
+.tree .row.git-dir-C .git-mark { color: var(--git-deleted); }
+.tree .row.git-C .name { font-weight: 600; }
+.tree .row.git-I .name { opacity: 0.5; }

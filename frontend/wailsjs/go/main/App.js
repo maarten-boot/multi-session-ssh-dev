@@ -22,6 +22,10 @@ export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
 
+export function GitStatus(arg1) {
+  return window['go']['main']['App']['GitStatus'](arg1);
+}
+
 export function ItemPaths(arg1, arg2) {
   return window['go']['main']['App']['ItemPaths'](arg1, arg2);
 }

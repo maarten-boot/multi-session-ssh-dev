@@ -13,6 +13,7 @@ import (
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/fsbrowse"
+	"session-workbench/internal/gitstatus"
 	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
@@ -33,6 +34,7 @@ func NewApp(sessions *session.Manager) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	gitstatus.Configure = hideConsole
 	a.terms = terminal.NewManager(terminal.EmitterFunc(func(name string, data ...any) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
@@ -133,6 +135,18 @@ func (a *App) ListDir(id, rel string, showHidden bool) (fsbrowse.Listing, error)
 		return fsbrowse.Listing{}, err
 	}
 	return fsbrowse.List(r.LocalPath, rel, showHidden)
+}
+
+// GitStatus returns git markers for the Files tab. Outside a repository,
+// or without git, Repo is false.
+func (a *App) GitStatus(id string) (gitstatus.Status, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return gitstatus.Status{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	return gitstatus.Get(ctx, r.LocalPath)
 }
 
 // OpenPath opens a file with its default application (a directory in the

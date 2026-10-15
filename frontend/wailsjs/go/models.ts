@@ -112,6 +112,37 @@ export namespace fsbrowse {
 
 }
 
+export namespace gitstatus {
+	
+	export class Status {
+	    repo: boolean;
+	    branch: string;
+	    detached: boolean;
+	    upstream: string;
+	    ahead: number;
+	    behind: number;
+	    files: Record<string, string>;
+	    dirs: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = source["repo"];
+	        this.branch = source["branch"];
+	        this.detached = source["detached"];
+	        this.upstream = source["upstream"];
+	        this.ahead = source["ahead"];
+	        this.behind = source["behind"];
+	        this.files = source["files"];
+	        this.dirs = source["dirs"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class Paths {
