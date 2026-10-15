@@ -18,7 +18,12 @@ permissions:
 
 env:
   WAILS_VERSION: v2.16.0
-  NFPM_VERSION: v2.48.0               # .deb / .rpm packaging
+  # Release binaries are built with the newest patch of this Go series
+  # (security fixes); go.mod's go line is only the minimum.
+  GO_VERSION: '1.26.x'
+  # .deb / .rpm packaging: official nfpm release binary, checksum-verified.
+  NFPM_VERSION: 2.48.0
+  NFPM_SHA256: 6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750
 
 jobs:
   build:
@@ -48,7 +53,8 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
           cache-dependency-path: go.sum
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -118,14 +124,18 @@ jobs:
       - name: Linux packages (.deb, .rpm)
         if: runner.os == 'Linux'
         run: |
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@${NFPM_VERSION}
+          tgz="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$tgz" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/$tgz"
+          echo "${NFPM_SHA256}  $RUNNER_TEMP/$tgz" | sha256sum -c -
+          tar xzf "$RUNNER_TEMP/$tgz" -C "$RUNNER_TEMP" nfpm
+          nfpm="$RUNNER_TEMP/nfpm"
           # v0.7.0 -> 0.7.0; v0.7.0-3-gabc123 (after a tag) -> 0.7.0+3.gabc123,
           # which sorts after 0.7.0 (a "-" would make it a pre-release).
           VERSION=$(git describe --tags --always | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)$/+\1.g\2/')
           case "$VERSION" in [0-9]*) ;; *) VERSION="0.0.0+g$VERSION" ;; esac
           export VERSION
-          nfpm package -f packaging/nfpm.yaml -p deb -t dist/
-          nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+          "$nfpm" package -f packaging/nfpm.yaml -p deb -t dist/
+          "$nfpm" package -f packaging/nfpm.yaml -p rpm -t dist/
           ls -l dist
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
