@@ -32,6 +32,8 @@ test('defaults per OS', () => {
     assert.equal(actionFor(ev('Digit4', {metaKey: true}), mac.map), 'session_4');
     assert.equal(actionFor(ev('Digit2', {ctrlKey: true, shiftKey: true}), lin.map), 'tab_local');
     assert.equal(actionFor(ev('KeyP', {ctrlKey: true, shiftKey: true}), lin.map), 'quick_switcher');
+    assert.equal(actionFor(ev('KeyF', {ctrlKey: true, shiftKey: true}), lin.map), 'find');
+    assert.equal(actionFor(ev('KeyF', {metaKey: true}), mac.map), 'find');
     // Exact modifiers: Ctrl+Shift+Alt+1 is not Ctrl+Shift+1, plain keys go to the terminal.
     assert.equal(actionFor(ev('Digit1', {ctrlKey: true, shiftKey: true, altKey: true}), lin.map), null);
     assert.equal(actionFor(ev('KeyC', {ctrlKey: true}), lin.map), null);

@@ -69,6 +69,19 @@ jobs:
         id: version
         run: echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
 
+      - name: Product version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        # wails.json's productVersion goes into the Windows exe properties and
+        # the macOS Info.plist; keep it in step with the release tag.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const w = JSON.parse(fs.readFileSync("wails.json", "utf8"));
+            w.info.productVersion = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            fs.writeFileSync("wails.json", JSON.stringify(w, null, 2) + "\n");
+          '
+          grep productVersion wails.json
+
       - name: Frontend
         working-directory: frontend
         run: |

@@ -57,6 +57,8 @@ type UI struct {
 	// ActivityBadges marks sessions whose hidden terminals ring the bell or
 	// start producing output after being idle.
 	ActivityBadges *bool `toml:"activity_badges,omitempty" json:"activity_badges"`
+	// CopyOnSelect copies terminal selections to the clipboard as they are made.
+	CopyOnSelect bool `toml:"copy_on_select,omitempty" json:"copy_on_select"`
 }
 
 type Config struct {

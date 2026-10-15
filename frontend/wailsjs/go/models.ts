@@ -28,6 +28,7 @@ export namespace config {
 	    min_contrast: number;
 	    auto_reconnect?: boolean;
 	    activity_badges?: boolean;
+	    copy_on_select: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -44,6 +45,7 @@ export namespace config {
 	        this.min_contrast = source["min_contrast"];
 	        this.auto_reconnect = source["auto_reconnect"];
 	        this.activity_badges = source["activity_badges"];
+	        this.copy_on_select = source["copy_on_select"];
 	    }
 	}
 

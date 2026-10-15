@@ -32,6 +32,7 @@ func TestRoundTrip(t *testing.T) {
 	want.UI.ColorMode = "mono"
 	want.UI.MinContrast = 7
 	want.UI.AutoReconnect = ptr(false)
+	want.UI.CopyOnSelect = true
 	want.Keys = map[string]string{"next_session": "Ctrl+Tab"}
 	want.Local = Local{Shell: "/bin/zsh", Args: []string{"-l"}}
 	want.Hosts = []Host{

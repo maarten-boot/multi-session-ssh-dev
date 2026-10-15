@@ -16,12 +16,15 @@ artifacts); tagged versions (`v*`) are published under **Releases**:
 
 | File | Runs on | Notes |
 |---|---|---|
-| `…-linux-amd64.tar.gz` | Ubuntu 24.04+ / Debian 13+ (x86-64) | needs `libwebkit2gtk-4.1-0` and `libgtk-3-0` (installed with most desktops) |
+| `…-linux-amd64.tar.gz` | Ubuntu 24.04+ / Debian 13+ (x86-64) | needs `libwebkit2gtk-4.1-0` and GTK 3 (`libgtk-3-0t64` on Ubuntu 24.04; installed with most desktops) |
 | `…-windows-amd64.zip` | Windows 10/11 (x86-64) | uses the built-in OpenSSH client and the WebView2 runtime (both standard on current Windows). The exe is unsigned: SmartScreen asks once (*More info → Run anyway*). |
-| `…-macos-universal.zip` | macOS 11+ (Apple silicon and Intel) | unsigned: the first time, right-click the app → *Open*, or run `xattr -dr com.apple.quarantine "Session Workbench.app"` |
+| `…-macos-universal.zip` | macOS 11+ with Safari 16+ (Apple silicon and Intel) | contains `session-workbench.app`; unsigned: the first time, right-click the app → *Open*, or run `xattr -dr com.apple.quarantine session-workbench.app` |
 
 The agent host needs `tmux` (and `claude`); nothing is installed there by the app.
 `session-workbench -version` prints the version; it is also shown in Settings.
+
+To release: tag and push (`git tag v0.7.0 && git push origin v0.7.0`); CI builds all three
+platforms, sets the version from the tag and publishes a GitHub release.
 
 ## Build
 
@@ -45,17 +48,17 @@ make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test)
              # (CI runs the same on Linux, Windows and macOS)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux round trip against a real host
-make vet     # vet for linux, windows, darwin
+make vet     # vet for linux and windows (all packages), darwin (internal packages)
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
 make smoke-files     # headless GUI test of the Files tab
-make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges
+make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy
 make smoke-all       # all GUI tests
 ```
 
 ## Usage
 
-Start `session-workbench`. The first time it asks for an **agent host**:
+Start `session-workbench`. The first time it shows **Add host…** to set up an agent host:
 
 - **SSH target** — anything `ssh` accepts (`user@host`, a `~/.ssh/config` alias).
 - **Local / remote prefix** — where the agent host sees your directories, e.g.
@@ -69,14 +72,19 @@ a name, and what a new remote tmux session starts with (`claude`,
 - **Remote** (Ctrl+Shift+1): `ssh` → tmux session `cw-<id>` in the mapped
   directory. It survives closing the app and lost connections; Enter reconnects.
   When claude exits you get a shell.
-- **Local** (Ctrl+Shift+2): your shell in the directory.
+- **Local** (Ctrl+Shift+2): your shell in the directory (not kept across app restarts).
 - **Files** (Ctrl+Shift+3): the directory as a tree, refreshed whenever you
   switch to it. Double-click or Enter opens a file with its default application
   (directories expand); arrow keys navigate, F5 refreshes. Right-click to open
   the containing folder, copy the local or remote path, or refresh. Dotfiles
   (including `.git`) are hidden unless "Hidden files" is ticked. Programs and
   files the OS would execute rather than open (`.exe`, `.bat`, `.desktop`,
-  `.app`, ELF/Mach-O binaries, …) are refused.
+  `.app`, ELF/Mach-O binaries, …) are refused. Very large directories show the first
+  5000 entries.
+
+Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
+previous); links are clickable; emoji and CJK characters get their proper two-cell
+width. With "copy on select" (Settings) a selection goes to the clipboard at once.
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -86,6 +94,7 @@ a name, and what a new remote tmux session starts with (`claude`,
 | Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first) | `quick_switcher` |
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
+| Ctrl+Shift+F | ⌘F | find in terminal | `find` |
 | Ctrl+Shift+C / V | ⌘C / V | copy / paste | — |
 
 Rebind in the config, e.g. `[keys]` `next_session = "Ctrl+Tab"`; `Mod` means Cmd on
@@ -111,9 +120,11 @@ notification channel to *terminal bell* (setting `preferredNotifChannel`, value
 (1, 2, 4 … 30 s; Esc stops it). Detaching tmux or ending the remote session does not
 reconnect; press Enter when you want to.
 
-Right-click a session (or its ⋯) to edit, reorder, disconnect, end its remote
-tmux session, or delete it; drag sessions to reorder them within a host.
-Right-click a host header to edit or delete the host.
+Right-click a session (or its ⋯) to edit it (name, start mode, colors), move it up
+or down, switch it between full and mono colors, disconnect, end its remote tmux
+session, or delete it; drag sessions to reorder them within a host. Click a host
+header to collapse it; right-click it to add a session on that host, edit or delete
+the host. The app remembers the active session and reopens it on start.
 
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux`; `claude` is found through the login shell's PATH.
@@ -139,6 +150,7 @@ scrollback = 10000
 connect_on_start = "lazy"                 # or "eager": connect all Remote tabs at startup
 auto_reconnect = true
 activity_badges = true
+copy_on_select = false
 
 [keys]
 next_session = "Ctrl+Tab"
@@ -169,6 +181,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 
 ```
 main.go, app.go        Wails entry point and frontend bindings
+menu.go, proc_*.go     macOS menu bar; hiding console windows on Windows
 internal/terminal      pty processes + batched output events
 internal/pathmap       host path -> agent-host path
 internal/remote        ssh/tmux command lines (quoting, forced options)
@@ -178,6 +191,7 @@ internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js
+scripts/deps.sh        make check / make deps
 scripts/gui-smoke*.sh  headless GUI test drivers
 .github/workflows      CI: test + build on Linux/Windows/macOS, release on v* tags
 ```

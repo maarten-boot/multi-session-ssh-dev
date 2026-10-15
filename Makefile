@@ -41,9 +41,11 @@ SSH_TARGET ?= localhost
 test-ssh:
 	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run SSH -v ./internal/remote
 
+# The main package needs cgo (webkit) on Linux and macOS: vet it natively and
+# for Windows (pure Go); macOS only the internal packages.
 vet:
-	go vet ./internal/...
-	GOOS=windows go vet ./internal/...
+	go vet -tags "$(TAGS)" ./...
+	GOOS=windows go vet ./...
 	GOOS=darwin go vet ./internal/...
 
 clean:
@@ -57,7 +59,7 @@ clean:
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
-#   activity badges (the last takes ~2 minutes).
+#   find/unicode/copy-on-select, activity badges (the last takes ~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -75,6 +77,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-switcher.sh build/bin/session-workbench $(SMOKE_OUT)-switcher
 	$(XVFB) scripts/gui-smoke-settings.sh build/bin/session-workbench $(SMOKE_OUT)-settings
 	$(XVFB) scripts/gui-smoke-reconnect.sh build/bin/session-workbench $(SMOKE_OUT)-reconnect
+	$(XVFB) scripts/gui-smoke-terminal-extras.sh build/bin/session-workbench $(SMOKE_OUT)-extras
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

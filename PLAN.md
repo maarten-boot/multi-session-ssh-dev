@@ -1,13 +1,16 @@
 # Session Workbench — Implementation Plan
 
 See SPEC.md for requirements. Each milestone ends in something runnable.
+All milestones are done; v0.6.0 is the first release. Notes in *italics* record where the
+implementation differs from the original plan.
 
 ## M0 — Skeleton (½ day) ✅
-- `wails init` with vanilla JS template; Go module; Makefile/Taskfile (`dev`, `build`, `test`).
+- `wails init` with vanilla JS template; Go module; Makefile (`dev`, `build`, `test`, …).
 - Verify build on Linux; note Windows/macOS build prerequisites in README.
 
 ## M1 — One local terminal (1 day) ✅
 - `internal/pty`: start process in PTY, read loop → batched events, Write, Resize, Close.
+  *Named `internal/terminal`.*
 - Frontend: single xterm.js + fit addon wired to backend.
 - Done when: bash/zsh runs fully (vim, htop, colors, resize) on Linux.
 
@@ -25,7 +28,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
 
 ## M4 — Files tab (1 day) ✅
 - `internal/fsbrowse`: lazy ListDir (sorted, dirs first, hidden filter).
-- `internal/opener`: xdg-open / open / start; refuse executables.
+- `internal/opener`: xdg-open / open / start; refuse executables. *Windows uses ShellExecute.*
 - Frontend tree, context menu (open, reveal, copy local/remote path, refresh).
 
 ## M5 — Keyboard + polish (1 day) ✅
@@ -35,13 +38,21 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
   minimum-contrast correction) / mono (no colors), global + per-session, live switch (SPEC T3).
   App chrome (sidebar, dialogs) follows the theme too.
 
-## M6 — Cross-platform (1–2 days) ✅ (Windows/macOS verified in CI only)
+## M6 — Cross-platform (1–2 days) ✅
 - Windows: ConPTY, pwsh default, path mapping, `start`. macOS: Cmd bindings, `open`.
 - CI build matrix (GitHub Actions) producing Linux/Windows/macOS artifacts.
+- *Also: release on `v*` tags, version stamping, macOS app/Edit menu. Windows and macOS are
+  tested and built in CI; the apps have not yet been tried interactively on those systems.*
 
 ## Testing
-- Go unit tests: pathmap, command quoting, config round-trip, fsbrowse.
-- Manual checklist per milestone (terminal fidelity, reconnect, restart restore).
+- Go unit tests for every internal package (pathmap, remote command quoting executed through a
+  real shell, config, session, fsbrowse, opener, terminal incl. a ConPTY test on Windows) —
+  `make test`, and in CI on Linux, Windows and macOS.
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings.
+- ssh/tmux round trip against a real host: `make test-ssh`.
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`):
+  terminal fidelity, sessions/dialogs/restart, Files, colors, switcher, settings/keys,
+  reconnect, badges, terminal extras (find, unicode widths, copy on select).
 
 ## Notes on working in this setup
 - All development, builds and tests run on the agent host (Claude's side).

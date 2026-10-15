@@ -960,3 +960,52 @@ dialog .buttons .about {
     color: var(--faint);
     font-size: 12px;
 }
+
+/* --- find bar --- */
+
+.find-bar {
+    position: absolute;
+    z-index: 6;
+    top: 6px;
+    right: 18px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--menu-bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px var(--shadow);
+    font: 13px system-ui, sans-serif;
+}
+
+.find-bar input {
+    width: 220px;
+    padding: 4px 6px;
+    background: var(--input-bg);
+    color: var(--text-strong);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font: 13px system-ui, sans-serif;
+    outline: none;
+}
+
+.find-bar button {
+    width: 26px;
+    height: 26px;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.find-bar button:hover {
+    background: var(--panel-2);
+}
+
+.find-status {
+    color: var(--danger);
+    font-size: 12px;
+    min-width: 0;
+}

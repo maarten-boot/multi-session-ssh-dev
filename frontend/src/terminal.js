@@ -3,6 +3,8 @@ import '@xterm/xterm/css/xterm.css';
 import {Terminal} from '@xterm/xterm';
 import {FitAddon} from '@xterm/addon-fit';
 import {WebLinksAddon} from '@xterm/addon-web-links';
+import {SearchAddon} from '@xterm/addon-search';
+import {Unicode11Addon} from '@xterm/addon-unicode11';
 
 import {TermKill, TermResize, TermWrite} from '../wailsjs/go/main/App';
 import {SgrFilter, termOptions} from './appearance';
@@ -27,6 +29,7 @@ function decode(b64) {
 //   happens when the process exits (overlay, automatic reconnect).
 //   colorMode is 'full' or 'mono' (colors stripped from the output).
 //   onActivity('data', nbytes) / onActivity('bell') reports output.
+//   ui.copy_on_select copies the selection to the clipboard as it is made.
 export class TermView {
     constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity}) {
         this.start = start;
@@ -37,12 +40,23 @@ export class TermView {
         this.container = container;
         this.quietUntil = 0;
         this.id = null;
-        this.term = new Terminal({cursorBlink: true, ...termOptions(ui, colorMode)});
+        // allowProposedApi: the unicode version switch is a proposed API.
+        this.term = new Terminal({cursorBlink: true, allowProposedApi: true, ...termOptions(ui, colorMode)});
         this.setColorFilter(colorMode);
+        this.copyOnSelect = !!ui.copy_on_select;
         this.fit = new FitAddon();
         this.term.loadAddon(this.fit);
         this.term.loadAddon(new WebLinksAddon((e, uri) => BrowserOpenURL(uri)));
+        // Unicode 11 widths: emoji and other wide characters take two cells,
+        // as in claude's output, so the cursor does not drift.
+        this.term.loadAddon(new Unicode11Addon());
+        this.term.unicode.activeVersion = '11';
+        this.search = new SearchAddon();
+        this.term.loadAddon(this.search);
         this.term.open(container);
+        this.term.onSelectionChange(() => {
+            if (this.copyOnSelect && this.term.hasSelection()) ClipboardSetText(this.term.getSelection());
+        });
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
         this.term.onBell(() => this.onActivity('bell'));
         this.term.onData(d => this.id && TermWrite(this.id, d));
@@ -165,6 +179,63 @@ export class TermView {
         if (this.overlay) this.overlay.hidden = true;
     }
 
+    // openFind shows the search bar: Enter / Shift+Enter for next /
+    // previous match, Esc closes it.
+    openFind() {
+        if (!this.findBar) {
+            const input = document.createElement('input');
+            input.placeholder = 'Find';
+            input.spellcheck = false;
+            const status = document.createElement('span');
+            status.className = 'find-status';
+            const btn = (label, title, fn) => {
+                const b = document.createElement('button');
+                b.textContent = label;
+                b.title = title;
+                b.onmousedown = e => e.preventDefault();
+                b.onclick = fn;
+                return b;
+            };
+            const find = (dir, incremental = false) => {
+                const q = input.value;
+                if (!q) {
+                    this.search.clearDecorations();
+                    status.textContent = '';
+                    return;
+                }
+                const found = dir < 0 ? this.search.findPrevious(q) : this.search.findNext(q, {incremental});
+                status.textContent = found ? '' : 'no match';
+            };
+            this.findBar = document.createElement('div');
+            this.findBar.className = 'find-bar';
+            this.findBar.append(input, status,
+                btn('↑', 'Previous (Shift+Enter)', () => find(-1)),
+                btn('↓', 'Next (Enter)', () => find(1)),
+                btn('✕', 'Close (Esc)', () => this.closeFind()));
+            input.addEventListener('input', () => find(1, true));
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') find(e.shiftKey ? -1 : 1);
+                else if (e.key === 'Escape') this.closeFind();
+                else return;
+                e.preventDefault();
+            });
+            this.findInput = input;
+            this.container.append(this.findBar);
+        }
+        this.findBar.hidden = false;
+        if (this.term.hasSelection()) this.findInput.value = this.term.getSelection().split('\n')[0];
+        this.findInput.select();
+        this.findInput.focus();
+    }
+
+    closeFind() {
+        if (!this.findBar) return;
+        this.findBar.hidden = true;
+        this.search.clearDecorations();
+        this.term.clearSelection();
+        this.term.focus();
+    }
+
     // Returns false for keys we consume so xterm does not also handle them.
     handleKey(e) {
         if (e.type !== 'keydown') return true;
@@ -198,6 +269,7 @@ export class TermView {
     // Switching to mono also neutralizes colored text already on screen
     // (via the contrast ratio); new output arrives without colors.
     setAppearance(ui, colorMode) {
+        this.copyOnSelect = !!ui.copy_on_select;
         const changed = (colorMode === 'mono') !== !!this.filter;
         Object.assign(this.term.options, termOptions(ui, colorMode));
         this.setColorFilter(colorMode);

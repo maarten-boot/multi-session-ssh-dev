@@ -15,6 +15,7 @@ export const ACTIONS = {
     new_session: ['Ctrl+Shift+N', 'Cmd+Shift+N'],
     quick_switcher: ['Ctrl+Shift+P', 'Cmd+Shift+P'],
     settings: ['Ctrl+Shift+,', 'Cmd+,'],
+    find: ['Ctrl+Shift+F', 'Cmd+F'],
 };
 for (let n = 1; n <= 9; n++) ACTIONS[`session_${n}`] = [`Ctrl+Alt+${n}`, `Cmd+${n}`];
 

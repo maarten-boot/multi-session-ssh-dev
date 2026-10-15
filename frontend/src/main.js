@@ -468,6 +468,7 @@ const app = {
         else if (a === 'new_session') sessionDialog();
         else if (a === 'quick_switcher') quickSwitcher();
         else if (a === 'settings') settingsDialog();
+        else if (a === 'find') this.active?.tabs[this.active.activeTab].view?.openFind?.();
     },
 
     focusActive() {
@@ -801,7 +802,7 @@ async function setSessionColors(s, mode) {
 const ACTION_LABELS = {
     next_session: 'Next session', prev_session: 'Previous session', tab_remote: 'Remote tab',
     tab_local: 'Local tab', tab_files: 'Files tab', new_session: 'New session',
-    quick_switcher: 'Quick switcher', settings: 'Settings',
+    quick_switcher: 'Quick switcher', settings: 'Settings', find: 'Find in terminal',
 };
 
 async function settingsDialog() {
@@ -812,6 +813,7 @@ async function settingsDialog() {
     for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start']) f[k].value = ui[k] ?? '';
     f.auto_reconnect.checked = !!ui.auto_reconnect;
     f.activity_badges.checked = !!ui.activity_badges;
+    f.copy_on_select.checked = !!ui.copy_on_select;
     const rows = Object.keys(ACTIONS).filter(a => !a.startsWith('session_')).map(a =>
         el('tr', {}, el('td', {textContent: ACTION_LABELS[a] ?? a}), el('td', {}, el('kbd', {textContent: keyHint(a) || '—'})),
             el('td', {className: 'action', textContent: a})));
@@ -832,6 +834,7 @@ async function settingsDialog() {
         connect_on_start: f.connect_on_start.value,
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
+        copy_on_select: f.copy_on_select.checked,
     }));
     if (ok) await app.reload();
 }
