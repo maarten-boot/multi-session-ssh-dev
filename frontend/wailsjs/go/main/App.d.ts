@@ -9,6 +9,8 @@ export function BrowseDirectory(arg1:string):Promise<string>;
 
 export function CreateSession(arg1:session.NewSession):Promise<session.View>;
 
+export function DeleteGroup(arg1:string):Promise<void>;
+
 export function DeleteHost(arg1:string):Promise<void>;
 
 export function DeleteSession(arg1:string):Promise<void>;
@@ -19,6 +21,8 @@ export function KillRemote(arg1:string):Promise<void>;
 
 export function ListDir(arg1:string,arg2:string,arg3:boolean):Promise<fsbrowse.Listing>;
 
+export function MoveGroup(arg1:string,arg2:string):Promise<void>;
+
 export function MoveSession(arg1:string,arg2:string):Promise<void>;
 
 export function OpenPath(arg1:string,arg2:string):Promise<void>;
@@ -27,9 +31,13 @@ export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>
 
 export function RevealPath(arg1:string,arg2:string):Promise<void>;
 
+export function SaveGroup(arg1:string,arg2:string):Promise<void>;
+
 export function SaveHost(arg1:string,arg2:config.Host):Promise<void>;
 
 export function SaveUI(arg1:config.UI):Promise<void>;
+
+export function SetSessionGroup(arg1:string,arg2:string):Promise<void>;
 
 export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
@@ -43,6 +51,6 @@ export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function TermWrite(arg1:string,arg2:string):Promise<void>;
 
-export function UpdateSession(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+export function UpdateSession(arg1:string,arg2:session.Edit):Promise<void>;
 
 export function Version():Promise<string>;

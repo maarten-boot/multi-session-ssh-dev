@@ -7,6 +7,8 @@ CFG=$OUT/config.toml; rm -f $CFG
 typ() { xdotool type --delay 12 "$1"; }
 k() { xdotool key "$@"; sleep 0.6; }
 shot() { import -window root $OUT/$1.png; }
+# menu c1 c2 ...: pick a context-menu item by typing first letters, then Enter.
+menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotool key Return; sleep 0.8; }
 # Window geometry: 1280x800 centred on 1400x900 -> origin (60,50).
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 
@@ -22,15 +24,13 @@ for d in /tmp /var /usr; do
 	k ctrl+shift+n; typ "$d"; sleep 0.4; k Tab; k Tab; k Tab; k s; k shift+Tab; k Return; sleep 2.5
 done
 shot 03-three
-# Rows are at y=90/133/176; the menu opens at the pointer (offsets below).
+# Rows are at y=90/133/176; menu items are picked from the keyboard.
 click 120 90 3                         # right-click first session (tmp)
 shot 04-menu
-click 150 170                          # "Move down" -> var, tmp, usr
+menu m m                               # "Move down" -> var, tmp, usr
 sleep 1; shot 05-moved
-# Session menu items from the click: Edit +20, Move up +50, Move down +80,
-# Use mono colors +119, Disconnect +158, End remote +189, Delete +220.
 click 120 133 3                        # right-click the second row (now tmp)
-click 150 $((133+220))                 # "Delete session…"
+menu d d                               # Disconnect, Delete session…
 sleep 0.5; k space                     # the checkbox has focus: tick "also end tmux session"
 shot 06-delete-dialog
 k Tab; k Return; sleep 3               # Delete

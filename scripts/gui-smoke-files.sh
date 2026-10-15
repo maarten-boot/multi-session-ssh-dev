@@ -27,6 +27,8 @@ start_mode = "shell"
 TOML
 k() { xdotool key "$@"; sleep ${KD:-0.4}; }
 shot() { import -window root $OUT/$1.png; }
+# menu c1 c2 ...: pick a context-menu item by typing first letters, then Enter.
+menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotool key Return; sleep 0.8; }
 # Window origin (60,50); tree rows are 22px tall from y=ROW0 (window-relative).
 ROW0=${ROW0:-74}; X=320
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
@@ -39,14 +41,14 @@ sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+shift+3; sleep 1
 shot 01-tree                                   # docs/ src/ with space/ README.md tool
 if [ -n "$MEASURE" ]; then click $X $(row 3) 3; shot 00-measure; kill $APP; exit; fi
-# Context menu on README.md (row 3); items at +20/+50/+89/+119/+158 from the click.
+# Context menu on README.md (row 3); items picked from the keyboard.
 R=$(row 3)
-click $X $R 3; click $((X+30)) $((R+50))         # Open containing folder -> xdg-open $FIX
-click $X $R 3; click $((X+30)) $((R+119))        # Copy remote path
+click $X $R 3; menu o o                         # Open containing folder -> xdg-open $FIX
+click $X $R 3; menu c c                         # Copy remote path
 k ctrl+shift+2; sleep 2                        # Local tab: paste it
 xdotool type --delay 12 'echo "remote=['; k ctrl+shift+v; xdotool type --delay 12 ']"'; k Return
 R=$(row 2)
-k ctrl+shift+3; click $X $R 3; click $((X+30)) $((R+89))   # "with space/": Copy local path
+k ctrl+shift+3; click $X $R 3; menu c          # "with space/": Copy local path
 k ctrl+shift+2; xdotool type --delay 12 'echo "local=['; k ctrl+shift+v; xdotool type --delay 12 ']"'; k Return
 xdotool type --delay 12 'touch NEW-FILE.txt'; k Return  # Local tab cwd is the session dir
 sleep 1; shot 05-pasted

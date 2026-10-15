@@ -27,6 +27,8 @@ TOML
 k() { xdotool key "$@"; sleep 0.5; }
 t() { xdotool type --delay 8 "$1"; xdotool key Return; sleep ${2:-1}; }
 shot() { import -window root $OUT/$1.png; }
+# menu c1 c2 ...: pick a context-menu item by typing first letters, then Enter.
+menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotool key Return; sleep 0.8; }
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 TEST='clear; printf "\e[33myellow\e[0m \e[92mbright-green\e[0m \e[93mbright-yellow\e[0m \e[38;5;226m256-yellow\e[0m \e[38;2;255;255;0mtruecolor-yellow\e[0m \e[43;30m yellow-bg \e[0m \e[1mbold\e[0m \e[1;37mbold-white\e[0m \e[4munderline\e[0m \e[7minverse\e[0m\n"; ls --color=always /usr/bin | head -c 600; echo'
 
@@ -39,7 +41,7 @@ shot 1-full
 k ctrl+alt+2; k ctrl+shift+2; sleep 1.5; t "$TEST" 1.5
 shot 2-mono
 k ctrl+alt+1; sleep 0.5
-click 120 90 3; click 150 $((90+119))          # session menu: "Use mono colors" (4th item)
+click 120 90 3; menu u                         # session menu: "Use mono colors"
 sleep 1; shot 3-switched-live                  # old output neutralized
 k ctrl+shift+2; t "$TEST" 1.5
 shot 4-switched-new-output

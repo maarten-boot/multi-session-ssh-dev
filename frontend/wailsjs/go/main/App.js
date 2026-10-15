@@ -10,6 +10,10 @@ export function CreateSession(arg1) {
   return window['go']['main']['App']['CreateSession'](arg1);
 }
 
+export function DeleteGroup(arg1) {
+  return window['go']['main']['App']['DeleteGroup'](arg1);
+}
+
 export function DeleteHost(arg1) {
   return window['go']['main']['App']['DeleteHost'](arg1);
 }
@@ -30,6 +34,10 @@ export function ListDir(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListDir'](arg1, arg2, arg3);
 }
 
+export function MoveGroup(arg1, arg2) {
+  return window['go']['main']['App']['MoveGroup'](arg1, arg2);
+}
+
 export function MoveSession(arg1, arg2) {
   return window['go']['main']['App']['MoveSession'](arg1, arg2);
 }
@@ -46,12 +54,20 @@ export function RevealPath(arg1, arg2) {
   return window['go']['main']['App']['RevealPath'](arg1, arg2);
 }
 
+export function SaveGroup(arg1, arg2) {
+  return window['go']['main']['App']['SaveGroup'](arg1, arg2);
+}
+
 export function SaveHost(arg1, arg2) {
   return window['go']['main']['App']['SaveHost'](arg1, arg2);
 }
 
 export function SaveUI(arg1) {
   return window['go']['main']['App']['SaveUI'](arg1);
+}
+
+export function SetSessionGroup(arg1, arg2) {
+  return window['go']['main']['App']['SetSessionGroup'](arg1, arg2);
 }
 
 export function StartLocal(arg1, arg2, arg3) {
@@ -78,8 +94,8 @@ export function TermWrite(arg1, arg2) {
   return window['go']['main']['App']['TermWrite'](arg1, arg2);
 }
 
-export function UpdateSession(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UpdateSession'](arg1, arg2, arg3, arg4);
+export function UpdateSession(arg1, arg2) {
+  return window['go']['main']['App']['UpdateSession'](arg1, arg2);
 }
 
 export function Version() {

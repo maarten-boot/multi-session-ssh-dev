@@ -395,8 +395,9 @@ button.link:hover {
     cursor: pointer;
 }
 
-.menu button:hover {
+.menu button:hover, .menu button:focus {
     background: var(--focus-selected);
+    outline: none;
 }
 
 .menu button.danger {
@@ -405,7 +406,7 @@ button.link:hover {
     color: var(--danger);
 }
 
-.menu button.danger:hover {
+.menu button.danger:hover, .menu button.danger:focus {
     background: var(--danger-bg);
 }
 
@@ -1008,4 +1009,79 @@ dialog .buttons .about {
     color: var(--danger);
     font-size: 12px;
     min-width: 0;
+}
+
+/* --- folders --- */
+
+.folder {
+    margin-bottom: 4px;
+}
+
+.folder-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 8px;
+    color: var(--text-strong);
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    border-top: 1px solid var(--border);
+}
+
+.folder-head .caret {
+    width: 10px;
+    color: var(--muted);
+    transition: transform 0.1s;
+}
+
+.folder.collapsed > .folder-head .caret {
+    transform: rotate(-90deg);
+}
+
+.folder.collapsed > .folder-body {
+    display: none;
+}
+
+.folder-head .label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-head .count {
+    color: var(--faint);
+    font-weight: normal;
+    font-size: 11px;
+}
+
+.folder-head .more {
+    visibility: hidden;
+    font-size: 14px;
+    width: 22px;
+    height: 20px;
+}
+
+.folder-head:hover .more {
+    visibility: visible;
+}
+
+.folder-head.drop-into {
+    background: var(--focus-selected);
+}
+
+.folder-body .host-head {
+    padding-left: 18px;
+}
+
+.folder-body .session {
+    padding-left: 28px;
+}
+
+.folder-empty {
+    padding: 4px 8px 6px 28px;
+    color: var(--faint);
+    font-size: 12px;
+    font-style: italic;
 }

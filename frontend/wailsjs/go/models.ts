@@ -133,12 +133,31 @@ export namespace main {
 
 export namespace session {
 	
+	export class Edit {
+	    name: string;
+	    start_mode: string;
+	    color_mode: string;
+	    group: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Edit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.start_mode = source["start_mode"];
+	        this.color_mode = source["color_mode"];
+	        this.group = source["group"];
+	    }
+	}
 	export class NewSession {
 	    host: string;
 	    local_path: string;
 	    name: string;
 	    start_mode: string;
 	    color_mode: string;
+	    group: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new NewSession(source);
@@ -151,6 +170,7 @@ export namespace session {
 	        this.name = source["name"];
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
+	        this.group = source["group"];
 	    }
 	}
 	export class Preview {
@@ -178,6 +198,7 @@ export namespace session {
 	    local_path: string;
 	    start_mode: string;
 	    color_mode: string;
+	    group: string;
 	    remote_path: string;
 	    tmux_name: string;
 	    error: string;
@@ -194,6 +215,7 @@ export namespace session {
 	        this.local_path = source["local_path"];
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
+	        this.group = source["group"];
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.error = source["error"];
@@ -201,6 +223,7 @@ export namespace session {
 	}
 	export class State {
 	    hosts: config.Host[];
+	    groups: string[];
 	    sessions: View[];
 	    workspace_roots: string[];
 	    ui: config.UI;
@@ -215,6 +238,7 @@ export namespace session {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hosts = this.convertValues(source["hosts"], config.Host);
+	        this.groups = source["groups"];
 	        this.sessions = this.convertValues(source["sessions"], View);
 	        this.workspace_roots = source["workspace_roots"];
 	        this.ui = this.convertValues(source["ui"], config.UI);

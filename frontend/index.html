@@ -17,7 +17,7 @@
 <aside id="sidebar">
     <div id="sidebar-head">
         <span>Sessions</span>
-        <button id="btn-new" class="icon" title="New session (Ctrl+Shift+N)">+</button>
+        <button id="btn-new" class="icon" title="New session, folder or host">+</button>
     </div>
     <div id="config-error" hidden></div>
     <div id="session-list"></div>
@@ -62,6 +62,9 @@
         <div class="preview" data-for="dir"></div>
         <label>Name
             <input name="name" autocomplete="off" spellcheck="false">
+        </label>
+        <label>Folder
+            <select name="group"></select>
         </label>
         <label>Start in new remote session
             <select name="mode">
@@ -163,6 +166,19 @@
             <button value="ok" class="primary">Save</button>
             <button value="cancel" formnovalidate>Cancel</button>
             <span class="about"></span>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-prompt">
+    <form method="dialog">
+        <h2></h2>
+        <p class="hint"></p>
+        <label><input name="value" autocomplete="off" spellcheck="false"></label>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button value="cancel" formnovalidate>Cancel</button>
         </div>
     </form>
 </dialog>

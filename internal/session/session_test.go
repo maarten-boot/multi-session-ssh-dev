@@ -150,16 +150,16 @@ func TestUpdateMoveDelete(t *testing.T) {
 		t.Error("moved unknown session")
 	}
 
-	if err := m.Update(c, "  renamed ", "shell", "mono"); err != nil {
+	if err := m.Update(c, Edit{Name: "  renamed ", StartMode: "shell", ColorMode: "mono"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Update(c, " ", "shell", ""); err == nil {
+	if err := m.Update(c, Edit{Name: " ", StartMode: "shell"}); err == nil {
 		t.Error("empty name accepted")
 	}
-	if err := m.Update(c, "x", "bogus", ""); err == nil {
+	if err := m.Update(c, Edit{Name: "x", StartMode: "bogus"}); err == nil {
 		t.Error("bad mode accepted")
 	}
-	if err := m.Update(c, "x", "shell", "sepia"); err == nil {
+	if err := m.Update(c, Edit{Name: "x", StartMode: "shell", ColorMode: "sepia"}); err == nil {
 		t.Error("bad color mode accepted")
 	}
 	if err := m.Delete(b); err != nil {
@@ -320,5 +320,58 @@ func TestSaveUI(t *testing.T) {
 	ui.AutoReconnect = nil
 	if err := m.SaveUI(ui); err == nil {
 		t.Error("nil bool accepted")
+	}
+}
+
+func TestGroups(t *testing.T) {
+	m, root, cfgPath := setup(t)
+	for _, g := range []string{"Work", "Private", "Misc"} {
+		if err := m.SaveGroup("", g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := m.SaveGroup("", " Work "); err == nil {
+		t.Error("duplicate folder accepted")
+	}
+	if err := m.SaveGroup("", " "); err == nil {
+		t.Error("empty folder name accepted")
+	}
+	a, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "a"), Group: "Work"})
+	if err != nil || a.Group != "Work" {
+		t.Fatalf("%+v %v", a, err)
+	}
+	if _, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "x"), Group: "Nope"}); err == nil {
+		t.Error("unknown folder accepted on create")
+	}
+	b, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "b")})
+	if err := m.SetGroup(b.ID, "Private"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SetGroup(b.ID, "Nope"); err == nil {
+		t.Error("unknown folder accepted on move")
+	}
+	if err := m.Update(a.ID, Edit{Name: "a", StartMode: "shell", Group: "Nope"}); err == nil {
+		t.Error("unknown folder accepted on update")
+	}
+
+	// Rename cascades; reorder; delete ungroups (never deletes sessions).
+	if err := m.SaveGroup("Work", "Job"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.MoveGroup("Misc", "Job"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.DeleteGroup("Private"); err != nil {
+		t.Fatal(err)
+	}
+	st := Open(cfgPath).State()
+	if !slices.Equal(st.Groups, []string{"Misc", "Job"}) {
+		t.Errorf("groups %q", st.Groups)
+	}
+	if st.Sessions[0].Group != "Job" || st.Sessions[1].Group != "" || len(st.Sessions) != 2 {
+		t.Errorf("sessions %+v", st.Sessions)
+	}
+	if err := m.MoveGroup("Nope", ""); err == nil {
+		t.Error("moved unknown folder")
 	}
 }

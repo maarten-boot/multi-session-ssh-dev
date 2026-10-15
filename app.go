@@ -62,8 +62,24 @@ func (a *App) CreateSession(in session.NewSession) (session.View, error) {
 	return a.sessions.Create(in)
 }
 
-func (a *App) UpdateSession(id, name, startMode, colorMode string) error {
-	return a.sessions.Update(id, name, startMode, colorMode)
+func (a *App) UpdateSession(id string, e session.Edit) error {
+	return a.sessions.Update(id, e)
+}
+
+func (a *App) SetSessionGroup(id, group string) error {
+	return a.sessions.SetGroup(id, group)
+}
+
+func (a *App) SaveGroup(oldName, name string) error {
+	return a.sessions.SaveGroup(oldName, name)
+}
+
+func (a *App) DeleteGroup(name string) error {
+	return a.sessions.DeleteGroup(name)
+}
+
+func (a *App) MoveGroup(name, beforeName string) error {
+	return a.sessions.MoveGroup(name, beforeName)
 }
 
 func (a *App) SaveUI(ui config.UI) error {

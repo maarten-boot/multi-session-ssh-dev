@@ -10,6 +10,7 @@ import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
+    SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -245,7 +246,10 @@ const app = {
             const t = this.active?.tabs[this.active.activeTab];
             t?.setBadge?.(null);
         });
-        $('#btn-new').onclick = () => sessionDialog();
+        $('#btn-new').onclick = e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            newMenu(r.left, r.bottom + 2);
+        };
         $('#btn-add-host').onclick = () => hostDialog();
         $('#btn-settings').onclick = () => settingsDialog();
     },
@@ -279,21 +283,37 @@ const app = {
         for (const s of this.sessions.values()) s.applyAppearance(this.state.ui);
     },
 
-    // groups returns [{host, sessions}] in host order; sessions whose host is
-    // missing from the config are collected under their host name.
-    groups() {
-        const groups = this.state.hosts.map(h => ({name: h.name, host: h, sessions: []}));
-        const byName = new Map(groups.map(g => [g.name, g]));
+    // sections returns the sidebar structure: ungrouped sessions first, then
+    // one section per folder, each split by host in host order. Hosts appear
+    // where they have sessions; a host without any session is listed in the
+    // ungrouped section so its menu stays reachable. Unknown
+    // hosts or folders referenced by sessions are shown as "(missing)".
+    sections() {
+        const folders = [...this.state.groups];
         for (const d of this.state.sessions) {
-            let g = byName.get(d.host);
-            if (!g) {
-                g = {name: d.host, host: null, sessions: []};
-                byName.set(d.host, g);
-                groups.push(g);
-            }
-            g.sessions.push(this.sessions.get(d.id));
+            if (d.group && !folders.includes(d.group)) folders.push(d.group);
         }
-        return groups;
+        const hostNames = this.state.hosts.map(h => h.name);
+        for (const d of this.state.sessions) if (!hostNames.includes(d.host)) hostNames.push(d.host);
+        return ['', ...folders].map(group => {
+            const hosts = hostNames.map(name => ({
+                name, group,
+                host: this.state.hosts.find(h => h.name === name) ?? null,
+                sessions: this.state.sessions.filter(d => d.host === name && d.group === group).map(d => this.sessions.get(d.id)),
+            })).filter(h => h.sessions.length ||
+                // A host without any session still needs a header (and menu).
+                (group === '' && h.host && !this.state.sessions.some(d => d.host === h.name)));
+            return {group, known: group === '' || this.state.groups.includes(group), hosts};
+        });
+    },
+
+    collapsible(el, key) {
+        if (this.collapsed.has(key)) el.classList.add('collapsed');
+        return () => {
+            el.classList.toggle('collapsed');
+            el.classList.contains('collapsed') ? this.collapsed.add(key) : this.collapsed.delete(key);
+            store.set('collapsed', [...this.collapsed]);
+        };
     },
 
     render() {
@@ -303,40 +323,63 @@ const app = {
         problems.push(...keymap.errors);
         err.hidden = !problems.length;
         err.textContent = problems.join('\n');
-        $('#btn-new').title = `New session (${keyHint('new_session')})`;
+        $('#btn-new').title = `New session (${keyHint('new_session')}), folder or host`;
 
         const list = $('#session-list');
         list.replaceChildren();
         this.order = [];
-        for (const g of this.groups()) {
-            const group = el('div', {className: 'host-group'});
-            if (this.collapsed.has(g.name)) group.classList.add('collapsed');
-            const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
-            const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
-                el('span', {className: 'caret', textContent: '▾'}),
-                el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}), more);
-            head.onclick = e => {
-                if (more.contains(e.target)) return;
-                group.classList.toggle('collapsed');
-                group.classList.contains('collapsed') ? this.collapsed.add(g.name) : this.collapsed.delete(g.name);
-                store.set('collapsed', [...this.collapsed]);
-            };
-            more.onclick = e => {
-                e.stopPropagation();
-                hostMenu(g, e.clientX, e.clientY);
-            };
-            head.oncontextmenu = e => {
-                e.preventDefault();
-                hostMenu(g, e.clientX, e.clientY);
-            };
-            const items = el('div', {className: 'sessions'});
-            for (const s of g.sessions) {
-                this.order.push(s);
-                items.append(this.sessionItem(s, this.order.length));
+        for (const sec of this.sections()) {
+            let parent = list;
+            if (sec.group) {
+                const folder = el('div', {className: 'folder'});
+                const count = sec.hosts.reduce((n, h) => n + h.sessions.length, 0);
+                const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Folder actions'});
+                const head = el('div', {className: 'folder-head'},
+                    el('span', {className: 'caret', textContent: '▾'}),
+                    el('span', {className: 'label', textContent: sec.group + (sec.known ? '' : ' (missing)')}),
+                    el('span', {className: 'count', textContent: count}), more);
+                const toggle = this.collapsible(folder, 'g:' + sec.group);
+                head.onclick = e => !more.contains(e.target) && toggle();
+                more.onclick = e => {
+                    e.stopPropagation();
+                    folderMenu(sec, e.clientX, e.clientY);
+                };
+                head.oncontextmenu = e => {
+                    e.preventDefault();
+                    folderMenu(sec, e.clientX, e.clientY);
+                };
+                enableFolderDrop(head, sec.group);
+                const body = el('div', {className: 'folder-body'});
+                if (!count) body.append(el('div', {className: 'folder-empty', textContent: 'Empty — drag sessions here'}));
+                folder.append(head, body);
+                list.append(folder);
+                parent = body;
             }
-            enableDrop(items, g.name);
-            group.append(head, items);
-            list.append(group);
+            for (const g of sec.hosts) {
+                const group = el('div', {className: 'host-group'});
+                const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
+                const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
+                    el('span', {className: 'caret', textContent: '▾'}),
+                    el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}), more);
+                const toggle = this.collapsible(group, `h:${g.group}/${g.name}`);
+                head.onclick = e => !more.contains(e.target) && toggle();
+                more.onclick = e => {
+                    e.stopPropagation();
+                    hostMenu(g, e.clientX, e.clientY);
+                };
+                head.oncontextmenu = e => {
+                    e.preventDefault();
+                    hostMenu(g, e.clientX, e.clientY);
+                };
+                const items = el('div', {className: 'sessions'});
+                for (const s of g.sessions) {
+                    this.order.push(s);
+                    items.append(this.sessionItem(s, this.order.length));
+                }
+                enableDrop(items, g.group, g.name);
+                group.append(head, items);
+                parent.append(group);
+            }
         }
         if (this.active && !this.sessions.has(this.active.id)) this.active = null;
         this.renderMain();
@@ -355,6 +398,7 @@ const app = {
             more);
         item.dataset.id = d.id;
         item.dataset.host = d.host;
+        item.dataset.group = d.group;
         if (s === this.active) item.classList.add('active');
         item.onclick = e => !more.contains(e.target) && this.select(s);
         more.onclick = e => {
@@ -501,13 +545,13 @@ function quickSwitcher() {
     };
     const render = () => {
         const q = input.value.trim();
-        shown = rank(items, q, s => [[s.data.name, 2], [s.data.host, 1], [s.data.local_path, 1]]);
+        shown = rank(items, q, s => [[s.data.name, 2], [s.data.group, 1], [s.data.host, 1], [s.data.local_path, 1]]);
         sel = Math.min(sel, Math.max(0, shown.length - 1));
         list.replaceChildren(...shown.map((s, i) => {
             const row = el('div', {className: 'switch-item' + (i === sel ? ' selected' : '')},
                 el('span', {className: 'dot ' + s.dotClass()}),
                 highlight(s.data.name, q),
-                el('span', {className: 'where', textContent: `${s.data.host} · ${s.data.local_path}`}),
+                el('span', {className: 'where', textContent: `${s.data.group ? s.data.group + ' · ' : ''}${s.data.host} · ${s.data.local_path}`}),
                 s === app.active ? el('span', {className: 'current', textContent: 'current'}) : '');
             row.onmousedown = e => {
                 e.preventDefault();
@@ -562,10 +606,10 @@ function clearDropMarks() {
     document.querySelectorAll('.drop-before, .drop-end').forEach(x => x.classList.remove('drop-before', 'drop-end'));
 }
 
-// Sessions can be reordered within their host group only.
-function enableDrop(container, host) {
+// Sessions can be reordered within their folder and host only.
+function enableDrop(container, group, host) {
     const target = e => {
-        if (!dragged || dragged.dataset.host !== host) return null;
+        if (!dragged || dragged.dataset.host !== host || dragged.dataset.group !== group) return null;
         const item = e.target.closest('.session');
         return item && item !== dragged ? item : 'end';
     };
@@ -585,17 +629,35 @@ function enableDrop(container, host) {
         e.preventDefault();
         const id = dragged.dataset.id;
         clearDropMarks();
-        await moveSession(id, t === 'end' ? nextOutsideGroup(host) : t.dataset.id);
+        await moveSession(id, t === 'end' ? nextOutside(group, host) : t.dataset.id);
     });
 }
 
-// The backend order is one flat list; "end of a group" means "before the
-// first session of the next group", or the very end.
-function nextOutsideGroup(host) {
+// Dropping a session on a folder header moves it into that folder.
+function enableFolderDrop(head, group) {
+    head.addEventListener('dragover', e => {
+        if (!dragged || dragged.dataset.group === group) return;
+        e.preventDefault();
+        clearDropMarks();
+        head.classList.add('drop-into');
+    });
+    head.addEventListener('dragleave', () => head.classList.remove('drop-into'));
+    head.addEventListener('drop', async e => {
+        if (!dragged || dragged.dataset.group === group) return;
+        e.preventDefault();
+        head.classList.remove('drop-into');
+        await setGroup(dragged.dataset.id, group);
+    });
+}
+
+// The backend order is one flat list; "end of a folder/host block" means
+// "before the first later session outside the block", or the very end.
+function nextOutside(group, host) {
     const all = app.state.sessions;
+    const inBlock = d => d.host === host && d.group === group;
     let last = -1;
-    all.forEach((d, i) => d.host === host && (last = i));
-    return all.slice(last + 1).find(d => d.host !== host)?.id ?? '';
+    all.forEach((d, i) => inBlock(d) && (last = i));
+    return all.slice(last + 1).find(d => !inBlock(d))?.id ?? '';
 }
 
 async function moveSession(id, beforeID) {
@@ -607,15 +669,33 @@ async function moveSession(id, beforeID) {
     await app.reload();
 }
 
-// Move up/down within the host group, for keyboard users.
+// Move up/down within the folder and host, for keyboard users.
 function moveBy(s, delta) {
-    const group = app.order.filter(o => o.data.host === s.data.host);
-    const i = group.indexOf(s);
+    const block = app.order.filter(o => o.data.host === s.data.host && o.data.group === s.data.group);
+    const i = block.indexOf(s);
     const j = i + delta;
-    if (j < 0 || j >= group.length) return;
+    if (j < 0 || j >= block.length) return;
     // Moving down by one == moving before the item two places down.
-    const before = delta < 0 ? group[j].id : (group[j + 1]?.id ?? nextOutsideGroup(s.data.host));
+    const before = delta < 0 ? block[j].id : (block[j + 1]?.id ?? nextOutside(s.data.group, s.data.host));
     moveSession(s.id, before);
+}
+
+async function setGroup(id, group) {
+    try {
+        await SetSessionGroup(id, group);
+    } catch (err) {
+        await confirmDialog({title: 'Could not move session', text: err?.message ?? String(err), ok: null});
+    }
+    await app.reload();
+}
+
+async function groupAction(fn, title) {
+    try {
+        await fn();
+    } catch (err) {
+        await confirmDialog({title, text: err?.message ?? String(err), ok: null});
+    }
+    await app.reload();
 }
 
 // ---------------------------------------------------------------- menus
@@ -625,6 +705,7 @@ function sessionMenu(s, x, y) {
         {label: 'Edit…', action: () => sessionDialog(s)},
         {label: 'Move up', action: () => moveBy(s, -1)},
         {label: 'Move down', action: () => moveBy(s, 1)},
+        {label: 'Move to folder…', disabled: !app.state.groups.length && !s.data.group, action: () => folderPicker(s, x, y)},
         '-',
         {
             label: effectiveColorMode(app.state.ui, s.data) === 'mono' ? 'Use full colors' : 'Use mono colors (no colors)',
@@ -637,9 +718,42 @@ function sessionMenu(s, x, y) {
     ]);
 }
 
+// folderPicker is the second step of "Move to folder…".
+function folderPicker(s, x, y) {
+    showMenu(x, y, [
+        {label: s.data.group ? 'No folder' : '✓ No folder', disabled: !s.data.group, action: () => setGroup(s.id, '')},
+        ...app.state.groups.map(g => ({
+            label: (g === s.data.group ? '✓ ' : '') + g, disabled: g === s.data.group, action: () => setGroup(s.id, g),
+        })),
+    ]);
+}
+
+function folderMenu(sec, x, y) {
+    const i = app.state.groups.indexOf(sec.group);
+    const groups = app.state.groups;
+    showMenu(x, y, [
+        {label: 'New session in this folder…', disabled: !sec.known, action: () => sessionDialog(null, null, sec.group)},
+        {label: sec.known ? 'Rename folder…' : 'Create this folder', action: () => sec.known ? folderDialog(sec.group) :
+                groupAction(() => SaveGroup('', sec.group), 'Could not create folder')},
+        {label: 'Move folder up', disabled: i <= 0, action: () => groupAction(() => MoveGroup(sec.group, groups[i - 1]), 'Could not move folder')},
+        {label: 'Move folder down', disabled: i < 0 || i >= groups.length - 1,
+            action: () => groupAction(() => MoveGroup(sec.group, groups[i + 2] ?? ''), 'Could not move folder')},
+        '-',
+        {label: 'Delete folder…', danger: true, disabled: !sec.known, action: () => deleteFolder(sec)},
+    ]);
+}
+
+function newMenu(x, y) {
+    showMenu(x, y, [
+        {label: `New session…   ${keyHint('new_session')}`, action: () => sessionDialog()},
+        {label: 'New folder…', action: () => folderDialog()},
+        {label: 'Add host…', action: () => hostDialog()},
+    ]);
+}
+
 function hostMenu(g, x, y) {
     showMenu(x, y, [
-        {label: 'New session on this host…', disabled: !g.host, action: () => sessionDialog(null, g.name)},
+        {label: 'New session on this host…', disabled: !g.host, action: () => sessionDialog(null, g.name, g.group)},
         {label: g.host ? 'Edit host…' : 'Configure host…', action: () => hostDialog(g.host, g.host ? null : g.name)},
         '-',
         {label: 'Delete host…', danger: true, disabled: !g.host, action: () => deleteHost(g.host)},
@@ -696,7 +810,7 @@ async function confirmDialog({title, text, ok = 'OK', check, action}) {
     return runDialog(dlg, async () => action && action(box.checked));
 }
 
-async function sessionDialog(s = null, presetHost = null) {
+async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     if (!s && app.state.hosts.length === 0) {
         if (!await hostDialog()) return;
     }
@@ -713,6 +827,9 @@ async function sessionDialog(s = null, presetHost = null) {
     f.elements.name.placeholder = '';
     f.elements.mode.value = s?.data.start_mode ?? store.get('lastMode', 'claude');
     f.elements.colors.value = s?.data.color_mode ?? '';
+    f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
+        ...app.state.groups.map(g => el('option', {value: g, textContent: g})));
+    f.elements.group.value = s?.data.group ?? presetGroup ?? '';
     f.elements.colors.options[0].textContent = `default (${app.state.ui.color_mode})`;
     f.elements.host.disabled = f.elements.dir.disabled = f.elements.browse.disabled = editing;
     const preview = dlg.querySelector('.preview');
@@ -728,7 +845,7 @@ async function sessionDialog(s = null, presetHost = null) {
             f.elements.name.placeholder = '';
             return;
         }
-        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value, color_mode: ''});
+        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value, color_mode: '', group: ''});
         if (n !== seq) return; // a newer request is in flight
         f.elements.name.placeholder = p.name;
         preview.classList.toggle('bad', !!p.error);
@@ -754,11 +871,14 @@ async function sessionDialog(s = null, presetHost = null) {
     let created = null;
     const ok = await runDialog(dlg, async () => {
         if (editing) {
-            await UpdateSession(s.id, f.elements.name.value || s.data.name, f.elements.mode.value, f.elements.colors.value);
+            await UpdateSession(s.id, {
+                name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
+                color_mode: f.elements.colors.value, group: f.elements.group.value,
+            });
         } else {
             created = await CreateSession({
                 host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value,
-                start_mode: f.elements.mode.value, color_mode: f.elements.colors.value,
+                start_mode: f.elements.mode.value, color_mode: f.elements.colors.value, group: f.elements.group.value,
             });
             store.set('lastHost', f.elements.host.value);
             store.set('lastMode', f.elements.mode.value);
@@ -792,7 +912,7 @@ async function hostDialog(h = null, presetName = null) {
 async function setSessionColors(s, mode) {
     const override = mode === app.state.ui.color_mode ? '' : mode;
     try {
-        await UpdateSession(s.id, s.data.name, s.data.start_mode, override);
+        await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: override, group: s.data.group});
     } catch (err) {
         await confirmDialog({title: 'Could not change colors', text: String(err), ok: null});
     }
@@ -836,6 +956,28 @@ async function settingsDialog() {
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
     }));
+    if (ok) await app.reload();
+}
+
+async function folderDialog(oldName = '') {
+    const dlg = $('#dlg-prompt');
+    const f = dlg.querySelector('form').elements;
+    dlg.querySelector('h2').textContent = oldName ? `Rename folder “${oldName}”` : 'New folder';
+    dlg.querySelector('.hint').textContent = 'Folders group sessions in the sidebar, e.g. “Work” and “Private”.';
+    f.value.value = oldName;
+    f.value.placeholder = 'Folder name';
+    const ok = await runDialog(dlg, () => SaveGroup(oldName, f.value.value), f.value);
+    if (ok) await app.reload();
+}
+
+async function deleteFolder(sec) {
+    const n = sec.hosts.reduce((k, h) => k + h.sessions.length, 0);
+    const ok = await confirmDialog({
+        title: `Delete folder “${sec.group}”?`,
+        text: n ? `Its ${n} session(s) stay, without a folder.` : 'The folder is empty.',
+        ok: 'Delete folder',
+        action: () => DeleteGroup(sec.group),
+    });
     if (ok) await app.reload();
 }
 

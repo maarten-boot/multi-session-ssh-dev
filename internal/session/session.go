@@ -29,6 +29,7 @@ type View struct {
 	LocalPath  string `json:"local_path"`
 	StartMode  string `json:"start_mode"`
 	ColorMode  string `json:"color_mode"` // "" = follow the global setting
+	Group      string `json:"group"`
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
 	Error      string `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -37,6 +38,7 @@ type View struct {
 // State is everything the frontend needs to render.
 type State struct {
 	Hosts          []config.Host     `json:"hosts"`
+	Groups         []string          `json:"groups"`
 	Sessions       []View            `json:"sessions"`
 	WorkspaceRoots []string          `json:"workspace_roots"` // ~ expanded
 	UI             config.UI         `json:"ui"`
@@ -60,6 +62,15 @@ type NewSession struct {
 	Name      string `json:"name"`
 	StartMode string `json:"start_mode"`
 	ColorMode string `json:"color_mode"` // "" = follow the global setting
+	Group     string `json:"group"`
+}
+
+// Edit is the input for Update.
+type Edit struct {
+	Name      string `json:"name"`
+	StartMode string `json:"start_mode"`
+	ColorMode string `json:"color_mode"`
+	Group     string `json:"group"`
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -106,10 +117,14 @@ func (m *Manager) State() State {
 		Sessions:   []View{},
 		UI:         m.cfg.UI,
 		Keys:       maps.Clone(m.cfg.Keys),
+		Groups:     slices.Clone(m.cfg.Groups),
 		ConfigPath: m.path,
 	}
 	if s.Keys == nil {
 		s.Keys = map[string]string{}
+	}
+	if s.Groups == nil {
+		s.Groups = []string{}
 	}
 	if s.Hosts == nil {
 		s.Hosts = []config.Host{}
@@ -122,7 +137,7 @@ func (m *Manager) State() State {
 	}
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
-			ColorMode: se.ColorMode, TmuxName: remote.TmuxName(se.ID)}
+			ColorMode: se.ColorMode, Group: se.Group, TmuxName: remote.TmuxName(se.ID)}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -214,11 +229,12 @@ func (m *Manager) Create(in NewSession) (View, error) {
 		return View{}, err
 	}
 	return View{ID: s.ID, Name: s.Name, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
-		ColorMode: s.ColorMode, RemotePath: r.RemotePath, TmuxName: remote.TmuxName(s.ID)}, nil
+		ColorMode: s.ColorMode, Group: s.Group, RemotePath: r.RemotePath, TmuxName: remote.TmuxName(s.ID)}, nil
 }
 
 func (m *Manager) newSession(in NewSession) (config.Session, error) {
-	s := config.Session{Host: in.Host, Name: strings.TrimSpace(in.Name), StartMode: in.StartMode, ColorMode: in.ColorMode}
+	s := config.Session{Host: in.Host, Name: strings.TrimSpace(in.Name), StartMode: in.StartMode,
+		ColorMode: in.ColorMode, Group: in.Group}
 	if s.StartMode == "" {
 		s.StartMode = string(remote.ModeClaude)
 	}
@@ -239,6 +255,9 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	}
 	if err := validColorMode(s.ColorMode); err != nil {
 		return s, err
+	}
+	if s.Group != "" && !slices.Contains(m.cfg.Groups, s.Group) {
+		return s, fmt.Errorf("folder %q does not exist", s.Group)
 	}
 	if _, ok := findHost(m.cfg, s.Host); !ok {
 		return s, fmt.Errorf("host %q is not configured", s.Host)
@@ -283,20 +302,20 @@ func (m *Manager) newID() string {
 	}
 }
 
-// Update changes a session's name, start mode and color mode ("" follows
-// the global setting). The start mode only matters when its tmux session
-// is next created.
-func (m *Manager) Update(id, name, startMode, colorMode string) error {
+// Update changes a session's name, start mode, color mode ("" follows the
+// global setting) and folder ("" = none). The start mode only matters when
+// its tmux session is next created.
+func (m *Manager) Update(id string, e Edit) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	name = strings.TrimSpace(name)
+	name := strings.TrimSpace(e.Name)
 	if name == "" {
 		return errors.New("name cannot be empty")
 	}
-	if err := validMode(startMode); err != nil {
+	if err := validMode(e.StartMode); err != nil {
 		return err
 	}
-	if err := validColorMode(colorMode); err != nil {
+	if err := validColorMode(e.ColorMode); err != nil {
 		return err
 	}
 	return m.update(func(c *config.Config) error {
@@ -304,9 +323,104 @@ func (m *Manager) Update(id, name, startMode, colorMode string) error {
 		if i < 0 {
 			return fmt.Errorf("unknown session %q", id)
 		}
+		if e.Group != "" && !slices.Contains(c.Groups, e.Group) {
+			return fmt.Errorf("folder %q does not exist", e.Group)
+		}
 		c.Sessions[i].Name = name
-		c.Sessions[i].StartMode = startMode
-		c.Sessions[i].ColorMode = colorMode
+		c.Sessions[i].StartMode = e.StartMode
+		c.Sessions[i].ColorMode = e.ColorMode
+		c.Sessions[i].Group = e.Group
+		return nil
+	})
+}
+
+// SetGroup moves a session into a folder ("" = none).
+func (m *Manager) SetGroup(id, group string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		i := indexOf(c, id)
+		if i < 0 {
+			return fmt.Errorf("unknown session %q", id)
+		}
+		if group != "" && !slices.Contains(c.Groups, group) {
+			return fmt.Errorf("folder %q does not exist", group)
+		}
+		c.Sessions[i].Group = group
+		return nil
+	})
+}
+
+// SaveGroup adds a folder (oldName "") or renames one; renaming moves its
+// sessions along.
+func (m *Manager) SaveGroup(oldName, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("folder name cannot be empty")
+	}
+	return m.update(func(c *config.Config) error {
+		if name != oldName && slices.Contains(c.Groups, name) {
+			return fmt.Errorf("a folder named %q already exists", name)
+		}
+		if oldName == "" {
+			c.Groups = append(c.Groups, name)
+			return nil
+		}
+		i := slices.Index(c.Groups, oldName)
+		if i < 0 {
+			return fmt.Errorf("unknown folder %q", oldName)
+		}
+		c.Groups[i] = name
+		for j := range c.Sessions {
+			if c.Sessions[j].Group == oldName {
+				c.Sessions[j].Group = name
+			}
+		}
+		return nil
+	})
+}
+
+// DeleteGroup removes a folder; its sessions become ungrouped (never deleted).
+func (m *Manager) DeleteGroup(name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		i := slices.Index(c.Groups, name)
+		if i < 0 {
+			return fmt.Errorf("unknown folder %q", name)
+		}
+		c.Groups = slices.Delete(c.Groups, i, i+1)
+		for j := range c.Sessions {
+			if c.Sessions[j].Group == name {
+				c.Sessions[j].Group = ""
+			}
+		}
+		return nil
+	})
+}
+
+// MoveGroup puts folder name directly before beforeName, or last if "".
+func (m *Manager) MoveGroup(name, beforeName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if name == beforeName {
+		return nil
+	}
+	return m.update(func(c *config.Config) error {
+		i := slices.Index(c.Groups, name)
+		if i < 0 {
+			return fmt.Errorf("unknown folder %q", name)
+		}
+		c.Groups = slices.Delete(c.Groups, i, i+1)
+		j := len(c.Groups)
+		if beforeName != "" {
+			if j = slices.Index(c.Groups, beforeName); j < 0 {
+				return fmt.Errorf("unknown folder %q", beforeName)
+			}
+		}
+		c.Groups = slices.Insert(c.Groups, j, name)
 		return nil
 	})
 }
@@ -469,6 +583,7 @@ func clone(c *config.Config) *config.Config {
 	n.Hosts = slices.Clone(c.Hosts)
 	n.Sessions = slices.Clone(c.Sessions)
 	n.Keys = maps.Clone(c.Keys)
+	n.Groups = slices.Clone(c.Groups)
 	return &n
 }
 

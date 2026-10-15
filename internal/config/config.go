@@ -31,6 +31,7 @@ type Session struct {
 	Env       map[string]string `toml:"env,omitempty" json:"env"`               // extra env for the Local tab
 	LocalInit string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
 	ColorMode string            `toml:"color_mode,omitempty" json:"color_mode"` // "" = UI.ColorMode
+	Group     string            `toml:"group,omitempty" json:"group"`           // sidebar folder; "" = none
 }
 
 // Local configures the Local tab's shell; empty means the OS default.
@@ -62,11 +63,13 @@ type UI struct {
 }
 
 type Config struct {
-	WorkspaceRoots []string  `toml:"workspace_roots" json:"workspace_roots"`
-	UI             UI        `toml:"ui" json:"ui"`
-	Local          Local     `toml:"local" json:"local"`
-	Hosts          []Host    `toml:"hosts" json:"hosts"`
-	Sessions       []Session `toml:"sessions" json:"sessions"`
+	WorkspaceRoots []string `toml:"workspace_roots" json:"workspace_roots"`
+	// Groups are sidebar folders (e.g. "Work", "Private"), in display order.
+	Groups   []string  `toml:"groups,omitempty" json:"groups"`
+	UI       UI        `toml:"ui" json:"ui"`
+	Local    Local     `toml:"local" json:"local"`
+	Hosts    []Host    `toml:"hosts" json:"hosts"`
+	Sessions []Session `toml:"sessions" json:"sessions"`
 	// Keys overrides keyboard shortcuts: action name -> key, e.g.
 	// next_session = "Ctrl+Shift+PageDown". See the README for actions.
 	Keys map[string]string `toml:"keys,omitempty" json:"keys"`

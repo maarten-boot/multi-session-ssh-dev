@@ -26,6 +26,8 @@ TOML
 k() { xdotool key "$@"; sleep 0.5; }
 t() { xdotool type --delay 10 "$1"; xdotool key Return; sleep ${2:-0.8}; }
 shot() { import -window root $OUT/$1.png; }
+# menu c1 c2 ...: pick a context-menu item by typing first letters, then Enter.
+menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotool key Return; sleep 0.8; }
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
@@ -44,7 +46,7 @@ k ctrl+alt+1; t 'tmux detach' 1.5
 shot 5-detached                                 # exit 0: no auto-reconnect
 sleep 3; k Return; sleep 2.5; t 'echo "after Enter: $KEEP"'
 shot 6-reattached
-click 120 90 3; shot 7-menu; click 150 $((90+158))  # session menu: Disconnect
+click 120 90 3; shot 7-menu; menu d               # session menu: Disconnect
 sleep 4
 shot 8-disconnected                             # intentional: no auto-reconnect
 kill $APP; wait $APP 2>/dev/null
