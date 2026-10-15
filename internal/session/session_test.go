@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -229,6 +230,13 @@ func TestNoMappingHost(t *testing.T) {
 	}
 	dir := t.TempDir()
 	v, err := m.Create(NewSession{Host: "same", LocalPath: dir})
+	if runtime.GOOS == "windows" {
+		// C:\... has no POSIX equivalent without a prefix mapping.
+		if err == nil {
+			t.Errorf("Windows path accepted without mapping: %+v", v)
+		}
+		return
+	}
 	if err != nil || v.RemotePath != filepath.ToSlash(dir) {
 		t.Errorf("%+v %v", v, err)
 	}

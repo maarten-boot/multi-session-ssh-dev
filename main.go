@@ -17,6 +17,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// version is set with -ldflags "-X main.version=..." by the Makefile and CI.
+var version = "dev"
+
 func main() {
 	defPath, err := config.DefaultPath()
 	if err != nil {
@@ -24,7 +27,12 @@ func main() {
 	}
 	fs := flag.NewFlagSet("session-workbench", flag.ExitOnError)
 	cfgPath := fs.String("config", defPath, "config file")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	fs.Parse(os.Args[1:])
+	if *showVersion {
+		fmt.Println("session-workbench", version)
+		return
+	}
 
 	sessions := session.Open(*cfgPath)
 	if err := sessions.LoadError(); err != nil {
@@ -44,6 +52,7 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: bg,
+		Menu:             appMenu(),
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{

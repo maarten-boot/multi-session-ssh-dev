@@ -6,7 +6,11 @@ ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
 endif
 
-.PHONY: check deps dev build run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-all
+# Version stamped into the binary (shown in Settings and by -version).
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS = -X main.version=$(VERSION)
+
+.PHONY: check deps dev build build-windows run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-all
 
 check:
 	@scripts/deps.sh check
@@ -18,7 +22,11 @@ dev: check
 	$(WAILS) dev -tags "$(TAGS)"
 
 build: check
-	$(WAILS) build -tags "$(TAGS)"
+	$(WAILS) build -tags "$(TAGS)" -ldflags "$(LDFLAGS)"
+
+# Cross-build the Windows exe from Linux (no cgo needed); macOS builds need a Mac.
+build-windows: check
+	$(WAILS) build -platform windows/amd64 -ldflags "$(LDFLAGS)" -o session-workbench.exe
 
 run: build
 	build/bin/session-workbench

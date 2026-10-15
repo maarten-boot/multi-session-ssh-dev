@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -54,6 +55,9 @@ func TestCheck(t *testing.T) {
 		{"darwin", app, true}, {"linux", app, false},
 	}
 	for _, c := range cases {
+		if runtime.GOOS == "windows" && c.path == script && c.goos == "darwin" {
+			continue // the exec bit cannot be set on Windows
+		}
 		err := Check(c.goos, c.path)
 		if refused := errors.Is(err, ErrExecutable); refused != c.refused || (err != nil && !refused) {
 			t.Errorf("Check(%s, %s) = %v, want refused=%v", c.goos, filepath.Base(c.path), err, c.refused)

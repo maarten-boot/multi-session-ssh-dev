@@ -953,3 +953,10 @@ dialog .checks label.check {
     border-radius: 3px;
     background: var(--btn-bg);
 }
+
+dialog .buttons .about {
+    margin-right: auto;
+    align-self: center;
+    color: var(--faint);
+    font-size: 12px;
+}

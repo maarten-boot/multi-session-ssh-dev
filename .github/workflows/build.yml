@@ -1,0 +1,125 @@
+# Test and build Session Workbench for Linux, Windows and macOS.
+# Every push and pull request produces downloadable artifacts; pushing a
+# tag v* also publishes them as a GitHub release.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WAILS_VERSION: v2.16.0
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            os: ubuntu-24.04            # webkit2gtk-4.1; runs on Ubuntu 24.04 and newer
+            platform: linux/amd64
+            tags: webkit2_41
+          - name: windows-amd64
+            os: windows-latest
+            platform: windows/amd64
+          - name: macos-universal
+            os: macos-latest
+            platform: darwin/universal  # Apple silicon and Intel
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                # git describe needs tags
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+
+      - name: Version
+        id: version
+        run: echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
+
+      - name: Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build                 # frontend/dist must exist before Go compiles (embed)
+          npm test
+
+      - name: Go tests
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            go test -race -tags "${{ matrix.tags }}" ./...
+          else
+            go test ./...
+          fi
+
+      - name: Build
+        run: >
+          wails build -s -clean
+          -platform ${{ matrix.platform }}
+          ${{ matrix.tags && format('-tags {0}', matrix.tags) || '' }}
+          -ldflags "-X main.version=${{ steps.version.outputs.version }}"
+
+      - name: Package
+        id: package
+        run: |
+          base="session-workbench-${{ steps.version.outputs.version }}-${{ matrix.name }}"
+          cd build/bin
+          case "$RUNNER_OS" in
+            Linux)   tar czf "../../$base.tar.gz" session-workbench; file="$base.tar.gz" ;;
+            Windows) 7z a -tzip "../../$base.zip" session-workbench.exe >/dev/null; file="$base.zip" ;;
+            macOS)   ditto -c -k --keepParent session-workbench.app "../../$base.zip"; file="$base.zip" ;;
+          esac
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: session-workbench-${{ matrix.name }}
+          path: ${{ steps.package.outputs.file }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

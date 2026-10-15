@@ -44,3 +44,5 @@ export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 export function TermWrite(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateSession(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function Version():Promise<string>;

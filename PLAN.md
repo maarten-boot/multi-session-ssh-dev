@@ -35,7 +35,7 @@ See SPEC.md for requirements. Each milestone ends in something runnable.
   minimum-contrast correction) / mono (no colors), global + per-session, live switch (SPEC T3).
   App chrome (sidebar, dialogs) follows the theme too.
 
-## M6 — Cross-platform (1–2 days)
+## M6 — Cross-platform (1–2 days) ✅ (Windows/macOS verified in CI only)
 - Windows: ConPTY, pwsh default, path mapping, `start`. macOS: Cmd bindings, `open`.
 - CI build matrix (GitHub Actions) producing Linux/Windows/macOS artifacts.
 

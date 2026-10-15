@@ -45,6 +45,11 @@ func (a *App) shutdown(ctx context.Context) {
 
 // --- sessions and hosts ---
 
+// Version is the app version (set at build time, see the Makefile).
+func (a *App) Version() string {
+	return version
+}
+
 func (a *App) State() session.State {
 	return a.sessions.State()
 }
@@ -218,7 +223,9 @@ func (a *App) KillRemote(id string) error {
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 20*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ssh", args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, "ssh", args...)
+	hideConsole(cmd)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(out))
 		if strings.Contains(msg, "can't find session") || strings.Contains(msg, "no server running") {

@@ -9,7 +9,7 @@ import {$, el, hideMenu, showMenu, store} from './ui';
 import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
-    PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession,
+    PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -818,6 +818,7 @@ async function settingsDialog() {
     rows.push(el('tr', {}, el('td', {textContent: 'Session 1…9'}), el('td', {}, el('kbd', {textContent: keyHint('session_1').replace(/1$/, '1…9')})),
         el('td', {className: 'action', textContent: 'session_1 … session_9'})));
     dlg.querySelector('.shortcuts table').replaceChildren(...rows);
+    Version().then(v => dlg.querySelector('.about').textContent = `Session Workbench ${v}`);
     dlg.querySelector('.shortcuts .hint').textContent =
         `Change shortcuts in the [keys] section of ${app.state.config_path}, e.g. next_session = "Ctrl+Tab"; "none" disables one. Restart the app after editing.`;
     const ok = await runDialog(dlg, () => SaveUI({

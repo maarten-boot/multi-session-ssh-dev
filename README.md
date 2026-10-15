@@ -5,9 +5,23 @@ is bound to a repository directory and has a **Remote** terminal (ssh → tmux �
 claude on the isolated agent host), a **Local** terminal (host shell for git),
 and a **Files** tab. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
-Status: M5 — sessions with Remote, Local and Files tabs; themes, color modes,
-quick switcher, activity badges, auto-reconnect, settings. Next: cross-platform
-builds and CI (M6).
+Status: v1 feature set (M0–M6): sessions with Remote, Local and Files tabs, themes
+and color modes, quick switcher, activity badges, auto-reconnect, settings;
+builds for Linux, Windows and macOS.
+
+## Download
+
+Every push to `main` is built by GitHub Actions (see the *build* workflow's
+artifacts); tagged versions (`v*`) are published under **Releases**:
+
+| File | Runs on | Notes |
+|---|---|---|
+| `…-linux-amd64.tar.gz` | Ubuntu 24.04+ / Debian 13+ (x86-64) | needs `libwebkit2gtk-4.1-0` and `libgtk-3-0` (installed with most desktops) |
+| `…-windows-amd64.zip` | Windows 10/11 (x86-64) | uses the built-in OpenSSH client and the WebView2 runtime (both standard on current Windows). The exe is unsigned: SmartScreen asks once (*More info → Run anyway*). |
+| `…-macos-universal.zip` | macOS 11+ (Apple silicon and Intel) | unsigned: the first time, right-click the app → *Open*, or run `xattr -dr com.apple.quarantine "Session Workbench.app"` |
+
+The agent host needs `tmux` (and `claude`); nothing is installed there by the app.
+`session-workbench -version` prints the version; it is also shown in Settings.
 
 ## Build
 
@@ -18,13 +32,18 @@ Linux also needs `libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config`
 (`wails doctor` falsely reports libwebkit missing on systems that only ship
 webkit2gtk-4.1; the Makefile adds `-tags webkit2_41` when 4.1 is present.)
 
+Windows and macOS builds come from CI (or build on those systems with `wails build`;
+Windows also cross-builds from Linux with `make build-windows`).
+
 ```
 make check   # list missing build requirements
 make deps    # install them (system packages via sudo, wails via go install)
-make build   # → build/bin/session-workbench
+make build   # → build/bin/session-workbench (version from git describe)
+make build-windows   # → build/bin/session-workbench.exe, cross-built
 make run     # build, then start the app
 make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test)
+             # (CI runs the same on Linux, Windows and macOS)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux round trip against a real host
 make vet     # vet for linux, windows, darwin
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
@@ -160,4 +179,5 @@ internal/opener        open / reveal with the OS, refusing executables
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js
 scripts/gui-smoke*.sh  headless GUI test drivers
+.github/workflows      CI: test + build on Linux/Windows/macOS, release on v* tags
 ```

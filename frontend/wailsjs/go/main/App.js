@@ -81,3 +81,7 @@ export function TermWrite(arg1, arg2) {
 export function UpdateSession(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateSession'](arg1, arg2, arg3, arg4);
 }
+
+export function Version() {
+  return window['go']['main']['App']['Version']();
+}
