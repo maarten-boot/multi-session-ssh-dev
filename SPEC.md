@@ -142,7 +142,7 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
   `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
   defines `filter.*`, `include*` or `core.fsmonitor`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
-  ! conflict), a dot on folders containing changes, ignored entries dimmed; branch and
+  ! conflict), a dot on folders containing changes, ignored entries in italics; branch and
   ahead/behind in the files bar. Loaded after the listing; works when the session directory is a
   subdirectory of the repository; nothing shown outside a repository or without git.
 
@@ -168,9 +168,11 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - T2. Copy on select (optional, `copy_on_select`), Ctrl+Shift+C/V copy/paste (Cmd+C/V on macOS),
   clickable URLs (opened in the default browser).
 - T3. Font family/size, theme (light/dark), configurable globally. The font size scales the whole
-  app (sidebar, tab bar, dialogs, menus); a set font family is used everywhere too. The light theme is black text
-  on a white background (the primary user's preference) and must stay readable with programs
-  that assume a dark background:
+  app (sidebar, tab bar, dialogs, menus); a set font family is used everywhere too. The light
+  theme is black text on a white background (the primary user's preference); **all** app text is
+  black, secondary text too (no grey text: grey on grey is hard to read; hierarchy comes from size
+  and weight, dimmed entries are shown in italics). It must stay readable with programs that
+  assume a dark background:
   - `color_mode = "full"` — ANSI colors as sent, but with a minimum contrast against the
     background (xterm.js `minimumContrastRatio`, default ~4.5), so yellow/light green on white
     get darkened instead of vanishing.

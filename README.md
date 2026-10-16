@@ -112,7 +112,7 @@ in *Edit…* if needed. The font size applies to the whole app (sidebar, tab bar
 dialogs), as does the font family when you set one. Very large directories show the first
   5000 entries. In a git repository each entry gets a letter — **M** modified,
   **A** added, **D** deleted, **R** renamed, **U** untracked, **!** conflict — folders
-  with changes get a dot, ignored files are dimmed, and the bar shows the branch with
+  with changes get a dot, ignored files are in italics, and the bar shows the branch with
   ahead/behind (↑/↓). This needs `git` on the host and only reads (no locks). If the
   repository's own config names programs git status would run (filters, includes,
   fsmonitor), the status is skipped and the bar says so — see
