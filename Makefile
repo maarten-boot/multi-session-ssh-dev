@@ -4,6 +4,9 @@ WAILS ?= $(shell command -v wails || echo $$(go env GOPATH 2>/dev/null)/bin/wail
 # Ubuntu 24.04+ / Debian 13+ only ship webkit2gtk-4.1; older systems use 4.0.
 ifeq ($(shell uname -s),Linux)
 TAGS ?= $(shell pkg-config --exists webkit2gtk-4.1 2>/dev/null && echo webkit2_41)
+# Hardened like distribution binaries: position independent, full RELRO.
+HARDEN_LDFLAGS = -extldflags=-Wl,-z,relro,-z,now
+BUILD_ENV = GOFLAGS=-buildmode=pie
 endif
 
 # Version stamped into the binary (shown in Settings and by -version).
@@ -22,7 +25,7 @@ dev: check
 	$(WAILS) dev -tags "$(TAGS)"
 
 build: check
-	$(WAILS) build -tags "$(TAGS)" -ldflags "$(LDFLAGS)"
+	$(BUILD_ENV) $(WAILS) build -tags "$(TAGS)" -ldflags "$(LDFLAGS) $(HARDEN_LDFLAGS)"
 
 # Cross-build the Windows exe from Linux (no cgo needed); macOS builds need a Mac.
 build-windows: check
@@ -34,8 +37,9 @@ packages: build
 	@test -x "$(NFPM)" || go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
 	mkdir -p dist
 	VERSION=$$(echo "$(VERSION)" | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)/+\1.g\2/') \
-		&& export VERSION && $(NFPM) package -f packaging/nfpm.yaml -p deb -t dist/ \
-		&& $(NFPM) package -f packaging/nfpm.yaml -p rpm -t dist/
+		&& export VERSION && packaging/gen-docs.sh "$$VERSION" \
+		&& $(NFPM) package -f packaging/nfpm.yaml -p deb -t dist/ \
+		&& $(NFPM) package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
 
 run: build
 	build/bin/session-workbench

@@ -1,5 +1,8 @@
-# Linux packages (.deb and .rpm), built in CI with nfpm:
-#   VERSION=0.7.0 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+# Linux packages (.deb and .rpm), built in CI and by `make packages` with nfpm:
+#   packaging/gen-docs.sh 0.8.3
+#   VERSION=0.8.3 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+#   VERSION=0.8.3 nfpm package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
+# Checked with lintian (deb) and rpmlint (rpm).
 # The binary is the same for every distribution; only the dependency names
 # differ.
 name: session-workbench
@@ -11,9 +14,12 @@ section: devel
 priority: optional
 maintainer: Maarten Boot <11140490+maarten-boot@users.noreply.github.com>
 description: |
-  Desktop app for running many Claude Code sessions side by side. Each
-  session has a remote terminal (ssh -> tmux -> claude on an agent host),
-  a local shell and a file tree with git status, all for one directory.
+  Run many Claude Code sessions side by side
+  Desktop app for working with many Claude Code sessions at once. Each
+  session is bound to one directory and has a remote terminal (ssh to an
+  agent host, in a persistent terminal multiplexer session running Claude
+  Code), a local shell, and a file tree with git status and a check for
+  repository hooks and settings.
 vendor: Maarten Boot
 homepage: https://github.com/maarten-boot/multi-session-ssh-dev
 license: MIT
@@ -25,20 +31,58 @@ contents:
       mode: 0755
   - src: packaging/session-workbench.desktop
     dst: /usr/share/applications/session-workbench.desktop
+    file_info: &doc
+      mode: 0644
   - src: build/appicon.png
     dst: /usr/share/icons/hicolor/1024x1024/apps/session-workbench.png
+    file_info: *doc
   - src: packaging/icons/256.png
     dst: /usr/share/icons/hicolor/256x256/apps/session-workbench.png
+    file_info: *doc
   - src: packaging/icons/128.png
     dst: /usr/share/icons/hicolor/128x128/apps/session-workbench.png
+    file_info: *doc
   - src: packaging/icons/48.png
     dst: /usr/share/icons/hicolor/48x48/apps/session-workbench.png
+    file_info: *doc
+  # Documentation: the rpm marks it %doc; nfpm's deb packager drops files of
+  # type doc, so the deb lists them as plain files.
+  - src: dist/pkgdocs/session-workbench.1.gz
+    dst: /usr/share/man/man1/session-workbench.1.gz
+    file_info: *doc
+    packager: deb
+  - src: dist/pkgdocs/session-workbench.1.gz
+    dst: /usr/share/man/man1/session-workbench.1.gz
+    type: doc
+    file_info: *doc
+    packager: rpm
+  - src: README.md
+    dst: /usr/share/doc/session-workbench/README.md
+    file_info: *doc
+    packager: deb
+  - src: README.md
+    dst: /usr/share/doc/session-workbench/README.md
+    type: doc
+    file_info: *doc
+    packager: rpm
+  - src: packaging/copyright
+    dst: /usr/share/doc/session-workbench/copyright
+    file_info: *doc
+    packager: deb
+  - src: dist/pkgdocs/changelog.gz
+    dst: /usr/share/doc/session-workbench/changelog.gz
+    file_info: *doc
+    packager: deb
   - src: LICENSE
-    dst: /usr/share/doc/session-workbench/LICENSE
+    dst: /usr/share/licenses/session-workbench/LICENSE
+    type: license
+    file_info: *doc
+    packager: rpm
 
 overrides:
   deb:
     depends:
+      - libc6 (>= 2.34)                   # newest glibc symbol the binary uses
       - libwebkit2gtk-4.1-0
       - libgtk-3-0t64 | libgtk-3-0
       - openssh-client

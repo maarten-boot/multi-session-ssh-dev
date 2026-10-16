@@ -1,0 +1,64 @@
+.TH SESSION-WORKBENCH 1 "@DATE@" "session-workbench @VERSION@" "User Commands"
+.SH NAME
+session-workbench \- run many Claude Code sessions side by side
+.SH SYNOPSIS
+.B session-workbench
+.RB [ \-config
+.IR file ]
+.br
+.B session-workbench
+.B \-version
+.SH DESCRIPTION
+.B session-workbench
+is a desktop application for working with many Claude Code sessions at once.
+Each session is bound to one directory and has three tabs:
+.TP
+.B Remote
+a terminal connected with
+.BR ssh (1)
+to an agent host, inside a
+.BR tmux (1)
+session that runs
+.B claude
+in that directory; it survives closing the application and lost connections;
+.TP
+.B Local
+a shell on this computer in the same directory;
+.TP
+.B Files
+the directory as a tree, with git status markers and a check for
+repository hooks and settings that git on this computer would run.
+.PP
+The agent host gets at the directory through a shared file system, a live
+share over ssh (the agent host mounts it with
+.BR sshfs (1)),
+or a working copy sent with
+.BR rsync (1)
+whose commits are fetched back with
+.BR git (1).
+Agent and X11 forwarding are always disabled on these ssh connections.
+.SH OPTIONS
+.TP
+.BI \-config " file"
+Use
+.I file
+instead of the default configuration file.
+.TP
+.B \-version
+Print the version and exit.
+.SH FILES
+.TP
+.I ~/.config/session-workbench/config.toml
+Hosts, sessions, folders and settings (honours
+.BR XDG_CONFIG_HOME ).
+The application rewrites it on every change; hand edits are fine while it is
+not running.
+.SH SEE ALSO
+.BR ssh (1),
+.BR tmux (1),
+.BR sshfs (1),
+.BR rsync (1),
+.BR git (1)
+.PP
+https://github.com/maarten-boot/multi-session-ssh-dev, in particular
+docs/CONNECTIVITY.md for setting up agent hosts and the security model.

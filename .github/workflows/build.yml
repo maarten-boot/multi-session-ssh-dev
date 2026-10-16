@@ -36,6 +36,9 @@ jobs:
             os: ubuntu-24.04            # webkit2gtk-4.1; runs on Ubuntu 24.04 and newer
             platform: linux/amd64
             tags: webkit2_41
+            # hardened like distribution binaries: PIE, full RELRO
+            goflags: -buildmode=pie
+            ldflags: -extldflags=-Wl,-z,relro,-z,now
           - name: windows-amd64
             os: windows-latest
             platform: windows/amd64
@@ -105,11 +108,13 @@ jobs:
           fi
 
       - name: Build
+        env:
+          GOFLAGS: ${{ matrix.goflags }}
         run: >
           wails build -s -clean
           -platform ${{ matrix.platform }}
           ${{ matrix.tags && format('-tags {0}', matrix.tags) || '' }}
-          -ldflags "-X main.version=${{ steps.version.outputs.version }}"
+          -ldflags "-X main.version=${{ steps.version.outputs.version }} ${{ matrix.ldflags }}"
 
       - name: Package
         run: |
@@ -134,8 +139,9 @@ jobs:
           VERSION=$(git describe --tags --always | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)$/+\1.g\2/')
           case "$VERSION" in [0-9]*) ;; *) VERSION="0.0.0+g$VERSION" ;; esac
           export VERSION
+          packaging/gen-docs.sh "$VERSION"
           "$nfpm" package -f packaging/nfpm.yaml -p deb -t dist/
-          "$nfpm" package -f packaging/nfpm.yaml -p rpm -t dist/
+          "$nfpm" package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
           ls -l dist
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
