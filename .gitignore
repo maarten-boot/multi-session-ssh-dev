@@ -39,3 +39,6 @@ frontend/package.json.md5
 tmp/
 dist/
 build/pkgdocs
+
+# Claude Code conversation history (symlinked from ~/.claude/projects)
+.claude-sessions/
