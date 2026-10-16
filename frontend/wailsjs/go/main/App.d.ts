@@ -5,6 +5,7 @@ import {gitstatus} from '../models';
 import {main} from '../models';
 import {fsbrowse} from '../models';
 import {config} from '../models';
+import {share} from '../models';
 import {syncer} from '../models';
 
 export function BrowseDirectory(arg1:string):Promise<string>;
@@ -45,11 +46,15 @@ export function SaveUI(arg1:config.UI):Promise<void>;
 
 export function SetSessionGroup(arg1:string,arg2:string):Promise<void>;
 
+export function ShareStatus(arg1:string):Promise<share.Status>;
+
 export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function StartRemote(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function State():Promise<session.State>;
+
+export function StopShare(arg1:string):Promise<void>;
 
 export function SyncFastForward(arg1:string,arg2:string):Promise<void>;
 

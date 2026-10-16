@@ -48,7 +48,7 @@ test:
 # the same /tmp path visible on both sides, e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
-	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip' -v ./internal/remote ./internal/syncer
+	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share
 
 # The main package needs cgo (webkit) on Linux and macOS: vet it natively and
 # for Windows (pure Go); macOS only the internal packages.
@@ -92,6 +92,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-git.sh build/bin/session-workbench $(SMOKE_OUT)-git
 	$(XVFB) scripts/gui-smoke-repocheck.sh build/bin/session-workbench $(SMOKE_OUT)-repocheck
 	$(XVFB) scripts/gui-smoke-sync.sh build/bin/session-workbench $(SMOKE_OUT)-sync
+	$(XVFB) scripts/gui-smoke-share.sh build/bin/session-workbench $(SMOKE_OUT)-share
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

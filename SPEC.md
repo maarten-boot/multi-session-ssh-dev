@@ -217,7 +217,9 @@ internal/config            TOML config
 internal/session           hosts/sessions logic on top of the config
 internal/fsbrowse          Files tab listing
 internal/opener            open / reveal, refusing executables
-internal/gitstatus         git markers for the Files tab
+internal/gitstatus         git markers and repository check for the Files tab
+internal/syncer            working copies (rsync out, git fetch back)
+internal/share             live share (confined SFTP server, sshfs mounts)
 frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js, keys.js, fuzzy.js
 ```
 
@@ -245,7 +247,7 @@ repository config and warns again whenever they change.
 3. ~~Multiple agent hosts?~~ → yes, see F0. Same local dir may be opened against different hosts
    (each gets its own session).
 4. ~~Session groups/folders in the sidebar?~~ → yes, F5.
-5. ~~File access without a shared file system?~~ → working copies (mode C) implemented; live
-   share over ssh (mode B) next; see docs/CONNECTIVITY.md.
+5. ~~File access without a shared file system?~~ → live share over ssh (mode B) and working
+   copies (mode C), host setting `files`; see docs/CONNECTIVITY.md.
 6. Distribution: Linux `.deb` (Debian/Ubuntu) and `.rpm` (Fedora) with dependencies, menu entry
    and icon, alongside a plain tarball; Windows zip; macOS app zip. All unsigned.

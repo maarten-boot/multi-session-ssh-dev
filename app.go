@@ -17,6 +17,7 @@ import (
 	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
+	"session-workbench/internal/share"
 	"session-workbench/internal/syncer"
 	"session-workbench/internal/terminal"
 )
@@ -27,6 +28,7 @@ type App struct {
 	ctx      context.Context
 	terms    *terminal.Manager
 	sessions *session.Manager
+	shares   *share.Manager
 }
 
 func NewApp(sessions *session.Manager) *App {
@@ -37,6 +39,17 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	gitstatus.Configure = hideConsole
 	syncer.Configure = hideConsole
+	share.Configure = hideConsole
+	a.shares = share.NewManager(func(id string, st share.Status) {
+		runtime.EventsEmit(ctx, "share:"+id, st)
+	})
+	// claude may still be running in tmux on the agent host from an earlier
+	// run: give it its files back without waiting for the Remote tab.
+	for _, v := range a.sessions.State().Sessions {
+		if v.Files == session.FilesSSHFS {
+			go a.ensureShare(v.ID, 0)
+		}
+	}
 	a.terms = terminal.NewManager(terminal.EmitterFunc(func(name string, data ...any) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
@@ -45,6 +58,7 @@ func (a *App) startup(ctx context.Context) {
 // shutdown drops all connections; remote tmux sessions keep running.
 func (a *App) shutdown(ctx context.Context) {
 	a.terms.KillAll()
+	a.shares.StopAll() // the agent host unmounts
 }
 
 // --- sessions and hosts ---
@@ -91,6 +105,7 @@ func (a *App) SaveUI(ui config.UI) error {
 }
 
 func (a *App) DeleteSession(id string) error {
+	a.shares.Stop(id)
 	return a.sessions.Delete(id)
 }
 
@@ -298,11 +313,35 @@ func (a *App) StartLocal(id string, cols, rows int) (string, error) {
 	return tid, err
 }
 
+// ensureShare starts a live share and waits up to timeout for the mount.
+func (a *App) ensureShare(id string, timeout time.Duration) error {
+	r, err := a.sessions.Resolve(id)
+	if err != nil {
+		return err
+	}
+	return a.shares.Ensure(id, share.Spec{Target: r.Host.SSHTarget, LocalPath: r.LocalPath, RemotePath: r.RemotePath}, timeout)
+}
+
+// ShareStatus reports a live share's state ("stopped" if none).
+func (a *App) ShareStatus(id string) share.Status {
+	return a.shares.Status(id)
+}
+
+// StopShare unmounts a live share until the Remote tab connects again.
+func (a *App) StopShare(id string) {
+	a.shares.Stop(id)
+}
+
 // StartRemote connects to (or creates) the session's tmux session.
 func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	r, err := a.sessions.Resolve(id)
 	if err != nil {
 		return "", err
+	}
+	if session.FilesMode(r.Host) == session.FilesSSHFS {
+		if err := a.ensureShare(id, 25*time.Second); err != nil {
+			return "", fmt.Errorf("sharing the directory: %w", err)
+		}
 	}
 	ssh, err := exec.LookPath("ssh")
 	if err != nil {

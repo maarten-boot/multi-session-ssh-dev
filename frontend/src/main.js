@@ -6,12 +6,12 @@ import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
-import {WindowSetTitle} from '../wailsjs/runtime/runtime';
+import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
-    SyncPreview, SyncSend, SyncGet, SyncFastForward,
+    SyncPreview, SyncSend, SyncGet, SyncFastForward, ShareStatus, StopShare,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -161,13 +161,21 @@ class SessionUI {
                 missingDir: () => this.data.files === 'sync'
                     ? {text: 'There is no working copy on the agent host yet.',
                         actions: [{label: 'Send to agent…', primary: true, action: () => syncSendDialog(this)}]}
-                    : {text: `${this.data.remote_path} does not exist on ${this.data.host}. Check the share or the path mapping.`, actions: []},
+                    : this.data.files === 'sshfs'
+                        ? {text: `The live share is not mounted at ${this.data.remote_path}.`, actions: []}
+                        : {text: `${this.data.remote_path} does not exist on ${this.data.host}. Check the share or the path mapping.`, actions: []},
             }, s => this.setRemoteState(s)),
             new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
                 {what: 'shell', again: 'restart', remote: false}),
             new FilesTab(this),
         ];
         this.activeTab = 0;
+        this.share = null; // live share status, for sshfs sessions
+        EventsOn(`share:${data.id}`, st => {
+            this.share = st;
+            if (app.active === this) app.renderMain();
+        });
+        if (data.files === 'sshfs') ShareStatus(data.id).then(st => this.share ??= st);
     }
 
     get id() {
@@ -518,6 +526,14 @@ const app = {
         this.renderBadges(s);
         const sync = $('#sync-actions');
         sync.replaceChildren();
+        if (d.files === 'sshfs') {
+            const st = s.share?.state ?? 'stopped';
+            const label = {mounted: '● shared', starting: '◌ connecting share…', retrying: '◌ share reconnecting…',
+                failed: '⚠ share failed', stopped: '○ not shared'}[st] ?? st;
+            sync.append(el('span', {className: `share-state ${st}`, textContent: label,
+                title: s.share?.error || (st === 'mounted' ? `${d.local_path} is mounted at ${d.host}:${d.remote_path}` :
+                    'The share starts with the Remote tab')}));
+        }
         if (d.files === 'sync') {
             const send = el('button', {textContent: '⇡ Send', title: 'Send this directory to the agent copy'});
             const get = el('button', {textContent: '⇣ Get', title: 'Get commits from the agent copy'});
@@ -771,6 +787,8 @@ function sessionMenu(s, x, y) {
     ] : [];
     showMenu(x, y, [
         ...sync,
+        ...(s.data.files === 'sshfs' ? [{label: 'Stop sharing', disabled: s.share?.state !== 'mounted',
+            action: () => StopShare(s.id)}, '-'] : []),
         {label: 'Edit…', action: () => sessionDialog(s)},
         {label: 'Move up', action: () => moveBy(s, -1)},
         {label: 'Move down', action: () => moveBy(s, 1)},

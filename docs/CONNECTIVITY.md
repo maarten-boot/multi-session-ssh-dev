@@ -59,9 +59,9 @@ the agent host).
 
 | | A. Shared file system | B. Live share over ssh | C. Working copy + sync |
 |---|---|---|---|
-| Status | **Implemented** | **Planned** | **Implemented** (Linux/macOS hosts) |
+| Status | **Implemented** | **Implemented** | **Implemented** (Linux/macOS hosts) |
 | How | NFS, SMB, or a hypervisor share (virtiofs / 9p) | the app serves the session directory; the agent host mounts it with `sshfs` | a copy on the agent host; you send changes there and fetch commits back |
-| Set up by | you (admin) | the app | the app (`files = "sync"` on the host) |
+| Set up by | you (admin) | the app (`files = "sshfs"` on the host) | the app (`files = "sync"` on the host) |
 | Root on agent host | for the mount (once) | no (`sshfs` + FUSE) | no |
 | Works while the app is closed | yes | **no** — claude loses its files until the app reconnects | yes |
 | Speed | good on a LAN | slower: every file access is a round trip | local speed on the agent host |
@@ -90,15 +90,28 @@ The Remote tab then starts in the mapped directory. Options:
 - **Hypervisor share** (agent host is a local VM): libvirt/QEMU *virtiofs* (preferred) or
   *virtio-9p*. Configured in the VM definition, not in this app. No network setup needed.
 
-### B. Live share over ssh (planned)
+### B. Live share over ssh (implemented)
 
-For users without NFS. The app would run a small SFTP file server **confined to the session
-directory** (symlinks and `..` cannot leave it) and connect it through the existing ssh
-connection to `sshfs -o passive` on the agent host, which mounts it at the remote path.
+For users without NFS. Choose *live share over ssh* when adding the host (or set
+`files = "sshfs"`, optionally `remote_workdir`, default `~/sw`). The app runs a small SFTP file
+server **confined to the session directory** and connects it through its own ssh connection to
+`sshfs -o passive` on the agent host, which mounts it at `<remote_workdir>/<directory>-<id>`.
+The Remote tab runs there.
 
 - No open ports, and **no credentials on the agent host**: the agent host never logs in to your
   host. Your host serves files over the connection that it opened itself.
-- Needs `sshfs` and FUSE on the agent host; no root.
+- Confinement: every file operation goes through Go's `os.Root`, so neither `..` nor symlinks
+  can reach outside the session directory. The agent host may create symlinks only with
+  relative targets that stay inside it (otherwise it could plant, say, `README` → `~/.bashrc`
+  for you to edit on the host); hard links are refused. Files appear owned by the agent-side
+  user; ownership changes are ignored.
+- Needs `sshfs` and FUSE on the agent host; no root. The mount command runs under `/bin/sh`,
+  not your login shell, because text printed by a shell profile would corrupt the file
+  protocol (if mounting fails with a protocol error, check `~/.bashrc` on the agent host for
+  output in non-interactive shells).
+- Shares start when the app starts and reconnect by themselves (1, 2, 4 … 30 s) if the
+  connection drops; the bar next to the tabs shows the state (*● shared*). A missing `sshfs` is
+  reported instead of retried. *Stop sharing* in the session menu unmounts it.
 - **The share lives only while the app runs and is connected.** If you close the app or your
   laptop sleeps, claude in tmux sees errors such as *Transport endpoint is not connected* until
   the app reconnects and mounts again.
@@ -216,9 +229,9 @@ Other things the agent host can read in shared modes:
 |---|---|
 | Agent host is a VM on your workstation | A, with a virtiofs (or 9p) share |
 | Agent host on your LAN, NFS available | A, with NFS |
-| No NFS, agent host reachable by ssh, files only needed while you work | B (planned) |
+| No NFS, agent host reachable by ssh, files only needed while you work | B |
 | Agent host less trusted, or you already work with rsync | C |
-| Windows workstation | A with SMB, or B (planned) |
+| Windows workstation | A with SMB, or B |
 
 In every mode: review what comes back before you run git on your host, and keep credentials and
 secrets out of what you share.

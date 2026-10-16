@@ -144,6 +144,10 @@ func SSHCommand() string {
 	return "ssh -o BatchMode=yes " + strings.Join(sshOptions, " ")
 }
 
+// SSHOptions returns the forced ssh options (for packages that build their
+// own ssh command lines).
+func SSHOptions() []string { return append([]string(nil), sshOptions...) }
+
 // CheckTarget validates an ssh target (exported for packages that build
 // their own command lines).
 func CheckTarget(target string) error { return checkTarget(target) }

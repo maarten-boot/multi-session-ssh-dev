@@ -1257,3 +1257,21 @@ dialog pre.changes {
 .toast.bad {
     border-left-color: var(--danger);
 }
+
+.share-state {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.share-state.mounted {
+    color: var(--ok);
+}
+
+.share-state.retrying, .share-state.starting {
+    color: var(--warn);
+}
+
+.share-state.failed {
+    color: var(--danger);
+}

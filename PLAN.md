@@ -49,6 +49,8 @@ implementation differs from the original plan.
 - Git status in the Files tab (SPEC B5).
 - Terminal find bar, Unicode 11 widths, copy on select (SPEC T1/T2, found missing in the
   docs/code cross-check).
+- Repository check (SPEC B6); live share over ssh and working copies (docs/CONNECTIVITY.md
+  modes B and C).
 - Linux `.deb`/`.rpm` packages (nfpm) with desktop entry and an own app icon; verified by
   installing in clean Ubuntu 24.04 and Fedora 44 containers.
 

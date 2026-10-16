@@ -78,6 +78,10 @@ export function SetSessionGroup(arg1, arg2) {
   return window['go']['main']['App']['SetSessionGroup'](arg1, arg2);
 }
 
+export function ShareStatus(arg1) {
+  return window['go']['main']['App']['ShareStatus'](arg1);
+}
+
 export function StartLocal(arg1, arg2, arg3) {
   return window['go']['main']['App']['StartLocal'](arg1, arg2, arg3);
 }
@@ -88,6 +92,10 @@ export function StartRemote(arg1, arg2, arg3) {
 
 export function State() {
   return window['go']['main']['App']['State']();
+}
+
+export function StopShare(arg1) {
+  return window['go']['main']['App']['StopShare'](arg1);
 }
 
 export function SyncFastForward(arg1, arg2) {

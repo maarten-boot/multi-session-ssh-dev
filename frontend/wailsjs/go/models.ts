@@ -364,6 +364,25 @@ export namespace session {
 
 }
 
+export namespace share {
+	
+	export class Status {
+	    state: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace syncer {
 	
 	export class AgentState {
