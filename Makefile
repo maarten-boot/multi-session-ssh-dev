@@ -39,7 +39,7 @@ packages: build
 	VERSION=$$(echo "$(VERSION)" | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)/+\1.g\2/') \
 		&& export VERSION && packaging/gen-docs.sh "$$VERSION" \
 		&& $(NFPM) package -f packaging/nfpm.yaml -p deb -t dist/ \
-		&& $(NFPM) package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
+		&& $(NFPM) package -f build/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
 
 run: build
 	build/bin/session-workbench

@@ -141,7 +141,7 @@ jobs:
           export VERSION
           packaging/gen-docs.sh "$VERSION"
           "$nfpm" package -f packaging/nfpm.yaml -p deb -t dist/
-          "$nfpm" package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
+          "$nfpm" package -f build/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
           ls -l dist
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -165,5 +165,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
+          # Only regular files are release assets.
+          mapfile -t assets < <(find dist -maxdepth 1 -type f | sort)
+          printf 'asset: %s\n' "${assets[@]}"
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

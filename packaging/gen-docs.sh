@@ -1,16 +1,16 @@
 #!/bin/bash
 # Generate the package documentation that depends on the version, from git
 # history since the previous tag:
-#   dist/pkgdocs/changelog.gz          Debian changelog (the .deb)
-#   dist/pkgdocs/changelog.yml         chglog entries for the RPM %changelog
-#   dist/pkgdocs/nfpm-rpm.yaml         packaging/nfpm.yaml + that changelog
+#   build/pkgdocs/changelog.gz          Debian changelog (the .deb)
+#   build/pkgdocs/changelog.yml         chglog entries for the RPM %changelog
+#   build/pkgdocs/nfpm-rpm.yaml         packaging/nfpm.yaml + that changelog
 #                                      (nfpm would also put it into the .deb,
 #                                      under a name wrong for this package)
-#   dist/pkgdocs/session-workbench.1.gz
+#   build/pkgdocs/session-workbench.1.gz
 # usage: packaging/gen-docs.sh <version>   (run from the repository root)
 set -euo pipefail
 VERSION=$1
-OUT=dist/pkgdocs
+OUT=build/pkgdocs
 mkdir -p "$OUT"
 # Reproducible: the date of the last commit, not the build time.
 EPOCH=$(git log -1 --format=%ct)

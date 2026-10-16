@@ -1,7 +1,7 @@
 # Linux packages (.deb and .rpm), built in CI and by `make packages` with nfpm:
 #   packaging/gen-docs.sh 0.8.3
 #   VERSION=0.8.3 nfpm package -f packaging/nfpm.yaml -p deb -t dist/
-#   VERSION=0.8.3 nfpm package -f dist/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
+#   VERSION=0.8.3 nfpm package -f build/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
 # Checked with lintian (deb) and rpmlint (rpm).
 # The binary is the same for every distribution; only the dependency names
 # differ.
@@ -47,11 +47,11 @@ contents:
     file_info: *doc
   # Documentation: the rpm marks it %doc; nfpm's deb packager drops files of
   # type doc, so the deb lists them as plain files.
-  - src: dist/pkgdocs/session-workbench.1.gz
+  - src: build/pkgdocs/session-workbench.1.gz
     dst: /usr/share/man/man1/session-workbench.1.gz
     file_info: *doc
     packager: deb
-  - src: dist/pkgdocs/session-workbench.1.gz
+  - src: build/pkgdocs/session-workbench.1.gz
     dst: /usr/share/man/man1/session-workbench.1.gz
     type: doc
     file_info: *doc
@@ -69,7 +69,7 @@ contents:
     dst: /usr/share/doc/session-workbench/copyright
     file_info: *doc
     packager: deb
-  - src: dist/pkgdocs/changelog.gz
+  - src: build/pkgdocs/changelog.gz
     dst: /usr/share/doc/session-workbench/changelog.gz
     file_info: *doc
     packager: deb
