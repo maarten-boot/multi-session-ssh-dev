@@ -110,3 +110,27 @@ func TestAuditOutsideRepository(t *testing.T) {
 		t.Errorf("%+v %v", a, err)
 	}
 }
+
+func TestRemoteURL(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	if got := RemoteURL(context.Background(), repo); got != "" {
+		t.Errorf("no remotes: %q", got)
+	}
+	run(t, repo, "remote", "add", "backup", "https://example.com/b.git")
+	if got := RemoteURL(context.Background(), repo); got != "https://example.com/b.git" {
+		t.Errorf("first remote: %q", got)
+	}
+	run(t, repo, "remote", "add", "origin", "git@github.com:o/r.git")
+	if got := RemoteURL(context.Background(), repo); got != "git@github.com:o/r.git" {
+		t.Errorf("origin preferred: %q", got)
+	}
+	if got := RemoteURL(context.Background(), t.TempDir()); got != "" {
+		t.Errorf("outside a repo: %q", got)
+	}
+}

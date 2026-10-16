@@ -232,3 +232,27 @@ func (st *Status) add(prefix, p, c string) {
 		}
 	}
 }
+
+// RemoteURL returns the repository's fetch URL for "origin", or else for
+// the first remote, read from the repository's own config without includes
+// (nothing runs). "" outside a repository or without remotes.
+func RemoteURL(ctx context.Context, dir string) string {
+	out, err := git(ctx, dir, "config", "--local", "--no-includes", "--get-regexp", `^remote\..*\.url$`)
+	if err != nil {
+		return ""
+	}
+	first := ""
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		key, val, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		if key == "remote.origin.url" {
+			return val
+		}
+		if first == "" {
+			first = val
+		}
+	}
+	return first
+}

@@ -9,16 +9,20 @@
 export const ACTIONS = {
     next_session: ['Ctrl+Shift+PageDown', 'Cmd+Shift+]'],
     prev_session: ['Ctrl+Shift+PageUp', 'Cmd+Shift+['],
-    tab_local: ['Ctrl+Shift+1', 'Cmd+Shift+1'],
-    tab_files: ['Ctrl+Shift+2', 'Cmd+Shift+2'],
-    tab_remote: ['Ctrl+Shift+3', 'Cmd+Shift+3'],
-    tab_notes: ['Ctrl+Shift+4', 'Cmd+Shift+4'],
+    // Bind a key to one tab wherever it is in the order (unbound by default;
+    // Ctrl+Shift+1…9 select tabs by position, see tab_1 … tab_9 below).
+    tab_local: ['none', 'none'],
+    tab_files: ['none', 'none'],
+    tab_remote: ['none', 'none'],
+    tab_notes: ['none', 'none'],
+    tab_web: ['none', 'none'],
     new_session: ['Ctrl+Shift+N', 'Cmd+Shift+N'],
     quick_switcher: ['Ctrl+Shift+P', 'Cmd+Shift+P'],
     settings: ['Ctrl+Shift+,', 'Cmd+,'],
     find: ['Ctrl+Shift+F', 'Cmd+F'],
 };
 for (let n = 1; n <= 9; n++) ACTIONS[`session_${n}`] = [`Ctrl+Alt+${n}`, `Cmd+${n}`];
+for (let n = 1; n <= 9; n++) ACTIONS[`tab_${n}`] = [`Ctrl+Shift+${n}`, `Cmd+Shift+${n}`];
 
 const NAMED = {
     pageup: 'PageUp', pagedown: 'PageDown', home: 'Home', end: 'End', insert: 'Insert', delete: 'Delete',

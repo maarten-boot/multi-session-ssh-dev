@@ -52,6 +52,7 @@ implementation differs from the original plan.
 - Repository check (SPEC B6); live share over ssh and working copies (docs/CONNECTIVITY.md
   modes B and C).
 - Tab order Local, Files, Remote, Notes; Notes tab (SPEC N1); new sessions follow Settings.
+- Web tab (SPEC W1); configurable tab order and hidden tabs; stronger current-session highlight.
 - Linux `.deb`/`.rpm` packages (nfpm) with desktop entry and an own app icon; verified by
   installing in clean Ubuntu 24.04 and Fedora 44 containers.
 

@@ -33,6 +33,8 @@ func TestRoundTrip(t *testing.T) {
 	want.UI.MinContrast = 7
 	want.UI.AutoReconnect = ptr(false)
 	want.UI.CopyOnSelect = true
+	want.UI.TabOrder = []string{"remote", "local", "files", "notes", "web"}
+	want.UI.HiddenTabs = []string{"notes"}
 	want.Keys = map[string]string{"next_session": "Ctrl+Tab"}
 	want.Local = Local{Shell: "/bin/zsh", Args: []string{"-l"}}
 	want.Hosts = []Host{
@@ -143,5 +145,29 @@ func TestValidateUI(t *testing.T) {
 		if ValidateUI(u) == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+func TestTabsNormalized(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "c.toml")
+	os.WriteFile(p, []byte("[ui]\ntab_order = [\"remote\", \"bogus\", \"local\", \"remote\"]\nhidden_tabs = [\"files\", \"nope\"]\n"), 0o644)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(c.UI.TabOrder, ","); got != "remote,local,files,notes,web" {
+		t.Errorf("order %s", got) // unknown dropped, duplicates removed, missing appended
+	}
+	if got := strings.Join(c.UI.HiddenTabs, ","); got != "files" {
+		t.Errorf("hidden %s", got)
+	}
+	u := c.UI
+	u.HiddenTabs = Tabs
+	if ValidateUI(u) == nil {
+		t.Error("hiding every tab accepted")
+	}
+	u.HiddenTabs = []string{"x"}
+	if ValidateUI(u) == nil {
+		t.Error("unknown tab accepted")
 	}
 }

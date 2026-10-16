@@ -8,6 +8,7 @@ import {notes} from '../models';
 import {config} from '../models';
 import {share} from '../models';
 import {syncer} from '../models';
+import {forge} from '../models';
 
 export function BrowseDirectory(arg1:string):Promise<string>;
 
@@ -49,6 +50,8 @@ export function SaveNotes(arg1:string,arg2:string):Promise<notes.Note>;
 
 export function SaveUI(arg1:config.UI):Promise<void>;
 
+export function SetLinks(arg1:string,arg2:Array<config.Link>):Promise<void>;
+
 export function SetSessionGroup(arg1:string,arg2:string):Promise<void>;
 
 export function ShareStatus(arg1:string):Promise<share.Status>;
@@ -80,3 +83,7 @@ export function TrustRepo(arg1:string,arg2:string):Promise<void>;
 export function UpdateSession(arg1:string,arg2:session.Edit):Promise<void>;
 
 export function Version():Promise<string>;
+
+export function WebInfo(arg1:string):Promise<main.WebInfo>;
+
+export function WebRuns(arg1:string):Promise<Array<forge.Run>>;

@@ -6,6 +6,7 @@ import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {NotesView} from './notes';
+import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
@@ -23,8 +24,11 @@ let keymap = buildKeymap({}, isMac);
 // appKey returns the app action for a keydown, or null if the key belongs
 // to the terminal.
 const appKey = e => actionFor(e, keymap.map);
-// Tab order (and Ctrl+Shift+1…4): Local, Files, Remote, Notes.
-const TAB_ACTIONS = ['tab_local', 'tab_files', 'tab_remote', 'tab_notes'];
+// Tabs: their order and which are shown come from Settings (ui.tab_order,
+// ui.hidden_tabs). Ctrl+Shift+N is the Nth visible tab (tab_1 … tab_9);
+// tab_<name> actions can bind a key to one tab regardless of position.
+const tabOrder = () => (app.state.ui.tab_order ?? ['local', 'files', 'remote', 'notes', 'web'])
+    .filter(k => !(app.state.ui.hidden_tabs ?? []).includes(k));
 const keyHint = action => format(keymap.map[action], isMac);
 
 // ---------------------------------------------------------------- sessions
@@ -120,6 +124,37 @@ class Tab {
 }
 
 // FilesTab hosts the session's file tree; it refreshes whenever shown.
+// WebTab shows the repository's web links and build runs; it refreshes when
+// shown and polls only while visible.
+class WebTab {
+    constructor(session) {
+        this.session = session;
+        this.key = 'web';
+        this.label = 'Web';
+        this.badge = null;
+        this.pane = el('div', {className: 'pane files-pane', hidden: true});
+        session.container.append(this.pane);
+        this.view = null;
+    }
+
+    show() {
+        this.pane.hidden = false;
+        if (!this.view) this.view = new WebView(this.pane, this.session);
+        else this.view.refresh();
+        this.view.visible = true;
+    }
+
+    hide() {
+        this.pane.hidden = true;
+        if (this.view) this.view.visible = false;
+    }
+
+    dispose() {
+        this.view?.dispose();
+        this.pane.remove();
+    }
+}
+
 // NotesTab hosts the session's notes editor; it reloads when shown.
 class NotesTab {
     constructor(session) {
@@ -202,11 +237,12 @@ class SessionUI {
                         : {text: `${this.data.remote_path} does not exist on ${this.data.host}. Check the share or the path mapping.`, actions: []},
             }, s => this.setRemoteState(s)),
             new NotesTab(this),
+            new WebTab(this),
         ];
-        const keys = ['local', 'files', 'remote', 'notes'];
+        const keys = ['local', 'files', 'remote', 'notes', 'web'];
         this.tabs.forEach((t, i) => t.key = keys[i]);
         // Each session reopens on the tab last used (Local for new ones).
-        this.activeTab = Math.max(0, keys.indexOf(store.get(`tab:${data.id}`, 'local')));
+        this.activeKey = store.get(`tab:${data.id}`, 'local');
         this.share = null; // live share status, for sshfs sessions
         EventsOn(`share:${data.id}`, st => {
             this.share = st;
@@ -247,9 +283,21 @@ class SessionUI {
         return b.includes('bell') ? 'bell' : b.includes('activity') ? 'activity' : null;
     }
 
+    // visibleTabs returns the shown tabs in the order set in Settings.
+    visibleTabs() {
+        return tabOrder().map(k => this.tab(k)).filter(Boolean);
+    }
+
+    activeTabObj() {
+        const vis = this.visibleTabs();
+        return vis.find(t => t.key === this.activeKey) ?? vis[0];
+    }
+
     show() {
         this.container.hidden = false;
-        this.tabs.forEach((t, i) => i === this.activeTab ? t.show() : t.hide());
+        const active = this.activeTabObj();
+        this.activeKey = active?.key;
+        this.tabs.forEach(t => t === active ? t.show() : t.hide());
     }
 
     hide() {
@@ -260,11 +308,12 @@ class SessionUI {
         return this.tabs.find(t => t.key === key);
     }
 
-    selectTab(i) {
-        if (!this.tabs[i]) return;
-        this.tabs[this.activeTab]?.hide();
-        this.activeTab = i;
-        store.set(`tab:${this.id}`, this.tabs[i].key);
+    selectTab(key) {
+        const t = this.visibleTabs().find(t => t.key === key);
+        if (!t) return;
+        this.activeTabObj()?.hide();
+        this.activeKey = key;
+        store.set(`tab:${this.id}`, key);
         this.show();
     }
 
@@ -319,7 +368,7 @@ const app = {
         window.addEventListener('blur', hideMenu);
         window.addEventListener('focus', () => {
             if (this.active) this.checkRepo(this.active);
-            const t = this.active?.tabs[this.active.activeTab];
+            const t = this.active?.activeTabObj();
             t?.setBadge?.(null);
         });
         $('#btn-new').onclick = e => {
@@ -357,6 +406,7 @@ const app = {
         }
         this.render();
         for (const s of this.sessions.values()) s.applyAppearance(this.state.ui);
+        this.active?.show(); // the tab order or visibility may have changed
     },
 
     // sections returns the sidebar structure: ungrouped sessions first, then
@@ -526,9 +576,10 @@ const app = {
         const badgeEl = s.item?.querySelector(".badge");
         if (badgeEl) badgeEl.className = 'badge' + (b ? ' ' + b : '');
         if (s === this.active) {
-            $('#tabs').querySelectorAll('button').forEach((btn, i) => {
-                btn.classList.toggle('bell', s.tabs[i].badge === 'bell');
-                btn.classList.toggle('activity', s.tabs[i].badge === 'activity');
+            $('#tabs').querySelectorAll('button').forEach(btn => {
+                const t = s.tab(btn.dataset.key);
+                btn.classList.toggle('bell', t?.badge === 'bell');
+                btn.classList.toggle('activity', t?.badge === 'activity');
             });
         }
         const n = [...this.sessions.values()].filter(x => x.badge()).length;
@@ -560,10 +611,13 @@ const app = {
         const d = s.data;
         $('#session-name').textContent = d.name;
         const nav = $('#tabs');
-        nav.replaceChildren(...s.tabs.map((t, i) => {
-            const b = el('button', {textContent: t.label}, el('kbd', {textContent: keyHint(TAB_ACTIONS[i])}));
-            if (i === s.activeTab) b.classList.add('active');
-            b.onclick = () => this.selectTab(i);
+        const active = s.activeTabObj();
+        nav.replaceChildren(...s.visibleTabs().map((t, i) => {
+            const b = el('button', {textContent: t.label},
+                el('kbd', {textContent: keyHint(`tab_${t.key}`) || keyHint(`tab_${i + 1}`)}));
+            b.dataset.key = t.key;
+            if (t === active) b.classList.add('active');
+            b.onclick = () => this.selectTab(t.key);
             return b;
         }));
         this.renderBadges(s);
@@ -605,9 +659,9 @@ const app = {
         document.querySelectorAll('.session').forEach(i => i.classList.toggle('active', s && i.dataset.id === s.id));
     },
 
-    selectTab(i) {
+    selectTab(key) {
         if (!this.active) return;
-        this.active.selectTab(i);
+        this.active.selectTab(key);
         this.renderMain();
     },
 
@@ -628,13 +682,14 @@ const app = {
         hideMenu();
         const n = /^session_(\d)$/.exec(a)?.[1];
         if (n) this.order[n - 1] && this.select(this.order[n - 1]);
-        else if (TAB_ACTIONS.includes(a)) this.selectTab(TAB_ACTIONS.indexOf(a));
+        else if (/^tab_\d$/.test(a)) this.active && this.selectTab(this.active.visibleTabs()[+a.slice(4) - 1]?.key);
+        else if (a.startsWith('tab_')) this.selectTab(a.slice(4));
         else if (a === 'next_session') this.step(1);
         else if (a === 'prev_session') this.step(-1);
         else if (a === 'new_session') sessionDialog();
         else if (a === 'quick_switcher') quickSwitcher();
         else if (a === 'settings') settingsDialog();
-        else if (a === 'find') this.active?.tabs[this.active.activeTab].view?.openFind?.();
+        else if (a === 'find') this.active?.activeTabObj()?.view?.openFind?.();
     },
 
     focusActive() {
@@ -1076,9 +1131,33 @@ async function settingsDialog() {
     f.auto_reconnect.checked = !!ui.auto_reconnect;
     f.activity_badges.checked = !!ui.activity_badges;
     f.copy_on_select.checked = !!ui.copy_on_select;
-    const rows = Object.keys(ACTIONS).filter(a => !a.startsWith('session_')).map(a =>
+    // Tabs: order with ↑/↓, shown or not with the checkbox.
+    const TAB_LABELS = {local: 'Local', files: 'Files', remote: 'Remote', notes: 'Notes', web: 'Web'};
+    let order = [...(ui.tab_order ?? Object.keys(TAB_LABELS))];
+    const hidden = new Set(ui.hidden_tabs ?? []);
+    const tabList = dlg.querySelector('.tab-list');
+    const renderTabs = () => tabList.replaceChildren(...order.map((k, i) => {
+        const box = el('input', {type: 'checkbox', checked: !hidden.has(k), title: 'Show this tab'});
+        box.onchange = () => box.checked ? hidden.delete(k) : hidden.add(k);
+        const mv = (d, label) => {
+            const b = el('button', {type: 'button', className: 'icon', textContent: label, disabled: !order[i + d]});
+            b.onclick = () => {
+                [order[i], order[i + d]] = [order[i + d], order[i]];
+                renderTabs();
+                tabList.querySelectorAll('.tab-row')[i + d]?.querySelector(`button[data-d="${d}"]`)?.focus();
+            };
+            b.dataset.d = d;
+            return b;
+        };
+        return el('div', {className: 'tab-row'}, el('label', {className: 'check'}, box, ' ' + TAB_LABELS[k]),
+            mv(-1, '↑'), mv(1, '↓'));
+    }));
+    renderTabs();
+    const rows = Object.keys(ACTIONS).filter(a => !a.startsWith('session_') && !/^tab_/.test(a)).map(a =>
         el('tr', {}, el('td', {textContent: ACTION_LABELS[a] ?? a}), el('td', {}, el('kbd', {textContent: keyHint(a) || '—'})),
             el('td', {className: 'action', textContent: a})));
+    rows.push(el('tr', {}, el('td', {textContent: 'Tab 1…9 (by position)'}), el('td', {}, el('kbd', {textContent: keyHint('tab_1').replace(/1$/, '1…9')})),
+        el('td', {className: 'action', textContent: 'tab_1 … tab_9; tab_local, tab_remote … per tab'})));
     rows.push(el('tr', {}, el('td', {textContent: 'Session 1…9'}), el('td', {}, el('kbd', {textContent: keyHint('session_1').replace(/1$/, '1…9')})),
         el('td', {className: 'action', textContent: 'session_1 … session_9'})));
     dlg.querySelector('.shortcuts table').replaceChildren(...rows);
@@ -1097,6 +1176,8 @@ async function settingsDialog() {
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
+        tab_order: order,
+        hidden_tabs: order.filter(k => hidden.has(k)),
     }));
     if (ok) await app.reload();
 }

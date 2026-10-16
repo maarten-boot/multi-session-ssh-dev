@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/BurntSushi/toml"
 )
@@ -44,6 +45,14 @@ type Session struct {
 	// TrustedGit is the fingerprint of repository hooks/config the user
 	// reviewed; the repository check warns again when it changes.
 	TrustedGit string `toml:"trusted_git,omitempty" json:"trusted_git"`
+	// Links are the session's own web links, shown in its Web tab.
+	Links []Link `toml:"links,omitempty" json:"links"`
+}
+
+// Link is a named web address.
+type Link struct {
+	Name string `toml:"name" json:"name"`
+	URL  string `toml:"url" json:"url"`
 }
 
 // Local configures the Local tab's shell; empty means the OS default.
@@ -72,6 +81,39 @@ type UI struct {
 	ActivityBadges *bool `toml:"activity_badges,omitempty" json:"activity_badges"`
 	// CopyOnSelect copies terminal selections to the clipboard as they are made.
 	CopyOnSelect bool `toml:"copy_on_select,omitempty" json:"copy_on_select"`
+	// TabOrder is the order of a session's tabs; HiddenTabs are not shown.
+	TabOrder   []string `toml:"tab_order,omitempty" json:"tab_order"`
+	HiddenTabs []string `toml:"hidden_tabs,omitempty" json:"hidden_tabs"`
+}
+
+// Tabs lists every session tab in the default order.
+var Tabs = []string{"local", "files", "remote", "notes", "web"}
+
+// NormalizedTabs returns u's tab order and hidden tabs, normalized.
+func NormalizedTabs(u UI) ([]string, []string) {
+	normalizeTabs(&u)
+	return u.TabOrder, u.HiddenTabs
+}
+
+// normalizeTabs keeps known tab names once each and appends tabs missing
+// from the order (e.g. added in a newer version) so they show up.
+func normalizeTabs(u *UI) {
+	seen := map[string]bool{}
+	var order []string
+	for _, t := range append(append([]string{}, u.TabOrder...), Tabs...) {
+		if slices.Contains(Tabs, t) && !seen[t] {
+			seen[t] = true
+			order = append(order, t)
+		}
+	}
+	u.TabOrder = order
+	var hidden []string
+	for _, t := range u.HiddenTabs {
+		if slices.Contains(Tabs, t) && !slices.Contains(hidden, t) {
+			hidden = append(hidden, t)
+		}
+	}
+	u.HiddenTabs = hidden
 }
 
 type Config struct {
@@ -119,6 +161,7 @@ func (c *Config) applyDefaults() {
 	if c.UI.ActivityBadges == nil {
 		c.UI.ActivityBadges = ptr(true)
 	}
+	normalizeTabs(&c.UI)
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -138,6 +181,14 @@ func ValidateUI(u UI) error {
 		return fmt.Errorf("scrollback must be between 0 and 1000000 lines")
 	case u.ConnectOnStart != "lazy" && u.ConnectOnStart != "eager":
 		return fmt.Errorf("unknown connect_on_start %q", u.ConnectOnStart)
+	}
+	for _, t := range append(append([]string{}, u.TabOrder...), u.HiddenTabs...) {
+		if !slices.Contains(Tabs, t) {
+			return fmt.Errorf("unknown tab %q", t)
+		}
+	}
+	if len(u.HiddenTabs) >= len(Tabs) {
+		return fmt.Errorf("at least one tab must stay visible")
 	}
 	return nil
 }

@@ -429,3 +429,17 @@ func TestWorkdirModes(t *testing.T) {
 		t.Errorf("moved after rename: %q", r.RemotePath)
 	}
 }
+
+func TestLinks(t *testing.T) {
+	m, root, cfgPath := setup(t)
+	v, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "a")})
+	if err := m.SetLinks(v.ID, []config.Link{{Name: " Staging ", URL: " https://staging.example.com "}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := Open(cfgPath).Links(v.ID); len(got) != 1 || got[0].Name != "Staging" || got[0].URL != "https://staging.example.com" {
+		t.Errorf("links %+v", got)
+	}
+	if err := m.SetLinks(v.ID, []config.Link{{Name: "x", URL: "javascript:alert(1)"}}); err == nil {
+		t.Error("javascript: link accepted")
+	}
+}

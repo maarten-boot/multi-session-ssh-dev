@@ -25,8 +25,11 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 | **Files**  | Tree view of `<local path>`; double-click opens the file with the OS default app |
 | **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
 | **Notes**  | Free-text notes about the project (N1)                                          |
+| **Web**    | Build runs and web links of the repository (W1)                                 |
 
-A session reopens on the tab used last; new sessions start on Local.
+A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
+which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Tabs); tabs added in a newer
+version are appended to a saved order.
 
 Switching sessions and tabs is instant and keyboard driven.
 
@@ -144,6 +147,15 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   visible to the agent host. Reloaded when shown if changed outside the app; kept when the
   session is deleted.
 
+### 4.4b Web tab
+- W1. Links for the repository's web pages derived from its git remote (read from the
+  repository's own config without includes; credentials in the URL dropped): GitHub
+  Repository/Actions/Pull requests/Issues/Releases, GitLab equivalents, otherwise the repository
+  page. Per-session custom links (`links`, http/https only). The latest GitHub Actions runs via
+  the user's GitHub CLI (`gh run list -R owner/repo`, so gh does not run git in the project),
+  refreshed while visible (15 s while a run is in progress, else 2 min). Everything opens in the
+  system browser; web pages are not embedded (GitHub forbids framing). No tokens are stored.
+
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
   true color; scrollback configurable (default 10 000).
@@ -169,7 +181,7 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 |------------------------|----------------------|----------------|
 | Next / prev session    | Ctrl+Shift+PgDn/PgUp | Cmd+Shift+]/[  |
 | Session 1…9            | Ctrl+Alt+1…9         | Cmd+1…9        |
-| Local / Files / Remote / Notes | Ctrl+Shift+1/2/3/4 | Cmd+Shift+1/2/3/4 |
+| 1st … 9th visible tab  | Ctrl+Shift+1…9       | Cmd+Shift+1…9  |
 | New session            | Ctrl+Shift+N         | Cmd+Shift+N    |
 | Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    |
 | Find in terminal       | Ctrl+Shift+F         | Cmd+F          |
@@ -228,6 +240,7 @@ internal/session           hosts/sessions logic on top of the config
 internal/fsbrowse          Files tab listing
 internal/opener            open / reveal, refusing executables
 internal/gitstatus         git markers and repository check for the Files tab
+internal/forge             Web tab: forge links, GitHub runs via gh
 internal/syncer            working copies (rsync out, git fetch back)
 internal/share             live share (confined SFTP server, sshfs mounts)
 frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js, keys.js, fuzzy.js

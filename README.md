@@ -3,7 +3,7 @@
 Desktop app for running many Claude Code sessions side by side. Each session
 is bound to a repository directory and has a **Local** terminal (host shell for
 git), a **Files** tab, a **Remote** terminal (ssh → tmux → claude on the isolated
-agent host) and **Notes**. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
+agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
 **Setting up the agent host and sharing files with it — and what that means for
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
@@ -61,7 +61,7 @@ make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ss
 make smoke-files     # headless GUI test of the Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
                      # folders, git markers, repository check, working copies, live share,
-                     # notes and tab order
+                     # notes and tab order, Web tab and custom tab order
 make smoke-all       # all GUI tests
 ```
 
@@ -78,6 +78,9 @@ Then **New session** (Ctrl+Shift+N): pick a directory under the local prefix,
 a name, and what a new remote tmux session starts with (`claude`,
 `claude --continue`, or a shell). Each session has:
 
+Default tab order (change it, or hide tabs, in Settings → Tabs; Ctrl+Shift+1…
+always selects the 1st… visible tab):
+
 - **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
 - **Files** (Ctrl+Shift+2): the directory as a tree, refreshed whenever you
   switch to it. Double-click or Enter opens a file with its default application
@@ -93,6 +96,13 @@ a name, and what a new remote tmux session starts with (`claude`,
   are stored with the app's config (`notes/<session id>.md` next to `config.toml`),
   not in the project, so they stay out of git and off the agent host. Notes are
   kept when a session is deleted.
+- **Web** (Ctrl+Shift+5): the repository's latest **GitHub Actions runs** (status,
+  workflow, title, branch, age; refreshed while shown, every 15 s while one is
+  running; click to open it in your browser), buttons for the repository's pages
+  (Repository, Actions, Pull requests, Issues, Releases; GitLab equivalents), read
+  from its git remote, and your own links per session. The runs need the GitHub CLI
+  (`gh`) installed and logged in (`gh auth login`) on your computer; the app stores no
+  tokens. Pages open in your normal browser: GitHub cannot be shown inside the app.
 
 A session reopens on the tab you used last; new sessions start on Local. Sessions
 look the way Settings says (theme, font, colors); a session can override the colors
@@ -119,7 +129,7 @@ width. With "copy on select" (Settings) a selection goes to the clipboard at onc
 |---|---|---|---|
 | Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session | `next_session`, `prev_session` |
 | Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) | `session_1` … `session_9` |
-| Ctrl+Shift+1 / 2 / 3 / 4 | ⇧⌘1 / 2 / 3 / 4 | Local / Files / Remote / Notes tab | `tab_local`, `tab_files`, `tab_remote`, `tab_notes` |
+| Ctrl+Shift+1…9 | ⇧⌘1…9 | 1st…9th visible tab | `tab_1` … `tab_9`; `tab_local`, `tab_remote`, … bind one tab wherever it is |
 | Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first) | `quick_switcher` |
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
@@ -203,6 +213,8 @@ connect_on_start = "lazy"                 # or "eager": connect all Remote tabs 
 auto_reconnect = true
 activity_badges = true
 copy_on_select = false
+tab_order = ["local", "files", "remote", "notes", "web"]
+hidden_tabs = []                          # e.g. ["web"]
 
 [keys]
 next_session = "Ctrl+Tab"
@@ -234,6 +246,7 @@ group = "Work"                            # optional: sidebar folder
 trusted_git = "…"                         # set by "Mark as reviewed" (repository check)
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 local_init = "git status"                 # optional: typed into the Local tab
+links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 ```
 
@@ -248,6 +261,7 @@ internal/remote        ssh/tmux command lines (quoting, forced options)
 internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
 internal/notes         per-session notes files
+internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab

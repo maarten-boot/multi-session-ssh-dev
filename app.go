@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"session-workbench/internal/config"
+	"session-workbench/internal/forge"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
 	"session-workbench/internal/notes"
@@ -42,6 +43,7 @@ func (a *App) startup(ctx context.Context) {
 	gitstatus.Configure = hideConsole
 	syncer.Configure = hideConsole
 	share.Configure = hideConsole
+	forge.Configure = hideConsole
 	a.shares = share.NewManager(func(id string, st share.Status) {
 		runtime.EventsEmit(ctx, "share:"+id, st)
 	})
@@ -166,6 +168,51 @@ func (a *App) GitStatus(id string) (gitstatus.Status, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
 	defer cancel()
 	return gitstatus.Get(ctx, r.LocalPath)
+}
+
+// WebInfo is what the Web tab shows besides the runs.
+type WebInfo struct {
+	Repo   *forge.Repo   `json:"repo"`   // nil without a recognisable git remote
+	Links  []forge.Link  `json:"links"`  // derived from the remote
+	Custom []config.Link `json:"custom"` // the session's own links
+	GH     bool          `json:"gh"`     // the GitHub CLI is installed
+}
+
+func (a *App) WebInfo(id string) (WebInfo, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return WebInfo{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+	defer cancel()
+	w := WebInfo{Links: []forge.Link{}, Custom: a.sessions.Links(id), GH: forge.HaveGH()}
+	if w.Custom == nil {
+		w.Custom = []config.Link{}
+	}
+	if repo, ok := forge.Parse(gitstatus.RemoteURL(ctx, r.LocalPath)); ok {
+		w.Repo = &repo
+		w.Links = repo.Links()
+	}
+	return w, nil
+}
+
+// WebRuns lists the latest GitHub Actions runs of the session's repository.
+func (a *App) WebRuns(id string) ([]forge.Run, error) {
+	w, err := a.WebInfo(id)
+	if err != nil {
+		return nil, err
+	}
+	if w.Repo == nil {
+		return nil, forge.ErrNotGitHb
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	defer cancel()
+	return forge.Runs(ctx, *w.Repo, 12)
+}
+
+// SetLinks stores the session's own web links.
+func (a *App) SetLinks(id string, links []config.Link) error {
+	return a.sessions.SetLinks(id, links)
 }
 
 // LoadNotes returns a session's notes (empty if none yet).

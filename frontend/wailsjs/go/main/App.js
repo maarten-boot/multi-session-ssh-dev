@@ -82,6 +82,10 @@ export function SaveUI(arg1) {
   return window['go']['main']['App']['SaveUI'](arg1);
 }
 
+export function SetLinks(arg1, arg2) {
+  return window['go']['main']['App']['SetLinks'](arg1, arg2);
+}
+
 export function SetSessionGroup(arg1, arg2) {
   return window['go']['main']['App']['SetSessionGroup'](arg1, arg2);
 }
@@ -144,4 +148,12 @@ export function UpdateSession(arg1, arg2) {
 
 export function Version() {
   return window['go']['main']['App']['Version']();
+}
+
+export function WebInfo(arg1) {
+  return window['go']['main']['App']['WebInfo'](arg1);
+}
+
+export function WebRuns(arg1) {
+  return window['go']['main']['App']['WebRuns'](arg1);
 }

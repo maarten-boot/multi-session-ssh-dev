@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"session-workbench/internal/config"
+	"session-workbench/internal/forge"
 	"session-workbench/internal/pathmap"
 	"session-workbench/internal/remote"
 )
@@ -375,6 +376,36 @@ func (m *Manager) Update(id string, e Edit) error {
 	})
 }
 
+// SetLinks replaces a session's own web links (http/https only).
+func (m *Manager) SetLinks(id string, links []config.Link) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range links {
+		links[i].Name, links[i].URL = strings.TrimSpace(links[i].Name), strings.TrimSpace(links[i].URL)
+		if err := forge.ValidLink(forge.Link{Name: links[i].Name, URL: links[i].URL}); err != nil {
+			return err
+		}
+	}
+	return m.update(func(c *config.Config) error {
+		i := indexOf(c, id)
+		if i < 0 {
+			return fmt.Errorf("unknown session %q", id)
+		}
+		c.Sessions[i].Links = slices.Clone(links)
+		return nil
+	})
+}
+
+// Links returns a session's own web links.
+func (m *Manager) Links(id string) []config.Link {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if i := m.indexOf(id); i >= 0 {
+		return slices.Clone(m.cfg.Sessions[i].Links)
+	}
+	return nil
+}
+
 // TrustGit records that the user reviewed the repository's hooks and config
 // as they are now (fingerprint from gitstatus.RunAudit).
 func (m *Manager) TrustGit(id, fingerprint string) error {
@@ -488,6 +519,7 @@ func (m *Manager) SaveUI(ui config.UI) error {
 	if err := config.ValidateUI(ui); err != nil {
 		return err
 	}
+	ui.TabOrder, ui.HiddenTabs = config.NormalizedTabs(ui)
 	if ui.AutoReconnect == nil || ui.ActivityBadges == nil {
 		return errors.New("incomplete UI settings")
 	}

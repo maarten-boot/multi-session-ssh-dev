@@ -22,6 +22,20 @@ export namespace config {
 	        this.remote_workdir = source["remote_workdir"];
 	    }
 	}
+	export class Link {
+	    name: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Link(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	    }
+	}
 	export class UI {
 	    font_family: string;
 	    font_size: number;
@@ -33,6 +47,8 @@ export namespace config {
 	    auto_reconnect?: boolean;
 	    activity_badges?: boolean;
 	    copy_on_select: boolean;
+	    tab_order: string[];
+	    hidden_tabs: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -50,6 +66,75 @@ export namespace config {
 	        this.auto_reconnect = source["auto_reconnect"];
 	        this.activity_badges = source["activity_badges"];
 	        this.copy_on_select = source["copy_on_select"];
+	        this.tab_order = source["tab_order"];
+	        this.hidden_tabs = source["hidden_tabs"];
+	    }
+	}
+
+}
+
+export namespace forge {
+	
+	export class Link {
+	    name: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Link(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	    }
+	}
+	export class Repo {
+	    kind: string;
+	    host: string;
+	    path: string;
+	    web: string;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Repo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.host = source["host"];
+	        this.path = source["path"];
+	        this.web = source["web"];
+	        this.label = source["label"];
+	    }
+	}
+	export class Run {
+	    databaseId: number;
+	    workflowName: string;
+	    displayTitle: string;
+	    headBranch: string;
+	    event: string;
+	    status: string;
+	    conclusion: string;
+	    createdAt: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Run(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.databaseId = source["databaseId"];
+	        this.workflowName = source["workflowName"];
+	        this.displayTitle = source["displayTitle"];
+	        this.headBranch = source["headBranch"];
+	        this.event = source["event"];
+	        this.status = source["status"];
+	        this.conclusion = source["conclusion"];
+	        this.createdAt = source["createdAt"];
+	        this.url = source["url"];
 	    }
 	}
 
@@ -219,6 +304,42 @@ export namespace main {
 	        this.local = source["local"];
 	        this.remote = source["remote"];
 	    }
+	}
+	export class WebInfo {
+	    repo?: forge.Repo;
+	    links: forge.Link[];
+	    custom: config.Link[];
+	    gh: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = this.convertValues(source["repo"], forge.Repo);
+	        this.links = this.convertValues(source["links"], forge.Link);
+	        this.custom = this.convertValues(source["custom"], config.Link);
+	        this.gh = source["gh"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
