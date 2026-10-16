@@ -3,6 +3,7 @@
 # colors on white, in a "full" and a "mono" session, plus a live switch.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-colors.sh <binary> <outdir> [theme]
 BIN=$1; OUT=$2; THEME=${3:-light}; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 CFG=$OUT/config.toml
 cat >$CFG <<TOML
 [ui]
@@ -34,7 +35,7 @@ TEST='clear; printf "\e[33myellow\e[0m \e[92mbright-green\e[0m \e[93mbright-yell
 
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+alt+1; k ctrl+shift+1; sleep 1.5; t "$TEST" 1.5
 shot 1-full
@@ -47,6 +48,10 @@ k ctrl+shift+1; t "$TEST" 1.5
 shot 4-switched-new-output
 k ctrl+shift+3; sleep 2.5
 shot 5-remote-tmux
+alive
+check "Remote tab started tmux" has_tmux s-full
 kill $APP; wait $APP 2>/dev/null
+expect "\"Use mono colors\" saved for the session" "mono" "$(field $CFG "full colors" 6)"
+expect "the mono session kept its mode" "mono" "$(field $CFG "mono session" 6)"
 for id in s-full s-mono; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
-exit 0
+finish

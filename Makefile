@@ -65,7 +65,9 @@ clean:
 	rm -rf build/bin frontend/dist/assets
 
 # Headless GUI tests (Linux; need xvfb, xdotool, imagemagick). Screenshots
-# land in $(SMOKE_OUT)-*. They use throwaway configs, never yours.
+# land in $(SMOKE_OUT)-*. They use throwaway configs, never yours. Each test
+# checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails
+# on a wrong one; `make -k smoke-all` runs the rest after a failure.
 # smoke: terminal fidelity in a Local tab.
 # smoke-sessions: sidebar, dialogs, switching, menus, restart; needs
 #   `ssh localhost` without prompts and tmux.

@@ -4,6 +4,7 @@
 # Needs `ssh localhost` without prompts, git and rsync.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-sync.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 R=$OUT/repo; WD="sw-guitest-$$"; rm -rf $R; mkdir -p $R
 git -C $R init -q -b main; echo one >$R/a.txt; printf 'build/\n' >$R/.gitignore; mkdir $R/build; echo x >$R/build/out
 git -C $R add -A; git -C $R -c user.name=t -c user.email=t@example.com commit -q -m base
@@ -28,7 +29,7 @@ menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotoo
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 4; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+shift+3; sleep 3                         # Remote tab
 shot 1-no-copy-yet                              # Remote tab: no working copy, "Send to agent…"
@@ -42,7 +43,9 @@ click 120 90 3; menu g                          # Get commits from agent…
 sleep 3; shot 4-get
 k Return; sleep 2                               # Fast-forward main
 shot 5-fast-forwarded
+alive
 kill $APP; wait $APP 2>/dev/null
-echo "host a.txt: $(tr '\n' ' ' <$R/a.txt)"; echo "host log: $(git -C $R log --oneline | head -2 | tr '\n' '|')"
+expect "host file after Get + fast-forward" "one agent" "$(cat $R/a.txt | xargs)"
+expect "host branch has the agent's commit" "change made on the agent|base|" "$(git -C $R log --format=%s | head -2 | tr '\n' '|')"
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-sync'; rm -rf ~/$WD" 2>/dev/null
-exit 0
+finish

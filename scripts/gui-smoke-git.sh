@@ -3,6 +3,7 @@
 # with every kind of change.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-git.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 R=$OUT/repo; rm -rf $R; mkdir -p $R
 g() { git -C $R -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false "$@" >/dev/null; }
 g init -q -b main
@@ -47,7 +48,7 @@ k() { xdotool key "$@"; sleep 0.4; }
 shot() { import -window root $OUT/$1.png; }
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+shift+2; sleep 1.5
 k Home; k Right; sleep 0.3                     # build/ (ignored, sorted first)
@@ -56,7 +57,8 @@ k End; k Up; k Up; k Up; k Up                  # towards src/
 shot 1-git
 k ctrl+alt+2; k ctrl+shift+2; sleep 1.5
 shot 2-unsafe-skipped
+alive
 kill $APP; wait $APP 2>/dev/null
 for id in s-git s-gitu; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
-[ -e $OUT/FILTER-RAN ] && echo "FAIL: the repository's filter program ran" || echo "ok: repository filter did not run"
-exit 0
+check "the repository's filter program did not run" test ! -e $OUT/FILTER-RAN
+finish

@@ -3,6 +3,7 @@
 # numbering across folders, rename / reorder / delete a folder.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-folders.sh <binary> <outdir> [measure]
 BIN=$1; OUT=$2; MEASURE=$3; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 CFG=$OUT/config.toml
 cat >$CFG <<TOML
 groups = ["Work", "Private"]
@@ -44,7 +45,7 @@ menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotoo
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 shot 1-start
 click 221 17; menu n                           # "+" -> New folder…
@@ -62,7 +63,10 @@ k ctrl+a; xdotool type --delay 20 "Home"; k Return; sleep 0.8
 click 100 319 3; menu m                        # Clients: Move folder up
 click 100 56 3; menu d; k Return; sleep 1      # Work: Delete folder… (sessions stay)
 shot 5-renamed-moved-deleted
+alive
 kill $APP; wait $APP 2>/dev/null
-echo "== saved:"; grep -E '^groups|^ *group =|^ *name =' $CFG
+expect "folders: new, renamed, moved up, deleted" 'groups = ["Clients", "Home"]' "$(grep -E '^ *groups =' $CFG | sed 's/^ *//')"
+expect "sessions' folders" "loose=Clients work-a= work-b= home=Home" \
+	"$(sessions $CFG | awk -F'\t' '{printf "%s%s=%s", sep, $2, $5; sep = " "}')"
 for id in s-fa s-fb s-fc s-fd; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
-exit 0
+finish

@@ -62,7 +62,8 @@ make smoke-files     # headless GUI test of the Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
                      # folders, git markers, repository check, working copies, live share,
                      # notes and tab order, Web tab and custom tab order
-make smoke-all       # all GUI tests
+make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
+                     # (make -k smoke-all: run the others after a failure)
 ```
 
 ## Usage

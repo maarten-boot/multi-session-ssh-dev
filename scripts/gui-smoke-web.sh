@@ -3,6 +3,7 @@
 # a fake gh, own links) and of a custom tab order with a hidden tab.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-web.sh <binary> <outdir> [measure]
 BIN=$1; OUT=$2; MEASURE=$3; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 REPO=$(cd "$(dirname "$0")/.." && pwd)             # this repository: a real GitHub remote
 FAKE=$OUT/fakebin; mkdir -p $FAKE; LOG=$OUT/opened.log; : >$LOG
 printf '#!/bin/sh\necho "$1" >>%s\n' "$LOG" >$FAKE/xdg-open
@@ -41,7 +42,7 @@ shot() { import -window root $OUT/$1.png; }
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 env PATH=$FAKE:$PATH DBUS_SESSION_BUS_ADDRESS= $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+alt+1; k ctrl+shift+1; sleep 2          # first tab = Web (custom order)
 shot 1-web
@@ -58,8 +59,11 @@ k ctrl+shift+4; sleep 1.5
 shot 3-ctrl-shift-4-is-remote                   # 4th visible tab in the custom order
 k ctrl+alt+2; sleep 1
 shot 4-other-session                            # highlight moves to the other session
+alive
 kill $APP; wait $APP 2>/dev/null
-echo "== opened in the browser:"; cat $LOG
-echo "== saved links:"; grep -A2 '\[\[sessions.links\]\]' $CFG | grep -E 'name|url'
+GH=https://github.com/maarten-boot/multi-session-ssh-dev
+expect "opened in the browser: Actions page, second run" "$GH/actions|$GH/actions/runs/7|" "$(tr '\n' '|' <$LOG)"
+expect "own link saved, javascript: refused" 'name = "Staging"|url = "https://staging.example.com/app"|' \
+	"$(grep -A2 '\[\[sessions.links\]\]' $CFG | grep -E 'name|url' | sed 's/^ *//' | tr '\n' '|')"
 for id in s-web s-web2; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
-exit 0
+finish

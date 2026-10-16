@@ -65,6 +65,8 @@ implementation differs from the original plan.
 - Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`):
   terminal fidelity, sessions/dialogs/restart, Files, colors, switcher, settings/keys,
   reconnect, badges, terminal extras (find, unicode widths, copy on select), folders, git markers.
+  Each test checks its results (terminal output, saved config, files, window title) and fails
+  on a wrong one; layout and colors are judged from the screenshots.
 
 ## Notes on working in this setup
 - All development, builds and tests run on the agent host (Claude's side).

@@ -2,6 +2,7 @@
 # Headless GUI test of the disconnect overlay and auto-reconnect (M5).
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-reconnect.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
+. "$(dirname "$0")/smoke-lib.sh"
 CFG=$OUT/config.toml
 cat >$CFG <<TOML
 [[hosts]]
@@ -31,7 +32,7 @@ menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotoo
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
-for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 k ctrl+alt+1; k ctrl+shift+3; sleep 2; t 'export KEEP=survived'
 pkill -f '^/usr/bin/ssh -t .*cw-s-rok'; sleep 0.4   # anchored: never matches this script's caller
@@ -49,6 +50,10 @@ shot 6-reattached
 click 120 90 3; shot 7-menu; menu d               # session menu: Disconnect
 sleep 4
 shot 8-disconnected                             # intentional: no auto-reconnect
+alive
+in_pane "auto-reconnect re-attached the same shell" s-rok "after auto-reconnect: survived"
+in_pane "Enter re-attached after detach" s-rok "after Enter: survived"
+check "Disconnect keeps the tmux session" has_tmux s-rok
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-rok'" 2>/dev/null
-exit 0
+finish
