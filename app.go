@@ -149,6 +149,23 @@ func (a *App) GitStatus(id string) (gitstatus.Status, error) {
 	return gitstatus.Get(ctx, r.LocalPath)
 }
 
+// RepoCheck lists hooks and risky repository config that git on this
+// machine would run (see docs/CONNECTIVITY.md).
+func (a *App) RepoCheck(id string) (gitstatus.Audit, error) {
+	r, err := a.localRoot(id)
+	if err != nil {
+		return gitstatus.Audit{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	return gitstatus.RunAudit(ctx, r.LocalPath)
+}
+
+// TrustRepo marks the repository's current hooks and config as reviewed.
+func (a *App) TrustRepo(id, fingerprint string) error {
+	return a.sessions.TrustGit(id, fingerprint)
+}
+
 // OpenPath opens a file with its default application (a directory in the
 // file manager); executables are refused.
 func (a *App) OpenPath(id, rel string) error {

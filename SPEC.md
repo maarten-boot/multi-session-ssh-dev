@@ -123,6 +123,10 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - B3. Context menu: open, open containing folder in OS file manager, copy path (local), copy path
   (remote), refresh.
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
+- B6. Repository check: active hooks and risky repository config (programs git would run,
+  push redirection) are shown as a ⚠ on the session and a Files-tab banner with details and fix
+  commands; "Mark as reviewed" stores a fingerprint (`trusted_git`) and the warning returns when
+  it changes. Read-only; runs at start, on session switch, on Files refresh, every 2 minutes.
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
   `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
   defines `filter.*`, `include*` or `core.fsmonitor`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
@@ -220,7 +224,8 @@ frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js,
 ## 6. Security considerations
 See also docs/CONNECTIVITY.md: a shared repository lets the agent host write `.git/hooks` and
 `.git/config`, which git on the host executes. The app never runs such programs itself; users
-must check before running git on the host (planned: a repository check in the Files tab).
+must check before running git on the host; the repository check (B6) flags hooks and risky
+repository config and warns again whenever they change.
 
 - App stores no secrets. Config contains only hostnames and paths.
 - `ForwardAgent=no`, `ForwardX11=no` (plus `ClearAllForwardings=yes`, `RemoteCommand=none`)

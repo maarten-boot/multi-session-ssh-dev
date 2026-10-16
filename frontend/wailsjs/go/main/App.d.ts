@@ -32,6 +32,8 @@ export function OpenPath(arg1:string,arg2:string):Promise<void>;
 
 export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>;
 
+export function RepoCheck(arg1:string):Promise<gitstatus.Audit>;
+
 export function RevealPath(arg1:string,arg2:string):Promise<void>;
 
 export function SaveGroup(arg1:string,arg2:string):Promise<void>;
@@ -53,6 +55,8 @@ export function TermKill(arg1:string):Promise<void>;
 export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function TermWrite(arg1:string,arg2:string):Promise<void>;
+
+export function TrustRepo(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateSession(arg1:string,arg2:session.Edit):Promise<void>;
 

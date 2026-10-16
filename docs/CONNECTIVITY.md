@@ -154,8 +154,8 @@ Other things the agent host can read in shared modes:
 
 ### What you can do today
 
-1. **Look before you run git on the host.** After a claude session, before committing or
-   pushing from the host:
+1. **Look before you run git on the host.** The app's repository check (below) does this for
+   you; by hand, after a claude session and before committing or pushing from the host:
    ```sh
    ls .git/hooks | grep -v '\.sample$'     # expect nothing unless you added hooks yourself
    git config --local --list               # look for any of the keys listed above
@@ -191,10 +191,15 @@ Other things the agent host can read in shared modes:
   your own and remain in effect. *(Added in October 2026, after a test showed that a repository
   filter did run.)*
 
-**Planned:**
-
-- A **repository check**: warn in the Files tab when the shared repository has active hooks or
-  any of the risky config keys listed above, so you notice before running git on the host.
+- **Repository check.** For every session the app checks the repository for active hooks
+  (in the folder git really uses, including one set by `core.hooksPath`) and for the risky
+  config keys listed above, plus shell aliases. It reads only; nothing from the repository
+  runs. If anything is found, the session gets a ⚠ in the sidebar and the Files tab shows a
+  banner; **Details…** lists each item with why it matters and a command to inspect or
+  remove it (credentials in URLs are masked). If you set them up yourself (pre-commit, husky,
+  git-lfs…), **Mark as reviewed**: the app remembers a fingerprint of exactly those hooks
+  (by content) and settings, and warns again as soon as anything changes. The check runs at
+  start, when you switch sessions, when the Files tab refreshes and every two minutes.
 
 ## Choosing a mode
 

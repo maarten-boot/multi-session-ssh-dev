@@ -32,6 +32,9 @@ type Session struct {
 	LocalInit string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
 	ColorMode string            `toml:"color_mode,omitempty" json:"color_mode"` // "" = UI.ColorMode
 	Group     string            `toml:"group,omitempty" json:"group"`           // sidebar folder; "" = none
+	// TrustedGit is the fingerprint of repository hooks/config the user
+	// reviewed; the repository check warns again when it changes.
+	TrustedGit string `toml:"trusted_git,omitempty" json:"trusted_git"`
 }
 
 // Local configures the Local tab's shell; empty means the OS default.

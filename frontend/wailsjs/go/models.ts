@@ -114,6 +114,61 @@ export namespace fsbrowse {
 
 export namespace gitstatus {
 	
+	export class Finding {
+	    kind: string;
+	    name: string;
+	    detail: string;
+	    why: string;
+	    fix: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Finding(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.name = source["name"];
+	        this.detail = source["detail"];
+	        this.why = source["why"];
+	        this.fix = source["fix"];
+	    }
+	}
+	export class Audit {
+	    repo: boolean;
+	    findings: Finding[];
+	    fingerprint: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Audit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = source["repo"];
+	        this.findings = this.convertValues(source["findings"], Finding);
+	        this.fingerprint = source["fingerprint"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class Status {
 	    repo: boolean;
 	    skipped: string;
@@ -232,6 +287,7 @@ export namespace session {
 	    start_mode: string;
 	    color_mode: string;
 	    group: string;
+	    trusted_git: string;
 	    remote_path: string;
 	    tmux_name: string;
 	    error: string;
@@ -249,6 +305,7 @@ export namespace session {
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
+	        this.trusted_git = source["trusted_git"];
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.error = source["error"];

@@ -28,11 +28,12 @@ export class FilesView {
         this.branchLabel = el('span', {className: 'files-branch'});
         this.git = null; // gitstatus.Status, once loaded
         this.tree = el('div', {className: 'tree', tabIndex: 0});
+        this.repoBanner = el('div', {className: 'repo-banner', hidden: true});
         this.status = el('div', {className: 'files-status'});
         container.append(el('div', {className: 'files'},
             el('div', {className: 'files-bar'}, this.branchLabel, this.rootLabel,
                 el('label', {className: 'files-hidden'}, this.hiddenBox, ' Hidden files'), refreshBtn),
-            this.tree, this.status));
+            this.repoBanner, this.tree, this.status));
 
         this.tree.addEventListener('keydown', e => this.onKey(e));
         this.tree.addEventListener('contextmenu', e => {
@@ -70,6 +71,7 @@ export class FilesView {
         this.rootLabel.textContent = this.session.data.local_path;
         this.rootLabel.title = this.session.data.local_path;
         const dirs = [...this.expanded];
+        this.session.checkRepo?.();
         // git can be slow on big repositories or NFS: show the tree first and
         // add the markers when they arrive.
         const git = GitStatus(this.session.id).catch(err => ({repo: false, error: errText(err)}));
@@ -83,6 +85,22 @@ export class FilesView {
         this.git = await git;
         this.renderBranch();
         this.render();
+    }
+
+    renderRepoBanner() {
+        const a = this.session.audit;
+        const warn = this.session.repoWarn?.();
+        this.repoBanner.hidden = !warn;
+        if (!warn) return;
+        const hooks = a.findings.filter(f => f.kind === 'hook').length;
+        const cfg = a.findings.length - hooks;
+        const parts = [hooks && `${hooks} hook${hooks > 1 ? 's' : ''}`, cfg && `${cfg} setting${cfg > 1 ? 's' : ''}`].filter(Boolean);
+        const btn = el('button', {textContent: 'Details…'});
+        btn.onclick = () => this.session.showRepoDetails();
+        this.repoBanner.replaceChildren(el('span', {textContent: '⚠'}),
+            el('span', {className: 'msg', textContent:
+                `This repository has ${parts.join(' and ')} that git on this computer would run. Review before using git here.`}),
+            btn);
     }
 
     renderBranch() {

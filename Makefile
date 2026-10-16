@@ -90,6 +90,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-terminal-extras.sh build/bin/session-workbench $(SMOKE_OUT)-extras
 	$(XVFB) scripts/gui-smoke-folders.sh build/bin/session-workbench $(SMOKE_OUT)-folders
 	$(XVFB) scripts/gui-smoke-git.sh build/bin/session-workbench $(SMOKE_OUT)-git
+	$(XVFB) scripts/gui-smoke-repocheck.sh build/bin/session-workbench $(SMOKE_OUT)-repocheck
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

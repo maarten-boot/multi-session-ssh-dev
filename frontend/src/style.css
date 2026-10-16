@@ -1129,3 +1129,71 @@ dialog .buttons .about {
 .files-branch.warn {
     color: var(--warn);
 }
+
+/* --- repository check --- */
+
+.session .repo-warn {
+    flex: none;
+    color: var(--warn);
+    font-size: 13px;
+}
+
+.repo-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 12px;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.repo-banner .msg {
+    flex: 1;
+}
+
+.repo-banner button {
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--text-strong);
+    cursor: pointer;
+}
+
+dialog .text {
+    white-space: pre-line;
+}
+
+dialog .findings {
+    max-height: 340px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+}
+
+.finding {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.finding .what b {
+    color: var(--text-strong);
+}
+
+.finding code {
+    display: block;
+    margin-top: 4px;
+    padding: 3px 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    font: 12px "DejaVu Sans Mono", "Cascadia Mono", Menlo, monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    user-select: text;
+}
+
+.finding code.fix {
+    color: var(--muted);
+}

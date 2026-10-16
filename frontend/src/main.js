@@ -10,7 +10,7 @@ import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
-    SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup,
+    SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -129,7 +129,10 @@ class FilesTab {
 
     show() {
         this.pane.hidden = false;
-        if (!this.view) this.view = new FilesView(this.pane, this.session);
+        if (!this.view) {
+            this.view = new FilesView(this.pane, this.session);
+            this.view.renderRepoBanner();
+        }
         else this.view.refresh();
         this.view.focus();
     }
@@ -173,6 +176,20 @@ class SessionUI {
 
     dotClass() {
         return this.data.error ? 'error' : this.remoteState;
+    }
+
+    // repoWarn: the repository has hooks or risky config the user has not
+    // reviewed (or that changed since). See docs/CONNECTIVITY.md.
+    repoWarn() {
+        return !!(this.audit?.findings?.length && this.audit.fingerprint !== this.data.trusted_git);
+    }
+
+    checkRepo() {
+        return app.checkRepo(this);
+    }
+
+    showRepoDetails() {
+        return repoDialog(this);
     }
 
     badge() {
@@ -235,6 +252,8 @@ const app = {
         await this.reload();
         const last = this.sessions.get(store.get('active', ''));
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
+        this.checkAll();
+        setInterval(() => this.checkAll(), 120000);
         this.select(last || this.order[0] || null);
 
         window.addEventListener('keydown', e => this.onKey(e));
@@ -243,6 +262,7 @@ const app = {
         });
         window.addEventListener('blur', hideMenu);
         window.addEventListener('focus', () => {
+            if (this.active) this.checkRepo(this.active);
             const t = this.active?.tabs[this.active.activeTab];
             t?.setBadge?.(null);
         });
@@ -393,6 +413,8 @@ const app = {
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
                 el('div', {className: 'sub', textContent: '‎' + d.local_path})),
+            el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
+                title: 'Repository hooks or settings to review (see the Files tab)'}),
             el('span', {className: 'badge'}),
             n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
             more);
@@ -413,6 +435,32 @@ const app = {
         s.item = item;
         this.renderBadges(s);
         return item;
+    },
+
+    // checkRepo runs the repository check for a session (one at a time per
+    // session) and updates the sidebar and the Files tab.
+    async checkRepo(s) {
+        if (s.checking) return;
+        s.checking = true;
+        try {
+            s.audit = await RepoCheck(s.id);
+        } catch {
+            s.audit = null;
+        } finally {
+            s.checking = false;
+        }
+        this.renderRepoWarn(s);
+    },
+
+    renderRepoWarn(s) {
+        const w = s.item?.querySelector('.repo-warn');
+        if (w) w.hidden = !s.repoWarn();
+        s.tabs[2]?.view?.renderRepoBanner?.();
+    },
+
+    // checkAll checks every session's repository, one after another.
+    async checkAll() {
+        for (const s of [...this.sessions.values()]) await this.checkRepo(s);
     },
 
     // renderBadges updates a session's sidebar badge, its tab badges when it
@@ -475,6 +523,7 @@ const app = {
         this.active = s;
         this.renderMain(); // un-hides the pane area before the terminal measures itself
         if (s) {
+            this.checkRepo(s);
             store.set('active', s.id);
             this.mru = [s.id, ...this.mru.filter(id => id !== s.id)].slice(0, 50);
             store.set('mru', this.mru);
@@ -957,6 +1006,36 @@ async function settingsDialog() {
         copy_on_select: f.copy_on_select.checked,
     }));
     if (ok) await app.reload();
+}
+
+// repoDialog lists what git on this machine would run from the session's
+// repository, and lets the user mark the current state as reviewed.
+async function repoDialog(s) {
+    await app.checkRepo(s);
+    const a = s.audit;
+    if (!a?.findings?.length) return;
+    const dlg = $('#dlg-repo');
+    const reviewed = a.fingerprint === s.data.trusted_git;
+    const hooks = a.findings.filter(f => f.kind === 'hook').length;
+    const cfg = a.findings.length - hooks;
+    dlg.querySelector('h2').textContent = `Repository check: ${s.data.name}`;
+    dlg.querySelector('.text').textContent =
+        `${hooks ? `${hooks} hook${hooks > 1 ? 's' : ''}` : ''}${hooks && cfg ? ' and ' : ''}` +
+        `${cfg ? `${cfg} setting${cfg > 1 ? 's' : ''}` : ''} in this repository would make git on this computer ` +
+        'run a program or send data elsewhere. If the agent host can write to this repository it may have put ' +
+        'them there. Check each one before running git here. If you set them up yourself (for example ' +
+        'pre-commit, husky or git-lfs), mark them as reviewed: the warning comes back when anything changes.' +
+        (reviewed ? '\n\nYou have reviewed this exact state before.' : '');
+    dlg.querySelector('.findings').replaceChildren(...a.findings.map(f => el('div', {className: 'finding'},
+        el('div', {className: 'what'}, el('b', {textContent: f.kind === 'hook' ? `hook ${f.name}` : f.name}),
+            el('span', {textContent: ` — ${f.why}`})),
+        el('code', {className: 'detail', textContent: f.detail}),
+        el('code', {className: 'fix', textContent: f.fix, title: 'Run in the Local tab, in the repository'}))));
+    const ok = await runDialog(dlg, () => TrustRepo(s.id, a.fingerprint));
+    if (ok) {
+        await app.reload();
+        app.renderRepoWarn(s);
+    }
 }
 
 async function folderDialog(oldName = '') {

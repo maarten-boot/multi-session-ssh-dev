@@ -375,3 +375,17 @@ func TestGroups(t *testing.T) {
 		t.Error("moved unknown folder")
 	}
 }
+
+func TestTrustGit(t *testing.T) {
+	m, root, cfgPath := setup(t)
+	v, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "a")})
+	if err := m.TrustGit(v.ID, "abc123"); err != nil {
+		t.Fatal(err)
+	}
+	if got := Open(cfgPath).State().Sessions[0].TrustedGit; got != "abc123" {
+		t.Errorf("trusted_git = %q", got)
+	}
+	if err := m.TrustGit("nope", "x"); err == nil {
+		t.Error("unknown session accepted")
+	}
+}

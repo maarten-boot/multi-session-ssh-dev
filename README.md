@@ -96,6 +96,12 @@ a name, and what a new remote tmux session starts with (`claude`,
   fsmonitor), the status is skipped and the bar says so — see
   [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
+**Repository check.** If a session's repository contains hooks or settings that git
+on your computer would run (or that redirect pushes), the session gets a ⚠ and the
+Files tab a banner with the details. An agent host that can write the repository could
+have planted them. Mark them as reviewed if they are yours; the warning returns when
+anything changes. Background: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
+
 Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
 previous); links are clickable; emoji and CJK characters get their proper two-cell
 width. With "copy on select" (Settings) a selection goes to the clipboard at once.
@@ -196,6 +202,7 @@ host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
 start_mode = "claude-continue"
 group = "Work"                            # optional: sidebar folder
+trusted_git = "…"                         # set by "Mark as reviewed" (repository check)
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 local_init = "git status"                 # optional: typed into the Local tab
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment

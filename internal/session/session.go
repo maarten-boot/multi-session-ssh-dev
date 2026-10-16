@@ -30,6 +30,7 @@ type View struct {
 	StartMode  string `json:"start_mode"`
 	ColorMode  string `json:"color_mode"` // "" = follow the global setting
 	Group      string `json:"group"`
+	TrustedGit string `json:"trusted_git"`
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
 	Error      string `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -137,7 +138,7 @@ func (m *Manager) State() State {
 	}
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
-			ColorMode: se.ColorMode, Group: se.Group, TmuxName: remote.TmuxName(se.ID)}
+			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID)}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -330,6 +331,21 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].StartMode = e.StartMode
 		c.Sessions[i].ColorMode = e.ColorMode
 		c.Sessions[i].Group = e.Group
+		return nil
+	})
+}
+
+// TrustGit records that the user reviewed the repository's hooks and config
+// as they are now (fingerprint from gitstatus.RunAudit).
+func (m *Manager) TrustGit(id, fingerprint string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		i := indexOf(c, id)
+		if i < 0 {
+			return fmt.Errorf("unknown session %q", id)
+		}
+		c.Sessions[i].TrustedGit = fingerprint
 		return nil
 	})
 }

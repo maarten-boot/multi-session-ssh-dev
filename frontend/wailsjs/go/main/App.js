@@ -54,6 +54,10 @@ export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
 }
 
+export function RepoCheck(arg1) {
+  return window['go']['main']['App']['RepoCheck'](arg1);
+}
+
 export function RevealPath(arg1, arg2) {
   return window['go']['main']['App']['RevealPath'](arg1, arg2);
 }
@@ -96,6 +100,10 @@ export function TermResize(arg1, arg2, arg3) {
 
 export function TermWrite(arg1, arg2) {
   return window['go']['main']['App']['TermWrite'](arg1, arg2);
+}
+
+export function TrustRepo(arg1, arg2) {
+  return window['go']['main']['App']['TrustRepo'](arg1, arg2);
 }
 
 export function UpdateSession(arg1, arg2) {
