@@ -59,7 +59,7 @@ export class TermView {
         });
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
         this.term.onBell(() => this.onActivity('bell'));
-        this.term.onData(d => this.id && TermWrite(this.id, d));
+        this.term.onData(d => this.id && this.send(d));
         this.term.onResize(({cols, rows}) => this.id && this.resizePty(cols, rows));
         this.observer = new ResizeObserver(() => this.fit.fit());
         this.observer.observe(container);
@@ -87,6 +87,24 @@ export class TermView {
             this.term.write(`\x1b[31m${err}\x1b[0m\r\n`);
             this.onExit(null);
         }
+    }
+
+    // send writes input to the pty in order. Wails runs every call in its own
+    // goroutine (Linux, macOS), so two calls in flight can arrive swapped:
+    // keep one in flight and send what was typed meanwhile as the next call.
+    send(d) {
+        this.pending = (this.pending || '') + d;
+        if (this.sending) return;
+        this.sending = true;
+        const id = this.id;
+        const data = this.pending;
+        this.pending = '';
+        TermWrite(id, data).catch(() => {}).finally(() => {
+            this.sending = false;
+            if (!this.pending) return;
+            if (this.id === id) this.send('');
+            else this.pending = '';
+        });
     }
 
     onExit(info) {
