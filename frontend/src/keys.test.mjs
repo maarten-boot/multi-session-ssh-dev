@@ -30,7 +30,9 @@ test('defaults per OS', () => {
     assert.equal(actionFor(ev('BracketRight', {metaKey: true, shiftKey: true}), mac.map), 'next_session');
     assert.equal(actionFor(ev('Digit4', {ctrlKey: true, altKey: true}), lin.map), 'session_4');
     assert.equal(actionFor(ev('Digit4', {metaKey: true}), mac.map), 'session_4');
-    assert.equal(actionFor(ev('Digit2', {ctrlKey: true, shiftKey: true}), lin.map), 'tab_local');
+    assert.equal(actionFor(ev('Digit1', {ctrlKey: true, shiftKey: true}), lin.map), 'tab_local');
+    assert.equal(actionFor(ev('Digit3', {ctrlKey: true, shiftKey: true}), lin.map), 'tab_remote');
+    assert.equal(actionFor(ev('Digit4', {metaKey: true, shiftKey: true}), mac.map), 'tab_notes');
     assert.equal(actionFor(ev('KeyP', {ctrlKey: true, shiftKey: true}), lin.map), 'quick_switcher');
     assert.equal(actionFor(ev('KeyF', {ctrlKey: true, shiftKey: true}), lin.map), 'find');
     assert.equal(actionFor(ev('KeyF', {metaKey: true}), mac.map), 'find');
@@ -47,7 +49,7 @@ test('overrides, disabling, errors and conflicts', () => {
         settings: 'none',
         quick_switcher: 'Ctrl+Shift+Banana',
         bogus_action: 'Ctrl+B',
-        new_session: 'Ctrl+Shift+1', // clashes with tab_remote
+        new_session: 'Ctrl+Shift+3', // clashes with tab_remote
     }, false);
     assert.equal(actionFor(ev('Tab', {ctrlKey: true}), map), 'next_session');
     assert.equal(actionFor(ev('Tab', {ctrlKey: true, shiftKey: true}), map), 'prev_session');
@@ -56,7 +58,7 @@ test('overrides, disabling, errors and conflicts', () => {
     assert.equal(errors.length, 3);
     assert.match(errors.join('\n'), /Banana/);
     assert.match(errors.join('\n'), /bogus_action/);
-    assert.match(errors.join('\n'), /both use Ctrl\+Shift\+1/);
+    assert.match(errors.join('\n'), /both use Ctrl\+Shift\+3/);
     assert.equal([map.tab_remote, map.new_session].filter(Boolean).length, 1);
 });
 

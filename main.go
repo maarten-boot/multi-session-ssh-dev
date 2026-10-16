@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -42,7 +43,8 @@ func main() {
 	if err := sessions.LoadError(); err != nil {
 		fmt.Fprintln(os.Stderr, "warning:", err)
 	}
-	app := NewApp(sessions)
+	// Notes live next to the config file, outside any project directory.
+	app := NewApp(sessions, filepath.Join(filepath.Dir(*cfgPath), "notes"))
 	bg := &options.RGBA{R: 255, G: 255, B: 255, A: 1}
 	if sessions.Config().UI.Theme == "dark" {
 		bg = &options.RGBA{R: 30, G: 30, B: 30, A: 1}
@@ -61,8 +63,8 @@ func main() {
 			Icon:        icon,
 			ProgramName: "session-workbench", // WM_CLASS, matches the .desktop file
 		},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
+		OnStartup:  app.startup,
+		OnShutdown: app.shutdown,
 		Bind: []interface{}{
 			app,
 		},

@@ -1,9 +1,9 @@
 # Session Workbench
 
 Desktop app for running many Claude Code sessions side by side. Each session
-is bound to a repository directory and has a **Remote** terminal (ssh → tmux →
-claude on the isolated agent host), a **Local** terminal (host shell for git),
-and a **Files** tab. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
+is bound to a repository directory and has a **Local** terminal (host shell for
+git), a **Files** tab, a **Remote** terminal (ssh → tmux → claude on the isolated
+agent host) and **Notes**. See [SPEC.md](SPEC.md) and [PLAN.md](PLAN.md).
 
 **Setting up the agent host and sharing files with it — and what that means for
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
@@ -60,7 +60,8 @@ make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imag
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
 make smoke-files     # headless GUI test of the Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
-                     # folders, git markers, repository check, working copies, live share
+                     # folders, git markers, repository check, working copies, live share,
+                     # notes and tab order
 make smoke-all       # all GUI tests
 ```
 
@@ -77,17 +78,25 @@ Then **New session** (Ctrl+Shift+N): pick a directory under the local prefix,
 a name, and what a new remote tmux session starts with (`claude`,
 `claude --continue`, or a shell). Each session has:
 
-- **Remote** (Ctrl+Shift+1): `ssh` → tmux session `cw-<id>` in the mapped
-  directory. It survives closing the app and lost connections; Enter reconnects.
-  When claude exits you get a shell.
-- **Local** (Ctrl+Shift+2): your shell in the directory (not kept across app restarts).
-- **Files** (Ctrl+Shift+3): the directory as a tree, refreshed whenever you
+- **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
+- **Files** (Ctrl+Shift+2): the directory as a tree, refreshed whenever you
   switch to it. Double-click or Enter opens a file with its default application
   (directories expand); arrow keys navigate, F5 refreshes. Right-click to open
   the containing folder, copy the local or remote path, or refresh. Dotfiles
   (including `.git`) are hidden unless "Hidden files" is ticked. Programs and
   files the OS would execute rather than open (`.exe`, `.bat`, `.desktop`,
-  `.app`, ELF/Mach-O binaries, …) are refused. Very large directories show the first
+  `.app`, ELF/Mach-O binaries, …) are refused.
+- **Remote** (Ctrl+Shift+3): `ssh` → tmux session `cw-<id>` in the mapped
+  directory. It survives closing the app and lost connections; Enter reconnects.
+  When claude exits you get a shell.
+- **Notes** (Ctrl+Shift+4): your notes about the project, saved as you type. They
+  are stored with the app's config (`notes/<session id>.md` next to `config.toml`),
+  not in the project, so they stay out of git and off the agent host. Notes are
+  kept when a session is deleted.
+
+A session reopens on the tab you used last; new sessions start on Local. Sessions
+look the way Settings says (theme, font, colors); a session can override the colors
+in *Edit…* if needed. Very large directories show the first
   5000 entries. In a git repository each entry gets a letter — **M** modified,
   **A** added, **D** deleted, **R** renamed, **U** untracked, **!** conflict — folders
   with changes get a dot, ignored files are dimmed, and the bar shows the branch with
@@ -110,7 +119,7 @@ width. With "copy on select" (Settings) a selection goes to the clipboard at onc
 |---|---|---|---|
 | Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session | `next_session`, `prev_session` |
 | Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) | `session_1` … `session_9` |
-| Ctrl+Shift+1 / 2 / 3 | ⇧⌘1 / 2 / 3 | Remote / Local / Files tab | `tab_remote`, `tab_local`, `tab_files` |
+| Ctrl+Shift+1 / 2 / 3 / 4 | ⇧⌘1 / 2 / 3 / 4 | Local / Files / Remote / Notes tab | `tab_local`, `tab_files`, `tab_remote`, `tab_notes` |
 | Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first) | `quick_switcher` |
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
@@ -238,6 +247,7 @@ internal/pathmap       host path -> agent-host path
 internal/remote        ssh/tmux command lines (quoting, forced options)
 internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
+internal/notes         per-session notes files
 internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab

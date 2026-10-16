@@ -223,6 +223,27 @@ export namespace main {
 
 }
 
+export namespace notes {
+	
+	export class Note {
+	    text: string;
+	    path: string;
+	    mtime: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Note(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.path = source["path"];
+	        this.mtime = source["mtime"];
+	    }
+	}
+
+}
+
 export namespace session {
 	
 	export class Edit {

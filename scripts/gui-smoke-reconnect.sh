@@ -33,16 +33,16 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+alt+1; sleep 2; t 'export KEEP=survived'
+k ctrl+alt+1; k ctrl+shift+3; sleep 2; t 'export KEEP=survived'
 pkill -f '^/usr/bin/ssh -t .*cw-s-rok'; sleep 0.4   # anchored: never matches this script's caller
 shot 1-lost-reconnecting
 sleep 3; t 'echo "after auto-reconnect: $KEEP"'
 shot 2-reconnected
-k ctrl+alt+2; sleep 9
+k ctrl+alt+2; k ctrl+shift+3; sleep 9
 shot 3-backoff                                  # attempts with growing delay
 k Escape; sleep 0.5
 shot 4-stopped
-k ctrl+alt+1; t 'tmux detach' 1.5
+k ctrl+alt+1; k ctrl+shift+3; t 'tmux detach' 1.5
 shot 5-detached                                 # exit 0: no auto-reconnect
 sleep 3; k Return; sleep 2.5; t 'echo "after Enter: $KEEP"'
 shot 6-reattached

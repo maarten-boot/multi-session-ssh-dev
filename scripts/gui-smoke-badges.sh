@@ -18,8 +18,8 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+alt+1; sleep 2; t 'sleep 5; printf "\a"; echo rang'     # alpha Remote: bell in 5 s
-k ctrl+alt+2; sleep 2; k ctrl+shift+2; sleep 1.5
+k ctrl+alt+1; k ctrl+shift+3; sleep 2; t 'sleep 5; printf "\a"; echo rang'     # alpha Remote: bell in 5 s
+k ctrl+alt+2; sleep 2; k ctrl+shift+1; sleep 1.5
 t 'sleep 12; seq 1 3000'                                        # beta Local: output after 12 s idle
 k ctrl+alt+3; sleep 16
 shot 1-bell-and-activity                                        # alpha bell, beta activity, title (2)

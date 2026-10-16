@@ -4,6 +4,7 @@ import {session} from '../models';
 import {gitstatus} from '../models';
 import {main} from '../models';
 import {fsbrowse} from '../models';
+import {notes} from '../models';
 import {config} from '../models';
 import {share} from '../models';
 import {syncer} from '../models';
@@ -26,6 +27,8 @@ export function KillRemote(arg1:string):Promise<void>;
 
 export function ListDir(arg1:string,arg2:string,arg3:boolean):Promise<fsbrowse.Listing>;
 
+export function LoadNotes(arg1:string):Promise<notes.Note>;
+
 export function MoveGroup(arg1:string,arg2:string):Promise<void>;
 
 export function MoveSession(arg1:string,arg2:string):Promise<void>;
@@ -41,6 +44,8 @@ export function RevealPath(arg1:string,arg2:string):Promise<void>;
 export function SaveGroup(arg1:string,arg2:string):Promise<void>;
 
 export function SaveHost(arg1:string,arg2:config.Host):Promise<void>;
+
+export function SaveNotes(arg1:string,arg2:string):Promise<notes.Note>;
 
 export function SaveUI(arg1:config.UI):Promise<void>;
 

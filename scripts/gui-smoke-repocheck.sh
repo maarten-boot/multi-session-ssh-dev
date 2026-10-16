@@ -33,7 +33,7 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 4; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+alt+1; k ctrl+shift+3; sleep 1.5
+k ctrl+alt+1; k ctrl+shift+2; sleep 1.5
 shot 1-warned                                   # sidebar ⚠ on "planted" only, banner in Files
 k shift+Tab; k Return; sleep 1                  # banner: Details…
 shot 2-details

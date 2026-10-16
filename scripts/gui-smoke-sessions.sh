@@ -52,7 +52,7 @@ k() { xdotool key "$@"; sleep 0.6; }
 shot() { import -window root $OUT/$1.png; }
 
 start
-k ctrl+alt+1; sleep 2              # localStorage may restore another session
+k ctrl+alt+1; k ctrl+shift+3; sleep 2   # first session, Remote tab
 shot 01-start                         # first session, Remote tab connecting
 t 'echo "in $(tmux display -p "#S")"; export MARK=one'
 # New session via dialog: dir, then mode=shell via keyboard, then name + Enter.
@@ -60,7 +60,8 @@ k ctrl+shift+n
 typ "$SL/DEV/github.com/maarten-boot/multi-session-ssh-dev"; sleep 1
 shot 02-dialog
 k Tab; k Tab; k Tab; k s; k shift+Tab
-typ "workbench"; k Return; sleep 3
+typ "workbench"; k Return; sleep 1
+k ctrl+shift+3; sleep 2                       # new sessions open on Local
 t 'echo "in $(tmux display -p "#S") at $(pwd)"; export MARK=four'
 shot 03-created
 # Rejected directory: outside the vibe mapping.
@@ -74,9 +75,9 @@ k ctrl+shift+n
 typ "$SL/RL"; sleep 0.5; k Tab; k Tab; k Tab; k s; k shift+Tab; k Return; sleep 3
 shot 05-five
 # Switching.
-k ctrl+alt+1; t 'echo "back: $MARK"'
+k ctrl+alt+1; k ctrl+shift+3; t 'echo "back: $MARK"'
 shot 06-alt1
-k ctrl+shift+2; t 'echo "local tab of DEV: $(pwd)"'
+k ctrl+shift+1; t 'echo "local tab of DEV: $(pwd)"'
 shot 07-local
 k ctrl+shift+Next; sleep 1
 shot 08-next                          # DEV -> workspace
@@ -90,7 +91,7 @@ sleep 1
 # Restart: everything restored, last active session selected, re-attached.
 start
 shot 10-restarted                     # last active (alt+3) restored
-k ctrl+alt+3; sleep 2; t 'echo "after restart: $MARK"'
+k ctrl+alt+3; k ctrl+shift+3; sleep 2; t 'echo "after restart: $MARK"'
 shot 11-reattached
 stop
 # Clean up the tmux sessions this test created on localhost.

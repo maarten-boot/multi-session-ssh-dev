@@ -30,7 +30,7 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+alt+1; k ctrl+shift+2; sleep 1.5
+k ctrl+alt+1; k ctrl+shift+1; sleep 1.5
 t 'printf "\e[33myellow\e[0m \e[92mlight-green\e[0m \e[44;37m blue-bg \e[0m \e[1mbold\e[0m\n"'
 shot 1-warning-and-light
 k ctrl+Tab; sleep 1

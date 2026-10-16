@@ -30,6 +30,7 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 4; xdotool windowactivate --sync $W 2>/dev/null
+k ctrl+shift+3; sleep 3                         # Remote tab
 shot 1-no-copy-yet                              # Remote tab: no working copy, "Send to agent…"
 click 120 90 3; menu s                          # session menu: Send to agent…
 sleep 3; shot 2-send-preview

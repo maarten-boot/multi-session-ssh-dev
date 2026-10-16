@@ -17,13 +17,16 @@ workspaces. This does not scale well past a few sessions and is Linux/XFCE speci
 ## 2. Goal
 
 A cross-platform (Linux, Windows, macOS) desktop app running on the **host** that manages many
-**sessions**. Each session is bound to one directory and provides three tabs:
+**sessions**. Each session is bound to one directory and provides four tabs, in this order:
 
 | Tab        | What it is                                                                      |
 |------------|---------------------------------------------------------------------------------|
-| **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
 | **Local**  | Terminal: local shell on the host, cwd = `<local path>` (git, builds, etc.)      |
 | **Files**  | Tree view of `<local path>`; double-click opens the file with the OS default app |
+| **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
+| **Notes**  | Free-text notes about the project (N1)                                          |
+
+A session reopens on the tab used last; new sessions start on Local.
 
 Switching sessions and tabs is instant and keyboard driven.
 
@@ -134,6 +137,13 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   ahead/behind in the files bar. Loaded after the listing; works when the session directory is a
   subdirectory of the repository; nothing shown outside a repository or without git.
 
+### 4.4a Notes tab
+- N1. A plain-text editor per session, saved automatically (shortly after typing stops, on
+  leaving the tab, when the window loses focus). Stored as `notes/<session id>.md` next to the
+  config file (owner-only permissions), not in the project: notes stay out of git and are not
+  visible to the agent host. Reloaded when shown if changed outside the app; kept when the
+  session is deleted.
+
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
   true color; scrollback configurable (default 10 000).
@@ -148,8 +158,8 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   - `color_mode = "mono"` — no coloring at all: every foreground rendered in the theme's text
     color (contrast ratio 21), including 256-color and truecolor output; bold/underline/inverse
     still shown.
-  - Configurable globally, overridable per session; switchable at runtime without restarting
-    the terminal.
+  - Configurable globally (Settings: the default for every session), overridable per session
+    in the session's Edit dialog; switchable at runtime without restarting the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
 
 ### 4.6 Keyboard
@@ -159,7 +169,7 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 |------------------------|----------------------|----------------|
 | Next / prev session    | Ctrl+Shift+PgDn/PgUp | Cmd+Shift+]/[  |
 | Session 1…9            | Ctrl+Alt+1…9         | Cmd+1…9        |
-| Remote / Local / Files | Ctrl+Shift+1/2/3     | Cmd+Shift+1/2/3|
+| Local / Files / Remote / Notes | Ctrl+Shift+1/2/3/4 | Cmd+Shift+1/2/3/4 |
 | New session            | Ctrl+Shift+N         | Cmd+Shift+N    |
 | Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    |
 | Find in terminal       | Ctrl+Shift+F         | Cmd+F          |

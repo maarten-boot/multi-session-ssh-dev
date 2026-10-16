@@ -36,16 +36,16 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+alt+1; k ctrl+shift+2; sleep 1.5; t "$TEST" 1.5
+k ctrl+alt+1; k ctrl+shift+1; sleep 1.5; t "$TEST" 1.5
 shot 1-full
-k ctrl+alt+2; k ctrl+shift+2; sleep 1.5; t "$TEST" 1.5
+k ctrl+alt+2; k ctrl+shift+1; sleep 1.5; t "$TEST" 1.5
 shot 2-mono
 k ctrl+alt+1; sleep 0.5
 click 120 90 3; menu u                         # session menu: "Use mono colors"
 sleep 1; shot 3-switched-live                  # old output neutralized
-k ctrl+shift+2; t "$TEST" 1.5
+k ctrl+shift+1; t "$TEST" 1.5
 shot 4-switched-new-output
-k ctrl+shift+1; sleep 2.5
+k ctrl+shift+3; sleep 2.5
 shot 5-remote-tmux
 kill $APP; wait $APP 2>/dev/null
 for id in s-full s-mono; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done

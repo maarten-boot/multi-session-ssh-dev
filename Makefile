@@ -97,6 +97,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-repocheck.sh build/bin/session-workbench $(SMOKE_OUT)-repocheck
 	$(XVFB) scripts/gui-smoke-sync.sh build/bin/session-workbench $(SMOKE_OUT)-sync
 	$(XVFB) scripts/gui-smoke-share.sh build/bin/session-workbench $(SMOKE_OUT)-share
+	$(XVFB) scripts/gui-smoke-notes.sh build/bin/session-workbench $(SMOKE_OUT)-notes
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

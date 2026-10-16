@@ -14,6 +14,7 @@ import (
 	"session-workbench/internal/config"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
+	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
@@ -29,10 +30,11 @@ type App struct {
 	terms    *terminal.Manager
 	sessions *session.Manager
 	shares   *share.Manager
+	notes    notes.Store
 }
 
-func NewApp(sessions *session.Manager) *App {
-	return &App{sessions: sessions}
+func NewApp(sessions *session.Manager, notesDir string) *App {
+	return &App{sessions: sessions, notes: notes.Store{Dir: notesDir}}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -164,6 +166,16 @@ func (a *App) GitStatus(id string) (gitstatus.Status, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
 	defer cancel()
 	return gitstatus.Get(ctx, r.LocalPath)
+}
+
+// LoadNotes returns a session's notes (empty if none yet).
+func (a *App) LoadNotes(id string) (notes.Note, error) {
+	return a.notes.Load(id)
+}
+
+// SaveNotes stores a session's notes.
+func (a *App) SaveNotes(id, text string) (notes.Note, error) {
+	return a.notes.Save(id, text)
 }
 
 // RepoCheck lists hooks and risky repository config that git on this

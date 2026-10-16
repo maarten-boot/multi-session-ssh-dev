@@ -9,9 +9,10 @@
 export const ACTIONS = {
     next_session: ['Ctrl+Shift+PageDown', 'Cmd+Shift+]'],
     prev_session: ['Ctrl+Shift+PageUp', 'Cmd+Shift+['],
-    tab_remote: ['Ctrl+Shift+1', 'Cmd+Shift+1'],
-    tab_local: ['Ctrl+Shift+2', 'Cmd+Shift+2'],
-    tab_files: ['Ctrl+Shift+3', 'Cmd+Shift+3'],
+    tab_local: ['Ctrl+Shift+1', 'Cmd+Shift+1'],
+    tab_files: ['Ctrl+Shift+2', 'Cmd+Shift+2'],
+    tab_remote: ['Ctrl+Shift+3', 'Cmd+Shift+3'],
+    tab_notes: ['Ctrl+Shift+4', 'Cmd+Shift+4'],
     new_session: ['Ctrl+Shift+N', 'Cmd+Shift+N'],
     quick_switcher: ['Ctrl+Shift+P', 'Cmd+Shift+P'],
     settings: ['Ctrl+Shift+,', 'Cmd+,'],

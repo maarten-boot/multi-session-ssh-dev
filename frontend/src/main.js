@@ -5,6 +5,7 @@ import {effectiveColorMode} from './appearance';
 import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
+import {NotesView} from './notes';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
@@ -22,7 +23,8 @@ let keymap = buildKeymap({}, isMac);
 // appKey returns the app action for a keydown, or null if the key belongs
 // to the terminal.
 const appKey = e => actionFor(e, keymap.map);
-const TAB_ACTIONS = ['tab_remote', 'tab_local', 'tab_files'];
+// Tab order (and Ctrl+Shift+1…4): Local, Files, Remote, Notes.
+const TAB_ACTIONS = ['tab_local', 'tab_files', 'tab_remote', 'tab_notes'];
 const keyHint = action => format(keymap.map[action], isMac);
 
 // ---------------------------------------------------------------- sessions
@@ -118,9 +120,40 @@ class Tab {
 }
 
 // FilesTab hosts the session's file tree; it refreshes whenever shown.
+// NotesTab hosts the session's notes editor; it reloads when shown.
+class NotesTab {
+    constructor(session) {
+        this.session = session;
+        this.key = 'notes';
+        this.label = 'Notes';
+        this.badge = null;
+        this.pane = el('div', {className: 'pane files-pane', hidden: true});
+        session.container.append(this.pane);
+        this.view = null;
+    }
+
+    show() {
+        this.pane.hidden = false;
+        if (!this.view) this.view = new NotesView(this.pane, this.session);
+        else this.view.refresh();
+        this.view.focus();
+    }
+
+    hide() {
+        this.pane.hidden = true;
+        this.view?.save();
+    }
+
+    dispose() {
+        this.view?.dispose();
+        this.pane.remove();
+    }
+}
+
 class FilesTab {
     constructor(session) {
         this.session = session;
+        this.key = 'files';
         this.label = 'Files';
         this.badge = null;
         this.pane = el('div', {className: 'pane files-pane', hidden: true});
@@ -154,6 +187,9 @@ class SessionUI {
         this.container = el('div', {className: 'session-panes', hidden: true});
         $('#panes').append(this.container);
         this.tabs = [
+            new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
+                {what: 'shell', again: 'restart', remote: false}),
+            new FilesTab(this),
             new Tab(this, 'Remote', (c, r) => StartRemote(this.data.id, c, r), {
                 what: 'ssh', again: 'reconnect', remote: true,
                 place: () => this.data.host,
@@ -165,11 +201,12 @@ class SessionUI {
                         ? {text: `The live share is not mounted at ${this.data.remote_path}.`, actions: []}
                         : {text: `${this.data.remote_path} does not exist on ${this.data.host}. Check the share or the path mapping.`, actions: []},
             }, s => this.setRemoteState(s)),
-            new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
-                {what: 'shell', again: 'restart', remote: false}),
-            new FilesTab(this),
+            new NotesTab(this),
         ];
-        this.activeTab = 0;
+        const keys = ['local', 'files', 'remote', 'notes'];
+        this.tabs.forEach((t, i) => t.key = keys[i]);
+        // Each session reopens on the tab last used (Local for new ones).
+        this.activeTab = Math.max(0, keys.indexOf(store.get(`tab:${data.id}`, 'local')));
         this.share = null; // live share status, for sshfs sessions
         EventsOn(`share:${data.id}`, st => {
             this.share = st;
@@ -219,14 +256,20 @@ class SessionUI {
         this.container.hidden = true;
     }
 
+    tab(key) {
+        return this.tabs.find(t => t.key === key);
+    }
+
     selectTab(i) {
         if (!this.tabs[i]) return;
+        this.tabs[this.activeTab]?.hide();
         this.activeTab = i;
+        store.set(`tab:${this.id}`, this.tabs[i].key);
         this.show();
     }
 
     connectRemote() {
-        this.tabs[0].ensureView();
+        this.tab('remote').ensureView();
     }
 
     applyAppearance(ui) {
@@ -235,7 +278,7 @@ class SessionUI {
     }
 
     disconnect() {
-        this.tabs.forEach(t => t.view?.disconnect());
+        this.tabs.forEach(t => t.view?.disconnect?.());
     }
 
     dispose() {
@@ -468,7 +511,7 @@ const app = {
     renderRepoWarn(s) {
         const w = s.item?.querySelector('.repo-warn');
         if (w) w.hidden = !s.repoWarn();
-        s.tabs[2]?.view?.renderRepoBanner?.();
+        s.tab('files')?.view?.renderRepoBanner?.();
     },
 
     // checkAll checks every session's repository, one after another.
@@ -914,6 +957,8 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.name.placeholder = '';
     f.elements.mode.value = s?.data.start_mode ?? store.get('lastMode', 'claude');
     f.elements.colors.value = s?.data.color_mode ?? '';
+    // New sessions look as set in Settings; an override is for Edit only.
+    f.elements.colors.closest('label').hidden = !editing;
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
         ...app.state.groups.map(g => el('option', {value: g, textContent: g})));
     f.elements.group.value = s?.data.group ?? presetGroup ?? '';
@@ -965,7 +1010,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
         } else {
             created = await CreateSession({
                 host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value,
-                start_mode: f.elements.mode.value, color_mode: f.elements.colors.value, group: f.elements.group.value,
+                start_mode: f.elements.mode.value, color_mode: '', group: f.elements.group.value,
             });
             store.set('lastHost', f.elements.host.value);
             store.set('lastMode', f.elements.mode.value);
@@ -1147,7 +1192,7 @@ async function syncSendDialog(s) {
     okBtn.disabled = !!p.blocked || (!total && p.agent.exists) || !!(p.agent.dirty && !overwrite?.checked);
     (okBtn.disabled ? overwrite : okBtn)?.focus();
     const ok = await done;
-    if (ok) s.tabs[0].view?.exited && s.tabs[0].view.restart();
+    if (ok) s.tab('remote').view?.exited && s.tab('remote').view.restart();
     return ok;
 }
 
@@ -1195,7 +1240,7 @@ async function syncGetDialog(s) {
         'Commit them there first if you want them.'}));
     body.replaceChildren(...parts);
     const ok = await done;
-    if (ok) s.tabs[2]?.view?.refresh();
+    if (ok) s.tab('files')?.view?.refresh();
     return ok;
 }
 
@@ -1233,7 +1278,7 @@ async function endRemote(s) {
 async function deleteSession(s) {
     const ok = await confirmDialog({
         title: `Delete session “${s.data.name}”?`,
-        text: 'Removes it from the list. Files are not touched.',
+        text: 'Removes it from the list. Its files are not touched, and its notes are kept.',
         ok: 'Delete',
         check: `Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`,
         action: async kill => {

@@ -24,7 +24,7 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+shift+2; sleep 1.5
+k ctrl+shift+1; sleep 1.5
 # Typed as ASCII octal escapes (xdotool mangles non-ASCII): two emoji, two
 # CJK characters and "abcd" are 4 cells each, so the bars must line up.
 t 'clear; seq 1 60 | sed "s/^/line-/"; printf "\360\237\230\200\360\237\232\200|emoji\n\346\227\245\346\234\254|cjk\nabcd|ascii\n"' 1.5

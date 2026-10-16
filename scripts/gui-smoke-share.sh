@@ -26,6 +26,7 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 6; xdotool windowactivate --sync $W 2>/dev/null
+k ctrl+shift+3; sleep 3                         # Remote tab (waits for the mount)
 t 'pwd; cat hello.txt; echo "written on the agent" >from-agent.txt; ls' 1.5
 shot 1-remote-in-share
 echo "host sees: $(cat $L/from-agent.txt 2>&1)"

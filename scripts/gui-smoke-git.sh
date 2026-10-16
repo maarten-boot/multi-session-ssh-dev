@@ -49,12 +49,12 @@ $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+shift+3; sleep 1.5
+k ctrl+shift+2; sleep 1.5
 k Home; k Right; sleep 0.3                     # build/ (ignored, sorted first)
 k Down; k Down; k Right; sleep 0.3             # docs/
 k End; k Up; k Up; k Up; k Up                  # towards src/
 shot 1-git
-k ctrl+alt+2; k ctrl+shift+3; sleep 1.5
+k ctrl+alt+2; k ctrl+shift+2; sleep 1.5
 shot 2-unsafe-skipped
 kill $APP; wait $APP 2>/dev/null
 for id in s-git s-gitu; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done

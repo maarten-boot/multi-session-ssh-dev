@@ -19,7 +19,7 @@ APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3
 xdotool windowactivate --sync $W 2>/dev/null; xdotool windowfocus $W
-xdotool key ctrl+shift+2; sleep 2     # Local tab: terminal fidelity without ssh
+xdotool key ctrl+shift+1; sleep 2     # Local tab: terminal fidelity without ssh
 t() { xdotool type --delay 15 "$1"; xdotool key Return; sleep ${2:-0.8}; }
 t 'printf "\e[1;31mred \e[32mgreen \e[38;2;255;128;0mtruecolor\e[0m  utf8: héllo ✓ 日本\n"; stty size'
 t 'ls --color=always /'

@@ -38,21 +38,21 @@ env PATH=$BINDIR:$PATH DBUS_SESSION_BUS_ADDRESS= $BIN -config $CFG >>$OUT/app.lo
 APP=$!
 for i in $(seq 40); do W=$(xdotool search --name "Session Workbench" 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
-k ctrl+shift+3; sleep 1
+k ctrl+shift+2; sleep 1
 shot 01-tree                                   # docs/ src/ with space/ README.md tool
 if [ -n "$MEASURE" ]; then click $X $(row 3) 3; shot 00-measure; kill $APP; exit; fi
 # Context menu on README.md (row 3); items picked from the keyboard.
 R=$(row 3)
 click $X $R 3; menu o o                         # Open containing folder -> xdg-open $FIX
 click $X $R 3; menu c c                         # Copy remote path
-k ctrl+shift+2; sleep 2                        # Local tab: paste it
+k ctrl+shift+1; sleep 2                        # Local tab: paste it
 xdotool type --delay 12 'echo "remote=['; k ctrl+shift+v; xdotool type --delay 12 ']"'; k Return
 R=$(row 2)
-k ctrl+shift+3; click $X $R 3; menu c          # "with space/": Copy local path
-k ctrl+shift+2; xdotool type --delay 12 'echo "local=['; k ctrl+shift+v; xdotool type --delay 12 ']"'; k Return
+k ctrl+shift+2; click $X $R 3; menu c          # "with space/": Copy local path
+k ctrl+shift+1; xdotool type --delay 12 'echo "local=['; k ctrl+shift+v; xdotool type --delay 12 ']"'; k Return
 xdotool type --delay 12 'touch NEW-FILE.txt'; k Return  # Local tab cwd is the session dir
 sleep 1; shot 05-pasted
-k ctrl+shift+3; sleep 1                        # refresh on show: NEW-FILE.txt appears
+k ctrl+shift+2; sleep 1                        # refresh on show: NEW-FILE.txt appears
 shot 06-refreshed-on-show
 k Home; k Down; k Right; sleep 0.5             # select src, expand
 shot 02-expanded

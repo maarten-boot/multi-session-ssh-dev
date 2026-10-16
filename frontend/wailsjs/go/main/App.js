@@ -38,6 +38,10 @@ export function ListDir(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListDir'](arg1, arg2, arg3);
 }
 
+export function LoadNotes(arg1) {
+  return window['go']['main']['App']['LoadNotes'](arg1);
+}
+
 export function MoveGroup(arg1, arg2) {
   return window['go']['main']['App']['MoveGroup'](arg1, arg2);
 }
@@ -68,6 +72,10 @@ export function SaveGroup(arg1, arg2) {
 
 export function SaveHost(arg1, arg2) {
   return window['go']['main']['App']['SaveHost'](arg1, arg2);
+}
+
+export function SaveNotes(arg1, arg2) {
+  return window['go']['main']['App']['SaveNotes'](arg1, arg2);
 }
 
 export function SaveUI(arg1) {

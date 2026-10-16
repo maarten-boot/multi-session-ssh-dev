@@ -51,6 +51,7 @@ implementation differs from the original plan.
   docs/code cross-check).
 - Repository check (SPEC B6); live share over ssh and working copies (docs/CONNECTIVITY.md
   modes B and C).
+- Tab order Local, Files, Remote, Notes; Notes tab (SPEC N1); new sessions follow Settings.
 - Linux `.deb`/`.rpm` packages (nfpm) with desktop entry and an own app icon; verified by
   installing in clean Ubuntu 24.04 and Fedora 44 containers.
 
