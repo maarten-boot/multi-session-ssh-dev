@@ -90,6 +90,22 @@ export function State() {
   return window['go']['main']['App']['State']();
 }
 
+export function SyncFastForward(arg1, arg2) {
+  return window['go']['main']['App']['SyncFastForward'](arg1, arg2);
+}
+
+export function SyncGet(arg1) {
+  return window['go']['main']['App']['SyncGet'](arg1);
+}
+
+export function SyncPreview(arg1) {
+  return window['go']['main']['App']['SyncPreview'](arg1);
+}
+
+export function SyncSend(arg1, arg2) {
+  return window['go']['main']['App']['SyncSend'](arg1, arg2);
+}
+
 export function TermKill(arg1) {
   return window['go']['main']['App']['TermKill'](arg1);
 }

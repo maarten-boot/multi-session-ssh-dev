@@ -54,13 +54,13 @@ make run     # build, then start the app
 make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test)
              # (CI runs the same on Linux, Windows and macOS)
-make test-ssh SSH_TARGET=localhost  # ssh/tmux round trip against a real host
+make test-ssh SSH_TARGET=localhost  # ssh/tmux and working-copy round trips against a real host
 make vet     # vet for linux and windows (all packages), darwin (internal packages)
 make smoke   # headless GUI test of terminal fidelity (needs xvfb, xdotool, imagemagick)
 make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ssh localhost)
 make smoke-files     # headless GUI test of the Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
-                     # folders, git markers
+                     # folders, git markers, repository check, working copies
 make smoke-all       # all GUI tests
 ```
 
@@ -154,6 +154,13 @@ right-click a host to add a session on it, edit or delete it. Menus also work fr
 keyboard (arrows, Enter, first letter). The app remembers the active session and
 reopens it on start.
 
+**Working copies.** If the agent host cannot see your files (no NFS), add the host
+with *File access: working copy*. Each session then gets a copy on the agent host;
+**⇡ Send** mirrors your directory there (with a preview, never destroying unfetched
+agent commits), and **⇣ Get** fetches the commits claude made there into
+`agent-<id>/<branch>` and can fast-forward your branch. Needs rsync on both sides
+(not available on Windows yet). Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
+
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux`; `claude` is found through the login shell's PATH.
 
@@ -195,6 +202,12 @@ ssh_target = "mboot@vibe-u26"
 local_prefix = "~/share-local"
 remote_prefix = "/net/192.168.122.1/home/mboot/share-local"
 
+[[hosts]]                                 # a host without a shared file system
+name = "lab"
+ssh_target = "me@lab-box"
+files = "sync"                            # working copies (shared is the default)
+remote_workdir = "~/sw"                   # where they live on the agent host
+
 [[sessions]]                              # sidebar order = order in this file
 id = "s-7f3a"                             # tmux session cw-s-7f3a
 name = "workbench"
@@ -220,7 +233,8 @@ internal/config        TOML config load / atomic save
 internal/session       hosts + sessions: validation, mapping, ordering
 internal/fsbrowse      directory listing for the Files tab
 internal/opener        open / reveal with the OS, refusing executables
-internal/gitstatus     git status markers for the Files tab
+internal/gitstatus     git status markers and the repository check for the Files tab
+internal/syncer        working copies: rsync send, git fetch back
 packaging/             .desktop file, icons and nfpm config for .deb/.rpm
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js

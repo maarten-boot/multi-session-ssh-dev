@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,6 +62,8 @@ func TestArgsValidation(t *testing.T) {
 		{"host", "S1", "/x", ModeShell},
 		{"host", "s1;rm", "/x", ModeShell},
 		{"host", "s1", "relative", ModeShell},
+		{"host", "s1", "~user/x", ModeShell},
+		{"host", "s1", "/a\nb", ModeShell},
 		{"host", "s1", "/x", Mode("bash")},
 	}
 	for _, b := range bad {
@@ -180,8 +183,10 @@ func TestAttachMissingDirFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := runRemote(t, env, args); err == nil {
-		t.Error("attach to missing directory succeeded")
+	err = runRemote(t, env, args)
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != ExitMissingDir {
+		t.Errorf("attach to missing directory: %v, want exit %d", err, ExitMissingDir)
 	}
 	if got := readLog(t, log); slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "tmux") }) {
 		t.Errorf("tmux ran despite missing dir: %q", got)
@@ -200,5 +205,36 @@ func TestKillCommandExecutes(t *testing.T) {
 	want := []string{"tmux cwd=/", "tmux arg=kill-session", "tmux arg=-t", "tmux arg==cw-s-1"}
 	if got := readLog(t, log); !slices.Equal(got, want) {
 		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
+func TestShellPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"/a b/c": `'/a b/c'`,
+		"~":      `"$HOME"`,
+		"~/sw/x": `"$HOME"/'sw/x'`,
+		"~/it's": `"$HOME"/'it'\''s'`,
+	} {
+		if got := ShellPath(in); got != want {
+			t.Errorf("ShellPath(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+func TestAttachHomeRelativePath(t *testing.T) {
+	env, log := fakeRemote(t)
+	home := t.TempDir()
+	os.MkdirAll(filepath.Join(home, "sw", "proj-s-1"), 0o755)
+	env = append(env, "HOME="+home)
+	args, err := AttachArgs("host", "s-1", "~/sw/proj-s-1", ModeShell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runRemote(t, env, args); err != nil {
+		t.Fatal(err)
+	}
+	if got := readLog(t, log); len(got) < 7 || got[0] != "tmux cwd="+filepath.Join(home, "sw", "proj-s-1") ||
+		got[6] != "tmux arg="+filepath.Join(home, "sw", "proj-s-1") {
+		t.Errorf("log %q", got)
 	}
 }

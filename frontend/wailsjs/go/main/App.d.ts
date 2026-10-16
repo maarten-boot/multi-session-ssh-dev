@@ -5,6 +5,7 @@ import {gitstatus} from '../models';
 import {main} from '../models';
 import {fsbrowse} from '../models';
 import {config} from '../models';
+import {syncer} from '../models';
 
 export function BrowseDirectory(arg1:string):Promise<string>;
 
@@ -49,6 +50,14 @@ export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 export function StartRemote(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function State():Promise<session.State>;
+
+export function SyncFastForward(arg1:string,arg2:string):Promise<void>;
+
+export function SyncGet(arg1:string):Promise<syncer.Fetched>;
+
+export function SyncPreview(arg1:string):Promise<syncer.Plan>;
+
+export function SyncSend(arg1:string,arg2:boolean):Promise<syncer.Plan>;
 
 export function TermKill(arg1:string):Promise<void>;
 

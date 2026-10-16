@@ -31,6 +31,7 @@
     <header id="bar">
         <span id="session-name"></span>
         <nav id="tabs"></nav>
+        <span id="sync-actions"></span>
         <span id="session-path"></span>
     </header>
     <div id="panes"></div>
@@ -97,6 +98,13 @@
         <label>SSH target
             <input name="ssh_target" autocomplete="off" spellcheck="false" placeholder="user@agent-host (anything ssh accepts)">
         </label>
+        <label>File access (how the agent host gets the session directories)
+            <select name="files">
+                <option value="shared">shared file system (NFS, SMB, VM share)</option>
+                <option value="sync">working copy: send with rsync, get commits back</option>
+            </select>
+        </label>
+        <div class="files-shared">
         <p class="hint">Path mapping: where the agent host sees your local directories.
             Leave both empty if paths are the same on both machines.</p>
         <label>Local prefix
@@ -108,6 +116,14 @@
         <label>Remote prefix
             <input name="remote_prefix" autocomplete="off" spellcheck="false" placeholder="/net/host/home/me/share">
         </label>
+        </div>
+        <div class="files-workdir">
+        <label>Working folder on the agent host
+            <input name="remote_workdir" autocomplete="off" spellcheck="false" placeholder="~/sw">
+        </label>
+        <p class="hint">Each session gets <code>&lt;folder&gt;/&lt;directory&gt;-&lt;id&gt;</code> there.
+            See docs/CONNECTIVITY.md for the trade-offs of each mode.</p>
+        </div>
         <div class="error"></div>
         <div class="buttons">
             <button value="ok" class="primary">Save</button>
@@ -192,6 +208,18 @@
         <div class="error"></div>
         <div class="buttons">
             <button value="ok" class="primary">Mark as reviewed</button>
+            <button value="cancel" formnovalidate>Close</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-sync" class="wide">
+    <form method="dialog">
+        <h2></h2>
+        <div class="body"></div>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary"></button>
             <button value="cancel" formnovalidate>Close</button>
         </div>
     </form>

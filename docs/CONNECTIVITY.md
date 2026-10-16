@@ -59,14 +59,14 @@ the agent host).
 
 | | A. Shared file system | B. Live share over ssh | C. Working copy + sync |
 |---|---|---|---|
-| Status | **Implemented** | **Planned** | **Planned** |
+| Status | **Implemented** | **Planned** | **Implemented** (Linux/macOS hosts) |
 | How | NFS, SMB, or a hypervisor share (virtiofs / 9p) | the app serves the session directory; the agent host mounts it with `sshfs` | a copy on the agent host; you send changes there and fetch commits back |
-| Set up by | you (admin) | the app | the app |
+| Set up by | you (admin) | the app | the app (`files = "sync"` on the host) |
 | Root on agent host | for the mount (once) | no (`sshfs` + FUSE) | no |
 | Works while the app is closed | yes | **no** — claude loses its files until the app reconnects | yes |
 | Speed | good on a LAN | slower: every file access is a round trip | local speed on the agent host |
 | What the agent host can change on your host | everything under the share, **including `.git`** | the session directory only, **including `.git`** | nothing until you fetch; only commits come back |
-| Windows hosts | yes | yes | needs a sync engine without rsync (planned) |
+| Windows hosts | yes | yes | not yet: needs rsync on the host |
 
 ### A. Shared file system (implemented)
 
@@ -106,22 +106,31 @@ connection to `sshfs -o passive` on the agent host, which mounts it at the remot
   `9pfuse`, which is rarely installed, for the same result. In a local VM, a hypervisor 9p or
   virtiofs share (mode A) is the better way to use 9p.
 
-### C. Working copy + sync (planned)
+### C. Working copy + sync (implemented)
 
-For users who today `rsync` the repository to the agent host and back. The session would get a
-working copy on the agent host (for example `~/work/<session>`), plus two actions:
+For users who today `rsync` the repository to the agent host and back. Choose *working copy*
+when adding the host (or set `files = "sync"`, and optionally `remote_workdir`, default `~/sw`).
+Each session then has a copy on the agent host at `<remote_workdir>/<directory>-<session id>`,
+where its Remote tab runs, and two actions (buttons next to the tabs, and in the session menu):
 
-- **Send to agent** (host → agent host): `rsync` over the same locked-down ssh, with a dry-run
-  preview of what will change before anything is written.
-- **Get back** (agent host → host): **not a file copy back.** The host runs `git fetch` from
-  the agent's copy. You receive exactly the commits, and then merge or fast-forward and push as
-  usual. Uncommitted work can come back as a patch for you to review.
+- **⇡ Send** (host → agent host): `rsync` over the same locked-down ssh. A dry-run preview shows
+  what will change before anything is written. Your copy is the source: the agent copy becomes
+  identical to it, including `.git`. Files ignored by `.gitignore` are neither sent nor deleted
+  there (so `node_modules`, build output and the like stay). Sending is **refused** while the
+  agent copy has commits you have not fetched yet, and uncommitted changes there are only
+  overwritten after you tick a confirmation box, so agent work is never lost silently.
+- **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
+  agent's copy into `agent-<session id>/<branch>`, shows the new commits on your current
+  branch, and offers to fast-forward it. If both sides have new commits, it tells you the
+  `git merge` to run in the Local tab. Uncommitted changes on the agent host are counted but not
+  fetched: commit them there first.
 
 Why not `rsync` back? Copying the agent's `.git` directory onto your host has the problem
 described next. Fetching commits does not: hooks and configuration are never transferred.
 
-Windows has no built-in `rsync`; a Windows version needs its own sync engine (planned later).
-macOS and Linux use `rsync`.
+Needs `rsync` on both machines and `git` on the agent host. Windows has no built-in `rsync`, so
+working copies are not available on Windows hosts yet; macOS and Linux work. Note that sending
+copies your `.git/config` to the agent host too: keep tokens out of remote URLs (see below).
 
 ## Security: what the agent host can do to your host
 
@@ -168,7 +177,7 @@ Other things the agent host can read in shared modes:
    ```
    This narrows the risk but does not cover every key above. Inspecting (step 1) remains
    necessary.
-3. **Prefer mode C (planned)** when the agent host is less trusted: only commits come back.
+3. **Prefer mode C** when the agent host is less trusted: only commits come back.
 4. **Share only what claude needs.** Don't export your whole home directory; export a work area,
    and keep secrets outside it.
 
@@ -208,7 +217,7 @@ Other things the agent host can read in shared modes:
 | Agent host is a VM on your workstation | A, with a virtiofs (or 9p) share |
 | Agent host on your LAN, NFS available | A, with NFS |
 | No NFS, agent host reachable by ssh, files only needed while you work | B (planned) |
-| Agent host less trusted, or you already work with rsync | C (planned) |
+| Agent host less trusted, or you already work with rsync | C |
 | Windows workstation | A with SMB, or B (planned) |
 
 In every mode: review what comes back before you run git on your host, and keep credentials and

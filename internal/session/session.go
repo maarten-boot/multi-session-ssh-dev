@@ -12,6 +12,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ type View struct {
 	ColorMode  string `json:"color_mode"` // "" = follow the global setting
 	Group      string `json:"group"`
 	TrustedGit string `json:"trusted_git"`
+	Files      string `json:"files"` // the host's file access mode
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
 	Error      string `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -143,6 +145,7 @@ func (m *Manager) State() State {
 			v.Error = err.Error()
 		} else {
 			v.RemotePath = r.RemotePath
+			v.Files = FilesMode(r.Host)
 		}
 		s.Sessions = append(s.Sessions, v)
 	}
@@ -160,6 +163,21 @@ func (m *Manager) Resolve(id string) (Resolved, error) {
 	return resolve(m.cfg, m.cfg.Sessions[i])
 }
 
+// File access modes of a host (config.Host.Files).
+const (
+	FilesShared = "shared"
+	FilesSync   = "sync"
+	FilesSSHFS  = "sshfs"
+)
+
+// FilesMode returns the host's file access mode, "shared" by default.
+func FilesMode(h config.Host) string {
+	if h.Files == "" {
+		return FilesShared
+	}
+	return h.Files
+}
+
 func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	r := Resolved{Session: s, LocalPath: ExpandHome(s.LocalPath)}
 	if !remote.ValidID(s.ID) {
@@ -170,12 +188,33 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 		return r, fmt.Errorf("host %q is not configured", s.Host)
 	}
 	r.Host = h
+	if FilesMode(h) != FilesShared {
+		r.RemotePath = workdirPath(h, r.LocalPath, s.ID)
+		return r, nil
+	}
 	rp, err := remotePath(h, r.LocalPath)
 	if err != nil {
 		return r, err
 	}
 	r.RemotePath = rp
 	return r, nil
+}
+
+var nonSlug = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+// workdirPath is where a "sync" or "sshfs" session lives on the agent host.
+// It uses the directory name and the session id, so renaming the session
+// does not move it.
+func workdirPath(h config.Host, local, id string) string {
+	wd := strings.TrimRight(h.RemoteWorkdir, "/")
+	if wd == "" {
+		wd = "~/sw"
+	}
+	base := strings.Trim(nonSlug.ReplaceAllString(filepath.Base(local), "-"), "-.")
+	if base == "" {
+		base = "dir"
+	}
+	return wd + "/" + base + "-" + id
 }
 
 func remotePath(h config.Host, local string) (string, error) {
@@ -230,7 +269,8 @@ func (m *Manager) Create(in NewSession) (View, error) {
 		return View{}, err
 	}
 	return View{ID: s.ID, Name: s.Name, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
-		ColorMode: s.ColorMode, Group: s.Group, RemotePath: r.RemotePath, TmuxName: remote.TmuxName(s.ID)}, nil
+		ColorMode: s.ColorMode, Group: s.Group, Files: FilesMode(r.Host), RemotePath: r.RemotePath,
+		TmuxName: remote.TmuxName(s.ID)}, nil
 }
 
 func (m *Manager) newSession(in NewSession) (config.Session, error) {
@@ -504,6 +544,10 @@ func (m *Manager) SaveHost(oldName string, h config.Host) error {
 	h.SSHTarget = strings.TrimSpace(h.SSHTarget)
 	h.LocalPrefix = strings.TrimSpace(h.LocalPrefix)
 	h.RemotePrefix = strings.TrimSpace(h.RemotePrefix)
+	h.RemoteWorkdir = strings.TrimSpace(h.RemoteWorkdir)
+	if h.Files == FilesShared {
+		h.Files = "" // the default; keep the file tidy
+	}
 	if err := validHost(h); err != nil {
 		return err
 	}
@@ -537,6 +581,21 @@ func validHost(h config.Host) error {
 	}
 	if h.SSHTarget == "" || strings.HasPrefix(h.SSHTarget, "-") || strings.ContainsAny(h.SSHTarget, " \t\r\n") {
 		return fmt.Errorf("invalid ssh target %q", h.SSHTarget)
+	}
+	switch h.Files {
+	case "", FilesShared:
+	case FilesSync, FilesSSHFS:
+		if h.LocalPrefix != "" || h.RemotePrefix != "" {
+			return fmt.Errorf("path prefixes are only used with shared files, not %q", h.Files)
+		}
+		if h.RemoteWorkdir != "" {
+			if err := remote.CheckRemotePath(h.RemoteWorkdir); err != nil {
+				return fmt.Errorf("remote working folder %q must be absolute or start with ~/", h.RemoteWorkdir)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown file access mode %q (shared, sync or sshfs)", h.Files)
 	}
 	if (h.LocalPrefix == "") != (h.RemotePrefix == "") {
 		return errors.New("set both path prefixes, or neither (same paths on both sides)")

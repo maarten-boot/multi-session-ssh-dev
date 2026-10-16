@@ -17,6 +17,7 @@ import (
 	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
+	"session-workbench/internal/syncer"
 	"session-workbench/internal/terminal"
 )
 
@@ -35,6 +36,7 @@ func NewApp(sessions *session.Manager) *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	gitstatus.Configure = hideConsole
+	syncer.Configure = hideConsole
 	a.terms = terminal.NewManager(terminal.EmitterFunc(func(name string, data ...any) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
@@ -164,6 +166,62 @@ func (a *App) RepoCheck(id string) (gitstatus.Audit, error) {
 // TrustRepo marks the repository's current hooks and config as reviewed.
 func (a *App) TrustRepo(id, fingerprint string) error {
 	return a.sessions.TrustGit(id, fingerprint)
+}
+
+// syncSession returns a "sync" (working copy) session's sync parameters.
+func (a *App) syncSession(id string) (syncer.Session, error) {
+	r, err := a.sessions.Resolve(id)
+	if err != nil {
+		return syncer.Session{}, err
+	}
+	if session.FilesMode(r.Host) != session.FilesSync {
+		return syncer.Session{}, fmt.Errorf("host %q does not use working copies", r.Host.Name)
+	}
+	return syncer.Session{ID: r.ID, Target: r.Host.SSHTarget, LocalPath: r.LocalPath, RemotePath: r.RemotePath}, nil
+}
+
+// SyncPreview shows what "Send to agent" would change (writes nothing).
+func (a *App) SyncPreview(id string) (syncer.Plan, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return syncer.Plan{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 5*time.Minute)
+	defer cancel()
+	return syncer.Send(ctx, s, true, false)
+}
+
+// SyncSend mirrors the session directory to the agent copy.
+func (a *App) SyncSend(id string, overwriteDirty bool) (syncer.Plan, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return syncer.Plan{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Minute)
+	defer cancel()
+	return syncer.Send(ctx, s, false, overwriteDirty)
+}
+
+// SyncGet fetches the agent copy's commits.
+func (a *App) SyncGet(id string) (syncer.Fetched, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return syncer.Fetched{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Minute)
+	defer cancel()
+	return syncer.Get(ctx, s)
+}
+
+// SyncFastForward moves the current branch to the agent's version.
+func (a *App) SyncFastForward(id, agentRef string) error {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 2*time.Minute)
+	defer cancel()
+	return syncer.FastForward(ctx, s, agentRef)
 }
 
 // OpenPath opens a file with its default application (a directory in the

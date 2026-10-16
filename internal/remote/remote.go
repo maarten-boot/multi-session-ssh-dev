@@ -75,6 +75,31 @@ func paneCommand(mode Mode) (string, error) {
 	return `exec "$SHELL" -lc ` + Quote(cmd+`; exec "$SHELL" -l`), nil
 }
 
+// ExitMissingDir is the exit status of an attach whose directory does not
+// exist on the agent host (for example a working copy not sent yet).
+const ExitMissingDir = 3
+
+// CheckRemotePath accepts absolute paths and paths under the remote home
+// ("~" or "~/...").
+func CheckRemotePath(p string) error {
+	if !(strings.HasPrefix(p, "/") || p == "~" || strings.HasPrefix(p, "~/")) || strings.ContainsAny(p, "\x00\n") {
+		return fmt.Errorf("remote: remote path must be absolute or start with ~/: %q", p)
+	}
+	return nil
+}
+
+// ShellPath returns p as a shell word for the remote shell; a leading ~ is
+// expanded through $HOME (a quoted ~ would not be).
+func ShellPath(p string) string {
+	switch {
+	case p == "~":
+		return `"$HOME"`
+	case strings.HasPrefix(p, "~/"):
+		return `"$HOME"/` + Quote(p[2:])
+	}
+	return Quote(p)
+}
+
 // AttachArgs returns the ssh arguments (without "ssh" itself) that attach to
 // the session's tmux session, creating it in remotePath running mode's
 // command if it does not exist yet. Run it in a pty.
@@ -85,22 +110,43 @@ func AttachArgs(target, id, remotePath string, mode Mode) ([]string, error) {
 	if !ValidID(id) {
 		return nil, fmt.Errorf("remote: invalid session id %q", id)
 	}
-	if !strings.HasPrefix(remotePath, "/") || strings.ContainsRune(remotePath, 0) {
-		return nil, fmt.Errorf("remote: remote path must be absolute: %q", remotePath)
+	if err := CheckRemotePath(remotePath); err != nil {
+		return nil, err
 	}
 	pane, err := paneCommand(mode)
 	if err != nil {
 		return nil, err
 	}
-	dir := Quote(remotePath)
-	// The cd makes a missing directory a visible error instead of tmux
-	// silently starting in $HOME. -A attaches if the session exists, in
-	// which case -c and the pane command are ignored.
-	tmux := fmt.Sprintf("cd %s || exit 1; exec tmux new-session -A -s %s -c %s %s",
-		dir, TmuxName(id), dir, Quote(pane))
+	// The cd makes a missing directory a visible error (and exit status)
+	// instead of tmux silently starting in $HOME. -A attaches if the session
+	// exists, in which case -c and the pane command are ignored.
+	tmux := fmt.Sprintf(`cd %s || { echo "session directory %s does not exist on this host" >&2; exit %d; }; `+
+		`exec tmux new-session -A -s %s -c "$PWD" %s`,
+		ShellPath(remotePath), strings.ReplaceAll(remotePath, `"`, ""), ExitMissingDir, TmuxName(id), Quote(pane))
 	args := append([]string{"-t"}, sshOptions...)
 	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(tmux)), nil
 }
+
+// ScriptArgs returns ssh arguments that run script in the remote user's
+// login shell without a terminal and without prompting (BatchMode).
+func ScriptArgs(target, script string) ([]string, error) {
+	if err := checkTarget(target); err != nil {
+		return nil, err
+	}
+	args := append([]string{"-T", "-o", "BatchMode=yes"}, sshOptions...)
+	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(script)), nil
+}
+
+// SSHCommand is an ssh command line with the forced options, for tools that
+// run ssh themselves (rsync -e, GIT_SSH_COMMAND). None of the words contain
+// spaces, so both tools split it correctly.
+func SSHCommand() string {
+	return "ssh -o BatchMode=yes " + strings.Join(sshOptions, " ")
+}
+
+// CheckTarget validates an ssh target (exported for packages that build
+// their own command lines).
+func CheckTarget(target string) error { return checkTarget(target) }
 
 // KillArgs returns ssh arguments that kill the session's tmux session.
 // It never prompts (BatchMode) since it runs without a terminal.

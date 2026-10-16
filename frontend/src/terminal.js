@@ -113,7 +113,12 @@ export class TermView {
         if (intentional) msg = 'Disconnected.';
         else if (!h.remote) msg = `Shell exited${why}.`;
         else if (info?.code === 0) msg = 'Remote session ended or detached.';
-        else msg = `Connection to ${h.place()} ${lost ? 'failed or was lost' : 'closed'}${why}.`;
+        else if (info?.code === 3) { // remote.ExitMissingDir
+            const m = h.missingDir?.() ?? {text: 'The session directory does not exist on the agent host.', actions: []};
+            this.showOverlay(m.text, [...m.actions,
+                {label: `${cap(h.again)} (Enter)`, primary: !m.actions.length, action: () => this.restart()}]);
+            return;
+        } else msg = `Connection to ${h.place()} ${lost ? 'failed or was lost' : 'closed'}${why}.`;
         this.showOverlay(msg, [{label: `${cap(h.again)} (Enter)`, primary: true, action: () => this.restart()}]);
     }
 

@@ -24,6 +24,13 @@ export const store = {
     },
 };
 
+// toast shows a short message at the bottom right.
+export function toast(text, bad = false) {
+    const t = el('div', {className: 'toast' + (bad ? ' bad' : ''), textContent: text});
+    document.body.append(t);
+    setTimeout(() => t.remove(), bad ? 8000 : 4000);
+}
+
 // showMenu opens the context menu at (x, y). items: {label, action, danger, disabled} or '-'.
 export function showMenu(x, y, items) {
     const m = $('#menu');

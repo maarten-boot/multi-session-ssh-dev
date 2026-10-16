@@ -389,3 +389,43 @@ func TestTrustGit(t *testing.T) {
 		t.Error("unknown session accepted")
 	}
 }
+
+func TestWorkdirModes(t *testing.T) {
+	m := Open(filepath.Join(t.TempDir(), "c.toml"))
+	for _, h := range []config.Host{
+		{Name: "s", SSHTarget: "x", Files: "sync"},
+		{Name: "f", SSHTarget: "x", Files: "sshfs", RemoteWorkdir: "/srv/work/"},
+	} {
+		if err := m.SaveHost("", h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, h := range map[string]config.Host{
+		"bad mode":        {Name: "b", SSHTarget: "x", Files: "nfs"},
+		"prefix and sync": {Name: "b", SSHTarget: "x", Files: "sync", LocalPrefix: "/a", RemotePrefix: "/b"},
+		"relative wd":     {Name: "b", SSHTarget: "x", Files: "sync", RemoteWorkdir: "work"},
+	} {
+		if err := m.SaveHost("", h); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	dir := filepath.Join(t.TempDir(), "My Project!")
+	os.Mkdir(dir, 0o755)
+	// Any local directory works: nothing is mapped.
+	a, err := m.Create(NewSession{Host: "s", LocalPath: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.RemotePath != "~/sw/My-Project-"+a.ID {
+		t.Errorf("sync remote path %q", a.RemotePath)
+	}
+	b, _ := m.Create(NewSession{Host: "f", LocalPath: dir})
+	if b.RemotePath != "/srv/work/My-Project-"+b.ID {
+		t.Errorf("sshfs remote path %q", b.RemotePath)
+	}
+	// Renaming does not move it.
+	m.Update(a.ID, Edit{Name: "renamed", StartMode: "claude"})
+	if r, _ := m.Resolve(a.ID); r.RemotePath != a.RemotePath {
+		t.Errorf("moved after rename: %q", r.RemotePath)
+	}
+}

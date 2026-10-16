@@ -5,6 +5,8 @@ export namespace config {
 	    ssh_target: string;
 	    local_prefix: string;
 	    remote_prefix: string;
+	    files: string;
+	    remote_workdir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Host(source);
@@ -16,6 +18,8 @@ export namespace config {
 	        this.ssh_target = source["ssh_target"];
 	        this.local_prefix = source["local_prefix"];
 	        this.remote_prefix = source["remote_prefix"];
+	        this.files = source["files"];
+	        this.remote_workdir = source["remote_workdir"];
 	    }
 	}
 	export class UI {
@@ -288,6 +292,7 @@ export namespace session {
 	    color_mode: string;
 	    group: string;
 	    trusted_git: string;
+	    files: string;
 	    remote_path: string;
 	    tmux_name: string;
 	    error: string;
@@ -306,6 +311,7 @@ export namespace session {
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
 	        this.trusted_git = source["trusted_git"];
+	        this.files = source["files"];
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.error = source["error"];
@@ -335,6 +341,143 @@ export namespace session {
 	        this.keys = source["keys"];
 	        this.config_path = source["config_path"];
 	        this.config_error = source["config_error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace syncer {
+	
+	export class AgentState {
+	    exists: boolean;
+	    repo: boolean;
+	    dirty: number;
+	    unfetched: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.exists = source["exists"];
+	        this.repo = source["repo"];
+	        this.dirty = source["dirty"];
+	        this.unfetched = source["unfetched"];
+	    }
+	}
+	export class Change {
+	    op: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Change(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.op = source["op"];
+	        this.path = source["path"];
+	    }
+	}
+	export class Commit {
+	    hash: string;
+	    subject: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Commit(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.subject = source["subject"];
+	    }
+	}
+	export class Fetched {
+	    branch: string;
+	    agent_ref: string;
+	    new: Commit[];
+	    host_ahead: number;
+	    can_ff: boolean;
+	    branches: string[];
+	    agent_dirty: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Fetched(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.branch = source["branch"];
+	        this.agent_ref = source["agent_ref"];
+	        this.new = this.convertValues(source["new"], Commit);
+	        this.host_ahead = source["host_ahead"];
+	        this.can_ff = source["can_ff"];
+	        this.branches = source["branches"];
+	        this.agent_dirty = source["agent_dirty"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Plan {
+	    agent: AgentState;
+	    changes: Change[];
+	    new: number;
+	    changed: number;
+	    deleted: number;
+	    truncated: boolean;
+	    blocked: string;
+	    done: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Plan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.agent = this.convertValues(source["agent"], AgentState);
+	        this.changes = this.convertValues(source["changes"], Change);
+	        this.new = source["new"];
+	        this.changed = source["changed"];
+	        this.deleted = source["deleted"];
+	        this.truncated = source["truncated"];
+	        this.blocked = source["blocked"];
+	        this.done = source["done"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -5,12 +5,13 @@ import {effectiveColorMode} from './appearance';
 import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
-import {$, el, hideMenu, showMenu, store} from './ui';
+import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
+    SyncPreview, SyncSend, SyncGet, SyncFastForward,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -157,6 +158,10 @@ class SessionUI {
                 what: 'ssh', again: 'reconnect', remote: true,
                 place: () => this.data.host,
                 autoReconnect: () => app.state.ui.auto_reconnect,
+                missingDir: () => this.data.files === 'sync'
+                    ? {text: 'There is no working copy on the agent host yet.',
+                        actions: [{label: 'Send to agent…', primary: true, action: () => syncSendDialog(this)}]}
+                    : {text: `${this.data.remote_path} does not exist on ${this.data.host}. Check the share or the path mapping.`, actions: []},
             }, s => this.setRemoteState(s)),
             new Tab(this, 'Local', (c, r) => StartLocal(this.data.id, c, r),
                 {what: 'shell', again: 'restart', remote: false}),
@@ -511,6 +516,15 @@ const app = {
             return b;
         }));
         this.renderBadges(s);
+        const sync = $('#sync-actions');
+        sync.replaceChildren();
+        if (d.files === 'sync') {
+            const send = el('button', {textContent: '⇡ Send', title: 'Send this directory to the agent copy'});
+            const get = el('button', {textContent: '⇣ Get', title: 'Get commits from the agent copy'});
+            send.onclick = () => syncSendDialog(s);
+            get.onclick = () => syncGetDialog(s);
+            sync.append(send, get);
+        }
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
         const host = this.state.hosts.find(h => h.name === d.host);
@@ -750,7 +764,13 @@ async function groupAction(fn, title) {
 // ---------------------------------------------------------------- menus
 
 function sessionMenu(s, x, y) {
+    const sync = s.data.files === 'sync' ? [
+        {label: 'Send to agent…', action: () => syncSendDialog(s)},
+        {label: 'Get commits from agent…', action: () => syncGetDialog(s)},
+        '-',
+    ] : [];
     showMenu(x, y, [
+        ...sync,
         {label: 'Edit…', action: () => sessionDialog(s)},
         {label: 'Move up', action: () => moveBy(s, -1)},
         {label: 'Move down', action: () => moveBy(s, 1)},
@@ -942,15 +962,25 @@ async function hostDialog(h = null, presetName = null) {
     const dlg = $('#dlg-host');
     const f = dlg.querySelector('form');
     dlg.querySelector('h2').textContent = h ? `Edit host “${h.name}”` : 'Add agent host';
-    for (const k of ['name', 'ssh_target', 'local_prefix', 'remote_prefix']) f.elements[k].value = h?.[k] ?? '';
+    for (const k of ['name', 'ssh_target', 'local_prefix', 'remote_prefix', 'remote_workdir']) f.elements[k].value = h?.[k] ?? '';
+    f.elements.files.value = h?.files || 'shared';
+    const showMode = () => {
+        const shared = f.elements.files.value === 'shared';
+        dlg.querySelector('.files-shared').hidden = !shared;
+        dlg.querySelector('.files-workdir').hidden = shared;
+    };
+    f.elements.files.onchange = showMode;
+    showMode();
     if (presetName) f.elements.name.value = presetName;
     f.elements.browse.onclick = async () => {
         const dir = await BrowseDirectory(f.elements.local_prefix.value || '~');
         if (dir) f.elements.local_prefix.value = dir;
     };
     const ok = await runDialog(dlg, () => SaveHost(h?.name ?? '', {
-        name: f.elements.name.value, ssh_target: f.elements.ssh_target.value,
-        local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value,
+        name: f.elements.name.value, ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
+        ...(f.elements.files.value === 'shared'
+            ? {local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value, remote_workdir: ''}
+            : {local_prefix: '', remote_prefix: '', remote_workdir: f.elements.remote_workdir.value}),
     }));
     if (ok) await app.reload();
     return ok;
@@ -1036,6 +1066,119 @@ async function repoDialog(s) {
         await app.reload();
         app.renderRepoWarn(s);
     }
+}
+
+// ---------------------------------------------------------------- working copies (sync)
+
+// syncSendDialog previews "Send to agent" and sends after confirmation.
+async function syncSendDialog(s) {
+    const dlg = $('#dlg-sync');
+    if (dlg.open) return;
+    const body = dlg.querySelector('.body');
+    const okBtn = dlg.querySelector('button[value=ok]');
+    dlg.querySelector('h2').textContent = `Send to agent: ${s.data.name}`;
+    okBtn.textContent = 'Send';
+    okBtn.hidden = false;
+    okBtn.disabled = true;
+    body.replaceChildren(el('p', {textContent: `Comparing with ${s.data.host}:${s.data.remote_path} …`}));
+    let overwrite = null;
+    const done = runDialog(dlg, async () => {
+        const p = await SyncSend(s.id, !!overwrite?.checked);
+        if (p.blocked) throw new Error(p.blocked);
+        toast(`Sent to ${s.data.host}: ${p.new} new, ${p.changed} changed, ${p.deleted} deleted`);
+    });
+    let p;
+    try {
+        p = await SyncPreview(s.id);
+    } catch (err) {
+        body.replaceChildren(el('p', {className: 'bad', textContent: err?.message ?? String(err)}));
+        return done;
+    }
+    const parts = [];
+    if (p.blocked) {
+        const get = el('button', {type: 'button', textContent: 'Get commits…'});
+        get.onclick = () => {
+            dlg.close();
+            syncGetDialog(s);
+        };
+        parts.push(el('p', {className: 'bad', textContent: `Not now: ${p.blocked}.`}), get);
+    }
+    const total = p.new + p.changed + p.deleted;
+    parts.push(el('p', {textContent: !p.agent.exists ? `First copy: ${p.new} file(s) will be sent.` :
+        total ? `On the agent host: ${p.new} new, ${p.changed} changed, ${p.deleted} deleted.` :
+            'The agent copy is already up to date.'}));
+    parts.push(el('p', {className: 'hint', textContent:
+        'Your copy here is the source: the agent copy becomes identical to it (including .git). ' +
+        'Files ignored by .gitignore are not sent and not deleted there.'}));
+    if (p.agent.dirty && !p.blocked) {
+        overwrite = el('input', {type: 'checkbox'});
+        overwrite.onchange = () => okBtn.disabled = !overwrite.checked;
+        parts.push(el('label', {className: 'check bad'}, overwrite,
+            ` Overwrite uncommitted changes in ${p.agent.dirty} file(s) on the agent host`));
+    }
+    if (p.changes.length) {
+        // git's own files are summarized: the working files are what matter here.
+        const sign = {new: '+', changed: '~', deleted: '−'};
+        const isGit = c => c.path === '.git' || c.path.startsWith('.git/');
+        const git = p.changes.filter(isGit).length;
+        const lines = p.changes.filter(c => !isGit(c)).map(c => `${sign[c.op]} ${c.path}`);
+        if (git) lines.push(`  .git/ (${git} file${git > 1 ? 's' : ''} of git's own data)`);
+        parts.push(el('pre', {className: 'changes', textContent: lines.join('\n') + (p.truncated ? '\n…' : '')}));
+    }
+    body.replaceChildren(...parts);
+    okBtn.disabled = !!p.blocked || (!total && p.agent.exists) || !!(p.agent.dirty && !overwrite?.checked);
+    (okBtn.disabled ? overwrite : okBtn)?.focus();
+    const ok = await done;
+    if (ok) s.tabs[0].view?.exited && s.tabs[0].view.restart();
+    return ok;
+}
+
+// syncGetDialog fetches the agent copy's commits and offers a fast-forward.
+async function syncGetDialog(s) {
+    const dlg = $('#dlg-sync');
+    if (dlg.open) return;
+    const body = dlg.querySelector('.body');
+    const okBtn = dlg.querySelector('button[value=ok]');
+    dlg.querySelector('h2').textContent = `Get commits: ${s.data.name}`;
+    okBtn.hidden = true;
+    body.replaceChildren(el('p', {textContent: `Fetching from ${s.data.host}:${s.data.remote_path} …`}));
+    let f = null;
+    const done = runDialog(dlg, async () => {
+        await SyncFastForward(s.id, f.agent_ref);
+        toast(`${f.branch}: fast-forwarded by ${f.new.length} commit(s) from the agent`);
+    });
+    try {
+        f = await SyncGet(s.id);
+    } catch (err) {
+        body.replaceChildren(el('p', {className: 'bad', textContent: err?.message ?? String(err)}));
+        return done;
+    }
+    const parts = [el('p', {className: 'hint', textContent:
+        `Fetched ${f.branches?.length ?? 0} branch(es) as ${f.branches?.[0]?.replace(/\/[^/]*$/, '') ?? 'agent-…'}/… ` +
+        '(commits only: hooks and config of the agent copy are never copied here).'})];
+    if (!f.branch) parts.push(el('p', {textContent: 'This repository is on a detached HEAD; nothing to compare.'}));
+    else if (!f.agent_ref) parts.push(el('p', {textContent: `The agent copy has no branch “${f.branch}”.`}));
+    else if (!f.new?.length) parts.push(el('p', {textContent: `No new commits on ${f.branch} from the agent.`}));
+    else {
+        parts.push(el('p', {textContent: `${f.new.length} new commit(s) from the agent on ${f.branch}:`}),
+            el('pre', {className: 'changes', textContent: f.new.map(c => `${c.hash} ${c.subject}`).join('\n')}));
+        if (f.can_ff) {
+            okBtn.textContent = `Fast-forward ${f.branch}`;
+            okBtn.hidden = false;
+            okBtn.focus();
+        } else {
+            parts.push(el('p', {textContent: `Your ${f.branch} also has ${f.host_ahead} commit(s) the agent does not. ` +
+                'Merge or rebase in the Local tab, for example:'}),
+                el('pre', {className: 'changes', textContent: `git merge ${f.agent_ref}`}));
+        }
+    }
+    if (f.agent_dirty) parts.push(el('p', {className: 'bad', textContent:
+        `${f.agent_dirty} file(s) on the agent host have uncommitted changes; they are not included. ` +
+        'Commit them there first if you want them.'}));
+    body.replaceChildren(...parts);
+    const ok = await done;
+    if (ok) s.tabs[2]?.view?.refresh();
+    return ok;
 }
 
 async function folderDialog(oldName = '') {

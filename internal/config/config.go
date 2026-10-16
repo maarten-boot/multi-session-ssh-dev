@@ -18,6 +18,15 @@ type Host struct {
 	SSHTarget    string `toml:"ssh_target" json:"ssh_target"`
 	LocalPrefix  string `toml:"local_prefix,omitempty" json:"local_prefix"` // empty with RemotePrefix: same paths on both sides
 	RemotePrefix string `toml:"remote_prefix,omitempty" json:"remote_prefix"`
+	// Files is how the agent host gets at session directories:
+	// "" or "shared" (a shared file system, mapped with the prefixes),
+	// "sync" (a working copy, sent with rsync, commits fetched back) or
+	// "sshfs" (the app serves the directory; the agent host mounts it).
+	// See docs/CONNECTIVITY.md.
+	Files string `toml:"files,omitempty" json:"files"`
+	// RemoteWorkdir holds the agent-host copies or mounts for "sync" and
+	// "sshfs" (default ~/sw): <remote_workdir>/<dir name>-<session id>.
+	RemoteWorkdir string `toml:"remote_workdir,omitempty" json:"remote_workdir"`
 }
 
 // Session is one work item: a directory on the host bound to an agent host.

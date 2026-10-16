@@ -245,5 +245,7 @@ repository config and warns again whenever they change.
 3. ~~Multiple agent hosts?~~ → yes, see F0. Same local dir may be opened against different hosts
    (each gets its own session).
 4. ~~Session groups/folders in the sidebar?~~ → yes, F5.
-5. Distribution: Linux `.deb` (Debian/Ubuntu) and `.rpm` (Fedora) with dependencies, menu entry
+5. ~~File access without a shared file system?~~ → working copies (mode C) implemented; live
+   share over ssh (mode B) next; see docs/CONNECTIVITY.md.
+6. Distribution: Linux `.deb` (Debian/Ubuntu) and `.rpm` (Fedora) with dependencies, menu entry
    and icon, alongside a plain tarball; Windows zip; macOS app zip. All unsigned.
