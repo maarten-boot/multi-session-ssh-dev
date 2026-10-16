@@ -20,6 +20,7 @@ export const ACTIONS = {
     quick_switcher: ['Ctrl+Shift+P', 'Cmd+Shift+P'],
     settings: ['Ctrl+Shift+,', 'Cmd+,'],
     find: ['Ctrl+Shift+F', 'Cmd+F'],
+    toggle_sidebar: ['Ctrl+Shift+B', 'Cmd+Shift+B'],
 };
 for (let n = 1; n <= 9; n++) ACTIONS[`session_${n}`] = [`Ctrl+Alt+${n}`, `Cmd+${n}`];
 for (let n = 1; n <= 9; n++) ACTIONS[`tab_${n}`] = [`Ctrl+Shift+${n}`, `Cmd+Shift+${n}`];

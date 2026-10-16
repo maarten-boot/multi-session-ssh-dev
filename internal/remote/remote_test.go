@@ -86,10 +86,12 @@ func fakeRemote(t *testing.T) (env []string, log string) {
 	bin := t.TempDir()
 	log = filepath.Join(t.TempDir(), "log")
 	scripts := map[string]string{
-		// Login shell: "-lc CMD" runs CMD; "-l" alone is the interactive fallback.
+		// Login shell: "-lc CMD" runs CMD, "-lic CMD" too but logs that it is
+		// interactive; "-l" alone is the interactive fallback.
 		"fakesh": `
 case "$1" in
 -lc) exec /bin/sh -c "$2" ;;
+-lic) echo "interactive-login" >>"$LOG"; exec /bin/sh -c "$2" ;;
 -l) echo "login-shell" >>"$LOG"; exit 0 ;;
 esac
 echo "unexpected shell args: $*" >>"$LOG"; exit 9`,
@@ -146,8 +148,8 @@ func TestAttachCommandExecutes(t *testing.T) {
 		mode Mode
 		pane []string
 	}{
-		{ModeClaude, []string{"claude cwd=" + dir + " args=", "login-shell"}},
-		{ModeClaudeContinue, []string{"claude cwd=" + dir + " args=--continue", "login-shell"}},
+		{ModeClaude, []string{"interactive-login", "claude cwd=" + dir + " args=", "login-shell"}},
+		{ModeClaudeContinue, []string{"interactive-login", "claude cwd=" + dir + " args=--continue", "login-shell"}},
 		{ModeShell, []string{"login-shell"}},
 	}
 	for _, c := range cases {

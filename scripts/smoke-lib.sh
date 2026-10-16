@@ -6,6 +6,11 @@
 # sessions on localhost, read with pane / in_pane.
 export SW_OUT=$OUT/got
 rm -rf "$SW_OUT"; mkdir -p "$SW_OUT"
+# A fresh data directory per test: the app keeps UI state (narrow sidebar,
+# last tab, collapsed folders...) in WebKit storage under it, so one test
+# cannot leave state behind for the next. Restarts within a test keep it.
+export XDG_DATA_HOME=$OUT/xdg-data
+rm -rf "$XDG_DATA_HOME"; mkdir -p "$XDG_DATA_HOME"
 FAILED=0
 
 ok() { echo "ok: $*"; }

@@ -61,7 +61,8 @@ make smoke-sessions  # headless GUI test of sessions/dialogs/switching (needs ss
 make smoke-files     # headless GUI test of the Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, badges, find/unicode/copy,
                      # folders, git markers, repository check, working copies, live share,
-                     # notes and tab order, Web tab and custom tab order
+                     # notes and tab order, Web tab and custom tab order,
+                     # layout (font size everywhere, current tab, narrow sidebar)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -107,7 +108,8 @@ always selects the 1st… visible tab):
 
 A session reopens on the tab you used last; new sessions start on Local. Sessions
 look the way Settings says (theme, font, colors); a session can override the colors
-in *Edit…* if needed. Very large directories show the first
+in *Edit…* if needed. The font size applies to the whole app (sidebar, tab bar,
+dialogs), as does the font family when you set one. Very large directories show the first
   5000 entries. In a git repository each entry gets a letter — **M** modified,
   **A** added, **D** deleted, **R** renamed, **U** untracked, **!** conflict — folders
   with changes get a dot, ignored files are dimmed, and the bar shows the branch with
@@ -135,6 +137,7 @@ width. With "copy on select" (Settings) a selection goes to the clipboard at onc
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
 | Ctrl+Shift+F | ⌘F | find in terminal | `find` |
+| Ctrl+Shift+B | ⇧⌘B | narrow / wide sidebar | `toggle_sidebar` |
 | Ctrl+Shift+C / V | ⌘C / V | copy / paste | — |
 
 Rebind in the config, e.g. `[keys]` `next_session = "Ctrl+Tab"`; `Mod` means Cmd on
@@ -174,6 +177,10 @@ right-click a host to add a session on it, edit or delete it. Menus also work fr
 keyboard (arrows, Enter, first letter). The app remembers the active session and
 reopens it on start.
 
+**Narrow sidebar.** « in the sidebar header (or Ctrl+Shift+B) shrinks the sidebar to a
+rail of session markers: initials, number, status dot and badges; hover for the name
+and path. » widens it again; the choice is remembered.
+
 **Without a shared file system** there are two options when adding a host (details
 and trade-offs in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md)):
 
@@ -189,7 +196,8 @@ agent commits), and **⇣ Get** fetches the commits claude made there into
 (not available on Windows yet). Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
 Agent and X11 forwarding are always forced off on every ssh connection. The
-agent host needs `tmux`; `claude` is found through the login shell's PATH.
+agent host needs `tmux`; `claude` is started from an interactive login shell, so it
+is found on the same PATH as when you log in by hand (`~/.profile` and `~/.bashrc`).
 
 ### Config file
 

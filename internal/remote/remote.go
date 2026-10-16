@@ -60,6 +60,12 @@ func checkTarget(target string) error {
 
 // paneCommand is what tmux runs in the session's first pane. When claude
 // exits the pane falls back to a login shell instead of closing the session.
+//
+// claude starts from an interactive login shell (-lic), with the environment
+// of a manual login: a non-interactive one skips most of ~/.bashrc (Ubuntu's
+// returns early), where installers and users often add ~/.local/bin to PATH.
+// The pane has a terminal, so the interactive shell is quiet; commands
+// without one (the wrapper below, ScriptArgs) keep -lc.
 func paneCommand(mode Mode) (string, error) {
 	var cmd string
 	switch mode {
@@ -72,7 +78,7 @@ func paneCommand(mode Mode) (string, error) {
 	default:
 		return "", fmt.Errorf("remote: unknown start mode %q", mode)
 	}
-	return `exec "$SHELL" -lc ` + Quote(cmd+`; exec "$SHELL" -l`), nil
+	return `exec "$SHELL" -lic ` + Quote(cmd+`; exec "$SHELL" -l`), nil
 }
 
 // ExitMissingDir is the exit status of an attach whose directory does not

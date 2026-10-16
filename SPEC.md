@@ -29,7 +29,8 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 
 A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
 which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Tabs); tabs added in a newer
-version are appended to a saved order.
+version are appended to a saved order. The current tab is marked like the current session in
+the sidebar (tinted background, thick accent bar, bold label).
 
 Switching sessions and tabs is instant and keyboard driven.
 
@@ -89,6 +90,9 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   then each folder (collapsible, with a count), each split by host. Folders can be created,
   renamed (sessions follow), reordered and deleted (sessions stay, ungrouped). Sessions move
   between folders via the session dialog, "Move to folder…", or drag onto a folder header.
+- F6. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail
+  of session markers (initials, number, status dot, badges; name and path as tooltip). Folder
+  and host headers stay, abbreviated. Remembered across restarts.
 - F4. Activity indicator: a session gets a badge when a non-visible terminal rings the bell or
   produces output after being idle (claude waiting for input → bell; user configures Claude Code's
   `preferredNotifChannel` to `terminal_bell`).
@@ -104,8 +108,10 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - R2. **tmux is mandatory on the agent host** — it makes sessions survive app restarts, closed
   windows and network drops (not agent-host reboots). Reopening the tab re-attaches (`-A`); the
   start command only runs when the tmux session is first created. When claude exits, the pane
-  falls back to a shell: pane cmd = `exec "$SHELL" -lc '<cmd>; exec "$SHELL" -l'`
-  (`claude`, `claude --continue`, or just a login shell).
+  falls back to a shell: pane cmd = `exec "$SHELL" -lic '<cmd>; exec "$SHELL" -l'`
+  (`claude`, `claude --continue`, or just a login shell). claude starts from an *interactive*
+  login shell, so it gets the PATH of a manual login: a non-interactive shell skips most of
+  `~/.bashrc` (Ubuntu's returns early), where `~/.local/bin` is often added.
 - R3. When the connection ends, an overlay says why and offers to reconnect (Enter). Failed or
   dropped connections (ssh exit 255) reconnect automatically with backoff 1, 2, 4 … 30 s
   (configurable; Esc stops). tmux detach / session end (exit 0) and a user Disconnect do not.
@@ -161,7 +167,8 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   true color; scrollback configurable (default 10 000).
 - T2. Copy on select (optional, `copy_on_select`), Ctrl+Shift+C/V copy/paste (Cmd+C/V on macOS),
   clickable URLs (opened in the default browser).
-- T3. Font family/size, theme (light/dark), configurable globally. The light theme is black text
+- T3. Font family/size, theme (light/dark), configurable globally. The font size scales the whole
+  app (sidebar, tab bar, dialogs, menus); a set font family is used everywhere too. The light theme is black text
   on a white background (the primary user's preference) and must stay readable with programs
   that assume a dark background:
   - `color_mode = "full"` — ANSI colors as sent, but with a minimum contrast against the
@@ -185,6 +192,7 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 | New session            | Ctrl+Shift+N         | Cmd+Shift+N    |
 | Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    |
 | Find in terminal       | Ctrl+Shift+F         | Cmd+F          |
+| Narrow / wide sidebar  | Ctrl+Shift+B         | Cmd+Shift+B    |
 | Settings               | Ctrl+Shift+,         | Cmd+,          |
 
 Rebinding: `[keys]` table, action name → key (`Mod` = Cmd on macOS, Ctrl elsewhere; `"none"`

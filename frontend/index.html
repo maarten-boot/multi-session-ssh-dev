@@ -11,13 +11,23 @@
         } catch {
             document.documentElement.dataset.theme = 'light';
         }
+        // The same for the font size and family (main.js: applyFont).
+        try {
+            const f = JSON.parse(localStorage.getItem('sw:font'));
+            const root = document.documentElement.style;
+            if (f?.size) root.setProperty('--ui-size', f.size);
+            if (f?.family) root.setProperty('--ui-family', f.family);
+        } catch {}
     </script>
 </head>
 <body>
 <aside id="sidebar">
     <div id="sidebar-head">
-        <span>Sessions</span>
-        <button id="btn-new" class="icon" title="New session, folder or host">+</button>
+        <span class="title">Sessions</span>
+        <span class="actions">
+            <button id="btn-narrow" class="icon"></button>
+            <button id="btn-new" class="icon" title="New session, folder or host">+</button>
+        </span>
     </div>
     <div id="config-error" hidden></div>
     <div id="session-list"></div>

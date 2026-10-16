@@ -345,6 +345,31 @@ function applyTheme(theme) {
     store.set('theme', theme);
 }
 
+// applyFont makes the whole app follow the font settings: the terminals,
+// Files tree and Notes use the font as set (--mono-*), the rest of the app
+// its size and, when one is set, its family (--ui-*). Cached for index.html,
+// like the theme, so the first paint has the right size.
+function applyFont(ui) {
+    const size = `${ui.font_size || 13}px`;
+    const root = document.documentElement.style;
+    root.setProperty('--mono-size', size);
+    root.setProperty('--ui-size', size);
+    for (const v of ['--mono-family', '--ui-family']) {
+        if (ui.font_family) root.setProperty(v, ui.font_family);
+        else root.removeProperty(v);
+    }
+    store.set('font', {size, family: ui.font_family || ''});
+}
+
+// initials abbreviates a session name for the narrow sidebar: the first
+// letters of its first two words ("multi-session ssh" -> "MS"), else its
+// first two characters.
+function initials(name) {
+    const words = name.split(/[\s._\/-]+/).filter(Boolean);
+    const s = words.length > 1 ? words[0][0] + words[1][0] : (words[0] || name).slice(0, 2);
+    return s.toUpperCase();
+}
+
 const app = {
     state: null,
     sessions: new Map(), // id -> SessionUI
@@ -377,6 +402,24 @@ const app = {
         };
         $('#btn-add-host').onclick = () => hostDialog();
         $('#btn-settings').onclick = () => settingsDialog();
+        $('#btn-narrow').onclick = () => this.setNarrow(!this.narrow);
+        this.setNarrow(store.get('narrow', false));
+    },
+
+    // setNarrow shrinks the sidebar to a rail of session markers (number or
+    // initials, status, badges; the name in the tooltip) or widens it again.
+    setNarrow(on) {
+        this.narrow = on;
+        document.body.classList.toggle('sidebar-narrow', on);
+        store.set('narrow', on);
+        this.narrowButton();
+        this.active?.show(); // terminals refit to the new width
+    },
+
+    narrowButton() {
+        const b = $('#btn-narrow');
+        b.textContent = this.narrow ? '»' : '«';
+        b.title = `${this.narrow ? 'Widen' : 'Narrow'} the sidebar (${keyHint('toggle_sidebar') || 'no key'})`;
     },
 
     // reload fetches state from the backend and re-renders, keeping
@@ -384,11 +427,7 @@ const app = {
     async reload() {
         this.state = await State();
         applyTheme(this.state.ui.theme);
-        // The Files tree uses the terminal font too.
-        const root = document.documentElement.style;
-        root.setProperty('--mono-size', `${this.state.ui.font_size || 13}px`);
-        if (this.state.ui.font_family) root.setProperty('--mono-family', this.state.ui.font_family);
-        else root.removeProperty('--mono-family');
+        applyFont(this.state.ui);
         keymap = buildKeymap(this.state.keys, isMac);
         const seen = new Set();
         for (const d of this.state.sessions) {
@@ -450,6 +489,7 @@ const app = {
         err.hidden = !problems.length;
         err.textContent = problems.join('\n');
         $('#btn-new').title = `New session (${keyHint('new_session')}), folder or host`;
+        this.narrowButton();
 
         const list = $('#session-list');
         list.replaceChildren();
@@ -516,6 +556,7 @@ const app = {
         const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Session actions'});
         const item = el('div', {className: 'session', draggable: true},
             el('span', {className: 'dot ' + s.dotClass()}),
+            el('span', {className: 'abbr', textContent: initials(d.name)}),
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
                 el('div', {className: 'sub', textContent: '‎' + d.local_path})),
@@ -524,6 +565,7 @@ const app = {
             el('span', {className: 'badge'}),
             n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
             more);
+        item.title = `${d.name}\n${d.local_path}`;
         item.dataset.id = d.id;
         item.dataset.host = d.host;
         item.dataset.group = d.group;
@@ -613,7 +655,9 @@ const app = {
         const nav = $('#tabs');
         const active = s.activeTabObj();
         nav.replaceChildren(...s.visibleTabs().map((t, i) => {
-            const b = el('button', {textContent: t.label},
+            const label = el('span', {className: 'label', textContent: t.label});
+            label.dataset.label = t.label;
+            const b = el('button', {}, label,
                 el('kbd', {textContent: keyHint(`tab_${t.key}`) || keyHint(`tab_${i + 1}`)}));
             b.dataset.key = t.key;
             if (t === active) b.classList.add('active');
@@ -690,6 +734,7 @@ const app = {
         else if (a === 'quick_switcher') quickSwitcher();
         else if (a === 'settings') settingsDialog();
         else if (a === 'find') this.active?.activeTabObj()?.view?.openFind?.();
+        else if (a === 'toggle_sidebar') this.setNarrow(!this.narrow);
     },
 
     focusActive() {
@@ -1120,6 +1165,7 @@ const ACTION_LABELS = {
     next_session: 'Next session', prev_session: 'Previous session', tab_remote: 'Remote tab',
     tab_local: 'Local tab', tab_files: 'Files tab', new_session: 'New session',
     quick_switcher: 'Quick switcher', settings: 'Settings', find: 'Find in terminal',
+    toggle_sidebar: 'Narrow / wide sidebar',
 };
 
 async function settingsDialog() {
