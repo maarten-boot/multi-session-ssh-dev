@@ -49,6 +49,8 @@ export namespace config {
 	    copy_on_select: boolean;
 	    tab_order: string[];
 	    hidden_tabs: string[];
+	    claude_backup?: boolean;
+	    claude_backup_every: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -68,6 +70,8 @@ export namespace config {
 	        this.copy_on_select = source["copy_on_select"];
 	        this.tab_order = source["tab_order"];
 	        this.hidden_tabs = source["hidden_tabs"];
+	        this.claude_backup = source["claude_backup"];
+	        this.claude_backup_every = source["claude_backup_every"];
 	    }
 	}
 

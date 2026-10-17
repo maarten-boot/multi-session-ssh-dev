@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -84,6 +86,11 @@ type UI struct {
 	// TabOrder is the order of a session's tabs; HiddenTabs are not shown.
 	TabOrder   []string `toml:"tab_order,omitempty" json:"tab_order"`
 	HiddenTabs []string `toml:"hidden_tabs,omitempty" json:"hidden_tabs"`
+	// ClaudeBackup copies each agent host's ~/.claude and ~/.claude.json to
+	// DataDir every ClaudeBackupEvery (a Go duration) while the app runs, to
+	// restore a crashed or reinstalled agent host (see internal/backup).
+	ClaudeBackup      *bool  `toml:"claude_backup,omitempty" json:"claude_backup"`
+	ClaudeBackupEvery string `toml:"claude_backup_every,omitempty" json:"claude_backup_every"`
 }
 
 // Tabs lists every session tab in the default order.
@@ -161,10 +168,25 @@ func (c *Config) applyDefaults() {
 	if c.UI.ActivityBadges == nil {
 		c.UI.ActivityBadges = ptr(true)
 	}
+	if c.UI.ClaudeBackup == nil {
+		c.UI.ClaudeBackup = ptr(true)
+	}
+	if _, err := BackupEvery(c.UI); err != nil {
+		c.UI.ClaudeBackupEvery = "1h"
+	}
 	normalizeTabs(&c.UI)
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// BackupEvery parses UI.ClaudeBackupEvery: 5 minutes to 7 days.
+func BackupEvery(u UI) (time.Duration, error) {
+	d, err := time.ParseDuration(u.ClaudeBackupEvery)
+	if err != nil || d < 5*time.Minute || d > 7*24*time.Hour {
+		return 0, fmt.Errorf("claude backup interval %q: use 5m to 168h, e.g. 1h", u.ClaudeBackupEvery)
+	}
+	return d, nil
+}
 
 // ValidateUI checks UI settings coming from the settings dialog.
 func ValidateUI(u UI) error {
@@ -181,6 +203,9 @@ func ValidateUI(u UI) error {
 		return fmt.Errorf("scrollback must be between 0 and 1000000 lines")
 	case u.ConnectOnStart != "lazy" && u.ConnectOnStart != "eager":
 		return fmt.Errorf("unknown connect_on_start %q", u.ConnectOnStart)
+	}
+	if _, err := BackupEvery(u); err != nil {
+		return err
 	}
 	for _, t := range append(append([]string{}, u.TabOrder...), u.HiddenTabs...) {
 		if !slices.Contains(Tabs, t) {
@@ -202,6 +227,37 @@ func DefaultPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "session-workbench", "config.toml"), nil
+}
+
+// DataDir is <user data dir>/session-workbench, for data that is not
+// configuration (Claude backups): $XDG_DATA_HOME or ~/.local/share on Linux
+// (where WebKit keeps the app's storage too), ~/Library/Application Support
+// on macOS, %LocalAppData% on Windows.
+func DataDir() (string, error) {
+	var dir string
+	switch runtime.GOOS {
+	case "windows":
+		dir = os.Getenv("LocalAppData")
+	case "darwin":
+		d, err := os.UserConfigDir()
+		if err != nil {
+			return "", err
+		}
+		dir = d
+	default:
+		dir = os.Getenv("XDG_DATA_HOME")
+		if dir == "" || !filepath.IsAbs(dir) {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", err
+			}
+			dir = filepath.Join(home, ".local", "share")
+		}
+	}
+	if dir == "" {
+		return "", errors.New("no user data directory")
+	}
+	return filepath.Join(dir, "session-workbench"), nil
 }
 
 // Load reads path. A missing file yields Default() and no error.

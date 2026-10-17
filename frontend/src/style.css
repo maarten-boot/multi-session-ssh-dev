@@ -381,12 +381,6 @@ button.link:hover {
     visibility: hidden;
 }
 
-#tabs kbd {
-    font: 0.846rem var(--ui-family, system-ui, sans-serif);
-    color: var(--faint);
-    margin-left: 6px;
-}
-
 #session-path {
     margin-left: auto;
     color: var(--muted);
@@ -1637,4 +1631,11 @@ body.sidebar-narrow .folder-head .label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* --- Claude backups: a failed backup marks the host header --- */
+
+.host-head .backup-warn {
+    color: var(--warn);
+    font-size: 1rem;
 }

@@ -52,7 +52,7 @@ test:
 # the same /tmp path visible on both sides, e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
-	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share
+	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup
 
 # The main package needs cgo (webkit) on Linux and macOS: vet it natively and
 # for Windows (pure Go); macOS only the internal packages.
@@ -70,7 +70,8 @@ clean:
 # on a wrong one; `make -k smoke-all` runs the rest after a failure.
 # smoke: terminal fidelity in a Local tab.
 # smoke-sessions: sidebar, dialogs, switching, menus, restart, changing the
-#   start mode of a running session; needs
+#   start mode of a running session, one instance per config, Claude backups;
+#   needs
 #   `ssh localhost` without prompts and tmux.
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
@@ -86,6 +87,8 @@ smoke-sessions: build
 	$(XVFB) scripts/gui-smoke-sessions.sh build/bin/session-workbench $(SMOKE_OUT)-sessions
 	$(XVFB) scripts/gui-smoke-hosts.sh build/bin/session-workbench $(SMOKE_OUT)-hosts
 	$(XVFB) scripts/gui-smoke-startmode.sh build/bin/session-workbench $(SMOKE_OUT)-startmode
+	$(XVFB) scripts/gui-smoke-instance.sh build/bin/session-workbench $(SMOKE_OUT)-instance
+	$(XVFB) scripts/gui-smoke-backup.sh build/bin/session-workbench $(SMOKE_OUT)-backup
 
 smoke-files: build
 	$(XVFB) scripts/gui-smoke-files.sh build/bin/session-workbench $(SMOKE_OUT)-files

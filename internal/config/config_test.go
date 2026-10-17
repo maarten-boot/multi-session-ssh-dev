@@ -171,3 +171,17 @@ func TestTabsNormalized(t *testing.T) {
 		t.Error("unknown tab accepted")
 	}
 }
+
+func TestClaudeBackupSettings(t *testing.T) {
+	c := Default()
+	if c.UI.ClaudeBackup == nil || !*c.UI.ClaudeBackup || c.UI.ClaudeBackupEvery != "1h" {
+		t.Errorf("defaults: backup %v every %q", c.UI.ClaudeBackup, c.UI.ClaudeBackupEvery)
+	}
+	for every, ok := range map[string]bool{"1h": true, "15m": true, "168h": true, "1m": false, "200h": false, "often": false, "": false} {
+		u := c.UI
+		u.ClaudeBackupEvery = every
+		if err := ValidateUI(u); (err == nil) != ok {
+			t.Errorf("ValidateUI with claude_backup_every %q: %v", every, err)
+		}
+	}
+}

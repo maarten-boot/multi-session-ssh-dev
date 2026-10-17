@@ -40,7 +40,7 @@ TOML
 k() { xdotool key "$@"; sleep 0.5; }
 shot() { import -window root $OUT/$1.png; }
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
-env PATH=$FAKE:$PATH DBUS_SESSION_BUS_ADDRESS= $BIN -config $CFG >>$OUT/app.log 2>&1 &
+env PATH=$FAKE:$PATH DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null

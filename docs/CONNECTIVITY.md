@@ -223,6 +223,25 @@ Other things the agent host can read in shared modes:
   (by content) and settings, and warns again as soon as anything changes. The check runs at
   start, when you switch sessions, when the Files tab refreshes and every two minutes.
 
+## Claude backups
+
+**Implemented.** The agent host is the machine most likely to be lost (a VM that is rebuilt, a
+crashed box), and with it claude's memory, conversations and settings in `~/.claude`. The app
+copies `~/.claude` and `~/.claude.json` of every agent host to your workstation regularly (see
+the README), pulling them with rsync over the same ssh setup as everything else: your host
+connects out, the agent host gets no access to your workstation.
+
+- **One way, and only growing.** Files deleted on the agent host are kept in the backup, so a
+  misbehaving or compromised agent host cannot wipe it; it can at most add or change files in
+  its own backup folder. Nothing in a backup is executed by the app.
+- **No credentials.** claude's login (`~/.claude/.credentials.json`) is left out. After
+  restoring to a new agent host, start claude there and log in once.
+- **What is in it.** Conversations can quote whatever claude read, including secrets from the
+  working tree, and `~/.claude.json` holds MCP server settings. The backup folders are
+  readable by you only; treat them like the projects themselves.
+- **Restore** copies a backup back to an agent host without overwriting files that are already
+  there, so it is safe on a fresh machine and does not roll back a working one.
+
 ## Choosing a mode
 
 | Your situation | Use |

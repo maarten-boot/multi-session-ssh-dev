@@ -6,15 +6,19 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"session-workbench/internal/backup"
 	"session-workbench/internal/config"
 	"session-workbench/internal/forge"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
+	"session-workbench/internal/instance"
 	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
 	"session-workbench/internal/remote"
@@ -32,14 +36,22 @@ type App struct {
 	sessions *session.Manager
 	shares   *share.Manager
 	notes    notes.Store
+	backups  *backup.Runner
+	dataDir  string // config.DataDir: Claude backups
+	// running is set when another instance holds the config's lock: this
+	// one then only shows that (InstanceProblem) and starts nothing.
+	running error
 }
 
-func NewApp(sessions *session.Manager, notesDir string) *App {
-	return &App{sessions: sessions, notes: notes.Store{Dir: notesDir}}
+func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
+	return &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if a.running != nil {
+		return
+	}
 	gitstatus.Configure = hideConsole
 	syncer.Configure = hideConsole
 	share.Configure = hideConsole
@@ -57,12 +69,88 @@ func (a *App) startup(ctx context.Context) {
 	a.terms = terminal.NewManager(terminal.EmitterFunc(func(name string, data ...any) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
+	backup.Configure = hideConsole
+	a.backups = &backup.Runner{
+		Dir: filepath.Join(a.dataDir, "claude-backups"),
+		Hosts: func() []backup.Host {
+			var hs []backup.Host
+			for _, h := range a.sessions.Config().Hosts {
+				hs = append(hs, backup.Host{Name: h.Name, Target: h.SSHTarget})
+			}
+			return hs
+		},
+		Every: func() (time.Duration, bool) {
+			ui := a.sessions.Config().UI
+			d, err := config.BackupEvery(ui)
+			return d, err == nil && ui.ClaudeBackup != nil && *ui.ClaudeBackup
+		},
+		Changed: func(host string, s backup.Status) { runtime.EventsEmit(ctx, "backup", host, s) },
+	}
+	if a.dataDir != "" {
+		a.backups.Start(ctx)
+	}
 }
 
 // shutdown drops all connections; remote tmux sessions keep running.
 func (a *App) shutdown(ctx context.Context) {
+	if a.running != nil {
+		return
+	}
 	a.terms.KillAll()
 	a.shares.StopAll() // the agent host unmounts
+}
+
+// InstanceProblem says why this instance does nothing (another one uses the
+// same config); empty normally. The frontend asks before anything else.
+func (a *App) InstanceProblem() string {
+	if a.running == nil {
+		return ""
+	}
+	return fmt.Sprintf("Session Workbench is already running with this configuration%s. "+
+		"Use that window; this one does nothing and can be closed.",
+		strings.TrimPrefix(a.running.Error(), instance.ErrRunning.Error()))
+}
+
+// secondInstance brings this window forward when the app is started again.
+func (a *App) secondInstance(options.SecondInstanceData) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.WindowUnminimise(a.ctx)
+	runtime.WindowShow(a.ctx)
+}
+
+// --- Claude backups (internal/backup) ---
+
+// BackupStatus is the last backup per host name.
+func (a *App) BackupStatus() map[string]backup.Status { return a.backups.Status() }
+
+// BackupNow backs one host up and waits for it.
+func (a *App) BackupNow(host string) error {
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Minute)
+	defer cancel()
+	return a.backups.Now(ctx, host)
+}
+
+// RestoreBackup copies a host's backup to it, keeping files that exist there.
+func (a *App) RestoreBackup(host string) error {
+	for _, h := range a.backups.Hosts() {
+		if h.Name == host {
+			ctx, cancel := context.WithTimeout(a.ctx, 30*time.Minute)
+			defer cancel()
+			return backup.Restore(ctx, h, a.backups.HostDir(host))
+		}
+	}
+	return fmt.Errorf("unknown host %q", host)
+}
+
+// OpenBackupFolder shows a host's backup in the file manager.
+func (a *App) OpenBackupFolder(host string) error {
+	dir := a.backups.HostDir(host)
+	if _, err := os.Stat(dir); err != nil {
+		return fmt.Errorf("there is no backup for %s yet", host)
+	}
+	return opener.Open(dir)
 }
 
 // --- sessions and hosts ---

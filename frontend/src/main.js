@@ -10,7 +10,8 @@ import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
-    BrowseDirectory, CreateSession, DeleteHost, DeleteSession, KillRemote, MoveSession,
+    BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup,
+    BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncFastForward, ShareStatus, StopShare,
@@ -379,6 +380,22 @@ const app = {
     mru: store.get('mru', []), // session ids, most recent first
 
     async init() {
+        // Another instance uses this config: say so and start nothing.
+        const problem = await InstanceProblem();
+        if (problem) {
+            $('#sidebar').hidden = true;
+            $('#bar').hidden = true;
+            $('#panes').hidden = true;
+            $('#empty').hidden = false;
+            $('#empty-text').textContent = problem;
+            $('#empty-action').hidden = true;
+            return;
+        }
+        this.backups = await BackupStatus().catch(() => ({}));
+        EventsOn('backup', (host, st) => {
+            this.backups[host] = st;
+            this.renderBackup(host);
+        });
         await this.reload();
         const last = this.sessions.get(store.get('active', ''));
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
@@ -494,6 +511,7 @@ const app = {
         const list = $('#session-list');
         list.replaceChildren();
         this.order = [];
+        this.hostHeads = [];
         for (const sec of this.sections()) {
             let parent = list;
             if (sec.group) {
@@ -526,7 +544,9 @@ const app = {
                 const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
                 const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
                     el('span', {className: 'caret', textContent: '▾'}),
-                    el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}), more);
+                    el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}),
+                    el('span', {className: 'backup-warn', textContent: '⚠', hidden: true}), more);
+                if (g.host) this.hostHeads.push({name: g.name, target: g.host.ssh_target, head});
                 const toggle = this.collapsible(group, `h:${g.group}/${g.name}`);
                 head.onclick = e => !more.contains(e.target) && toggle();
                 more.onclick = e => {
@@ -548,7 +568,18 @@ const app = {
             }
         }
         if (this.active && !this.sessions.has(this.active.id)) this.active = null;
+        for (const h of this.hostHeads) this.renderBackup(h.name);
         this.renderMain();
+    },
+
+    // renderBackup shows a host's Claude backup state in its header tooltip,
+    // with a ⚠ when the last backup failed.
+    renderBackup(host) {
+        const st = this.backups?.[host];
+        for (const h of this.hostHeads.filter(h => h.name === host)) {
+            h.head.title = `${h.target}\n${backupText(st, this.state.ui.claude_backup)}`;
+            h.head.querySelector('.backup-warn').hidden = !st?.error;
+        }
     },
 
     sessionItem(s, n) {
@@ -657,8 +688,9 @@ const app = {
         nav.replaceChildren(...s.visibleTabs().map((t, i) => {
             const label = el('span', {className: 'label', textContent: t.label});
             label.dataset.label = t.label;
-            const b = el('button', {}, label,
-                el('kbd', {textContent: keyHint(`tab_${t.key}`) || keyHint(`tab_${i + 1}`)}));
+            // The shortcut is in the tooltip, not on the tab.
+            const key = keyHint(`tab_${t.key}`) || keyHint(`tab_${i + 1}`);
+            const b = el('button', {title: key ? `${t.label} (${key})` : t.label}, label);
             b.dataset.key = t.key;
             if (t === active) b.classList.add('active');
             b.onclick = () => this.selectTab(t.key);
@@ -981,10 +1013,57 @@ function newMenu(x, y) {
     ]);
 }
 
+// when formats a backup time: the time today, else date and time; '' for
+// Go's zero time (never).
+function when(t) {
+    const d = new Date(t);
+    if (!t || d.getFullYear() < 2000) return '';
+    const today = new Date().toDateString() === d.toDateString();
+    return today ? d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : d.toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'});
+}
+
+function backupText(st, on) {
+    if (st?.busy) return 'Claude data: backing up…';
+    if (st?.error) return `Claude backup failed${when(st.last) ? ` (${when(st.last)})` : ''}: ${st.error}` +
+        (when(st.last_ok) ? `\nLast good backup: ${when(st.last_ok)}` : '');
+    if (when(st?.last_ok)) return `Claude data backed up ${when(st.last_ok)}`;
+    return on ? 'Claude data not backed up yet' : 'Claude backups are off (Settings)';
+}
+
+async function backupNow(name) {
+    toast(`Backing up the Claude data of ${name}…`);
+    try {
+        await BackupNow(name);
+        toast(`Claude data of ${name} backed up.`);
+    } catch (err) {
+        toast(`Backup of ${name} failed: ${err?.message ?? err}`, true);
+    }
+}
+
+async function restoreBackup(h) {
+    const st = app.backups?.[h.name];
+    const ok = await confirmDialog({
+        title: `Restore Claude data to “${h.name}”?`,
+        text: `Copies the backup from ${when(st?.last_ok)} to ~/.claude and ~/.claude.json on ${h.ssh_target}. ` +
+            'Files that already exist there are kept, so this is meant for a new or reinstalled agent host. ' +
+            'claude\'s login is not in the backup: start claude there and log in once.',
+        ok: 'Restore',
+        action: () => RestoreBackup(h.name),
+    });
+    if (ok) toast(`Claude data restored to ${h.name}.`);
+}
+
 function hostMenu(g, x, y) {
+    const st = app.backups?.[g.name];
+    const backedUp = !!when(st?.last_ok);
     showMenu(x, y, [
         {label: 'New session on this host…', disabled: !g.host, action: () => sessionDialog(null, g.name, g.group)},
         {label: g.host ? 'Edit host…' : 'Configure host…', action: () => hostDialog(g.host, g.host ? null : g.name)},
+        '-',
+        {label: 'Back up Claude data now', disabled: !g.host || st?.busy, action: () => backupNow(g.name)},
+        {label: 'Restore Claude data to this host…', disabled: !g.host || !backedUp, action: () => restoreBackup(g.host)},
+        {label: 'Open Claude backup folder', disabled: !backedUp,
+            action: () => OpenBackupFolder(g.name).catch(err => toast(String(err), true))},
         '-',
         {label: 'Delete host…', danger: true, disabled: !g.host, action: () => deleteHost(g.host)},
     ]);
@@ -1203,6 +1282,12 @@ async function settingsDialog() {
     f.auto_reconnect.checked = !!ui.auto_reconnect;
     f.activity_badges.checked = !!ui.activity_badges;
     f.copy_on_select.checked = !!ui.copy_on_select;
+    f.claude_backup.checked = ui.claude_backup !== false;
+    const every = f.claude_backup_every;
+    if (![...every.options].some(o => o.value === ui.claude_backup_every)) {
+        every.append(el('option', {value: ui.claude_backup_every, textContent: ui.claude_backup_every}));
+    }
+    every.value = ui.claude_backup_every;
     // Tabs: order with ↑/↓, shown or not with the checkbox.
     const TAB_LABELS = {local: 'Local', files: 'Files', remote: 'Remote', notes: 'Notes', web: 'Web'};
     let order = [...(ui.tab_order ?? Object.keys(TAB_LABELS))];
@@ -1248,6 +1333,8 @@ async function settingsDialog() {
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
+        claude_backup: f.claude_backup.checked,
+        claude_backup_every: f.claude_backup_every.value,
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),
     }));

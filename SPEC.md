@@ -93,6 +93,16 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - F6. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail
   of session markers (initials, number, status dot, badges; name and path as tooltip). Folder
   and host headers stay, abbreviated. Remembered across restarts.
+- F7. Claude backups: each agent host's `~/.claude` and `~/.claude.json` are copied with rsync
+  over ssh to `<data dir>/claude-backups/<host>/home/`, a minute after start and then every
+  `claude_backup_every` (default 1h, 5m…168h) while the app runs (`claude_backup`, default on;
+  failed backups retry after at most 15 minutes). Never deletes from a backup; excludes claude's
+  login (`.credentials.json`) and caches/downloads. Status per host in the host header tooltip,
+  ⚠ after a failure; host menu: back up now, restore (copies back without overwriting existing
+  files), open the backup folder. Needs rsync on both sides.
+- F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
+  running window forward (Wails single-instance lock, keyed on the config path) or, where that
+  is not available, shows only a message and touches nothing.
 - F4. Activity indicator: a session gets a badge when a non-visible terminal rings the bell or
   produces output after being idle (claude waiting for input → bell; user configures Claude Code's
   `preferredNotifChannel` to `terminal_bell`).
@@ -212,6 +222,11 @@ disables). Bad or conflicting bindings are reported in the UI and fall back to t
 - Written atomically (write temp + rename) on every change. Hand-editable while the app is not
   running (comments are not preserved); unknown keys are rejected. If the file cannot be read the
   app starts empty, shows the error and never overwrites it.
+- Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
+  (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
+  `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
+  WebKit's storage (window state such as the last tab and the narrow sidebar). Notes stay next
+  to the config file.
 
 ## 5. Architecture
 
@@ -265,7 +280,9 @@ See also docs/CONNECTIVITY.md: a shared repository lets the agent host write `.g
 must check before running git on the host; the repository check (B6) flags hooks and risky
 repository config and warns again whenever they change.
 
-- App stores no secrets. Config contains only hostnames and paths.
+- App stores no secrets. Config contains only hostnames and paths. Claude backups leave out
+  claude's login (`.credentials.json`); they do contain conversations, which may quote
+  secrets claude saw, and `~/.claude.json` (MCP server settings): they are written owner-only.
 - `ForwardAgent=no`, `ForwardX11=no` (plus `ClearAllForwardings=yes`, `RemoteCommand=none`)
   enforced on every ssh invocation regardless of ssh_config; the target follows `--` and may not
   start with `-`.

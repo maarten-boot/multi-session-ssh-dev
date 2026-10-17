@@ -35,7 +35,8 @@ ROW0=${ROW0:-74}; X=320
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
 row() { echo $((ROW0 + 22*$1 + 11)); }
 
-env PATH=$BINDIR:$PATH DBUS_SESSION_BUS_ADDRESS= $BIN -config $CFG >>$OUT/app.log 2>&1 &
+# No D-Bus (an empty address would fall back to the user bus): xdg-open is used.
+env PATH=$BINDIR:$PATH DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent $BIN -config $CFG >>$OUT/app.log 2>&1 &
 APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null

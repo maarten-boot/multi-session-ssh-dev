@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"session-workbench/internal/config"
+	"session-workbench/internal/instance"
 	"session-workbench/internal/session"
 )
 
@@ -39,12 +41,30 @@ func main() {
 		return
 	}
 
+	// One instance per config file: a second one would overwrite the
+	// config. A second start brings the first window forward (D-Bus, a
+	// Windows mutex, macOS notifications); where that is not available the
+	// lock file catches it and the second instance only says so.
+	lock, lockErr := instance.Acquire(*cfgPath + ".lock")
+	defer lock.Release()
+
 	sessions := session.Open(*cfgPath)
 	if err := sessions.LoadError(); err != nil {
 		fmt.Fprintln(os.Stderr, "warning:", err)
 	}
 	// Notes live next to the config file, outside any project directory.
-	app := NewApp(sessions, filepath.Join(filepath.Dir(*cfgPath), "notes"))
+	dataDir, err := config.DataDir()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "warning: no data directory, Claude backups are off:", err)
+	}
+	app := NewApp(sessions, filepath.Join(filepath.Dir(*cfgPath), "notes"), dataDir)
+	if lockErr != nil {
+		if !errors.Is(lockErr, instance.ErrRunning) {
+			fmt.Fprintln(os.Stderr, "warning: instance lock:", lockErr) // e.g. read-only dir: run anyway
+		} else {
+			app.running = lockErr
+		}
+	}
 	bg := &options.RGBA{R: 255, G: 255, B: 255, A: 1}
 	if sessions.Config().UI.Theme == "dark" {
 		bg = &options.RGBA{R: 30, G: 30, B: 30, A: 1}
@@ -62,6 +82,10 @@ func main() {
 		Linux: &linux.Options{
 			Icon:        icon,
 			ProgramName: "session-workbench", // WM_CLASS, matches the .desktop file
+		},
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId:               instance.ID(*cfgPath),
+			OnSecondInstanceLaunch: app.secondInstance,
 		},
 		OnStartup:  app.startup,
 		OnShutdown: app.shutdown,

@@ -83,7 +83,7 @@ directory has none yet. The start mode only applies when the remote tmux session
 created; after changing it in *Edit…* the app offers to restart a running one. Each session has:
 
 Default tab order (change it, or hide tabs, in Settings → Tabs; Ctrl+Shift+1…
-always selects the 1st… visible tab):
+always selects the 1st… visible tab; hover a tab to see its shortcut):
 
 - **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
 - **Files** (Ctrl+Shift+2): the directory as a tree, refreshed whenever you
@@ -197,6 +197,17 @@ agent commits), and **⇣ Get** fetches the commits claude made there into
 `agent-<id>/<branch>` and can fast-forward your branch. Needs rsync on both sides
 (not available on Windows yet). Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
+**Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`
+(settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
+`~/.claude.json` — to this computer: a minute after it starts, then every hour while it
+runs (Settings: on/off and how often), with rsync over ssh. Hover a host header to see the
+last backup; ⚠ means the last one failed. The host's menu has *Back up Claude data now*,
+*Restore Claude data to this host…* (for a new or reinstalled agent host: copies everything
+back, keeping files that exist there) and *Open Claude backup folder*. A backup only grows:
+files deleted on the agent host stay in it. Left out are claude's login
+(`.credentials.json`; log in to claude once after a restore) and caches and downloads
+claude recreates. Needs rsync on both sides (not on Windows yet).
+
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux`; `claude` is started from an interactive login shell, so it
 is found on the same PATH as when you log in by hand (`~/.profile` and `~/.bashrc`).
@@ -208,6 +219,19 @@ is found on the same PATH as when you log in by hand (`~/.profile` and `~/.bashr
 override with `-config <file>`. The app rewrites it on every change; hand edits are
 fine while it is not running (comments are not kept). If the file cannot be parsed
 the app shows why and saves nothing, so your file is never overwritten.
+
+Only one copy of the app runs per config file: starting it again brings the running
+window to the front (where that is not possible, the second window only says so).
+
+### Where the app keeps things
+
+| What | Linux | macOS | Windows |
+|---|---|---|---|
+| config (`config.toml`, its lock, `notes/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
+| data (`claude-backups/<host>/`, window state) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+
+`$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux. Nothing is stored on the agent
+hosts or in your projects.
 
 ```toml
 workspace_roots = ["~/share-local/DEV"]   # where "Browse…" starts
@@ -224,6 +248,8 @@ connect_on_start = "lazy"                 # or "eager": connect all Remote tabs 
 auto_reconnect = true
 activity_badges = true
 copy_on_select = false
+claude_backup = true                      # back up ~/.claude of the agent hosts
+claude_backup_every = "1h"                # 5m … 168h
 tab_order = ["local", "files", "remote", "notes", "web"]
 hidden_tabs = []                          # e.g. ["web"]
 
@@ -278,6 +304,8 @@ internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab
 internal/syncer        working copies: rsync send, git fetch back
 internal/share         live share: confined SFTP server + sshfs mount manager
+internal/backup        Claude backups: ~/.claude of the agent hosts, rsync, restore
+internal/instance      one instance per config file (lock)
 packaging/             .desktop file, icons and nfpm config for .deb/.rpm
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js
