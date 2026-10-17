@@ -26,7 +26,7 @@ for (let n = 1; n <= 9; n++) ACTIONS[`session_${n}`] = [`Ctrl+Alt+${n}`, `Cmd+${
 for (let n = 1; n <= 9; n++) ACTIONS[`tab_${n}`] = [`Ctrl+Shift+${n}`, `Cmd+Shift+${n}`];
 
 const NAMED = {
-    pageup: 'PageUp', pagedown: 'PageDown', home: 'Home', end: 'End', insert: 'Insert', delete: 'Delete',
+    pageup: 'PageUp', pagedown: 'PageDown', pgup: 'PageUp', pgdn: 'PageDown', home: 'Home', end: 'End', insert: 'Insert', delete: 'Delete',
     tab: 'Tab', enter: 'Enter', return: 'Enter', escape: 'Escape', esc: 'Escape', space: 'Space', backspace: 'Backspace',
     up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
     '[': 'BracketLeft', ']': 'BracketRight', ',': 'Comma', '.': 'Period', '/': 'Slash', ';': 'Semicolon',

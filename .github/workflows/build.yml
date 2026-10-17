@@ -1,5 +1,5 @@
 # Test and build Session Workbench for Linux, Windows and macOS.
-# Every push and pull request produces downloadable artifacts; pushing a
+# Every push to main, pull request and v* tag produces downloadable artifacts; pushing a
 # tag v* also publishes them as a GitHub release.
 #
 # Actions are pinned to commit hashes (version in the comment). To update,

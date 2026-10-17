@@ -31,12 +31,14 @@ build: check
 build-windows: check
 	$(WAILS) build -platform windows/amd64 -ldflags "$(LDFLAGS)" -o session-workbench.exe
 
-# Linux .deb and .rpm from build/bin/session-workbench (CI does the same).
+# Linux .deb and .rpm from build/bin/session-workbench, versioned like CI:
+# v0.7.0 -> 0.7.0, v0.7.0-3-gabc123 -> 0.7.0+3.gabc123 (sorts after 0.7.0).
 NFPM ?= $(shell command -v nfpm || echo $$(go env GOPATH)/bin/nfpm)
 packages: build
 	@test -x "$(NFPM)" || go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
 	mkdir -p dist
-	VERSION=$$(echo "$(VERSION)" | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)/+\1.g\2/') \
+	VERSION=$$(git describe --tags --always | sed -E 's/^v//; s/-([0-9]+)-g([0-9a-f]+)$$/+\1.g\2/') \
+		&& case "$$VERSION" in [0-9]*) ;; *) VERSION="0.0.0+g$$VERSION" ;; esac \
 		&& export VERSION && packaging/gen-docs.sh "$$VERSION" \
 		&& $(NFPM) package -f packaging/nfpm.yaml -p deb -t dist/ \
 		&& $(NFPM) package -f build/pkgdocs/nfpm-rpm.yaml -p rpm -t dist/
@@ -62,22 +64,23 @@ vet:
 	GOOS=darwin go vet ./internal/...
 
 clean:
-	rm -rf build/bin frontend/dist/assets
+	rm -rf build/bin frontend/dist/assets dist build/pkgdocs
 
-# Headless GUI tests (Linux; need xvfb, xdotool, imagemagick). Screenshots
+# Headless GUI tests (Linux; need xvfb, xdotool, imagemagick, and for most of
+# them `ssh localhost` without prompts, tmux, rsync, sshfs, git, jq, dbus). Screenshots
 # land in $(SMOKE_OUT)-*. They use throwaway configs, never yours. Each test
 # checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails
 # on a wrong one; `make -k smoke-all` runs the rest after a failure.
 # smoke: terminal fidelity in a Local tab.
-# smoke-sessions: sidebar, dialogs, switching, menus, restart, changing the
-#   start mode of a running session, one instance per config, Claude backups;
-#   needs
-#   `ssh localhost` without prompts and tmux.
+# smoke-sessions: sidebar, dialogs, switching, menus, restart; empty config and
+#   add-host dialog; changing the start mode of a running session; one instance
+#   per config; Claude backups (needs a ~/.claude here).
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
-#   find/unicode/copy-on-select, folders, git markers, layout (font size,
-#   current tab, narrow sidebar), activity badges (the last takes ~2 minutes).
+#   find/unicode/copy-on-select, folders, git markers, repository check, working
+#   copies, live share, notes and tab order, Web tab and custom tab order, layout
+#   (font size, current tab, narrow sidebar), activity badges (~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build

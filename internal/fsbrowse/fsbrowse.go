@@ -1,6 +1,7 @@
 // Package fsbrowse lists directories inside a session's root for the Files
 // tab. Paths from the frontend are relative, slash-separated, and may not
-// leave the root.
+// leave the root, neither by name nor through symlinks: the agent host can
+// create links in a shared directory (README -> ~/.bashrc).
 package fsbrowse
 
 import (
@@ -23,6 +24,7 @@ type Entry struct {
 	Rel     string `json:"rel"` // path relative to the root, "/"-separated
 	Dir     bool   `json:"dir"` // directory, or symlink to one
 	Symlink bool   `json:"symlink"`
+	Outside bool   `json:"outside"` // symlink leading out of the root: not listed or opened
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mtime"` // Unix seconds
 	Hidden  bool   `json:"hidden"`
@@ -50,6 +52,33 @@ func Resolve(root, rel string) (string, error) {
 	return filepath.Join(root, filepath.FromSlash(c)), nil
 }
 
+// Inside checks that p, with symlinks resolved, is within root.
+func Inside(root, p string) error {
+	rr, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	rp, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(rr, rp)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("%w: %s leads to %s", ErrOutsideRoot, p, rp)
+	}
+	return nil
+}
+
+// ResolveInside is Resolve plus Inside: for listing and opening, where a
+// symlink must not lead out of the root.
+func ResolveInside(root, rel string) (string, error) {
+	p, err := Resolve(root, rel)
+	if err != nil {
+		return "", err
+	}
+	return p, Inside(root, p)
+}
+
 // IsHidden reports whether a name is hidden by default (dot files, which
 // includes .git).
 func IsHidden(name string) bool { return strings.HasPrefix(name, ".") }
@@ -58,7 +87,7 @@ func IsHidden(name string) bool { return strings.HasPrefix(name, ".") }
 // each case-insensitively by name. Hidden entries are left out unless
 // showHidden is set.
 func List(root, rel string, showHidden bool) (Listing, error) {
-	dir, err := Resolve(root, rel)
+	dir, err := ResolveInside(root, rel)
 	if err != nil {
 		return Listing{}, err
 	}
@@ -80,8 +109,12 @@ func List(root, rel string, showHidden bool) (Listing, error) {
 		e := Entry{Name: name, Rel: path.Join(rel, name), Hidden: hidden, Dir: de.IsDir()}
 		if de.Type()&fs.ModeSymlink != 0 {
 			e.Symlink = true
-			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			full := filepath.Join(dir, name)
+			if fi, err := os.Stat(full); err == nil {
 				e.Dir = fi.IsDir() // broken links show as files
+			}
+			if errors.Is(Inside(root, full), ErrOutsideRoot) {
+				e.Outside, e.Dir = true, false
 			}
 		}
 		if fi, err := de.Info(); err == nil {

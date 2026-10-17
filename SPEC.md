@@ -1,7 +1,9 @@
 # Session Workbench — Specification
 
-Status: v1.1 (2026-10-15) — v1.0 shipped in v0.6.0; v1.1 adds session folders (F5), git status
-in the Files tab (B5) and Linux packages. Sections describe the implemented behaviour.
+Status: v1.1 (2026-10-17, app v0.8.11) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+narrow sidebar (F6), Claude backups (F7), one instance per config (F8), git status and the
+repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), live share and working
+copies (docs/CONNECTIVITY.md) and Linux packages. Sections describe the implemented behaviour.
 
 ## 1. Problem
 
@@ -17,7 +19,7 @@ workspaces. This does not scale well past a few sessions and is Linux/XFCE speci
 ## 2. Goal
 
 A cross-platform (Linux, Windows, macOS) desktop app running on the **host** that manages many
-**sessions**. Each session is bound to one directory and provides four tabs, in this order:
+**sessions**. Each session is bound to one directory and provides five tabs, by default in this order:
 
 | Tab        | What it is                                                                      |
 |------------|---------------------------------------------------------------------------------|
@@ -49,29 +51,41 @@ name         = "vibe"
 ssh_target   = "mboot@vibe-u26"         # anything `ssh` accepts; ~/.ssh/config honored
 local_prefix = "/home/mboot/share-local"
 remote_prefix = "/net/192.168.122.1/home/mboot/share-local"
+
+[[hosts]]                               # no shared file system (docs/CONNECTIVITY.md)
+name           = "lab"
+ssh_target     = "me@lab-box"
+files          = "sshfs"                # shared (default) | sshfs (live share) | sync (working copy)
+remote_workdir = "~/sw"                 # default; sessions at <remote_workdir>/<dir>-<id>
 ```
 Remote path = `remote_prefix + (local_path − local_prefix)`; separators are normalized, so
 `C:\Users\me\share\proj` under `local_prefix = 'C:\Users\me\share'` maps to `<remote_prefix>/proj`
 (Windows paths compare case-insensitively). A session whose local path is not under
 `local_prefix` is rejected. Without prefixes the local path is used as-is, which only works for
-POSIX paths (not on Windows). `~` is expanded in local paths and prefixes.
+POSIX paths (not on Windows). `~` is expanded in local paths and prefixes. Prefixes are not used
+with `files = "sync"`/`"sshfs"`; set both prefixes or neither. Host rules are checked by the host
+dialog; hand-edited values are checked when used.
 
 **Session**:
 ```toml
 [[sessions]]
 id         = "s-7f3a"                  # stable, used for tmux name
-name       = "terminal-app"            # display name, defaults to dir name
+name       = "terminal-app"            # display name (the dialog defaults it to the dir name)
 host       = "vibe"
 local_path = "/home/mboot/share-local/workspace/terminal-app"
 start_mode = "claude-continue"         # claude | claude-continue | shell
 color_mode = "mono"                    # optional, overrides the global color mode (T3)
 local_init = "git status"              # optional, typed into the Local tab (L2)
 env        = { FOO = "bar" }           # optional, Local tab environment (L2)
+group      = "Work"                    # optional, sidebar folder listed in `groups` (F5)
+links      = [{ name = "Staging", url = "https://staging.example.com" }]   # optional, Web tab (W1)
 ```
-Session ids are generated (`s-` + 4 hex digits) and restricted to `[a-z0-9-]`.
+Session ids are generated (`s-` + 4 hex digits) and restricted to `[a-z0-9-]`, starting with a
+letter or digit, at most 63 characters.
 Sidebar order is the order of `[[sessions]]` in the file (no separate `order` field).
 
-**Workspace root(s)** — directories offered when creating a session (e.g. `~/share-local/workspace`).
+**Workspace roots** — the first entry is where Browse… starts in the New session dialog (else the
+host's `local_prefix`), e.g. `~/share-local/workspace`.
 
 ## 4. Functional requirements
 
@@ -79,12 +93,20 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 - F0. Multiple agent hosts are a first-class use case: sidebar groups sessions by host profile
   (collapsible); a host profile can be added/edited from the UI; a session's host is fixed at creation.
 - F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
-  under their host. Drag (or menu Move up/down) to reorder within a host. Edit (rename, start
-  mode, colors), disconnect, end remote session, delete (optionally ending the tmux session).
-- F2. "New session" dialog: pick host profile → pick directory (browse under workspace roots, or any
-  path under `local_prefix`) → name → start mode (`claude`, `claude --continue`, plain shell).
+  under their host. Drag (or menu Move up/down) to reorder within its folder and host. Edit
+  (rename, folder, start mode, colors), disconnect, end remote session, delete (optionally ending
+  the tmux session).
+- F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
+  workspace root; any path under `local_prefix`) → name → folder → start mode (`claude`,
+  `claude --continue`, plain shell). It previews the remote path or why the directory can't be
+  used; one session per directory and host. Host and directory are fixed afterwards.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable).
+- F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal
+  while the window is in the background) rings the bell, or produces output after 10 s idle (at
+  least max(512 bytes, 2 × columns) within 2 s; redraws within 1.5 s of a resize don't count). The
+  tab that caused it is marked too; the window title counts sessions with badges. claude waiting
+  for input → bell; the user sets Claude Code's `preferredNotifChannel` to `terminal_bell`.
 - F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
   gives their order, `group` on a session its folder. The sidebar shows ungrouped sessions first,
   then each folder (collapsible, with a count), each split by host. Folders can be created,
@@ -92,29 +114,35 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   between folders via the session dialog, "Move to folder…", or drag onto a folder header.
 - F6. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail
   of session markers (initials, number, status dot, badges; name and path as tooltip). Folder
-  and host headers stay, abbreviated. Remembered across restarts.
+  and host headers stay, abbreviated; the sidebar footer (Add host…, Settings…) is hidden.
+  Remembered across restarts.
 - F7. Claude backups: each agent host's `~/.claude` and `~/.claude.json` are copied with rsync
-  over ssh to `<data dir>/claude-backups/<host>/home/`, a minute after start and then every
-  `claude_backup_every` (default 1h, 5m…168h) while the app runs (`claude_backup`, default on;
-  failed backups retry after at most 15 minutes). Never deletes from a backup; excludes claude's
-  login (`.credentials.json`) and caches/downloads. Status per host in the host header tooltip,
-  ⚠ after a failure; host menu: back up now, restore (copies back without overwriting existing
-  files), open the backup folder. Needs rsync on both sides.
+  over ssh to `<data dir>/claude-backups/<host name>/home/` (`status.json` beside it). Checked a
+  minute after start and then every minute; a host is due when `claude_backup_every` (default 1h,
+  5m…168h) has passed since its last attempt (kept across restarts), at most every 15 minutes
+  after a failure (`claude_backup`, default on). rsync `-a --safe-links --no-devices
+  --no-specials`, never `--delete`; excludes `.claude/.credentials.json` (claude's login),
+  `cache/`, `plugins/cache/`, `plugins/marketplaces/`, `shell-snapshots/`, `session-env/`,
+  `statsig/`, `telemetry/`, `debug/`. A missing `~/.claude` is a failure, a missing
+  `~/.claude.json` is not. Status per host in the host header tooltip, ⚠ after a failure; host
+  menu: back up now, restore (`--ignore-existing`: for a new or reinstalled host), open the
+  backup folder. Needs rsync on both sides; without rsync on this computer automatic backups
+  pause and the tooltip says so.
 - F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
   running window forward (Wails single-instance lock, keyed on the config path) or, where that
   is not available, shows only a message and touches nothing.
-- F4. Activity indicator: a session gets a badge when a non-visible terminal rings the bell or
-  produces output after being idle (claude waiting for input → bell; user configures Claude Code's
-  `preferredNotifChannel` to `terminal_bell`).
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
   per §6):
   `ssh -t -o ForwardAgent=no -o ForwardX11=no -o ForwardX11Trusted=no -o ClearAllForwardings=yes
   -o RemoteCommand=none -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -- <target>
-  'exec "$SHELL" -lc "cd <remote_path> || exit 1; exec tmux new-session -A -s cw-<id> -c <remote_path> <pane cmd>"'`
-  Everything runs in the remote user's login shell so that PATH includes `~/.local/bin` (claude)
-  or Homebrew (tmux). A missing remote directory is reported instead of starting in `$HOME`.
+  'exec "$SHELL" -lc "cd <remote_path> || { echo \"session directory <remote_path> does not exist
+  on this host\" >&2; exit 3; }; exec tmux new-session -A -s cw-<id> -c \"\$PWD\" <pane cmd>"'`
+  (a leading `~/` in the path is expanded through `"$HOME"`). Everything runs in the remote user's
+  login shell so that PATH includes `~/.local/bin` (claude) or Homebrew (tmux). A missing remote
+  directory exits 3 and the Remote tab says so (for a working copy it offers *Send to agent…*)
+  instead of starting in `$HOME`.
 - R2. **tmux is mandatory on the agent host** — it makes sessions survive app restarts, closed
   windows and network drops (not agent-host reboots). Reopening the tab re-attaches (`-A`); the
   start command only runs when the tmux session is first created. When claude exits, the pane
@@ -126,10 +154,12 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   login shell, so it gets the PATH of a manual login: a non-interactive shell skips most of
   `~/.bashrc` (Ubuntu's returns early), where `~/.local/bin` is often added.
 - R3. When the connection ends, an overlay says why and offers to reconnect (Enter). Failed or
-  dropped connections (ssh exit 255) reconnect automatically with backoff 1, 2, 4 … 30 s
-  (configurable; Esc stops). tmux detach / session end (exit 0) and a user Disconnect do not.
+  dropped connections (ssh exit 255), and a Remote tab that could not start (e.g. the live share
+  did not mount), reconnect automatically after 1, 2, 4, 8, 16, then every 30 s (back to 1 s after
+  a connection that lasted 30 s; on/off with `auto_reconnect`; Esc stops). tmux detach / session
+  end (exit 0) and a user Disconnect do not.
 - R4. "End remote session" action (runs `tmux kill-session -t '=cw-<id>'` over ssh, exact match,
-  `BatchMode=yes`), with confirm.
+  `BatchMode=yes`, 20 s timeout; a session that is not running counts as ended), with confirm.
 - R5. Agent forwarding and X11 forwarding are **always forced off** — forwarding the agent would
   hand the isolated machine the host's git credentials.
 
@@ -142,38 +172,54 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
 ### 4.4 Files tab
 - B1. Lazy-loaded tree of `local_path` (expand to load children); directories first, sorted
   case-insensitively; at most 5000 entries per directory. Hidden files (dotfiles, incl. `.git`)
-  toggle, remembered per session. Keyboard navigation (arrows, Enter, F5).
+  toggle, remembered per session (the Windows hidden attribute is not used). The 5000 cut is
+  made in directory order, before sorting. Keyboard navigation: arrows (Left/Right collapse /
+  expand or go to the parent), Home/End, PgUp/PgDn (20 rows), Enter, F5.
 - B2. Double-click / Enter on a file → open with OS default (`xdg-open` / `open` / `ShellExecute`).
   Directory → expand. Files the OS would execute are refused (§6).
-- B3. Context menu: open, open containing folder in OS file manager, copy path (local), copy path
-  (remote), refresh.
+- B3. Context menu: on a file open and open containing folder (Linux: the file manager selects it
+  via D-Bus FileManager1, else `xdg-open` on the folder); on a folder expand/collapse and open in
+  the file manager; always copy path (local), copy path (remote), refresh. Symlinks are followed
+  only inside the session directory: one leading out is marked *↗ outside* and neither listed nor
+  opened (§6).
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
-- B6. Repository check: active hooks and risky repository config (programs git would run,
-  push redirection) are shown as a ⚠ on the session and a Files-tab banner with details and fix
-  commands; "Mark as reviewed" stores a fingerprint (`trusted_git`) and the warning returns when
-  it changes. Read-only; runs at start, on session switch, on Files refresh, every 2 minutes.
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
   `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
   defines `filter.*`, `include*` or `core.fsmonitor`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
-  ! conflict), a dot on folders containing changes, ignored entries in italics; branch and
-  ahead/behind in the files bar. Loaded after the listing; works when the session directory is a
-  subdirectory of the repository; nothing shown outside a repository or without git.
+  ! conflict), a dot on folders containing changes (! for conflicts), entries inside ignored or
+  untracked folders inherit that, ignored entries in italics (not counted as changed); branch and
+  ahead/behind in the files bar ("git status skipped" or "git: error" with the reason in its
+  tooltip). Loaded after the listing; works when the session directory is a subdirectory of the
+  repository; nothing shown outside a repository or without git.
+- B6. Repository check: active hooks (executable files in the folder git uses, following
+  `core.hooksPath`) and risky repository config (programs git would run, push and traffic
+  redirection; list in docs/CONNECTIVITY.md) are shown as a ⚠ on the session and a Files-tab
+  banner; Details… lists each with why it matters and a shell-quoted command to inspect or remove
+  it, credentials in URLs masked. "Mark as reviewed" stores a fingerprint (`trusted_git`: hook
+  names with a SHA-256 of their contents, names and values of the flagged keys) and the warning
+  returns when it changes; changes to keys that are not flagged don't count. Read-only; runs at
+  start, on session switch and window focus, on Files refresh, when Details… opens, and every 2
+  minutes for all sessions.
 
 ### 4.4a Notes tab
 - N1. A plain-text editor per session, saved automatically (shortly after typing stops, on
   leaving the tab, when the window loses focus). Stored as `notes/<session id>.md` next to the
-  config file (owner-only permissions), not in the project: notes stay out of git and are not
-  visible to the agent host. Reloaded when shown if changed outside the app; kept when the
-  session is deleted.
+  config file (owner-only permissions, atomic writes, at most 4 MB), not in the project: notes
+  stay out of git and are not visible to the agent host. Empty notes remove the file. Reloaded
+  when shown if changed outside the app (unless there are unsaved edits); kept when the session
+  is deleted.
 
 ### 4.4b Web tab
 - W1. Links for the repository's web pages derived from its git remote (read from the
-  repository's own config without includes; credentials in the URL dropped): GitHub
-  Repository/Actions/Pull requests/Issues/Releases, GitLab equivalents, otherwise the repository
-  page. Per-session custom links (`links`, http/https only). The latest GitHub Actions runs via
-  the user's GitHub CLI (`gh run list -R owner/repo`, so gh does not run git in the project),
-  refreshed while visible (15 s while a run is in progress, else 2 min). Everything opens in the
-  system browser; web pages are not embedded (GitHub forbids framing). No tokens are stored.
+  repository's own config without includes; remote `origin`, else the first; credentials and
+  ports dropped, always `https://host/path`): github.com gets Repository/Actions/Pull
+  requests/Issues/Releases, hosts whose name contains "gitlab" the GitLab equivalents, any other
+  host the repository page. Per-session custom links (`links`, http/https only). The last 12
+  GitHub Actions runs via the user's GitHub CLI (`gh run list -R owner/repo`, so gh does not run
+  git in the project; 30 s timeout), refreshed while visible (15 s while a run is in progress,
+  else 2 min, also after an error). Without gh the tab says how to install and log in. Everything
+  opens in the system browser; web pages are not embedded (GitHub forbids framing). No tokens are
+  stored.
 
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
@@ -182,9 +228,10 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   clickable URLs (opened in the default browser).
 - T3. Font family/size, theme (light/dark), configurable globally. The font size scales the whole
   app (sidebar, tab bar, dialogs, menus); a set font family is used everywhere too. The light
-  theme is black text on a white background (the primary user's preference); **all** app text is
-  black, secondary text too (no grey text: grey on grey is hard to read; hierarchy comes from size
-  and weight, dimmed entries are shown in italics). It must stay readable with programs that
+  theme is black text on a white background (the primary user's preference); all ordinary app text
+  is black, secondary text too (no grey text: grey on grey is hard to read; hierarchy comes from
+  size and weight, dimmed entries are shown in italics); color only marks status (errors,
+  warnings, git letters, directory names). It must stay readable with programs that
   assume a dark background:
   - `color_mode = "full"` — ANSI colors as sent, but with a minimum contrast against the
     background (xterm.js `minimumContrastRatio`, default ~4.5), so yellow/light green on white
@@ -193,40 +240,51 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
     color (contrast ratio 21), including 256-color and truecolor output; bold/underline/inverse
     still shown.
   - Configurable globally (Settings: the default for every session), overridable per session
-    in the session's Edit dialog; switchable at runtime without restarting the terminal.
+    in Edit… (Colors) or with the session menu (choosing the global value removes the override);
+    switchable at runtime without restarting the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
 
 ### 4.6 Keyboard
 Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux, and claude:
 
-| Action                 | Linux/Windows        | macOS          |
-|------------------------|----------------------|----------------|
-| Next / prev session    | Ctrl+Shift+PgDn/PgUp | Cmd+Shift+]/[  |
-| Session 1…9            | Ctrl+Alt+1…9         | Cmd+1…9        |
-| 1st … 9th visible tab  | Ctrl+Shift+1…9       | Cmd+Shift+1…9  |
-| New session            | Ctrl+Shift+N         | Cmd+Shift+N    |
-| Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    |
-| Find in terminal       | Ctrl+Shift+F         | Cmd+F          |
-| Narrow / wide sidebar  | Ctrl+Shift+B         | Cmd+Shift+B    |
-| Settings               | Ctrl+Shift+,         | Cmd+,          |
+| Action                 | Linux/Windows        | macOS          | `[keys]` name                 |
+|------------------------|----------------------|----------------|-------------------------------|
+| Next / prev session    | Ctrl+Shift+PgDn/PgUp | Cmd+Shift+]/[  | `next_session`, `prev_session` |
+| Session 1…9            | Ctrl+Alt+1…9         | Cmd+1…9        | `session_1` … `session_9`     |
+| 1st … 9th visible tab  | Ctrl+Shift+1…9       | Cmd+Shift+1…9  | `tab_1` … `tab_9`             |
+| A tab by name          | none                 | none           | `tab_local` … `tab_web`       |
+| New session            | Ctrl+Shift+N         | Cmd+Shift+N    | `new_session`                 |
+| Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    | `quick_switcher`              |
+| Find in terminal       | Ctrl+Shift+F         | Cmd+F          | `find`                        |
+| Narrow / wide sidebar  | Ctrl+Shift+B         | Cmd+Shift+B    | `toggle_sidebar`              |
+| Settings               | Ctrl+Shift+,         | Cmd+,          | `settings`                    |
 
-Rebinding: `[keys]` table, action name → key (`Mod` = Cmd on macOS, Ctrl elsewhere; `"none"`
-disables). Bad or conflicting bindings are reported in the UI and fall back to the default.
+Each tab's tooltip shows its shortcut. Rebinding: `[keys]` table, action name → key (`Mod` =
+Cmd on macOS, Ctrl elsewhere; `"none"` disables; `PgUp`/`PgDn` = `PageUp`/`PageDown`). A binding
+needs Ctrl, Alt or Cmd, except F-keys. A bad binding is reported in the UI and the default is
+kept; when two actions use the same key, both are named and the later one in this table is
+disabled. Read at start (restart after editing); Settings lists the current bindings.
 
 ### 4.7 Configuration
-- Single TOML file: `$XDG_CONFIG_HOME/session-workbench/config.toml` (Linux),
+- Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),
   `%APPDATA%\session-workbench\config.toml` (Windows), `~/Library/Application Support/...` (macOS);
-  `-config <file>` overrides.
-- Contains: hosts, workspace roots, sessions, UI prefs (also editable in a Settings dialog),
-  keybindings, local shell.
+  `-config <file>` overrides. A relative `$XDG_CONFIG_HOME`/`$XDG_DATA_HOME` is ignored.
+- Contains: hosts, workspace roots, folders (`groups`), sessions (incl. links and the reviewed
+  repository fingerprint), UI prefs (also editable in a Settings dialog), keybindings, local shell.
 - Written atomically (write temp + rename) on every change. Hand-editable while the app is not
   running (comments are not preserved); unknown keys are rejected. If the file cannot be read the
-  app starts empty, shows the error and never overwrites it.
+  app starts empty, shows the error and never overwrites it. Invalid setting values get their
+  defaults; a file hiding every tab shows them all. Hosts and sessions are validated by the
+  dialogs and when used (e.g. an unknown start mode fails when the Remote tab connects).
+- `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
+  too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
-  WebKit's storage (window state such as the last tab and the narrow sidebar). Notes stay next
-  to the config file.
+  WebKit's storage. Window state (active session, last tab per session, collapsed headers, narrow
+  sidebar, switcher order, last host and start mode for a new session) is in the web view's
+  storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
+  WebKit's default store on macOS. Notes stay next to the config file.
 
 ## 5. Architecture
 
@@ -235,9 +293,11 @@ disables). Bad or conflicting bindings are reported in the UI and fall back to t
 │ Frontend (plain JS + xterm.js, no framework)                      │
 │   sidebar · tab bar · xterm instances · file tree · dialogs       │
 │        ▲  events: term:data:<id> (base64), term:exit:<id>         │
-│        │  calls:  Write, Resize, ListDir, Open, Session CRUD      │
+│        │  calls:  TermWrite/Resize, StartLocal/Remote, ListDir,   │
+│        │          OpenPath, session/host/folder CRUD, Sync*, Backup*│
 │ Backend (Go)                                                      │
-│   config  · session manager · pty manager · pathmap · fs · opener │
+│   config · session manager · pty manager · pathmap · fs · opener  │
+│   gitstatus · notes · forge · syncer · share · backup · instance  │
 └───────────┬───────────────────────────────┬───────────────────────┘
             │ PTY: local shell              │ PTY: ssh → agent host → tmux → claude
 ```
@@ -271,7 +331,11 @@ internal/gitstatus         git markers and repository check for the Files tab
 internal/forge             Web tab: forge links, GitHub runs via gh
 internal/syncer            working copies (rsync out, git fetch back)
 internal/share             live share (confined SFTP server, sshfs mounts)
-frontend/src               main.js, terminal.js, files.js, ui.js, appearance.js, keys.js, fuzzy.js
+internal/notes             per-session notes files
+internal/backup            Claude backups (rsync of ~/.claude, restore)
+internal/instance          one instance per config file (lock)
+frontend/src               main.js, terminal.js, files.js, notes.js, web.js, ui.js, appearance.js,
+                           keys.js, fuzzy.js
 ```
 
 ## 6. Security considerations
@@ -288,11 +352,22 @@ repository config and warns again whenever they change.
   start with `-`.
 - Remote command built with strict shell quoting; session IDs restricted to `[a-z0-9-]`; paths
   quoted with single-quote escaping.
-- Files tab only operates on the host side, inside the session directory (paths from the UI cannot
-  escape it); never executes files, only "open with default app". Refused: native binaries
-  (ELF/PE/Mach-O, by content) everywhere; per OS the extensions the OS would run (`.exe .bat .cmd
-  .ps1 .lnk .msi …` on Windows, `.app .command …` and executable-bit files on macOS,
-  `.desktop .AppImage …` on Linux).
+- Files tab only operates on the host side, inside the session directory: paths from the UI
+  cannot escape it, and symlinks are followed only when their target is inside it (a link the
+  agent host plants, e.g. `README` → `~/.bashrc`, is marked and neither listed nor opened). It
+  never executes files, only "open with default app". Refused (case-insensitive):
+  - everywhere, by content: native binaries (ELF, PE/MZ, Mach-O thin and universal);
+  - Windows: `.exe .com .bat .cmd .ps1 .psm1 .psd1 .vbs .vbe .js .jse .wsf .wsh .msi .msp .msc
+    .scr .pif .lnk .hta .cpl .jar .reg .inf .scf .url .application .appref-ms .gadget
+    .settingcontent-ms .library-ms .appx .msix`;
+  - macOS: `.app .command .tool .terminal .workflow .action .pkg .mpkg .jar .webloc .inetloc
+    .fileloc` and files with an executable bit;
+  - Linux and other Unix: `.desktop .appimage .run .jar`.
+- Fix commands the repository check suggests are shell-quoted: key names and paths come from a
+  repository the agent host may have written.
+- Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
+  inside the directory; hard links refused; ownership changes ignored. Claude backups: rsync
+  `--safe-links --no-devices --no-specials`, never `--delete`, nothing in a backup is run.
 
 ## 7. Open questions
 1. ~~Wails v2 vs v3~~ → v2.16 (decided).

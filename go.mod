@@ -42,5 +42,3 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
-
-// replace github.com/wailsapp/wails/v2 v2.16.0 => /home/mboot/go/pkg/mod

@@ -16,10 +16,11 @@ maintainer: Maarten Boot <11140490+maarten-boot@users.noreply.github.com>
 description: |
   Run many Claude Code sessions side by side
   Desktop app for working with many Claude Code sessions at once. Each
-  session is bound to one directory and has a remote terminal (ssh to an
-  agent host, in a persistent terminal multiplexer session running Claude
-  Code), a local shell, and a file tree with git status and a check for
-  repository hooks and settings.
+  session is bound to one directory and has a local shell, a file tree with
+  git status and a check for repository hooks and settings, a remote
+  terminal (ssh to an agent host, in a persistent terminal multiplexer
+  session running Claude Code), notes, and the repository's build runs and
+  web links. Claude Code's data on the agent hosts is backed up regularly.
 vendor: Maarten Boot
 homepage: https://github.com/maarten-boot/multi-session-ssh-dev
 license: MIT
@@ -88,6 +89,10 @@ overrides:
       - openssh-client
     recommends:
       - git
+      - rsync                             # Claude backups (on by default), working copies
+      - xdg-utils                         # Files tab: open with the default application
+    suggests:
+      - gh                                # Web tab: GitHub Actions runs
   rpm:
     depends:
       - webkit2gtk4.1
@@ -95,3 +100,7 @@ overrides:
       - openssh-clients
     recommends:
       - git
+      - rsync
+      - xdg-utils
+    suggests:
+      - gh

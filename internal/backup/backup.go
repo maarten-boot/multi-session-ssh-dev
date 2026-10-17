@@ -68,9 +68,18 @@ func remoteDir(h Host) string {
 	return strings.TrimSuffix(h.Home, "/") + "/"
 }
 
-func rsync(ctx context.Context, args ...string) (string, int, error) {
+// Available says why backups cannot run on this computer (no rsync, e.g.
+// on Windows); nil when they can.
+func Available() error {
 	if _, err := exec.LookPath("rsync"); err != nil {
-		return "", 0, errors.New("rsync is not installed on this computer")
+		return errors.New("Claude backups need rsync on this computer")
+	}
+	return nil
+}
+
+func rsync(ctx context.Context, args ...string) (string, int, error) {
+	if err := Available(); err != nil {
+		return "", 0, err
 	}
 	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
@@ -315,7 +324,8 @@ func (r *Runner) Start(ctx context.Context) {
 				return
 			case <-t.C:
 			}
-			if every, on := r.Every(); on {
+			// Without rsync here only "Back up now" tries (and says why).
+			if every, on := r.Every(); on && Available() == nil {
 				for _, h := range r.Hosts() {
 					if r.due(h.Name, every, time.Now()) {
 						go r.backup(ctx, h)

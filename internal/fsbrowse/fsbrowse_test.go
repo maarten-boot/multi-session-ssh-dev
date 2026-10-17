@@ -118,3 +118,43 @@ func TestMissingDir(t *testing.T) {
 		t.Error("listing missing dir succeeded")
 	}
 }
+
+// Symlinks the agent host may plant must not lead out of the root.
+func TestSymlinksOutOfRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	root, outside := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(outside, "bashrc"), []byte("x"), 0o600)
+	os.WriteFile(filepath.Join(root, "real.md"), []byte("x"), 0o600)
+	os.Mkdir(filepath.Join(root, "sub"), 0o755)
+	os.Symlink(filepath.Join(outside, "bashrc"), filepath.Join(root, "README"))
+	os.Symlink(outside, filepath.Join(root, "escape"))
+	os.Symlink("real.md", filepath.Join(root, "inner"))
+	os.Symlink("sub", filepath.Join(root, "subdir"))
+	l, err := List(root, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]Entry{}
+	for _, e := range l.Entries {
+		got[e.Name] = e
+	}
+	if !got["README"].Outside || !got["escape"].Outside || got["escape"].Dir {
+		t.Errorf("links out of the root not marked: %+v %+v", got["README"], got["escape"])
+	}
+	if got["inner"].Outside || got["subdir"].Outside || !got["subdir"].Dir {
+		t.Errorf("links inside the root marked: %+v %+v", got["inner"], got["subdir"])
+	}
+	for _, rel := range []string{"README", "escape", "escape/bashrc"} {
+		if _, err := ResolveInside(root, rel); !errors.Is(err, ErrOutsideRoot) {
+			t.Errorf("ResolveInside(%q) = %v, want ErrOutsideRoot", rel, err)
+		}
+	}
+	if _, err := List(root, "escape", false); !errors.Is(err, ErrOutsideRoot) {
+		t.Errorf("listing a link out of the root: %v", err)
+	}
+	if _, err := ResolveInside(root, "inner"); err != nil {
+		t.Errorf("link inside the root refused: %v", err)
+	}
+}

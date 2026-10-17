@@ -10,7 +10,7 @@ import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
-    BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup,
+    BackupNow, BackupProblem, BackupStatus, OpenBackupFolder, RestoreBackup,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
@@ -392,6 +392,7 @@ const app = {
             return;
         }
         this.backups = await BackupStatus().catch(() => ({}));
+        this.backupProblem = await BackupProblem().catch(() => '');
         EventsOn('backup', (host, st) => {
             this.backups[host] = st;
             this.renderBackup(host);
@@ -577,7 +578,7 @@ const app = {
     renderBackup(host) {
         const st = this.backups?.[host];
         for (const h of this.hostHeads.filter(h => h.name === host)) {
-            h.head.title = `${h.target}\n${backupText(st, this.state.ui.claude_backup)}`;
+            h.head.title = `${h.target}\n${this.backupProblem && !st?.error ? this.backupProblem : backupText(st, this.state.ui.claude_backup)}`;
             h.head.querySelector('.backup-warn').hidden = !st?.error;
         }
     },
@@ -1267,8 +1268,7 @@ async function setSessionColors(s, mode) {
 }
 
 const ACTION_LABELS = {
-    next_session: 'Next session', prev_session: 'Previous session', tab_remote: 'Remote tab',
-    tab_local: 'Local tab', tab_files: 'Files tab', new_session: 'New session',
+    next_session: 'Next session', prev_session: 'Previous session', new_session: 'New session',
     quick_switcher: 'Quick switcher', settings: 'Settings', find: 'Find in terminal',
     toggle_sidebar: 'Narrow / wide sidebar',
 };

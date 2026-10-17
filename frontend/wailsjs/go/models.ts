@@ -151,6 +151,7 @@ export namespace fsbrowse {
 	    rel: string;
 	    dir: boolean;
 	    symlink: boolean;
+	    outside: boolean;
 	    size: number;
 	    mtime: number;
 	    hidden: boolean;
@@ -165,6 +166,7 @@ export namespace fsbrowse {
 	        this.rel = source["rel"];
 	        this.dir = source["dir"];
 	        this.symlink = source["symlink"];
+	        this.outside = source["outside"];
 	        this.size = source["size"];
 	        this.mtime = source["mtime"];
 	        this.hidden = source["hidden"];

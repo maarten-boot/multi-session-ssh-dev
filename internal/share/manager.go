@@ -72,6 +72,13 @@ func (m *Manager) Ensure(id string, spec Spec, timeout time.Duration) error {
 		m.mu.Lock()
 		r = nil
 	}
+	if r != nil {
+		select {
+		case <-r.done: // failed for good earlier: try again (e.g. sshfs installed since)
+			r = nil
+		default:
+		}
+	}
 	if r == nil {
 		ctx, cancel := context.WithCancel(context.Background())
 		r = &running{spec: spec, cancel: cancel, ready: make(chan struct{}), done: make(chan struct{})}

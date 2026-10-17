@@ -121,6 +121,9 @@ func normalizeTabs(u *UI) {
 		}
 	}
 	u.HiddenTabs = hidden
+	if len(hidden) >= len(Tabs) { // a hand-edited file hid every tab: show them all
+		u.HiddenTabs = nil
+	}
 }
 
 type Config struct {
@@ -199,8 +202,8 @@ func ValidateUI(u UI) error {
 		return fmt.Errorf("minimum contrast must be between 1 and 21")
 	case u.FontSize < 6 || u.FontSize > 48:
 		return fmt.Errorf("font size must be between 6 and 48")
-	case u.Scrollback < 0 || u.Scrollback > 1000000:
-		return fmt.Errorf("scrollback must be between 0 and 1000000 lines")
+	case u.Scrollback < 1 || u.Scrollback > 1000000:
+		return fmt.Errorf("scrollback must be between 1 and 1000000 lines")
 	case u.ConnectOnStart != "lazy" && u.ConnectOnStart != "eager":
 		return fmt.Errorf("unknown connect_on_start %q", u.ConnectOnStart)
 	}
@@ -220,9 +223,17 @@ func ValidateUI(u UI) error {
 
 // DefaultPath is <user config dir>/session-workbench/config.toml:
 // $XDG_CONFIG_HOME or ~/.config on Linux, %AppData% on Windows,
-// ~/Library/Application Support on macOS.
+// ~/Library/Application Support on macOS. A relative $XDG_CONFIG_HOME is
+// ignored (as for DataDir), not taken as "the current directory".
 func DefaultPath() (string, error) {
 	dir, err := os.UserConfigDir()
+	if err != nil && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+		home, herr := os.UserHomeDir()
+		if herr != nil {
+			return "", err
+		}
+		dir, err = filepath.Join(home, ".config"), nil
+	}
 	if err != nil {
 		return "", err
 	}

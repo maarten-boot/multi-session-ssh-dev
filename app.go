@@ -125,6 +125,14 @@ func (a *App) secondInstance(options.SecondInstanceData) {
 // BackupStatus is the last backup per host name.
 func (a *App) BackupStatus() map[string]backup.Status { return a.backups.Status() }
 
+// BackupProblem says why backups cannot run on this computer; "" if they can.
+func (a *App) BackupProblem() string {
+	if err := backup.Available(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
 // BackupNow backs one host up and waits for it.
 func (a *App) BackupNow(host string) error {
 	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Minute)
@@ -410,7 +418,7 @@ func (a *App) nativePath(id, rel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fsbrowse.Resolve(r.LocalPath, rel)
+	return fsbrowse.ResolveInside(r.LocalPath, rel) // open/reveal: no symlinks out of the directory
 }
 
 // Paths is an item's path on both machines, for "copy path".

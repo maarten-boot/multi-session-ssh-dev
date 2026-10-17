@@ -196,6 +196,7 @@ export class FilesView {
             const gc = this.gitCode(e);
             if (gc) row.classList.add('git-' + gc.replace('?', 'U'));
             if (e.symlink) row.classList.add('symlink');
+            if (e.outside) row.classList.add('outside');
             if (e.rel === this.selected) row.classList.add('selected');
             const caret = e.dir ? (this.expanded.has(e.rel) ? '▾' : '▸') : '';
             row.append(el('span', {className: 'caret', textContent: caret}),
@@ -222,7 +223,8 @@ export class FilesView {
     // (instead of a tooltip, which would cover the context menu).
     describe(e) {
         const parts = [e.rel + (e.dir ? '/' : '')];
-        if (e.symlink) parts.push('symlink');
+        if (e.outside) parts.push('symlink to outside the session directory: not opened');
+        else if (e.symlink) parts.push('symlink');
         if (!e.dir) parts.push(fmtSize(e.size));
         const gc = this.gitCode(e);
         const label = {M: 'modified', A: 'added', D: 'deleted', R: 'renamed', '?': 'untracked', C: 'merge conflict',

@@ -99,7 +99,7 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 				a.Findings = append(a.Findings, Finding{
 					Kind: "config", Name: name, Why: r.why,
 					Detail: urlCredentials.ReplaceAllString(value, "${1}***@"),
-					Fix:    "git config --local --unset-all " + name,
+					Fix:    "git config --local --unset-all " + quote(name),
 				})
 				fp = append(fp, "config "+name+"="+value)
 				break
@@ -107,7 +107,7 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 			if strings.HasPrefix(k, "alias.") && strings.HasPrefix(value, "!") {
 				a.Findings = append(a.Findings, Finding{
 					Kind: "config", Name: name, Detail: value, Why: "a git alias that runs a shell command",
-					Fix: "git config --local --unset-all " + name,
+					Fix: "git config --local --unset-all " + quote(name),
 				})
 				fp = append(fp, "config "+name+"="+value)
 			}
@@ -157,8 +157,13 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 	return a, nil
 }
 
+// quote makes s one shell word for the fix commands the user may paste into
+// a shell: names and paths come from the repository, which the agent host
+// may have written, so anything beyond plain characters is single-quoted.
+var plainWord = regexp.MustCompile(`^[A-Za-z0-9._/@%+=:,-]+$`)
+
 func quote(s string) string {
-	if !strings.ContainsAny(s, " '\"\\$`") {
+	if plainWord.MatchString(s) {
 		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"

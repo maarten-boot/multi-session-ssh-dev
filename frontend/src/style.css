@@ -723,6 +723,13 @@ button.danger {
     font-style: italic;
 }
 
+/* A symlink leading out of the session directory (possibly planted by the
+   agent host): marked, and opening it is refused. */
+.tree .row.outside .name::after {
+    content: " ↗ outside";
+    color: var(--warn);
+}
+
 .tree .row.note .name {
     color: var(--muted);
     font-style: italic;

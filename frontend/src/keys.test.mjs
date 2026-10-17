@@ -10,6 +10,7 @@ test('parse', () => {
     assert.deepEqual(parse('ctrl+alt+3'), {ctrl: true, shift: false, alt: true, meta: false, code: 'Digit3'});
     assert.equal(parse('Cmd+Shift+]').code, 'BracketRight');
     assert.equal(parse('Ctrl+Shift+,').code, 'Comma');
+    assert.equal(parse('Ctrl+Shift+PgDn').code, 'PageDown'); // as the docs abbreviate it
     assert.equal(parse('Ctrl+F5').code, 'F5');
     assert.equal(parse('F6').code, 'F6'); // function keys alone are fine
     assert.equal(parse('Mod+K', true).meta, true);

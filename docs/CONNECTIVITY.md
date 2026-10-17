@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (after v0.8.0).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.11).
 
 **Implemented** items work today. **Planned** items are proposals; they are not in the app yet.
 
@@ -31,11 +31,21 @@ reach that machine. Your ssh agent is not forwarded to it either.
 ## Requirements on the agent host
 
 - An ssh server you can log in to **with a key**, without typing a password.
-- `tmux`.
-- `claude`, on the PATH of your *login* shell (for example `~/.local/bin`).
-- Depending on the file access mode: an NFS client, `sshfs` + FUSE, or `rsync` (see below).
+- `tmux`, on the PATH of a *login* shell (`~/.profile`): the app starts it with `"$SHELL" -lc`.
+- `claude`, on the PATH of an *interactive* login shell (`~/.profile` or `~/.bashrc`, for
+  example `~/.local/bin`): claude is started like a manual login, with `"$SHELL" -lic`.
+- `rsync` for Claude backups (on by default) and working copies, and `git` for working copies,
+  both on the default PATH (for example `/usr/bin`): ssh starts them without a login shell.
+- Depending on the file access mode: an NFS client, or `sshfs` + FUSE for live share (see below).
 
-Nothing is installed on the agent host by the app.
+Nothing is installed on the agent host by the app. To check it the way the app sees it:
+
+```sh
+ssh <target> 'exec "$SHELL" -lc "command -v tmux"'      # tmux
+ssh <target> 'exec "$SHELL" -lic "command -v claude"'   # claude
+ssh <target> 'command -v rsync git'                     # backups, working copies
+ssh <target> 'command -v sshfs && ls -l /dev/fuse'      # live share
+```
 
 ## SSH
 
@@ -92,11 +102,20 @@ The Remote tab then starts in the mapped directory. Options:
 
 ### B. Live share over ssh (implemented)
 
-For users without NFS. Choose *live share over ssh* when adding the host (or set
-`files = "sshfs"`, optionally `remote_workdir`, default `~/sw`). The app runs a small SFTP file
-server **confined to the session directory** and connects it through its own ssh connection to
-`sshfs -o passive` on the agent host, which mounts it at `<remote_workdir>/<directory>-<id>`.
-The Remote tab runs there.
+For users without NFS. Choose *live share over ssh* when adding the host, or in the config:
+
+```toml
+[[hosts]]
+name = "cloud"
+ssh_target = "me@cloud-box"
+files = "sshfs"            # live share
+# remote_workdir = "~/sw"  # default; no local/remote prefixes with this mode
+```
+
+The app runs a small SFTP file server **confined to the session directory** and connects it
+through its own ssh connection to `sshfs -o passive` on the agent host, which mounts it at
+`<remote_workdir>/<directory>-<id>` (the directory name with anything but letters, digits,
+`.`, `_`, `-` replaced by `-`). The Remote tab runs there.
 
 - No open ports, and **no credentials on the agent host**: the agent host never logs in to your
   host. Your host serves files over the connection that it opened itself.
@@ -109,9 +128,16 @@ The Remote tab runs there.
   not your login shell, because text printed by a shell profile would corrupt the file
   protocol (if mounting fails with a protocol error, check `~/.bashrc` on the agent host for
   output in non-interactive shells).
-- Shares start when the app starts and reconnect by themselves (1, 2, 4 … 30 s) if the
-  connection drops; the bar next to the tabs shows the state (*● shared*). A missing `sshfs` is
-  reported instead of retried. *Stop sharing* in the session menu unmounts it.
+- Shares of existing sessions start when the app starts; a new session's share starts with its
+  Remote tab, which waits up to 25 s for the mount. They reconnect by themselves (1, 2, 4, 8, 16,
+  then every 30 s; back to 1 s after a mount that lasted a minute) if the connection drops. The
+  bar next to the tabs shows the state: *● shared*, *◌ connecting share…*, *◌ share
+  reconnecting…*, *⚠ share failed*, *○ not shared*. A missing `sshfs`, an unusable mount point or
+  an unreadable session directory is reported instead of retried in a loop; once you fixed it,
+  the next connect of the Remote tab tries again. *Stop sharing* in the session menu unmounts it
+  until the Remote tab connects again. The mount script first lazily unmounts a stale mount
+  (`fusermount3 -u -z`, `fusermount -u -z` or `umount`) and adds `/usr/local/bin` and
+  `/opt/homebrew/bin` to PATH to find `sshfs`.
 - **The share lives only while the app runs and is connected.** If you close the app or your
   laptop sleeps, claude in tmux sees errors such as *Transport endpoint is not connected* until
   the app reconnects and mounts again.
@@ -122,16 +148,30 @@ The Remote tab runs there.
 ### C. Working copy + sync (implemented)
 
 For users who today `rsync` the repository to the agent host and back. Choose *working copy*
-when adding the host (or set `files = "sync"`, and optionally `remote_workdir`, default `~/sw`).
+when adding the host, or in the config:
+
+```toml
+[[hosts]]
+name = "lab"
+ssh_target = "me@lab-box"
+files = "sync"             # working copies
+remote_workdir = "~/sw"    # default; absolute or ~/…; no prefixes with this mode
+```
+
 Each session then has a copy on the agent host at `<remote_workdir>/<directory>-<session id>`,
-where its Remote tab runs, and two actions (buttons next to the tabs, and in the session menu):
+where its Remote tab runs (until the first Send the tab says there is no copy yet and offers
+*Send to agent…*), and two actions (buttons next to the tabs, and in the session menu):
 
 - **⇡ Send** (host → agent host): `rsync` over the same locked-down ssh. A dry-run preview shows
   what will change before anything is written. Your copy is the source: the agent copy becomes
-  identical to it, including `.git`. Files ignored by `.gitignore` are neither sent nor deleted
-  there (so `node_modules`, build output and the like stay). Sending is **refused** while the
-  agent copy has commits you have not fetched yet, and uncommitted changes there are only
-  overwritten after you tick a confirmation box, so agent work is never lost silently.
+  identical to it, including `.git`. Files ignored by `.gitignore` files are neither sent nor
+  deleted there (so `node_modules`, build output and the like stay); rsync reads only the
+  `.gitignore` files, not `.git/info/exclude` or your global excludes, and treats `!` lines its
+  own way. Sending is **refused** while the agent copy has branch commits you have not fetched
+  yet (commits on a detached HEAD, stashes and tags there are not protected), and uncommitted
+  changes there are only overwritten after you tick a confirmation box, so agent work is never
+  lost silently. The session directory must be the top of the repository: from a subdirectory
+  no `.git` is sent and Get has nothing to fetch.
 - **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
   agent's copy into `agent-<session id>/<branch>`, shows the new commits on your current
   branch, and offers to fast-forward it. If both sides have new commits, it tells you the
@@ -144,6 +184,8 @@ described next. Fetching commits does not: hooks and configuration are never tra
 Needs `rsync` on both machines and `git` on the agent host. Windows has no built-in `rsync`, so
 working copies are not available on Windows hosts yet; macOS and Linux work. Note that sending
 copies your `.git/config` to the agent host too: keep tokens out of remote URLs (see below).
+Deleting a session, or changing the host's `remote_workdir` or file access later, leaves the
+copies on the agent host where they are.
 
 ## Security: what the agent host can do to your host
 
@@ -155,10 +197,15 @@ repository's **`.git` directory**, and git on your host trusts what it finds the
 - **Hooks**: `.git/hooks/pre-commit`, `post-checkout`, `pre-push` and others run on your host
   the next time you commit, check out or push.
 - **Repository config** (`.git/config`): many settings name a program that git runs, for
-  example `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`, `core.pager`, `core.editor`,
-  `credential.helper`, `filter.<name>.clean`/`smudge`/`process`, `diff.<name>.textconv`,
-  `diff.external`, `merge.<name>.driver`, `gpg.program`, `alias.*` (with `!`), and
-  `include.path` / `includeIf`, which pull in more config.
+  example `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`, `core.gitProxy`, `core.pager`,
+  `core.editor`, `core.askPass`, `sequence.editor`, `credential.*` (e.g. `credential.helper`),
+  `filter.<name>.clean`/`smudge`/`process`, `diff.<name>.textconv`/`command`, `diff.external`,
+  `merge.<name>.driver`, `gpg.program`, `gpg.<format>.program`, `alias.*` (with `!`), and
+  `include.path` / `includeIf`, which pull in more config. Others send your pushes, fetches and
+  traffic elsewhere: `remote.<name>.pushurl`, `url.<base>.insteadOf` / `pushInsteadOf`,
+  `http.proxy`. (These are what the app's repository check looks for. git knows more keys that
+  run programs, such as `pager.<command>`, `difftool.*.cmd`, `mergetool.*.cmd`,
+  `submodule.*.update = !…` or `remote.*.uploadpack`; the check is a help, not a guarantee.)
 
 So a misbehaving or compromised agent host could run commands **on your host, as you, with your
 credentials**, for example by planting a `pre-push` hook, or a `credential.helper` that hands
@@ -179,17 +226,21 @@ Other things the agent host can read in shared modes:
 1. **Look before you run git on the host.** The app's repository check (below) does this for
    you; by hand, after a claude session and before committing or pushing from the host:
    ```sh
-   ls .git/hooks | grep -v '\.sample$'     # expect nothing unless you added hooks yourself
-   git config --local --list               # look for any of the keys listed above
+   ls -l "$(git rev-parse --git-path hooks)" | grep -v '\.sample$'   # executable entries run
+   git config --local --no-includes --list   # look for the keys above; include.* points to more
+   git remote -v                             # the URLs fetch and push really use
    ```
+   `git rev-parse --git-path hooks` follows `core.hooksPath` and works where `.git` is a file
+   (worktrees, submodules); neither command runs anything from the repository.
 2. **Run host-side git with risky settings switched off** for routine commands. Settings on the
    command line override the repository's:
    ```sh
    git -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.sshCommand=ssh \
        -c credential.helper= -c credential.helper=<your helper> push
    ```
-   This narrows the risk but does not cover every key above. Inspecting (step 1) remains
-   necessary.
+   This narrows the risk but does not cover every key above: it does not undo push redirection
+   (`remote.*.pushurl`, `url.*.insteadOf` — check `git remote -v`), pagers, filters, aliases or
+   includes. Inspecting (step 1) remains necessary.
 3. **Prefer mode C** when the agent host is less trusted: only commits come back.
 4. **Share only what claude needs.** Don't export your whole home directory; export a work area,
    and keep secrets outside it.
@@ -201,8 +252,10 @@ Other things the agent host can read in shared modes:
 - Stores no secrets. The config holds host names and paths only.
 - Forces the ssh options above on every connection.
 - The Files tab never executes files. It refuses programs and files the OS would run instead of
-  open (native binaries, `.exe`/`.bat`/`.lnk`…, `.app`/`.command`…, `.desktop`…), and it stays
-  inside the session directory.
+  open (native binaries, `.exe`/`.bat`/`.js`/`.lnk`…, `.app`/`.command`…, `.desktop`/`.run`…,
+  `.jar`; full lists in SPEC.md §6), and it stays inside the session directory: a symlink the
+  agent host planted that leads out of it (say `README` → `~/.bashrc`) is marked *↗ outside*
+  and neither listed nor opened.
 - The Files tab's git status runs read-only (`--no-optional-locks`), with `core.fsmonitor`
   disabled and without entering submodules. `git status` can also run a repository-defined
   *clean filter* (`filter.<name>.clean` / `.process`) when it re-reads a file whose timestamp
@@ -215,13 +268,23 @@ Other things the agent host can read in shared modes:
 
 - **Repository check.** For every session the app checks the repository for active hooks
   (in the folder git really uses, including one set by `core.hooksPath`) and for the risky
-  config keys listed above, plus shell aliases. It reads only; nothing from the repository
-  runs. If anything is found, the session gets a ⚠ in the sidebar and the Files tab shows a
-  banner; **Details…** lists each item with why it matters and a command to inspect or
-  remove it (credentials in URLs are masked). If you set them up yourself (pre-commit, husky,
-  git-lfs…), **Mark as reviewed**: the app remembers a fingerprint of exactly those hooks
-  (by content) and settings, and warns again as soon as anything changes. The check runs at
-  start, when you switch sessions, when the Files tab refreshes and every two minutes.
+  config keys listed above. It reads only (`git config --local --no-includes`, `git rev-parse
+  --git-path hooks`); nothing from the repository runs. If anything is found, the session gets a
+  ⚠ in the sidebar and the Files tab shows a banner; **Details…** lists each item with why it
+  matters and a shell-quoted command to inspect or remove it (credentials in URLs are masked),
+  for example:
+
+  ```
+  remote.origin.pushurl — sends your pushes (and code) to another address
+  https://***@evil.example/repo.git
+  git config --local --unset-all remote.origin.pushurl
+  ```
+
+  If you set them up yourself (pre-commit, husky, git-lfs…), **Mark as reviewed**: the app
+  remembers a fingerprint of exactly those hooks (by content) and flagged settings, and warns
+  again as soon as any of them changes. The check runs at start, when you switch sessions or
+  return to the window, when the Files tab refreshes, when Details… opens, and every two
+  minutes for all sessions.
 
 ## Claude backups
 
@@ -234,13 +297,34 @@ connects out, the agent host gets no access to your workstation.
 - **One way, and only growing.** Files deleted on the agent host are kept in the backup, so a
   misbehaving or compromised agent host cannot wipe it; it can at most add or change files in
   its own backup folder. Nothing in a backup is executed by the app.
-- **No credentials.** claude's login (`~/.claude/.credentials.json`) is left out. After
-  restoring to a new agent host, start claude there and log in once.
+- **No credentials, no caches.** Left out are claude's login (`~/.claude/.credentials.json`) and
+  what claude downloads or recreates: `cache/`, `plugins/cache/`, `plugins/marketplaces/`,
+  `shell-snapshots/`, `session-env/`, `statsig/`, `telemetry/`, `debug/` (the list of installed
+  plugins is kept). rsync runs with `--safe-links` (symlinks pointing out of `~/.claude` are not
+  copied), `--no-devices` and `--no-specials`.
 - **What is in it.** Conversations can quote whatever claude read, including secrets from the
   working tree, and `~/.claude.json` holds MCP server settings. The backup folders are
   readable by you only; treat them like the projects themselves.
 - **Restore** copies a backup back to an agent host without overwriting files that are already
   there, so it is safe on a fresh machine and does not roll back a working one.
+- Backups are kept per host **name** (`claude-backups/<name>/`); renaming a host starts a new
+  folder.
+
+**Restoring a crashed or reinstalled agent host.** The order matters: restore before claude
+creates its own files there, because existing files are kept.
+
+1. Install `tmux`, `rsync` and `claude` on the new machine, but don't start claude yet.
+2. If its address changed, edit the host in the app and change the SSH target; keep the host
+   *name*.
+3. Host menu → *Restore Claude data to this host…*.
+4. ssh in, start `claude` and log in once.
+
+Without the app, the same by hand:
+
+```sh
+B=~/.local/share/session-workbench/claude-backups/<host name>/home
+rsync -a --ignore-existing "$B/.claude" "$B/.claude.json" <target>:
+```
 
 ## Choosing a mode
 

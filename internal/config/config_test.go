@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -183,5 +184,31 @@ func TestClaudeBackupSettings(t *testing.T) {
 		if err := ValidateUI(u); (err == nil) != ok {
 			t.Errorf("ValidateUI with claude_backup_every %q: %v", every, err)
 		}
+	}
+}
+
+// A hand-edited file that hides every tab gets them all back on load.
+func TestAllTabsHiddenOnLoad(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(p, []byte("[ui]\nhidden_tabs = [\"local\", \"files\", \"remote\", \"notes\", \"web\"]\n"), 0o644)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.UI.HiddenTabs) != 0 {
+		t.Errorf("all tabs stay hidden: %v", c.UI.HiddenTabs)
+	}
+}
+
+func TestDefaultPathIgnoresRelativeXDG(t *testing.T) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		t.Skip("XDG only")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "relative/dir")
+	p, err := DefaultPath()
+	if want := filepath.Join(home, ".config", "session-workbench", "config.toml"); err != nil || p != want {
+		t.Errorf("DefaultPath() = %q, %v; want %q", p, err, want)
 	}
 }

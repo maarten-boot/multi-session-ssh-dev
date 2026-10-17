@@ -2,7 +2,7 @@
 Type=Application
 Name=Session Workbench
 GenericName=Claude Code session manager
-Comment=Many Claude Code sessions side by side: remote (ssh + tmux), local shell and files
+Comment=Many Claude Code sessions side by side: local shell, files, remote (ssh + tmux), notes and web links
 Exec=session-workbench
 Icon=session-workbench
 Terminal=false

@@ -55,22 +55,36 @@ implementation differs from the original plan.
 - Web tab (SPEC W1); configurable tab order and hidden tabs; stronger current-session highlight.
 - Linux `.deb`/`.rpm` packages (nfpm) with desktop entry and an own app icon; verified by
   installing in clean Ubuntu 24.04 and Fedora 44 containers.
+- Keystrokes kept in order (one terminal write in flight); GUI tests check their results.
+- claude from an interactive login shell (R2); app-wide font size; current tab marked like the
+  current session; narrow sidebar (F6); black text everywhere (T3).
+- `claude --continue` falls back to a new conversation; restart offer on a start-mode change.
+- Claude backups (F7); one instance per config (F8); tab shortcuts in tooltips.
+- Docs/code cross-check (v0.8.11): shell-quoted fix commands in the repository check, Files tab
+  refuses symlinks leading out of the session directory, failed live shares retried, backups
+  pause without local rsync, `PgDn`/`PgUp` in `[keys]`.
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
-  real shell, config, session, fsbrowse, opener, terminal incl. a ConPTY test on Windows) —
-  `make test`, and in CI on Linux, Windows and macOS.
+  real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
+  check, syncer, share, backup, instance, terminal incl. a ConPTY test on Windows) —
+  `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings.
-- ssh/tmux round trip against a real host: `make test-ssh`.
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`):
-  terminal fidelity, sessions/dialogs/restart, Files, colors, switcher, settings/keys,
-  reconnect, badges, terminal extras (find, unicode widths, copy on select), folders, git markers.
-  Each test checks its results (terminal output, saved config, files, window title) and fails
-  on a wrong one; layout and colors are judged from the screenshots.
+- Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
+  Claude backup and restore.
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 21
+  scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
+  instance per config, Claude backups; Files; colors, switcher, settings/keys, reconnect,
+  terminal extras (find, unicode widths, copy on select), folders, git markers, repository
+  check, working copies, live share, notes and tab order, Web tab, layout, badges.
+  Each test checks its results (terminal output, saved config, files, window title, screenshot
+  pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.
+  CI runs neither vet, `test-ssh` nor the GUI tests.
 
-## Notes on working in this setup
+## Development setup
 - All development, builds and tests run on the agent host (Claude's side).
 - GUI verification there runs headless under Xvfb with screenshots; the "Local" tab then is a
   VM-local shell, which is fine for testing. Real use: copy the built binary to the host.
 - Linux build deps: npm, libgtk-3-dev, libwebkit2gtk-4.1-dev, build-essential, pkg-config;
-  for headless testing: xvfb, xdotool, imagemagick.
+  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync, sshfs, git, jq, dbus, and
+  `ssh localhost` without a password.

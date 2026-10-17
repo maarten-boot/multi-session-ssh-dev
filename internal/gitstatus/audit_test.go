@@ -134,3 +134,45 @@ func TestRemoteURL(t *testing.T) {
 		t.Errorf("outside a repo: %q", got)
 	}
 }
+
+// A hostile subsection name must not run anything when the suggested fix
+// command is pasted into a shell.
+func TestAuditFixCommandIsQuoted(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs git and a POSIX shell")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	marker := filepath.Join(t.TempDir(), "pwned")
+	cfg := filepath.Join(repo, ".git", "config")
+	b, _ := os.ReadFile(cfg)
+	write(t, cfg, string(b)+"[url \"x$(touch "+marker+"); y\"]\n\tinsteadOf = z\n")
+	a, err := RunAudit(context.Background(), repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fix string
+	for _, f := range a.Findings {
+		if strings.HasPrefix(f.Name, "url.") {
+			fix = f.Fix
+		}
+	}
+	if fix == "" {
+		t.Fatalf("url.*.insteadOf not flagged: %v", names(a))
+	}
+	// Run the fix as the user would; only git may run, not the planted command.
+	cmd := exec.Command("/bin/sh", "-c", fix)
+	cmd.Dir = repo
+	cmd.CombinedOutput()
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatalf("pasting the fix command ran the planted command: %s", fix)
+	}
+	again, _ := RunAudit(context.Background(), repo)
+	for _, f := range again.Findings {
+		if strings.HasPrefix(f.Name, "url.") {
+			t.Errorf("fix command did not remove the key: %s", fix)
+		}
+	}
+}

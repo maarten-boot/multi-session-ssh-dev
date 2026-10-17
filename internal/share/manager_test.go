@@ -93,3 +93,23 @@ func TestLiveShare(t *testing.T) {
 	}
 	t.Logf("states: %v", states)
 }
+
+// A share that failed for good is tried again on the next Ensure (after the
+// user fixed the cause), not reported from the old attempt forever.
+func TestEnsureRetriesAfterFailure(t *testing.T) {
+	m := NewManager(nil)
+	local := filepath.Join(t.TempDir(), "later")
+	spec := Spec{Target: "nohost.invalid", LocalPath: local, RemotePath: "/tmp/x"}
+	err1 := m.Ensure("s-1", spec, 5*time.Second)
+	if err1 == nil {
+		t.Fatal("missing directory: no error")
+	}
+	if err := os.Mkdir(local, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	err2 := m.Ensure("s-1", spec, 2*time.Second)
+	m.StopAll()
+	if err2 == nil || err2.Error() == err1.Error() {
+		t.Errorf("second Ensure reported the old failure again: %v", err2)
+	}
+}

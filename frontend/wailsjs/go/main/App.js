@@ -6,6 +6,10 @@ export function BackupNow(arg1) {
   return window['go']['main']['App']['BackupNow'](arg1);
 }
 
+export function BackupProblem() {
+  return window['go']['main']['App']['BackupProblem']();
+}
+
 export function BackupStatus() {
   return window['go']['main']['App']['BackupStatus']();
 }

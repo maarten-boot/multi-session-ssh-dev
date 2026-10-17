@@ -12,7 +12,7 @@ export class NotesView {
         this.dirty = false;
         this.saving = null;
         this.text = el('textarea', {className: 'notes-text', spellcheck: true,
-            placeholder: 'Notes about this project: plans, open questions, what claude is working on…\\n\\n' +
+            placeholder: 'Notes about this project: plans, open questions, what claude is working on…\n\n' +
                 'Saved automatically. Stored with the app settings, not in the project, so they are not in git ' +
                 'and not visible on the agent host.'});
         this.status = el('span', {className: 'notes-status'});

@@ -11,7 +11,15 @@ session-workbench \- run many Claude Code sessions side by side
 .SH DESCRIPTION
 .B session-workbench
 is a desktop application for working with many Claude Code sessions at once.
-Each session is bound to one directory and has three tabs:
+Each session is bound to one directory and has five tabs, by default in this
+order:
+.TP
+.B Local
+a shell on this computer in the same directory;
+.TP
+.B Files
+the directory as a tree, with git status markers and a check for
+repository hooks and settings that git on this computer would run;
 .TP
 .B Remote
 a terminal connected with
@@ -20,14 +28,17 @@ to an agent host, inside a
 .BR tmux (1)
 session that runs
 .B claude
-in that directory; it survives closing the application and lost connections;
+(or a shell) in that directory; it survives closing the application and lost
+connections;
 .TP
-.B Local
-a shell on this computer in the same directory;
+.B Notes
+notes about the project, stored next to the configuration file, not in the
+project;
 .TP
-.B Files
-the directory as a tree, with git status markers and a check for
-repository hooks and settings that git on this computer would run.
+.B Web
+the repository's latest GitHub Actions runs (with
+.BR gh (1))
+and links to its web pages.
 .PP
 The agent host gets at the directory through a shared file system, a live
 share over ssh (the agent host mounts it with
@@ -37,12 +48,24 @@ or a working copy sent with
 whose commits are fetched back with
 .BR git (1).
 Agent and X11 forwarding are always disabled on these ssh connections.
+.PP
+Claude Code's data on each agent host
+.RI ( ~/.claude
+and
+.IR ~/.claude.json ,
+without claude's login) is copied to this computer every hour while the
+application runs, so a lost agent host can be restored.
+.PP
+Only one instance runs per configuration file; starting it again brings the
+running window to the front.
 .SH OPTIONS
 .TP
 .BI \-config " file"
 Use
 .I file
-instead of the default configuration file.
+instead of the default configuration file. The lock file and the
+.I notes
+directory are kept next to it.
 .TP
 .B \-version
 Print the version and exit.
@@ -51,14 +74,28 @@ Print the version and exit.
 .I ~/.config/session-workbench/config.toml
 Hosts, sessions, folders and settings (honours
 .BR XDG_CONFIG_HOME ).
-The application rewrites it on every change; hand edits are fine while it is
-not running.
+The application reads it at start and rewrites it on every change; hand edits
+are fine while it is not running. Unknown keys are rejected, and a file that
+cannot be read is never overwritten.
+.TP
+.I ~/.config/session-workbench/config.toml.lock
+Keeps a second instance from using the same configuration.
+.TP
+.I ~/.config/session-workbench/notes/
+The Notes tab's files, one per session.
+.TP
+.I ~/.local/share/session-workbench/
+Claude backups of the agent hosts
+.RI ( claude-backups/ <host>/ )
+and window state (honours
+.BR XDG_DATA_HOME ).
 .SH SEE ALSO
 .BR ssh (1),
 .BR tmux (1),
 .BR sshfs (1),
 .BR rsync (1),
-.BR git (1)
+.BR git (1),
+.BR gh (1)
 .PP
 https://github.com/maarten-boot/multi-session-ssh-dev, in particular
 docs/CONNECTIVITY.md for setting up agent hosts and the security model.
