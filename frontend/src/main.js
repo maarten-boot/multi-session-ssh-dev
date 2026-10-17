@@ -542,9 +542,10 @@ const app = {
         const err = $('#config-error');
         const problems = [];
         if (this.state.config_error) problems.push(`Config not loaded — changes will not be saved:\n${this.state.config_error}`);
+        problems.push(...(this.state.problems ?? []).map(p => `Config: ${p}`));
         problems.push(...keymap.errors);
         err.hidden = !problems.length;
-        err.textContent = problems.join('\n');
+        err.textContent = problems.join('\n\n');
         $('#btn-new').title = `New session (${keyHint('new_session')}), folder or host`;
         this.narrowButton();
 

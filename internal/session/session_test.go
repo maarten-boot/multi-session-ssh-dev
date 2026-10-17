@@ -443,3 +443,122 @@ func TestLinks(t *testing.T) {
 		t.Error("javascript: link accepted")
 	}
 }
+
+// Hand-edited hosts and sessions are checked with the dialogs' rules when
+// the config is read: what keeps a session from working blocks its Remote
+// tab, the rest is reported; nothing in the file changes.
+func TestProblemsOfHandEditedConfig(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.toml")
+	text := `[[hosts]]
+name = "ok"
+ssh_target = "me@ok"
+
+[[hosts]]
+name = "bad"
+ssh_target = "me@bad"
+files = "nfs"
+
+[[hosts]]
+name = "ok"
+ssh_target = "me@other"
+
+[[sessions]]
+id = "s-0001"
+name = "fine"
+host = "ok"
+local_path = "/srv/a"
+start_mode = "shell"
+
+[[sessions]]
+id = "s-0002"
+name = "on bad host"
+host = "bad"
+local_path = "/srv/b"
+start_mode = "shell"
+
+[[sessions]]
+id = "s-0003"
+name = "odd values"
+host = "ok"
+local_path = "/srv/c"
+start_mode = "claude"
+color_mode = "purple"
+links = [{ name = "x", url = "javascript:alert(1)" }]
+
+[[sessions]]
+id = "s-0004"
+name = "bad mode"
+host = "ok"
+local_path = "relative/dir"
+start_mode = "zsh"
+
+[[sessions]]
+id = "s-0005"
+name = ""
+host = "ok"
+local_path = "/srv/a"
+start_mode = "shell"
+
+[[sessions]]
+id = "s-0006"
+name = "twin 1"
+host = "ok"
+local_path = "/srv/t1"
+start_mode = "shell"
+
+[[sessions]]
+id = "s-0006"
+name = "twin 2"
+host = "ok"
+local_path = "/srv/t2"
+start_mode = "shell"
+`
+	if err := os.WriteFile(cfgPath, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := Open(cfgPath)
+	if err := m.LoadError(); err != nil {
+		t.Fatal(err)
+	}
+	st := m.State()
+	errs := map[string]string{}
+	for _, v := range st.Sessions {
+		errs[v.Name] = v.Error
+	}
+	for name, want := range map[string]string{
+		"fine": "", "odd values": "",
+		"on bad host": `host "bad": unknown file access mode "nfs"`,
+		"bad mode":    `unknown start mode "zsh"`,
+		"twin 1":      `session id "s-0006" is used by 2 sessions`,
+	} {
+		if want == "" && errs[name] != "" || want != "" && !strings.Contains(errs[name], want) {
+			t.Errorf("session %q: error %q, want %q", name, errs[name], want)
+		}
+	}
+	all := strings.Join(st.Problems, "\n")
+	for _, want := range []string{
+		`host "bad": unknown file access mode "nfs"`,
+		`host "ok" is defined twice`,
+		`unknown color mode "purple"; the global setting is used`,
+		`link: "javascript:alert(1)" is not an http(s) address`,
+		`session "s-0005" has no name`,
+		`/srv/a already has a session on host "ok"`,
+		`session "bad mode": unknown start mode "zsh"`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("problems lack %q:\n%s", want, all)
+		}
+	}
+	if got := m.Links("s-0003"); len(got) != 0 {
+		t.Errorf("an invalid hand-edited link is passed on: %v", got)
+	}
+	if b, _ := os.ReadFile(cfgPath); string(b) != text {
+		t.Error("checking the config changed the file")
+	}
+	// A clean config has no problems.
+	clean := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(clean, []byte("[[hosts]]\nname = \"h\"\nssh_target = \"me@h\"\n"), 0o600)
+	if p := Open(clean).State().Problems; len(p) != 0 {
+		t.Errorf("clean config: %v", p)
+	}
+}

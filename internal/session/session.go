@@ -49,6 +49,9 @@ type State struct {
 	Keys           map[string]string `json:"keys"`
 	ConfigPath     string            `json:"config_path"`
 	ConfigError    string            `json:"config_error"` // set: file unreadable, changes are not saved
+	// Problems are hand-edited hosts and sessions that break the rules the
+	// dialogs enforce (see Problems); the file is not changed.
+	Problems []string `json:"problems"`
 }
 
 // Resolved is a session with its host and computed remote path.
@@ -139,6 +142,7 @@ func (m *Manager) State() State {
 	if m.loadErr != nil {
 		s.ConfigError = m.loadErr.Error()
 	}
+	s.Problems = Problems(m.cfg)
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID)}
@@ -179,14 +183,29 @@ func FilesMode(h config.Host) string {
 	return h.Files
 }
 
+// resolve checks what the Remote tab needs, with the dialogs' rules (a
+// hand-edited file may break them): a valid unique id, a valid host, a known
+// start mode and an absolute directory.
 func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	r := Resolved{Session: s, LocalPath: ExpandHome(s.LocalPath)}
 	if !remote.ValidID(s.ID) {
 		return r, fmt.Errorf("invalid session id %q", s.ID)
 	}
+	if n := countID(c, s.ID); n > 1 {
+		return r, fmt.Errorf("session id %q is used by %d sessions in the config; give each its own", s.ID, n)
+	}
 	h, ok := findHost(c, s.Host)
 	if !ok {
 		return r, fmt.Errorf("host %q is not configured", s.Host)
+	}
+	if err := validHost(h); err != nil {
+		return r, fmt.Errorf("host %q: %w", h.Name, err)
+	}
+	if err := validMode(s.StartMode); err != nil {
+		return r, err
+	}
+	if !filepath.IsAbs(r.LocalPath) {
+		return r, fmt.Errorf("local_path %q is not an absolute path", s.LocalPath)
 	}
 	r.Host = h
 	if FilesMode(h) != FilesShared {
@@ -199,6 +218,64 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	}
 	r.RemotePath = rp
 	return r, nil
+}
+
+func countID(c *config.Config, id string) int {
+	n := 0
+	for _, s := range c.Sessions {
+		if s.ID == id {
+			n++
+		}
+	}
+	return n
+}
+
+// Problems checks hand-edited hosts and sessions against the rules the
+// dialogs enforce. Problems that keep a session from working also make
+// resolve fail (its Remote tab shows why); the others only show up here:
+// the app then uses a default (color mode), skips the value (a bad link) or
+// the later duplicate.
+func Problems(c *config.Config) []string {
+	var out []string
+	seenHost := map[string]bool{}
+	for _, h := range c.Hosts {
+		if seenHost[h.Name] {
+			out = append(out, fmt.Sprintf("host %q is defined twice; the second one is ignored", h.Name))
+			continue
+		}
+		seenHost[h.Name] = true
+		if err := validHost(h); err != nil {
+			out = append(out, fmt.Sprintf("host %q: %v", h.Name, err))
+		}
+	}
+	type dirHost struct{ dir, host string }
+	seenDir := map[dirHost]bool{}
+	for _, s := range c.Sessions {
+		label := s.Name
+		if label == "" {
+			label = s.ID
+		}
+		if _, err := resolve(c, s); err != nil && !strings.HasPrefix(err.Error(), "host ") {
+			out = append(out, fmt.Sprintf("session %q: %v", label, err)) // host problems are listed above
+		}
+		if strings.TrimSpace(s.Name) == "" {
+			out = append(out, fmt.Sprintf("session %q has no name", s.ID))
+		}
+		if err := validColorMode(s.ColorMode); err != nil {
+			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
+		}
+		for _, l := range s.Links {
+			if err := forge.ValidLink(forge.Link{Name: l.Name, URL: l.URL}); err != nil {
+				out = append(out, fmt.Sprintf("session %q: link: %v; it is not shown", label, err))
+			}
+		}
+		k := dirHost{filepath.Clean(ExpandHome(s.LocalPath)), s.Host}
+		if seenDir[k] {
+			out = append(out, fmt.Sprintf("session %q: %s already has a session on host %q", label, s.LocalPath, s.Host))
+		}
+		seenDir[k] = true
+	}
+	return out
 }
 
 var nonSlug = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
@@ -396,14 +473,20 @@ func (m *Manager) SetLinks(id string, links []config.Link) error {
 	})
 }
 
-// Links returns a session's own web links.
+// Links returns a session's own web links, leaving out hand-edited ones
+// that are not http(s) (Problems reports them).
 func (m *Manager) Links(id string) []config.Link {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var out []config.Link
 	if i := m.indexOf(id); i >= 0 {
-		return slices.Clone(m.cfg.Sessions[i].Links)
+		for _, l := range m.cfg.Sessions[i].Links {
+			if forge.ValidLink(forge.Link{Name: l.Name, URL: l.URL}) == nil {
+				out = append(out, l)
+			}
+		}
 	}
-	return nil
+	return out
 }
 
 // TrustGit records that the user reviewed the repository's hooks and config

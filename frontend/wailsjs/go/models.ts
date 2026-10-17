@@ -474,6 +474,7 @@ export namespace session {
 	    keys: Record<string, string>;
 	    config_path: string;
 	    config_error: string;
+	    problems: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new State(source);
@@ -489,6 +490,7 @@ export namespace session {
 	        this.keys = source["keys"];
 	        this.config_path = source["config_path"];
 	        this.config_error = source["config_error"];
+	        this.problems = source["problems"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

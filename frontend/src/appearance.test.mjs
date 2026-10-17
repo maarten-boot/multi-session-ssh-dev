@@ -61,5 +61,6 @@ test('termOptions', () => {
     assert.equal(termOptions(ui, 'full').drawBoldTextInBrightColors, false);
     assert.equal(effectiveColorMode({color_mode: 'full'}, {color_mode: ''}), 'full');
     assert.equal(effectiveColorMode({color_mode: 'full'}, {color_mode: 'mono'}), 'mono');
+    assert.equal(effectiveColorMode({color_mode: 'mono'}, {color_mode: 'purple'}), 'mono'); // hand-edited, unknown
     assert.equal(effectiveColorMode({color_mode: 'mono'}, null), 'mono');
 });

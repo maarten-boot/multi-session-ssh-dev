@@ -21,7 +21,7 @@ start_mode = "shell"
 id = "s-mono"
 name = "mono session"
 host = "local"
-local_path = "/usr"
+local_path = "/var"
 start_mode = "shell"
 color_mode = "mono"
 TOML

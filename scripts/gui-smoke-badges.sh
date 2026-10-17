@@ -8,8 +8,9 @@ BIN=$1; OUT=$2; mkdir -p $OUT
 CFG=$OUT/config.toml
 {
 	printf '[[hosts]]\nname = "local"\nssh_target = "localhost"\n'
-	for n in alpha beta gamma; do
-		printf '[[sessions]]\nid = "s-b%s"\nname = "%s"\nhost = "local"\nlocal_path = "/tmp"\nstart_mode = "shell"\n' $n $n
+	for s in alpha:/tmp beta:/var gamma:/usr; do   # one session per directory, as the dialog allows
+		n=${s%%:*}
+		printf '[[sessions]]\nid = "s-b%s"\nname = "%s"\nhost = "local"\nlocal_path = "%s"\nstart_mode = "shell"\n' $n $n ${s#*:}
 	done
 } >$CFG
 k() { xdotool key "$@"; sleep 0.6; }

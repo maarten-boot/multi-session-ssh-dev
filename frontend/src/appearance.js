@@ -24,9 +24,11 @@ export const themes = {
     },
 };
 
-// effectiveColorMode resolves a session override against the global setting.
+// effectiveColorMode resolves a session override against the global setting
+// (an unknown override, hand-edited, is ignored).
 export function effectiveColorMode(ui, session) {
-    return session?.color_mode || ui.color_mode || 'full';
+    const m = session?.color_mode;
+    return m === 'full' || m === 'mono' ? m : ui.color_mode || 'full';
 }
 
 // termOptions returns the xterm.js options for a theme and color mode.

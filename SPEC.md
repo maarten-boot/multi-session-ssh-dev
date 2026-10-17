@@ -276,8 +276,13 @@ disabled. Read at start (restart after editing); Settings lists the current bind
 - Written atomically (write temp + rename) on every change. Hand-editable while the app is not
   running (comments are not preserved); unknown keys are rejected. If the file cannot be read the
   app starts empty, shows the error and never overwrites it. Invalid setting values get their
-  defaults; a file hiding every tab shows them all. Hosts and sessions are validated by the
-  dialogs and when used (e.g. an unknown start mode fails when the Remote tab connects).
+  defaults; a file hiding every tab shows them all. Hosts and sessions are checked with the
+  dialogs' rules when the file is read (`session.Problems`), listed at the top of the sidebar,
+  and the file is not changed. What keeps a session from working (invalid host, unknown start
+  mode, relative `local_path`, duplicate id) is its error: red dot, reason above the tabs, no
+  Remote tab. Otherwise the app falls back: unknown color mode → the global one, a non-http(s)
+  link is not shown, the second of two hosts with one name is ignored; an empty name or a
+  directory with two sessions on one host is only reported.
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
   too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`

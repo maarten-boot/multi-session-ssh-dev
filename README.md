@@ -296,7 +296,12 @@ override with `-config <file>`. The app reads it at start and rewrites it on eve
 hand edits are fine while it is not running (comments are not kept). Unknown keys are
 rejected: if the file cannot be parsed the app shows why and saves nothing, so your file
 is never overwritten. A setting with an invalid value gets its default. Hosts and sessions
-are checked when used (and by the dialogs), so edit them in the app where possible.
+are checked with the dialogs' rules when the file is read, and problems are listed at the
+top of the sidebar; nothing in the file is changed. A session that cannot work (an invalid
+host, an unknown start mode, a relative `local_path`, an id used twice) gets a red dot and
+the reason above its tabs; for the rest (an unknown color mode, a link that is not http(s),
+an empty name, a host or directory defined twice) the app uses the default, skips the value
+or ignores the later duplicate.
 
 Only one copy of the app runs per config file: starting it again brings the running
 window to the front (where that is not possible, the second window only says so).
