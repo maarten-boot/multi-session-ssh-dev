@@ -4,7 +4,8 @@
 # into the data directory without claude's login; a failing host's failure
 # is recorded (and marked with ⚠, see the screenshot). Restoring is covered by
 # internal/backup's ssh test (it would write into the real ~/.claude here).
-# Needs `ssh localhost` without prompts, rsync and a ~/.claude on this host.
+# Needs `ssh localhost` without prompts and a ~/.claude on this host; uses rsync
+# when installed, else the built-in transfer (force it with SW_NO_RSYNC=1).
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-backup.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
