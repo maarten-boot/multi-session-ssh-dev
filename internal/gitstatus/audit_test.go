@@ -176,3 +176,112 @@ func TestAuditFixCommandIsQuoted(t *testing.T) {
 		}
 	}
 }
+
+// Keys that make git run programs or send traffic elsewhere are flagged;
+// the same keys with harmless values are not.
+func TestAuditMoreKeys(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	set := func(k, v string) { run(t, repo, "config", "--local", k, v) }
+	risky := map[string]string{
+		"pager.log":                    "evil",
+		"difftool.x.cmd":               "evil",
+		"mergetool.x.path":             "/tmp/evil",
+		"submodule.lib.update":         "!evil",
+		"remote.local.uploadpack":      "evil",
+		"remote.local.receivepack":     "evil",
+		"remote.ext.url":               "ext::sh -c evil",
+		"protocol.ext.allow":           "always",
+		"http.https://x.example.proxy": "http://proxy.example",
+		"remote.origin.proxy":          "http://proxy.example",
+		"core.alternateRefsCommand":    "evil",
+		"interactive.diffFilter":       "evil",
+		"gpg.ssh.defaultKeyCommand":    "evil",
+		"browser.x.cmd":                "evil",
+		"man.x.path":                   "/tmp/evil",
+		"tar.tgz.command":              "evil",
+		"trailer.sign.command":         "evil",
+		"instaweb.httpd":               "evil",
+		"sendemail.toCmd":              "evil",
+		"sendemail.smtpServer":         "/usr/local/bin/evil",
+	}
+	harmless := map[string]string{
+		"submodule.lib.url":      "https://example.com/lib.git",
+		"submodule.other.update": "rebase",
+		"remote.origin.url":      "https://example.com/repo.git",
+		"sendemail.smtpServer2":  "x",
+		"user.name":              "someone",
+	}
+	for k, v := range risky {
+		set(k, v)
+	}
+	for k, v := range harmless {
+		set(k, v)
+	}
+	// Last: from here on git works on that directory instead of the repository.
+	set("core.worktree", t.TempDir())
+	risky["core.worktree"] = ""
+	a, err := RunAudit(context.Background(), repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, f := range a.Findings {
+		got[strings.ToLower(f.Name)] = true
+		if f.Why == "" || f.Fix == "" {
+			t.Errorf("finding without explanation or fix: %+v", f)
+		}
+	}
+	for k := range risky {
+		if !got[strings.ToLower(k)] {
+			t.Errorf("%s not flagged", k)
+		}
+	}
+	for k := range harmless {
+		if got[strings.ToLower(k)] {
+			t.Errorf("%s flagged, but its value is harmless", k)
+		}
+	}
+}
+
+// A planted core.worktree pointing nowhere makes git refuse to run in the
+// repository; it must not hide the other findings, and git status skips.
+func TestPlantedWorktreeDoesNotHideFindings(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs git and executable hooks")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	os.MkdirAll(filepath.Join(repo, "sub"), 0o755)
+	hook := filepath.Join(repo, ".git", "hooks", "pre-push")
+	write(t, hook, "#!/bin/sh\nexit 0\n")
+	os.Chmod(hook, 0o755)
+	cfg := filepath.Join(repo, ".git", "config")
+	b, _ := os.ReadFile(cfg)
+	write(t, cfg, string(b)+"[core]\n\tworktree = /nonexistent/elsewhere\n")
+
+	a, err := RunAudit(context.Background(), filepath.Join(repo, "sub"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(names(a), " ")
+	for _, want := range []string{"hook:pre-push", "config:core.worktree"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("%s not found with core.worktree planted: %s", want, got)
+		}
+	}
+	st, err := Get(context.Background(), repo)
+	if err != nil || !st.Repo || !strings.Contains(st.Skipped, "core.worktree") {
+		t.Errorf("git status with core.worktree planted: %+v %v", st, err)
+	}
+	if u := RemoteURL(context.Background(), repo); u != "" {
+		t.Errorf("RemoteURL: %q", u)
+	}
+}

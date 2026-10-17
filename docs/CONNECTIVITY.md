@@ -201,11 +201,17 @@ repository's **`.git` directory**, and git on your host trusts what it finds the
   `core.editor`, `core.askPass`, `sequence.editor`, `credential.*` (e.g. `credential.helper`),
   `filter.<name>.clean`/`smudge`/`process`, `diff.<name>.textconv`/`command`, `diff.external`,
   `merge.<name>.driver`, `gpg.program`, `gpg.<format>.program`, `alias.*` (with `!`), and
-  `include.path` / `includeIf`, which pull in more config. Others send your pushes, fetches and
-  traffic elsewhere: `remote.<name>.pushurl`, `url.<base>.insteadOf` / `pushInsteadOf`,
-  `http.proxy`. (These are what the app's repository check looks for. git knows more keys that
-  run programs, such as `pager.<command>`, `difftool.*.cmd`, `mergetool.*.cmd`,
-  `submodule.*.update = !…` or `remote.*.uploadpack`; the check is a help, not a guarantee.)
+  `include.path` / `includeIf`, which pull in more config; also `pager.<command>`,
+  `difftool.*.cmd`/`path`, `mergetool.*.cmd`/`path`, `interactive.diffFilter`,
+  `core.alternateRefsCommand`, `gpg.ssh.defaultKeyCommand`, `submodule.*.update` (with `!`),
+  `remote.*.uploadpack`/`receivepack` (run for local remotes), `browser.*.cmd`/`path`,
+  `man.*.cmd`/`path`, `tar.*.command`, `trailer.*.command`/`cmd`, `instaweb.httpd`,
+  `sendemail.*Cmd` and `sendemail.smtpServer` (a program path). Others send your pushes,
+  fetches and traffic elsewhere: `remote.<name>.pushurl`, `url.<base>.insteadOf` /
+  `pushInsteadOf`, `http.proxy`, `http.<url>.proxy`, `remote.*.proxy`, an `ext::` remote URL
+  (runs a command) and `protocol.*.allow` (can allow such transports). `core.worktree` makes git
+  work on a different directory. (These are what the app's repository check looks for; git may
+  add more, so the check is a help, not a guarantee.)
 
 So a misbehaving or compromised agent host could run commands **on your host, as you, with your
 credentials**, for example by planting a `pre-push` hook, or a `credential.helper` that hands
@@ -260,16 +266,18 @@ Other things the agent host can read in shared modes:
   disabled and without entering submodules. `git status` can also run a repository-defined
   *clean filter* (`filter.<name>.clean` / `.process`) when it re-reads a file whose timestamp
   changed. So the app first reads the repository's **own** config, without following includes
-  (reading config runs nothing). If that config defines `filter.*`, `include.*` / `includeIf.*`
-  or `core.fsmonitor`, it **skips git status** and the Files bar shows *"git status skipped"*,
+  (reading config runs nothing). If that config defines `filter.*`, `include.*` / `includeIf.*`,
+  `core.fsmonitor` or `core.worktree`, it **skips git status** and the Files bar shows *"git status skipped"*,
   with the reason in its tooltip. Settings from your global config (for example git-lfs) are
   your own and remain in effect. *(Added in October 2026, after a test showed that a repository
   filter did run.)*
 
 - **Repository check.** For every session the app checks the repository for active hooks
   (in the folder git really uses, including one set by `core.hooksPath`) and for the risky
-  config keys listed above. It reads only (`git config --local --no-includes`, `git rev-parse
-  --git-path hooks`); nothing from the repository runs. If anything is found, the session gets a
+  config keys listed above. It reads only: the repository's config files directly (`git config
+  --file … --no-includes`) and the hooks folder (`git rev-parse --git-path hooks`), found through
+  the git directory, so a planted `core.worktree` — which makes git refuse to work in the
+  repository — cannot hide the other findings. Nothing from the repository runs. If anything is found, the session gets a
   ⚠ in the sidebar and the Files tab shows a banner; **Details…** lists each item with why it
   matters and a shell-quoted command to inspect or remove it (credentials in URLs are masked),
   for example:

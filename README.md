@@ -131,7 +131,8 @@ Default order:
   folders inherit that, ignored files are in italics, and the bar shows the branch with
   ahead/behind (↑/↓). This needs `git` on your computer and only reads (no locks). If the
   repository's own config names programs git status would run (filters, includes,
-  fsmonitor), the status is skipped and the bar says so — see
+  fsmonitor) or points git at another directory (`core.worktree`), the status is skipped and
+  the bar says so — see
   [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 - **Remote** (Ctrl+Shift+3): `ssh` → tmux session `cw-<id>` in the mapped
   directory. It survives closing the app and lost connections; Enter reconnects.

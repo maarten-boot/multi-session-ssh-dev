@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -73,6 +74,82 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
+// GitDir finds the git directory of the repository containing dir, or ""
+// outside a repository. It does not depend on the worktree: a planted
+// core.worktree (pointing elsewhere, or nowhere) makes git refuse most
+// commands, which must not hide the repository from the checks. So when git
+// cannot say, it looks for .git upwards itself (a directory, or a "gitdir:"
+// file for linked worktrees and submodules); nothing runs.
+func GitDir(ctx context.Context, dir string) (string, error) {
+	out, err := git(ctx, dir, "rev-parse", "--absolute-git-dir")
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+	if strings.Contains(err.Error(), "not a git repository") {
+		return "", nil
+	}
+	for d := dir; ; {
+		p := filepath.Join(d, ".git")
+		if fi, err := os.Stat(p); err == nil {
+			if fi.IsDir() {
+				return p, nil
+			}
+			if b, err := os.ReadFile(p); err == nil {
+				if rest, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "gitdir:"); ok {
+					g := strings.TrimSpace(rest)
+					if !filepath.IsAbs(g) {
+						g = filepath.Join(d, g)
+					}
+					return filepath.Clean(g), nil
+				}
+			}
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return "", err // git failed and there is no .git: report git's error
+		}
+		d = parent
+	}
+}
+
+// commonDir is where a linked worktree's shared config and hooks live.
+func commonDir(gitDir string) string {
+	if b, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil {
+		c := strings.TrimSpace(string(b))
+		if !filepath.IsAbs(c) {
+			c = filepath.Join(gitDir, c)
+		}
+		return filepath.Clean(c)
+	}
+	return gitDir
+}
+
+// RepoConfig lists the repository's own config (the shared config file and a
+// worktree's config.worktree) as "key\nvalue" records, without includes. It
+// reads the files directly, from outside the repository, so neither includes
+// nor core.worktree come into play; nothing runs. Missing files are skipped.
+func RepoConfig(ctx context.Context, gitDir string) ([]string, error) {
+	var recs []string
+	for _, f := range []string{filepath.Join(commonDir(gitDir), "config"), filepath.Join(gitDir, "config.worktree")} {
+		if _, err := os.Stat(f); err != nil {
+			continue
+		}
+		out, err := git(ctx, os.TempDir(), "config", "--file", f, "--no-includes", "--list", "-z")
+		if err != nil {
+			if strings.Contains(err.Error(), "exit status 1") {
+				continue // empty file
+			}
+			return nil, err
+		}
+		for _, rec := range strings.Split(string(out), "\x00") {
+			if rec != "" {
+				recs = append(recs, rec)
+			}
+		}
+	}
+	return recs, nil
+}
+
 // Get returns the status of dir. A directory outside any repository, or a
 // missing git, is not an error: Repo is false.
 func Get(ctx context.Context, dir string) (Status, error) {
@@ -80,15 +157,12 @@ func Get(ctx context.Context, dir string) (Status, error) {
 	if _, err := exec.LookPath("git"); err != nil {
 		return st, nil
 	}
-	prefix, err := git(ctx, dir, "rev-parse", "--show-prefix")
-	if err != nil {
-		if strings.Contains(err.Error(), "not a git repository") {
-			return st, nil
-		}
+	gd, err := GitDir(ctx, dir)
+	if err != nil || gd == "" {
 		return st, err
 	}
 	st.Repo = true
-	if reason, err := unsafeConfig(ctx, dir); err != nil {
+	if reason, err := unsafeConfig(ctx, gd); err != nil {
 		return st, err
 	} else if reason != "" {
 		st.Skipped = reason
@@ -96,6 +170,10 @@ func Get(ctx context.Context, dir string) (Status, error) {
 			st.Branch = strings.TrimSpace(string(b))
 		}
 		return st, nil
+	}
+	prefix, err := git(ctx, dir, "rev-parse", "--show-prefix")
+	if err != nil {
+		return st, err
 	}
 	// Submodules are not entered: each has its own config to vet.
 	out, err := git(ctx, dir, "status", "--porcelain=v2", "-z", "--branch",
@@ -108,22 +186,22 @@ func Get(ctx context.Context, dir string) (Status, error) {
 }
 
 // unsafeConfig returns a reason if the repository's own config (not global
-// or system config) sets something git status would execute or that pulls
-// in other config. Reading config with --no-includes runs nothing.
-func unsafeConfig(ctx context.Context, dir string) (string, error) {
-	out, err := git(ctx, dir, "config", "--local", "--no-includes", "--name-only", "--list")
+// or system config) sets something git status would execute, that pulls in
+// other config, or that points git at another directory. Reading config
+// runs nothing.
+func unsafeConfig(ctx context.Context, gitDir string) (string, error) {
+	recs, err := RepoConfig(ctx, gitDir)
 	if err != nil {
-		if strings.Contains(err.Error(), "exit status 1") {
-			return "", nil // no local config at all
-		}
 		return "", err
 	}
-	for _, key := range strings.Fields(string(out)) {
+	for _, rec := range recs {
+		key, _, _ := strings.Cut(rec, "\n")
 		k := strings.ToLower(key)
 		switch {
 		case strings.HasPrefix(k, "filter."), // clean/smudge/process programs
 			strings.HasPrefix(k, "include."), strings.HasPrefix(k, "includeif."), // more config
-			k == "core.fsmonitor":
+			k == "core.fsmonitor",
+			k == "core.worktree": // status would describe another directory
 			return "repository config sets " + key, nil
 		}
 	}
@@ -237,14 +315,19 @@ func (st *Status) add(prefix, p, c string) {
 // the first remote, read from the repository's own config without includes
 // (nothing runs). "" outside a repository or without remotes.
 func RemoteURL(ctx context.Context, dir string) string {
-	out, err := git(ctx, dir, "config", "--local", "--no-includes", "--get-regexp", `^remote\..*\.url$`)
+	gd, err := GitDir(ctx, dir)
+	if err != nil || gd == "" {
+		return ""
+	}
+	recs, err := RepoConfig(ctx, gd)
 	if err != nil {
 		return ""
 	}
 	first := ""
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		key, val, ok := strings.Cut(line, " ")
-		if !ok {
+	for _, rec := range recs {
+		key, val, _ := strings.Cut(rec, "\n")
+		key = strings.ToLower(key)
+		if !strings.HasPrefix(key, "remote.") || !strings.HasSuffix(key, ".url") {
 			continue
 		}
 		if key == "remote.origin.url" {

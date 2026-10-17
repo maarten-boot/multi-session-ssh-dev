@@ -187,14 +187,15 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
   `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
-  defines `filter.*`, `include*` or `core.fsmonitor`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
+  defines `filter.*`, `include*`, `core.fsmonitor` or `core.worktree`, see docs/CONNECTIVITY.md): a letter per entry (M, A, D, R, U untracked,
   ! conflict), a dot on folders containing changes (! for conflicts), entries inside ignored or
   untracked folders inherit that, ignored entries in italics (not counted as changed); branch and
   ahead/behind in the files bar ("git status skipped" or "git: error" with the reason in its
   tooltip). Loaded after the listing; works when the session directory is a subdirectory of the
   repository; nothing shown outside a repository or without git.
 - B6. Repository check: active hooks (executable files in the folder git uses, following
-  `core.hooksPath`) and risky repository config (programs git would run, push and traffic
+  `core.hooksPath`) and risky repository config, found through the git directory (not the
+  worktree, which a planted `core.worktree` redirects) (programs git would run, push and traffic
   redirection; list in docs/CONNECTIVITY.md) are shown as a ⚠ on the session and a Files-tab
   banner; Details… lists each with why it matters and a shell-quoted command to inspect or remove
   it, credentials in URLs masked. "Mark as reviewed" stores a fingerprint (`trusted_git`: hook
