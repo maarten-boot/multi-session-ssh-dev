@@ -94,6 +94,19 @@ button {
     color: inherit;
 }
 
+/* Disabled controls keep black (theme) text - WebKit would grey it, and grey
+   is hard to read - and show it with italics and a dashed border instead. */
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    font-style: italic;
+    cursor: default;
+}
+
+button:disabled {
+    border-style: dashed;
+}
+
 /* --- sidebar --- */
 
 #sidebar {
@@ -462,6 +475,7 @@ button.link:hover {
 
 .menu button:disabled {
     color: var(--faint);
+    font-style: italic;
     background: none;
     cursor: default;
 }
@@ -542,7 +556,8 @@ dialog input:focus, dialog select:focus {
 }
 
 dialog input:disabled, dialog select:disabled {
-    opacity: 0.6;
+    border-style: dashed;
+    background: none;
 }
 
 dialog .row {
@@ -618,8 +633,10 @@ button.primary:hover {
     background: #1177bb;
 }
 
-button.primary:disabled {
-    opacity: 0.5;
+button.primary:disabled, button.primary:disabled:hover {
+    background: var(--btn-bg);
+    border-color: #0e639c;
+    color: var(--text);
     cursor: default;
 }
 
@@ -1424,7 +1441,9 @@ dialog pre.changes {
 }
 
 .tab-row button.icon:disabled {
-    opacity: 0.3;
+    color: var(--text);
+    font-style: italic;
+    border: 1px dashed var(--btn-border);
     cursor: default;
 }
 

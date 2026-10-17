@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"session-workbench/internal/xfer"
 )
 
 func TestClassify(t *testing.T) {
@@ -128,5 +130,64 @@ func TestSSHBackupRoundTrip(t *testing.T) {
 	// A host without ~/.claude says so.
 	if err := Run(ctx, Host{Name: "e", Target: target, Home: t.TempDir()}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "no ~/.claude") {
 		t.Errorf("empty home: %v", err)
+	}
+	// A missing home directory is an error, not a good backup.
+	gone := filepath.Join(t.TempDir(), "gone")
+	err := Run(ctx, Host{Name: "g", Target: target, Home: gone}, t.TempDir())
+	if err == nil || (!xfer.UseRsync() && !strings.Contains(err.Error(), "cannot enter "+gone)) {
+		t.Errorf("missing home: %v", err)
+	}
+}
+
+func TestPullResult(t *testing.T) {
+	h := Host{Home: "/srv/u"}
+	cases := []struct {
+		code   int
+		stderr string
+		ok     bool
+		want   string
+	}{
+		{0, "", true, ""},
+		{1, "tar: .claude/history.jsonl: file changed as we read it", true, ""},
+		{1, "tar: .claude/x: Cannot open: Permission denied", false, "Permission denied"},
+		{3, "no ~/.claude", false, "no ~/.claude"},
+		{4, "sh: cd: /srv/u: No such file or directory", false, "cannot enter /srv/u on the agent host"},
+		{2, "tar: fatal", false, "exit 2"},
+	}
+	for _, c := range cases {
+		err := pullResult(c.code, c.stderr, h)
+		if (err == nil) != c.ok || (err != nil && !strings.Contains(err.Error(), c.want)) {
+			t.Errorf("pullResult(%d, %q) = %v", c.code, c.stderr, err)
+		}
+	}
+}
+
+func TestSkippedNote(t *testing.T) {
+	if n := skippedNote(nil); n != "" {
+		t.Errorf("none skipped: %q", n)
+	}
+	if n := skippedNote([]string{"a", "b", "c"}); n != "3 unsafe entries skipped" {
+		t.Errorf("3 skipped: %q", n)
+	}
+}
+
+// TestScheduledTimeout: scheduled backups run with a deadline, and the note
+// of a backup that worked ends up in the status.
+func TestScheduledTimeout(t *testing.T) {
+	defer func(f func(context.Context, Host, string) (string, error)) { runBackup = f }(runBackup)
+	var deadline bool
+	runBackup = func(ctx context.Context, h Host, dir string) (string, error) {
+		_, deadline = ctx.Deadline()
+		return "2 unsafe entries skipped", nil
+	}
+	r := &Runner{Dir: t.TempDir(), Hosts: func() []Host { return []Host{{Name: "h"}} }}
+	if err := r.scheduled(context.Background(), Host{Name: "h"}); err != nil {
+		t.Fatal(err)
+	}
+	if !deadline {
+		t.Error("scheduled backup without a deadline")
+	}
+	if s := r.Status()["h"]; s.Busy || s.Error != "" || s.Note != "2 unsafe entries skipped" || s.LastOK.IsZero() {
+		t.Errorf("status: %+v", s)
 	}
 }

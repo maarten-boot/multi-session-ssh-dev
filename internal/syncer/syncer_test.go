@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"session-workbench/internal/remote"
 )
@@ -210,6 +211,8 @@ func TestSSHSendMirror(t *testing.T) {
 			remoteSh(t, target, agent+"mkdir -p build && echo out > build/agent-only && echo x > extra.txt")
 			// Here: a.txt changed, b.txt deleted, c.txt new.
 			os.WriteFile(filepath.Join(host, "a.txt"), []byte("two\n"), 0o644)
+			// Same size: a new mtime, or rsync's quick check may miss it within a second.
+			os.Chtimes(filepath.Join(host, "a.txt"), time.Time{}, time.Now().Add(time.Hour))
 			os.Remove(filepath.Join(host, "b.txt"))
 			os.WriteFile(filepath.Join(host, "c.txt"), []byte("sea\n"), 0o644)
 			p, err := Send(ctx, s, true, false)
@@ -246,5 +249,132 @@ func TestSSHSendMirror(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Outside a repository top, the built-in send lists files by walking the
+// directory and applies only the .gitignore files inside it, like rsync's
+// filter: a session in a folder the parent repository ignores still sends
+// its files, and a directory whose files are all ignored is an error
+// instead of a plan that deletes the whole agent copy.
+func TestLocalFilesOutsideRepositoryTop(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	ctx := context.Background()
+	repo := t.TempDir()
+	gitIn(t, repo, "init", "-q")
+	os.WriteFile(filepath.Join(repo, ".gitignore"), []byte("build/\n"), 0o644)
+	proj := filepath.Join(repo, "build", "proj")
+	os.MkdirAll(filepath.Join(proj, "node_modules"), 0o755)
+	os.WriteFile(filepath.Join(proj, "a.txt"), []byte("a\n"), 0o644)
+	os.WriteFile(filepath.Join(proj, ".gitignore"), []byte("node_modules/\n"), 0o644)
+	os.WriteFile(filepath.Join(proj, "node_modules", "m.js"), []byte("m\n"), 0o644)
+	s := Session{LocalPath: proj}
+	ic := ignoreChecker{s: s, top: repoTop(ctx, s)}
+	if ic.top {
+		t.Fatal("subdirectory taken for a repository top")
+	}
+	files, err := localFiles(ctx, s, ic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := files["a.txt"]; !ok || len(files) != 2 {
+		t.Errorf("files %v, want a.txt and .gitignore", files)
+	}
+	ign, err := ic.ignored(ctx, []string{"node_modules/x/y.js", "a.txt", "gone.txt"})
+	if err != nil || !ign["node_modules/x/y.js"] || len(ign) != 1 {
+		t.Errorf("ignored %v %v", ign, err)
+	}
+
+	all := t.TempDir() // not a repository
+	os.WriteFile(filepath.Join(all, ".gitignore"), []byte("*\n"), 0o644)
+	os.WriteFile(filepath.Join(all, "x"), []byte("x\n"), 0o644)
+	if files, err := localFiles(ctx, Session{LocalPath: all}, ignoreChecker{s: Session{LocalPath: all}}); err == nil {
+		t.Errorf("everything ignored: %v, want an error", files)
+	}
+}
+
+// TestSSHSendIgnoredOutsideTop: sessions that are not a repository top
+// (a subdirectory with its own .gitignore, a folder the parent repository
+// ignores) get the same result from rsync and the built-in transfer:
+// files ignored here are kept on the agent host, the rest is mirrored.
+func TestSSHSendIgnoredOutsideTop(t *testing.T) {
+	target := os.Getenv("SW_SSH_TARGET")
+	if target == "" {
+		t.Skip("SW_SSH_TARGET not set")
+	}
+	for _, mode := range []string{"rsync", "builtin"} {
+		for _, layout := range []string{"subdir", "ignored"} {
+			t.Run(mode+"-"+layout, func(t *testing.T) {
+				if mode == "builtin" {
+					t.Setenv("SW_NO_RSYNC", "1")
+				} else if _, err := exec.LookPath("rsync"); err != nil {
+					t.Skip("no rsync here")
+				} else {
+					t.Setenv("SW_NO_RSYNC", "")
+				}
+				ctx := context.Background()
+				repo := t.TempDir()
+				gitIn(t, repo, "init", "-q")
+				dir := filepath.Join(repo, "sub")
+				if layout == "ignored" {
+					os.WriteFile(filepath.Join(repo, ".gitignore"), []byte("build/\n"), 0o644)
+					dir = filepath.Join(repo, "build", "proj")
+				}
+				os.MkdirAll(dir, 0o755)
+				os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("node_modules/\n"), 0o644)
+				os.WriteFile(filepath.Join(dir, "a.txt"), []byte("one\n"), 0o644)
+				os.WriteFile(filepath.Join(dir, "b.txt"), []byte("bee\n"), 0o644)
+				gitIn(t, repo, "add", "-A")
+				gitIn(t, repo, "commit", "-q", "--allow-empty", "-m", "base")
+				base := fmt.Sprintf("sw-ign-%s-%s-%d", mode, layout, os.Getpid())
+				t.Cleanup(func() { exec.Command("ssh", must(remote.ScriptArgs(target, "rm -rf ~/"+base))...).Run() })
+				s := Session{ID: "s-ign", Target: target, LocalPath: dir, RemotePath: "~/" + base + "/proj"}
+				agent := "cd ~/" + base + "/proj && "
+				if p, err := Send(ctx, s, false, false); err != nil || !p.Done || p.New < 3 {
+					t.Fatalf("first send: %+v %v", p, err)
+				}
+				remoteSh(t, target, agent+"mkdir -p node_modules/m && echo mod > node_modules/m/i.js && echo x > extra.txt")
+				os.WriteFile(filepath.Join(dir, "a.txt"), []byte("two\n"), 0o644)
+				// Same size: a new mtime, or rsync's quick check may miss it within a second.
+				os.Chtimes(filepath.Join(dir, "a.txt"), time.Time{}, time.Now().Add(time.Hour))
+				os.Remove(filepath.Join(dir, "b.txt"))
+				os.WriteFile(filepath.Join(dir, "c.txt"), []byte("sea\n"), 0o644)
+				p, err := Send(ctx, s, true, false)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := map[string]string{}
+				for _, c := range p.Changes {
+					got[c.Path] = c.Op
+				}
+				want := map[string]string{"a.txt": "changed", "b.txt": "deleted", "c.txt": "new", "extra.txt": "deleted"}
+				for k, v := range want {
+					if got[k] != v {
+						t.Errorf("preview: %s = %q, want %q (all: %v)", k, got[k], v, got)
+					}
+				}
+				for k := range got {
+					if strings.HasPrefix(k, "node_modules") {
+						t.Errorf("preview lists ignored %s: %v", k, got)
+					}
+				}
+				if p, err = Send(ctx, s, false, true); err != nil || !p.Done {
+					t.Fatalf("send: %+v %v", p, err)
+				}
+				out := remoteSh(t, target, agent+"cat a.txt c.txt node_modules/m/i.js; ls")
+				for _, w := range []string{"two", "sea", "mod"} {
+					if !strings.Contains(out, w) {
+						t.Errorf("agent copy lacks %q: %q", w, out)
+					}
+				}
+				for _, w := range []string{"b.txt", "extra.txt"} {
+					if strings.Contains(out, w) {
+						t.Errorf("agent copy still has %s: %q", w, out)
+					}
+				}
+			})
+		}
 	}
 }

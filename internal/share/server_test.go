@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -154,7 +155,7 @@ func TestCannotLeaveTheShare(t *testing.T) {
 	if err := c.Symlink("docs/../docs", "/d2"); err != nil {
 		t.Errorf("inside symlink refused: %v", err)
 	}
-	if got, err := c.ReadLink("/d2"); err != nil || got != "docs/../docs" {
+	if got, err := c.ReadLink("/d2"); err != nil || got != "docs" { // stored cleaned
 		t.Errorf("readlink %q %v", got, err)
 	}
 	os.WriteFile(filepath.Join(dir, "f"), nil, 0o644)
@@ -168,6 +169,76 @@ func TestCannotLeaveTheShare(t *testing.T) {
 	}
 	sort.Strings(names)
 	t.Logf("share contains %v", names)
+}
+
+// Symlink targets are checked where the link really lands: not through a
+// symlinked directory, and again when a rename moves the link elsewhere.
+func TestSymlinkEscapesThroughLinksAndRenames(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges there")
+	}
+	dir := t.TempDir()
+	c := client(t, dir)
+	escaped := func(p string) bool {
+		t.Helper()
+		l, err := os.Readlink(filepath.Join(dir, p))
+		if err != nil {
+			return false
+		}
+		full := filepath.Clean(filepath.Join(filepath.Dir(filepath.Join(dir, p)), l))
+		return !strings.HasPrefix(full+string(filepath.Separator), dir+string(filepath.Separator))
+	}
+
+	// d -> . and then d/e -> ../secret: e -> ../secret at the top.
+	if err := c.Symlink(".", "/d"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Symlink("../secret", "/d/e"); err == nil || escaped("e") {
+		t.Error("symlink created through a symlinked directory")
+	}
+	// s/up -> .. is fine, but f -> s/up/../.. would leave the share.
+	c.Mkdir("/s")
+	if err := c.Symlink("..", "/s/up"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Symlink("s/up/../..", "/f"); err != nil {
+		t.Fatal(err)
+	}
+	if l, err := os.Readlink(filepath.Join(dir, "f")); err != nil || l != "." {
+		t.Errorf("f -> %q %v, want the cleaned target \".\"", l, err)
+	}
+
+	// a/b/l -> ../../secret is fine there, not when moved to the top.
+	os.MkdirAll(filepath.Join(dir, "a", "b"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "a", "c"), 0o755)
+	if err := c.Symlink("../../secret", "/a/b/l"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.PosixRename("/a/b/l", "/l"); err == nil || escaped("l") {
+		t.Error("posix rename moved a symlink out of the share's reach")
+	}
+	if err := c.Rename("/a/b/l", "/l"); err == nil || escaped("l") {
+		t.Error("rename moved a symlink out of the share's reach")
+	}
+	if err := c.PosixRename("/a/b", "/b2"); err == nil || escaped("b2/l") {
+		t.Error("renaming its directory moved a symlink out of the share's reach")
+	}
+	if err := c.PosixRename("/a/b/l", "/d/l"); err == nil || escaped("l") {
+		t.Error("symlink moved into a symlinked directory")
+	}
+	// Moves that keep the targets inside still work.
+	if err := c.PosixRename("/a/b/l", "/a/b/l2"); err != nil {
+		t.Errorf("rename in the same directory: %v", err)
+	}
+	if err := c.PosixRename("/a/b", "/a/c/b"); err != nil { // deeper: a/c/b/l2 -> a/secret
+		t.Errorf("rename deeper: %v", err)
+	}
+	if err := c.Rename("/a/c/b/l2", "/a/c/l3"); err != nil || escaped("a/c/l3") { // -> secret at the top
+		t.Errorf("rename up one level, still inside: %v", err)
+	}
+	if err := c.Rename("/a/c/l3", "/a/l4"); err == nil || escaped("a/l4") { // a/../../secret leaves
+		t.Error("rename up another level made the link escape")
+	}
 }
 
 func TestInsideRoot(t *testing.T) {

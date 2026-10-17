@@ -26,8 +26,10 @@ function decode(b64) {
 //   start(cols, rows) => Promise<id> launches the process,
 //   isAppKey(e) tells which keys belong to the app rather than the terminal,
 //   onState('connected' | 'exited' | 'reconnecting') reports the process state.
-//   exitHint: {what, again, remote, place(), autoReconnect()} decides what
-//   happens when the process exits (overlay, automatic reconnect).
+//   exitHint: {what, again, remote, place(), autoReconnect(), problem()}
+//   decides what happens when the process exits (overlay, automatic
+//   reconnect); problem() returns a configuration error to show instead of
+//   the connection message, or nothing.
 //   colorMode is 'full' or 'mono' (colors stripped from the output).
 //   onActivity('data', nbytes) / onActivity('bell') reports output.
 //   ui.copy_on_select copies the selection to the clipboard as it is made.
@@ -61,13 +63,17 @@ export class TermView {
         });
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
         container.addEventListener('contextmenu', e => {
+            // The find bar and the overlay keep the browser's own menu.
+            if (e.target.closest?.('.find-bar, .term-overlay')) return;
             e.preventDefault();
             this.contextMenu(e.clientX, e.clientY);
         });
         this.term.onBell(() => this.onActivity('bell'));
         this.term.onData(d => this.id && this.send(d));
         this.term.onResize(({cols, rows}) => this.id && this.resizePty(cols, rows));
-        this.observer = new ResizeObserver(() => this.fit.fit());
+        // While the sidebar is dragged (body.resizing) the terminal is not
+        // refitted on every move; the app refits once when the drag ends.
+        this.observer = new ResizeObserver(() => document.body.classList.contains('resizing') || this.fit.fit());
         this.observer.observe(container);
         this.fit.fit();
     }
@@ -142,7 +148,8 @@ export class TermView {
             this.showOverlay(m.text, [...m.actions,
                 {label: `${cap(h.again)} (Enter)`, primary: !m.actions.length, action: () => this.restart()}]);
             return;
-        } else msg = `Connection to ${h.place()} ${lost ? 'failed or was lost' : 'closed'}${why}.`;
+        } else if (h.problem?.()) msg = h.problem();
+        else msg = `Connection to ${h.place()} ${lost ? 'failed or was lost' : 'closed'}${why}.`;
         this.showOverlay(msg, [{label: `${cap(h.again)} (Enter)`, primary: true, action: () => this.restart()}]);
     }
 

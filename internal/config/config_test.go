@@ -224,3 +224,29 @@ func TestCtrlCopyPasteDefaultOn(t *testing.T) {
 		t.Errorf("ctrl_copy_paste default: %v", c.UI.CtrlCopyPaste)
 	}
 }
+
+// TestOutOfRangeUIReset: out-of-range values in a hand-edited file fall back
+// to the defaults, so the UI is usable and Settings → Save passes ValidateUI.
+func TestOutOfRangeUIReset(t *testing.T) {
+	for _, tc := range []struct {
+		file             string
+		font, scrollback int
+	}{
+		{"[ui]\nfont_size = 100\nscrollback = 2000000\n", 13, 10000},
+		{"[ui]\nfont_size = 3\nscrollback = -5\n", 13, 10000},
+		{"[ui]\nfont_size = 48\nscrollback = 1\n", 48, 1},
+	} {
+		p := filepath.Join(t.TempDir(), "c.toml")
+		os.WriteFile(p, []byte(tc.file), 0o644)
+		c, err := Load(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.UI.FontSize != tc.font || c.UI.Scrollback != tc.scrollback {
+			t.Errorf("%q: font %d scrollback %d, want %d %d", tc.file, c.UI.FontSize, c.UI.Scrollback, tc.font, tc.scrollback)
+		}
+		if err := ValidateUI(c.UI); err != nil {
+			t.Errorf("%q: loaded UI does not validate: %v", tc.file, err)
+		}
+	}
+}

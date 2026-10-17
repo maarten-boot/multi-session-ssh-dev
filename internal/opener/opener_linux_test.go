@@ -72,3 +72,19 @@ func TestOpenRefusesBeforeLaunching(t *testing.T) {
 		t.Error("xdg-open was called for a binary")
 	}
 }
+
+// Open launches the checked target of a symlink, so the launcher cannot
+// pick an application by the link's name.
+func TestOpenLaunchesSymlinkTarget(t *testing.T) {
+	log := fakeXdgOpen(t, 0)
+	dir := t.TempDir()
+	real := write(t, dir, "real.md", []byte("x"), 0o644)
+	link := filepath.Join(dir, "link.txt")
+	os.Symlink("real.md", link)
+	if err := Open(link); err != nil {
+		t.Fatal(err)
+	}
+	if want, _ := filepath.EvalSymlinks(real); waitLog(t, log) != want {
+		t.Errorf("opened the link, want its target %q", want)
+	}
+}

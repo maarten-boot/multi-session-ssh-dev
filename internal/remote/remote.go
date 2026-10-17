@@ -128,10 +128,12 @@ func AttachArgs(target, id, remotePath string, mode Mode) ([]string, error) {
 	}
 	// The cd makes a missing directory a visible error (and exit status)
 	// instead of tmux silently starting in $HOME. -A attaches if the session
-	// exists, in which case -c and the pane command are ignored.
-	tmux := fmt.Sprintf(`cd %s || { echo "session directory %s does not exist on this host" >&2; exit %d; }; `+
+	// exists, in which case -c and the pane command are ignored. The path in
+	// the message is a quoted word, so nothing in it expands there.
+	tmux := fmt.Sprintf(`cd %s || { printf '%%s\n' %s >&2; exit %d; }; `+
 		`exec tmux new-session -A -s %s -c "$PWD" %s`,
-		ShellPath(remotePath), strings.ReplaceAll(remotePath, `"`, ""), ExitMissingDir, TmuxName(id), Quote(pane))
+		ShellPath(remotePath), Quote("session directory "+remotePath+" does not exist on this host"),
+		ExitMissingDir, TmuxName(id), Quote(pane))
 	args := append([]string{"-t"}, sshOptions...)
 	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(tmux)), nil
 }

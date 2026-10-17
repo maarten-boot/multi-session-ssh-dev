@@ -33,7 +33,8 @@ connections;
 .TP
 .B Notes
 notes about the project, stored next to the configuration file, not in the
-project;
+project. A separate notes page for all sessions holds prompts you use often
+and can paste them into the current session's Remote tab;
 .TP
 .B Web
 the repository's latest GitHub Actions runs (with
@@ -45,7 +46,7 @@ share over ssh (the agent host mounts it with
 .BR sshfs (1)),
 or a working copy sent with
 .BR rsync (1)
-whose commits are fetched back with
+(or a built-in tar transfer where rsync is missing) whose commits are fetched back with
 .BR git (1).
 Agent and X11 forwarding are always disabled on these ssh connections.
 .PP
@@ -53,8 +54,11 @@ Claude Code's data on each agent host
 .RI ( ~/.claude
 and
 .IR ~/.claude.json ,
-without claude's login) is copied to this computer every hour while the
-application runs, so a lost agent host can be restored.
+without claude's login) is copied to this computer, every hour by default,
+while the application runs, so a lost agent host can be restored.
+.PP
+When claude waits for input in a session you are not looking at, the session
+is marked and a desktop notification is shown.
 .PP
 Only one instance runs per configuration file; starting it again brings the
 running window to the front.
@@ -82,7 +86,9 @@ cannot be read is never overwritten.
 Keeps a second instance from using the same configuration.
 .TP
 .I ~/.config/session-workbench/notes/
-The Notes tab's files, one per session.
+The Notes tab's files, one per session, and
+.I _app.md
+for the notes page of all sessions.
 .TP
 .I ~/.local/share/session-workbench/
 Claude backups of the agent hosts

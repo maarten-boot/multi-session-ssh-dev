@@ -7,8 +7,9 @@
 // Every operation goes through os.Root, so paths cannot leave the session
 // directory, also not via symlinks or "..". Symlinks may only be created
 // with relative targets that stay inside it (an agent could otherwise plant
-// "README" -> ~/.bashrc for the user to edit on the host); hard links are
-// refused.
+// "README" -> ~/.bashrc for the user to edit on the host), created in a
+// directory reached without symlinks, and not moved to where their target
+// would point outside; hard links are refused.
 package share
 
 import (
@@ -17,6 +18,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -113,7 +115,7 @@ func (s *Server) Filecmd(r *sftp.Request) error {
 		if _, err := s.root.Lstat(name(r.Target)); err == nil {
 			return os.ErrExist
 		}
-		return s.root.Rename(n, name(r.Target))
+		return s.rename(n, name(r.Target))
 	case "Rmdir":
 		fi, err := s.root.Lstat(n)
 		if err != nil {
@@ -140,11 +142,15 @@ func (s *Server) Filecmd(r *sftp.Request) error {
 		return s.root.Remove(n)
 	case "Symlink":
 		// r.Filepath is the link's target (as given), r.Target the link.
+		// The target is checked against the link's directory as written,
+		// which only holds if that is reached without symlinks (d -> . then
+		// d/e -> ../x would put e -> ../x at the top). It is stored cleaned:
+		// "s/l/.." could leave the share once s/l becomes a symlink.
 		link := name(r.Target)
-		if !insideRoot(link, r.Filepath) {
+		if !insideRoot(link, r.Filepath) || !s.realDir(path.Dir(link)) {
 			return errEscape
 		}
-		return s.root.Symlink(r.Filepath, link)
+		return s.root.Symlink(path.Clean(r.Filepath), link)
 	case "Link":
 		return errors.New("share: hard links are not allowed")
 	}
@@ -153,7 +159,72 @@ func (s *Server) Filecmd(r *sftp.Request) error {
 
 // PosixRename replaces the destination (sshfs uses it for atomic saves).
 func (s *Server) PosixRename(r *sftp.Request) error {
-	return s.root.Rename(name(r.Filepath), name(r.Target))
+	return s.rename(name(r.Filepath), name(r.Target))
+}
+
+// rename moves from to to unless that makes a symlink point outside: a
+// relative target means something else from another directory (a/b/l ->
+// ../../x is fine there, not as /l).
+func (s *Server) rename(from, to string) error {
+	if err := s.checkMove(from, to); err != nil {
+		return err
+	}
+	return s.root.Rename(from, to)
+}
+
+// checkMove re-validates the symlinks that a move of from to to relocates:
+// from itself, or every link below it if it is a directory.
+func (s *Server) checkMove(from, to string) error {
+	if path.Dir(from) == path.Dir(to) {
+		return nil // the same directory: every link keeps its meaning
+	}
+	fi, err := s.root.Lstat(from)
+	if err != nil {
+		return err
+	}
+	realTo := s.realDir(path.Dir(to))
+	check := func(link, at string) error {
+		t, err := s.root.Readlink(link)
+		if err != nil {
+			return err
+		}
+		if !realTo || !insideRoot(at, filepath.ToSlash(t)) {
+			return errEscape
+		}
+		return nil
+	}
+	switch {
+	case fi.Mode()&fs.ModeSymlink != 0:
+		return check(from, to)
+	case fi.IsDir() && from != ".":
+		return fs.WalkDir(s.root.FS(), from, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.Type()&fs.ModeSymlink != 0 {
+				return check(p, path.Join(to, strings.TrimPrefix(p, from)))
+			}
+			return nil
+		})
+	}
+	return nil
+}
+
+// realDir reports whether dir (root-relative) is a directory reached
+// without following any symlink.
+func (s *Server) realDir(dir string) bool {
+	if dir == "." {
+		return true
+	}
+	p := ""
+	for _, c := range strings.Split(dir, "/") {
+		p = path.Join(p, c)
+		fi, err := s.root.Lstat(p)
+		if err != nil || !fi.IsDir() {
+			return false
+		}
+	}
+	return true
 }
 
 // insideRoot reports whether a symlink at link (root-relative) with the

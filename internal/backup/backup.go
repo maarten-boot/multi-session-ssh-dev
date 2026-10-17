@@ -59,8 +59,13 @@ type Status struct {
 	Last   time.Time `json:"last"`    // last attempt
 	LastOK time.Time `json:"last_ok"` // last successful backup
 	Error  string    `json:"error"`   // of the last attempt; "" = it worked
+	Note   string    `json:"note"`    // of the last attempt, e.g. unsafe entries skipped; "" = none
 	Busy   bool      `json:"busy"`
 }
+
+// ScheduledTimeout bounds each scheduled backup, so a stuck transfer does
+// not keep the host busy until the app restarts (BackupNow uses the same).
+var ScheduledTimeout = 30 * time.Minute
 
 // rsyncMissing matches rsync's report of a missing source file.
 var rsyncMissing = regexp.MustCompile(`link_stat "[^"]*?(\.claude(?:\.json)?)" failed: No such file`)
@@ -95,15 +100,26 @@ func commonArgs() []string {
 
 // Run backs h up into dir/home (a copy of the files in the remote home).
 func Run(ctx context.Context, h Host, dir string) error {
+	_, err := runNote(ctx, h, dir)
+	return err
+}
+
+// runBackup is runNote; tests replace it.
+var runBackup = runNote
+
+// runNote is Run, also returning a note for a backup that worked but left
+// something out (unsafe entries skipped by the built-in transfer).
+func runNote(ctx context.Context, h Host, dir string) (string, error) {
 	if err := remote.CheckTarget(h.Target); err != nil {
-		return err
+		return "", err
 	}
 	dest := filepath.Join(dir, "home")
 	if err := os.MkdirAll(dest, 0o700); err != nil {
-		return err
+		return "", err
 	}
 	if !xfer.UseRsync() {
-		return pull(ctx, h, dest)
+		skipped, err := pull(ctx, h, dest)
+		return skippedNote(skipped), err
 	}
 	args := commonArgs()
 	for _, x := range Exclude {
@@ -113,9 +129,20 @@ func Run(ctx context.Context, h Host, dir string) error {
 	args = append(args, "--", h.Target+":"+base+".claude", h.Target+":"+base+".claude.json", dest+"/")
 	stderr, code, err := rsync(ctx, args...)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return classify(code, stderr)
+	return "", classify(code, stderr)
+}
+
+// skippedNote describes the unsafe entries the built-in transfer skipped.
+func skippedNote(skipped []string) string {
+	switch len(skipped) {
+	case 0:
+		return ""
+	case 1:
+		return "1 unsafe entry skipped: " + skipped[0]
+	}
+	return fmt.Sprintf("%d unsafe entries skipped", len(skipped))
 }
 
 // classify turns a backup's rsync exit status into an error, or nil when
@@ -167,26 +194,43 @@ func homeDir(h Host) string {
 
 // pull is Run without rsync: tar on the agent host with the same
 // exclusions, unpacked here through os.Root; the exclusions are applied
-// here too, in case the agent host's tar ignored them.
-func pull(ctx context.Context, h Host, dest string) error {
+// here too, in case the agent host's tar ignored them. It returns the
+// unsafe entries it skipped.
+func pull(ctx context.Context, h Host, dest string) ([]string, error) {
 	var ex strings.Builder
 	for _, x := range Exclude {
 		ex.WriteString(" --exclude=" + remote.Quote(strings.Trim(x, "/")))
 	}
-	script := "cd " + homeDir(h) + ` || exit 1
+	script := "cd " + homeDir(h) + ` || exit 4
 [ -e .claude ] || { echo "no ~/.claude" >&2; exit 3; }
 set -- .claude
 [ -e .claude.json ] && set -- "$@" .claude.json
 exec tar -cf -` + ex.String() + ` "$@"`
-	code, stderr, _, err := xfer.Pull(ctx, h.Target, script, dest, excluded)
+	code, stderr, skipped, err := xfer.Pull(ctx, h.Target, script, dest, excluded)
 	if err != nil {
-		return err
+		return skipped, err
 	}
+	return skipped, pullResult(code, stderr, h)
+}
+
+// pullResult turns the exit status of pull's script into an error, or nil
+// when the backup is good.
+func pullResult(code int, stderr string, h Host) error {
 	switch code {
-	case 0, 1: // 1: GNU tar, a file changed while it was read (claude was writing)
+	case 0:
 		return nil
+	case 1: // GNU tar: a file changed while it was read (claude was writing)
+		if strings.Contains(stderr, "file changed as we read it") {
+			return nil
+		}
 	case 3:
 		return errors.New("no ~/.claude on the agent host (claude not used there yet?)")
+	case 4:
+		home := h.Home
+		if home == "" {
+			home = "the home directory"
+		}
+		return fmt.Errorf("cannot enter %s on the agent host: %s", home, strings.TrimSpace(lastLines(stderr, 3)))
 	}
 	return fmt.Errorf("tar on the agent host, exit %d: %s", code, strings.TrimSpace(lastLines(stderr, 3)))
 }
@@ -353,8 +397,8 @@ func (r *Runner) backup(ctx context.Context, h Host) error {
 	if r.Changed != nil {
 		r.Changed(h.Name, s)
 	}
-	err := Run(ctx, h, r.HostDir(h.Name))
-	s.Busy, s.Last, s.Error = false, time.Now(), ""
+	note, err := runBackup(ctx, h, r.HostDir(h.Name))
+	s.Busy, s.Last, s.Error, s.Note = false, time.Now(), "", note
 	if err != nil {
 		s.Error = err.Error()
 	} else {
@@ -362,6 +406,13 @@ func (r *Runner) backup(ctx context.Context, h Host) error {
 	}
 	r.set(h.Name, s)
 	return err
+}
+
+// scheduled is a backup started by Start, bounded by ScheduledTimeout.
+func (r *Runner) scheduled(ctx context.Context, h Host) error {
+	ctx, cancel := context.WithTimeout(ctx, ScheduledTimeout)
+	defer cancel()
+	return r.backup(ctx, h)
 }
 
 // due: the interval has passed since the last attempt; after a failure,
@@ -398,7 +449,7 @@ func (r *Runner) Start(ctx context.Context) {
 			if every, on := r.Every(); on {
 				for _, h := range r.Hosts() {
 					if r.due(h.Name, every, time.Now()) {
-						go r.backup(ctx, h)
+						go r.scheduled(ctx, h)
 					}
 				}
 			}

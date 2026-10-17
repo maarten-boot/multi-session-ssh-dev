@@ -79,12 +79,20 @@ export function matches(e, b) {
 
 const id = b => `${b.ctrl}${b.shift}${b.alt}${b.meta}${b.code}`;
 
+// Ctrl+C, Ctrl+V and their Shift forms are the terminal's interrupt, copy
+// and paste (non-macOS); binding them works but shadows those.
+const TERMINAL_KEYS = new Set(['KeyC', 'KeyV'].flatMap(code =>
+    [false, true].map(shift => id({ctrl: true, shift, alt: false, meta: false, code}))));
+
 // buildKeymap merges overrides into the defaults. Unknown actions, bad keys
 // and two actions on the same key are reported in errors; the default is
-// kept for a bad override.
+// kept for a bad override. On a shared key your binding beats a default
+// (the default's action becomes unbound); of two of yours, or two
+// defaults, the action listed first in ACTIONS keeps it.
 export function buildKeymap(overrides, isMac) {
     const map = {};
     const errors = [];
+    const yours = new Set();
     for (const [action, defs] of Object.entries(ACTIONS)) map[action] = parse(defs[isMac ? 1 : 0], isMac);
     for (const [action, text] of Object.entries(overrides || {})) {
         if (!(action in ACTIONS)) {
@@ -93,19 +101,30 @@ export function buildKeymap(overrides, isMac) {
         }
         try {
             map[action] = parse(text, isMac);
+            yours.add(action);
         } catch (err) {
             errors.push(`[keys] ${action}: ${err.message}`);
         }
     }
+    const order = Object.keys(ACTIONS);
     const seen = new Map();
-    for (const [action, b] of Object.entries(map)) {
+    for (const action of [...order.filter(a => yours.has(a)), ...order.filter(a => !yours.has(a))]) {
+        const b = map[action];
         if (!b) continue;
         const k = id(b);
-        if (seen.has(k)) {
-            errors.push(`[keys] ${action} and ${seen.get(k)} both use ${format(b, isMac)}; ${action} disabled`);
+        const key = format(b, isMac);
+        if (yours.has(action) && !isMac && TERMINAL_KEYS.has(k)) {
+            errors.push(`[keys] ${action}: "${key}" is the terminal's copy, paste or interrupt key; the terminal no longer gets it`);
+        }
+        const other = seen.get(k);
+        if (other === undefined) {
+            seen.set(k, action);
+        } else if (yours.has(other) && !yours.has(action)) {
+            errors.push(`[keys] "${key}": ${other} (yours) replaces ${action}, which is now unbound`);
             map[action] = null;
         } else {
-            seen.set(k, action);
+            errors.push(`[keys] ${action} and ${other} both use ${key}; ${action} disabled`);
+            map[action] = null;
         }
     }
     return {map, errors};

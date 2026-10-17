@@ -145,8 +145,31 @@ func kept(h *tar.Header) bool {
 	return false // hard links, devices, fifos
 }
 
-// escapes: os.Root refused a path that leads out of the tree.
-func escapes(err error) bool { return strings.Contains(err.Error(), "escapes from parent") }
+// errLinkParent: a symlink whose directory is reached through a symlink.
+var errLinkParent = errors.New("symlink in a directory reached through a symlink")
+
+// escapes: os.Root refused a path that leads out of the tree, or a symlink
+// could not be checked against where it really lands.
+func escapes(err error) bool {
+	return errors.Is(err, errLinkParent) || strings.Contains(err.Error(), "escapes from parent")
+}
+
+// realDir reports whether dir (slash-separated, relative) is a directory
+// reached without following any symlink.
+func realDir(root *os.Root, dir string) bool {
+	if dir == "." {
+		return true
+	}
+	p := ""
+	for _, c := range strings.Split(dir, "/") {
+		p = path.Join(p, c)
+		fi, err := root.Lstat(filepath.FromSlash(p))
+		if err != nil || !fi.IsDir() {
+			return false
+		}
+	}
+	return true
+}
 
 func unpackOne(root *os.Root, h *tar.Header, name string, tr io.Reader) error {
 	if !kept(h) {
@@ -168,10 +191,18 @@ func unpackOne(root *os.Root, h *tar.Header, name string, tr io.Reader) error {
 				return err
 			}
 		}
+		// The target is checked against the link's directory as written;
+		// that only holds if the directory is reached without symlinks
+		// (d -> . then d/e -> ../x would put e -> ../x at the top).
+		if !realDir(root, path.Dir(name)) {
+			return errLinkParent
+		}
 		if fi, err := root.Lstat(p); err == nil && !fi.IsDir() {
 			root.Remove(p)
 		}
-		return root.Symlink(h.Linkname, p)
+		// Stored cleaned: "s/l/.." could leave the tree once s/l becomes a
+		// symlink, the cleaned target never does.
+		return root.Symlink(filepath.FromSlash(path.Clean(h.Linkname)), p)
 	}
 	return nil
 }

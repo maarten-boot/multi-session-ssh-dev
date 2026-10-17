@@ -150,13 +150,22 @@ func (m *Manager) set(id string, r *running, st Status) {
 // or the agent host cannot mount it at all.
 func (m *Manager) loop(ctx context.Context, id string, r *running) {
 	defer close(r.done)
-	attempt := 0
+	attempt, noFUSE := 0, 0
 	for {
 		m.set(id, r, Status{State: "starting"})
 		started := time.Now()
 		err := m.attempt(ctx, id, r)
 		if ctx.Err() != nil {
 			return
+		}
+		// A host without FUSE fails the same way every time: give up after
+		// it happened twice in a row, quickly.
+		if err != nil && fuseMissing(err.Error()) && time.Since(started) < 10*time.Second {
+			if noFUSE++; noFUSE >= 2 {
+				err = &fatalError{err.Error() + " (FUSE is not available on the agent host)"}
+			}
+		} else {
+			noFUSE = 0
 		}
 		var fatal *fatalError
 		if errors.As(err, &fatal) {
@@ -182,6 +191,17 @@ func (m *Manager) loop(ctx context.Context, id string, r *running) {
 		case <-time.After(wait):
 		}
 	}
+}
+
+// fuseMissing recognizes sshfs failing because the host has no FUSE.
+func fuseMissing(msg string) bool {
+	msg = strings.ToLower(msg)
+	for _, s := range []string{"fuse: device not found", "/dev/fuse", "fusermount: not found", "fusermount3: not found", "fuse: failed to open"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
 }
 
 type fatalError struct{ msg string }
@@ -230,18 +250,32 @@ func (m *Manager) attempt(ctx context.Context, id string, r *running) error {
 		return &fatalError{fmt.Sprintf("starting ssh: %v", err)}
 	}
 	// sshfs sends its first file request right before it mounts; a moment
-	// later the mount point is live.
+	// later the mount point is live. The timer belongs to this attempt: it
+	// signals this attempt's ready channel, and nothing once the attempt has
+	// ended (the loop then has a new channel for the next one).
+	m.mu.Lock()
+	ready := r.ready
+	m.mu.Unlock()
+	actx, acancel := context.WithCancel(ctx)
+	defer func() {
+		m.mu.Lock() // a timer that is setting "mounted" finishes first
+		acancel()
+		m.mu.Unlock()
+	}()
 	var once sync.Once
 	onRequest := func() {
 		once.Do(func() {
 			time.AfterFunc(300*time.Millisecond, func() {
 				m.mu.Lock()
-				ready := r.ready
-				m.mu.Unlock()
-				if ctx.Err() == nil {
-					m.set(id, r, Status{State: "mounted"})
-					close(ready)
+				if actx.Err() != nil {
+					m.mu.Unlock()
+					return
 				}
+				st := Status{State: "mounted"}
+				r.status = st
+				close(ready)
+				m.mu.Unlock()
+				m.notify(id, st)
 			})
 		})
 	}

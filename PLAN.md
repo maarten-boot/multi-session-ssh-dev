@@ -66,16 +66,24 @@ implementation differs from the original plan.
 - Notes and prompts for all sessions (N2); Ctrl+C/Ctrl+V and a right-click menu in terminals (T2).
 - Docs/code cross-check (v0.8.11): shell-quoted fix commands in the repository check, Files tab
   refuses symlinks leading out of the session directory, failed live shares retried, backups
-  pause without local rsync, `PgDn`/`PgUp` in `[keys]`.
+  paused without local rsync (until the built-in transfer of v0.8.18), `PgDn`/`PgUp` in `[keys]`.
+- Docs/code cross-check (v0.8.22): live share crash on a retried mount fixed, no symlinks
+  through linked parents (live share, built-in transfer), built-in Send for subdirectory
+  sessions, injection-safe missing-directory message, repository check hardened (FIFO hooks,
+  unreadable config, `config.worktree`, aliases with options, `git -C / config --file` fixes),
+  opener checks link targets, config ranges, safer paste (bracketed paste only), key conflict
+  rule, docs brought in line.
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
-  check, syncer, share, backup, instance, terminal incl. a ConPTY test on Windows) —
+  check, syncer incl. the built-in transfer, xfer, share, backup, instance, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings.
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, prompts
+  on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
-  Claude backup and restore.
+  Claude backup and restore; working copies and backups also with the built-in transfer
+  (`SW_NO_RSYNC=1`).
 - Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 23
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, Claude backups; Files; colors, switcher, settings/keys, reconnect,
@@ -92,5 +100,5 @@ implementation differs from the original plan.
 - GUI verification there runs headless under Xvfb with screenshots; the "Local" tab then is a
   VM-local shell, which is fine for testing. Real use: copy the built binary to the host.
 - Linux build deps: npm, libgtk-3-dev, libwebkit2gtk-4.1-dev, build-essential, pkg-config;
-  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync, sshfs, git, jq, dbus, python3-dbus, and
+  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus, and
   `ssh localhost` without a password.

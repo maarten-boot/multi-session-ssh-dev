@@ -89,7 +89,7 @@ overrides:
       - openssh-client
     recommends:
       - git
-      - rsync                             # Claude backups (on by default), working copies
+      - rsync                             # faster Claude backups and working copies (built-in otherwise)
       - xdg-utils                         # Files tab: open with the default application
     suggests:
       - gh                                # Web tab: GitHub Actions runs

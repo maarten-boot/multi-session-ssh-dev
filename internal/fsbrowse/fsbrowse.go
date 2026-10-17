@@ -24,7 +24,7 @@ type Entry struct {
 	Rel     string `json:"rel"` // path relative to the root, "/"-separated
 	Dir     bool   `json:"dir"` // directory, or symlink to one
 	Symlink bool   `json:"symlink"`
-	Outside bool   `json:"outside"` // symlink leading out of the root: not listed or opened
+	Outside bool   `json:"outside"` // symlink leading out of the root: listed, not expanded or opened
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mtime"` // Unix seconds
 	Hidden  bool   `json:"hidden"`
@@ -62,11 +62,53 @@ func Inside(root, p string) error {
 	if err != nil {
 		return err
 	}
-	rel, err := filepath.Rel(rr, rp)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+	if !within(rr, rp) {
 		return fmt.Errorf("%w: %s leads to %s", ErrOutsideRoot, p, rp)
 	}
 	return nil
+}
+
+// within reports whether p lies in root (both with symlinks resolved).
+func within(root, p string) bool {
+	rel, err := filepath.Rel(root, p)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+// brokenOutside reports whether the broken symlink link points out of root:
+// its target is followed as far as it exists, the rest is taken by name.
+// Anything that cannot be worked out counts as outside.
+func brokenOutside(root, link string) bool {
+	rr, err1 := filepath.EvalSymlinks(root)
+	cur, err2 := filepath.EvalSymlinks(filepath.Dir(link))
+	t, err3 := os.Readlink(link)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return true
+	}
+	if filepath.IsAbs(t) || (t != "" && os.IsPathSeparator(t[0])) {
+		vol := filepath.VolumeName(t)
+		if vol == "" {
+			vol = filepath.VolumeName(cur)
+		}
+		cur, t = vol+string(filepath.Separator), t[len(filepath.VolumeName(t)):]
+	}
+	missing := false
+	for _, c := range strings.FieldsFunc(t, func(r rune) bool { return r < 0x80 && os.IsPathSeparator(uint8(r)) }) {
+		switch c {
+		case ".":
+		case "..":
+			cur = filepath.Dir(cur) // cur is resolved, so its parent is real
+		default:
+			cur = filepath.Join(cur, c)
+			if !missing {
+				if r, err := filepath.EvalSymlinks(cur); err == nil {
+					cur = r
+				} else {
+					missing = true
+				}
+			}
+		}
+	}
+	return !within(rr, cur)
 }
 
 // ResolveInside is Resolve plus Inside: for listing and opening, where a
@@ -107,17 +149,23 @@ func List(root, rel string, showHidden bool) (Listing, error) {
 			break
 		}
 		e := Entry{Name: name, Rel: path.Join(rel, name), Hidden: hidden, Dir: de.IsDir()}
+		var target fs.FileInfo // a link's target inside the root: its size and time
 		if de.Type()&fs.ModeSymlink != 0 {
 			e.Symlink = true
 			full := filepath.Join(dir, name)
 			if fi, err := os.Stat(full); err == nil {
 				e.Dir = fi.IsDir() // broken links show as files
+				target = fi
 			}
-			if errors.Is(Inside(root, full), ErrOutsideRoot) {
-				e.Outside, e.Dir = true, false
+			if err := Inside(root, full); errors.Is(err, ErrOutsideRoot) || (err != nil && brokenOutside(root, full)) {
+				e.Outside, e.Dir, target = true, false, nil
 			}
 		}
-		if fi, err := de.Info(); err == nil {
+		fi, err := de.Info()
+		if target != nil {
+			fi, err = target, nil
+		}
+		if err == nil {
 			e.ModTime = fi.ModTime().Unix()
 			if !e.Dir {
 				e.Size = fi.Size()

@@ -158,3 +158,44 @@ func TestSymlinksOutOfRoot(t *testing.T) {
 		t.Errorf("link inside the root refused: %v", err)
 	}
 }
+
+// A link inside the root shows its target's size; a broken link pointing
+// out of the root is marked as outside.
+func TestSymlinkSizeAndBrokenOutside(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	root, outside := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(root, "big.txt"), make([]byte, 12345), 0o644)
+	os.Mkdir(filepath.Join(root, "sub"), 0o755)
+	os.Symlink(outside, filepath.Join(root, "esc"))
+	os.Symlink("big.txt", filepath.Join(root, "inner"))
+	os.Symlink(filepath.Join(outside, "missing"), filepath.Join(root, "abs-out"))
+	os.Symlink("../../nowhere", filepath.Join(root, "sub", "up-out"))
+	os.Symlink("../missing", filepath.Join(root, "sub", "up-in"))
+	os.Symlink("esc/missing", filepath.Join(root, "via-link"))
+	os.Symlink("esc/../missing", filepath.Join(root, "via-link-up"))
+	os.Symlink(filepath.Join(root, "missing"), filepath.Join(root, "abs-in"))
+	l, err := List(root, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, _ := List(root, "sub", false)
+	got := map[string]Entry{}
+	for _, e := range append(l.Entries, sub.Entries...) {
+		got[e.Name] = e
+	}
+	if e := got["inner"]; e.Size != 12345 || e.Outside {
+		t.Errorf("inner link: %+v, want the target's size", e)
+	}
+	for _, n := range []string{"abs-out", "up-out", "via-link", "via-link-up"} {
+		if !got[n].Outside {
+			t.Errorf("broken link %s out of the root not marked: %+v", n, got[n])
+		}
+	}
+	for _, n := range []string{"up-in", "abs-in"} {
+		if e, ok := got[n]; !ok || e.Outside {
+			t.Errorf("broken link %s inside the root marked: %+v", n, e)
+		}
+	}
+}

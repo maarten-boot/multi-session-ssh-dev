@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -17,8 +19,9 @@ import (
 	"session-workbench/internal/xfer"
 )
 
-// Send without rsync (Windows), with the same result: the agent copy
-// becomes identical to the host directory, files git ignores are neither
+// Send without rsync (Windows), with the same result as
+// rsync -a --delete --filter=':- .gitignore': the agent copy becomes
+// identical to the host directory, files .gitignore ignores are neither
 // sent nor deleted there. Files are compared by POSIX cksum (CRC and size),
 // computed on both sides; new and changed ones go over as a tar stream,
 // deleted ones are removed there.
@@ -28,9 +31,71 @@ type localFile struct {
 	link bool
 }
 
-// localFiles lists what a send copies: in a git repository the files git
-// does not ignore plus .git itself, else every file.
-func localFiles(ctx context.Context, s Session) (map[string]localFile, error) {
+// errNoGit: git is not installed here, so .gitignore cannot be applied.
+var errNoGit = errors.New("git is not installed")
+
+// ignoreChecker decides which paths (slash-separated, relative to the
+// session directory) are ignored here.
+//
+// At the top of a repository it asks that repository, as git ls-files
+// --exclude-standard does. Anywhere else (a subdirectory of a repository,
+// possibly one the repository ignores, or no repository at all) it applies
+// only the .gitignore files inside the session directory, like rsync's
+// filter: git check-ignore runs against an empty temporary repository whose
+// work tree is the session directory. That needs git; without it every
+// path counts as not ignored and errNoGit is returned.
+type ignoreChecker struct {
+	s   Session
+	top bool // the session directory is a repository's top
+}
+
+func (ic ignoreChecker) ignored(ctx context.Context, paths []string) (map[string]bool, error) {
+	res := map[string]bool{}
+	if len(paths) == 0 {
+		return res, nil
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		return res, errNoGit
+	}
+	env := append(os.Environ(), "LC_ALL=C")
+	if !ic.top {
+		tmp, err := os.MkdirTemp("", "sw-ignore-")
+		if err != nil {
+			return res, err
+		}
+		defer os.RemoveAll(tmp)
+		if _, _, err := run(ctx, "", nil, "git", "init", "-q", "--bare", tmp); err != nil {
+			return res, err
+		}
+		env = append(env, "GIT_DIR="+tmp, "GIT_WORK_TREE="+ic.s.LocalPath)
+	}
+	cmd := exec.CommandContext(ctx, "git", "-c", "core.fsmonitor=false", "check-ignore", "--no-index", "-z", "--stdin")
+	cmd.Dir = ic.s.LocalPath
+	cmd.Env = env
+	cmd.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	Configure(cmd)
+	err := cmd.Run()
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && ee.ExitCode() == 1 { // nothing ignored
+		return res, nil
+	}
+	if err != nil {
+		return res, fmt.Errorf("git check-ignore: %v: %s", err, strings.TrimSpace(errb.String()))
+	}
+	for _, rel := range strings.Split(out.String(), "\x00") {
+		if rel != "" {
+			res[rel] = true
+		}
+	}
+	return res, nil
+}
+
+// localFiles lists what a send copies: at the top of a git repository the
+// files git does not ignore plus .git itself, else every file that no
+// .gitignore inside the session directory ignores.
+func localFiles(ctx context.Context, s Session, ic ignoreChecker) (map[string]localFile, error) {
 	files := map[string]localFile{}
 	add := func(rel string) {
 		fi, err := os.Lstat(filepath.Join(s.LocalPath, filepath.FromSlash(rel)))
@@ -44,22 +109,52 @@ func localFiles(ctx context.Context, s Session) (map[string]localFile, error) {
 			files[rel] = localFile{}
 		}
 	}
-	out, err := localGit(ctx, s, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
-	if err != nil {
-		// Not a repository: everything.
+	if ic.top {
+		out, err := localGit(ctx, s, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+		if err != nil {
+			return nil, err
+		}
+		for _, rel := range strings.Split(out, "\x00") {
+			if rel != "" {
+				add(rel)
+			}
+		}
+		gitDir := filepath.Join(s.LocalPath, ".git")
+		if fi, err := os.Stat(gitDir); err == nil && fi.IsDir() {
+			filepath.WalkDir(gitDir, func(p string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(s.LocalPath, p)
+				add(filepath.ToSlash(rel))
+				return nil
+			})
+		}
+	} else {
+		var all []string
 		err := filepath.WalkDir(s.LocalPath, func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}
 			rel, _ := filepath.Rel(s.LocalPath, p)
-			add(filepath.ToSlash(rel))
+			all = append(all, filepath.ToSlash(rel))
 			return nil
 		})
-		return files, err
-	}
-	for _, rel := range strings.Split(out, "\x00") {
-		if rel != "" {
-			add(rel)
+		if err != nil {
+			return nil, err
+		}
+		ign, err := ic.ignored(ctx, all)
+		if err != nil && !errors.Is(err, errNoGit) {
+			return nil, err
+		}
+		for _, rel := range all {
+			if !ign[rel] {
+				add(rel)
+			}
+		}
+		if len(files) == 0 && len(all) > 0 {
+			// Sending nothing would delete the whole agent copy.
+			return nil, fmt.Errorf("every file in %s is ignored by a .gitignore there; nothing to send", s.LocalPath)
 		}
 	}
 	// Windows files have no executable bit: take it from git's index.
@@ -73,17 +168,6 @@ func localFiles(ctx context.Context, s Session) (map[string]localFile, error) {
 				}
 			}
 		}
-	}
-	gitDir := filepath.Join(s.LocalPath, ".git")
-	if fi, err := os.Stat(gitDir); err == nil && fi.IsDir() {
-		filepath.WalkDir(gitDir, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
-			rel, _ := filepath.Rel(s.LocalPath, p)
-			add(filepath.ToSlash(rel))
-			return nil
-		})
 	}
 	return files, nil
 }
@@ -141,7 +225,8 @@ func localSum(path string) (sum, error) {
 
 // sendBuiltin fills p's changes and, unless dryRun, applies them.
 func sendBuiltin(ctx context.Context, s Session, dryRun bool, p *Plan) error {
-	local, err := localFiles(ctx, s)
+	ic := ignoreChecker{s: s, top: repoTop(ctx, s)}
+	local, err := localFiles(ctx, s, ic)
 	if err != nil {
 		return err
 	}
@@ -168,9 +253,25 @@ func sendBuiltin(ctx context.Context, s Session, dryRun bool, p *Plan) error {
 		}
 		push = append(push, xfer.File{Path: rel, Mode: lf.mode})
 	}
-	var deleted []string
+	var gone []string
 	for rel := range there {
 		if _, ok := local[rel]; !ok {
+			gone = append(gone, rel)
+		}
+	}
+	// What is ignored here stays on the agent host (rsync's filter protects
+	// it too): the agent copy may lack the .git or .gitignore that hid it
+	// from the listing there.
+	ign, err := ic.ignored(ctx, gone)
+	if errors.Is(err, errNoGit) && hasGitignore(s.LocalPath) {
+		gone = nil // cannot tell what is ignored: delete nothing
+		addNote(p, "git is not installed here, so files deleted here were not deleted on the agent host")
+	} else if err != nil && !errors.Is(err, errNoGit) {
+		return err
+	}
+	var deleted []string
+	for _, rel := range gone {
+		if !ign[rel] {
 			deleted = append(deleted, rel)
 			changes = append(changes, Change{Op: "deleted", Path: rel})
 		}
@@ -215,4 +316,24 @@ func sendBuiltin(ctx context.Context, s Session, dryRun bool, p *Plan) error {
 		}
 	}
 	return nil
+}
+
+// hasGitignore reports whether dir contains a .gitignore anywhere.
+func hasGitignore(dir string) bool {
+	found := false
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && d.Name() == ".gitignore" {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
+func addNote(p *Plan, note string) {
+	if p.Note != "" {
+		p.Note += "; "
+	}
+	p.Note += note
 }

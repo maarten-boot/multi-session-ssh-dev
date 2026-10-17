@@ -13,7 +13,9 @@ package gitstatus
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -81,6 +83,13 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 // cannot say, it looks for .git upwards itself (a directory, or a "gitdir:"
 // file for linked worktrees and submodules); nothing runs.
 func GitDir(ctx context.Context, dir string) (string, error) {
+	// A missing session directory is not in its parent's repository.
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		if err == nil || errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
 	out, err := git(ctx, dir, "rev-parse", "--absolute-git-dir")
 	if err == nil {
 		return strings.TrimSpace(string(out)), nil
@@ -94,7 +103,7 @@ func GitDir(ctx context.Context, dir string) (string, error) {
 			if fi.IsDir() {
 				return p, nil
 			}
-			if b, err := os.ReadFile(p); err == nil {
+			if b, err := readSmall(p); err == nil {
 				if rest, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "gitdir:"); ok {
 					g := strings.TrimSpace(rest)
 					if !filepath.IsAbs(g) {
@@ -114,7 +123,7 @@ func GitDir(ctx context.Context, dir string) (string, error) {
 
 // commonDir is where a linked worktree's shared config and hooks live.
 func commonDir(gitDir string) string {
-	if b, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil {
+	if b, err := readSmall(filepath.Join(gitDir, "commondir")); err == nil {
 		c := strings.TrimSpace(string(b))
 		if !filepath.IsAbs(c) {
 			c = filepath.Join(gitDir, c)
@@ -124,30 +133,145 @@ func commonDir(gitDir string) string {
 	return gitDir
 }
 
-// RepoConfig lists the repository's own config (the shared config file and a
-// worktree's config.worktree) as "key\nvalue" records, without includes. It
-// reads the files directly, from outside the repository, so neither includes
-// nor core.worktree come into play; nothing runs. Missing files are skipped.
-func RepoConfig(ctx context.Context, gitDir string) ([]string, error) {
-	var recs []string
-	for _, f := range []string{filepath.Join(commonDir(gitDir), "config"), filepath.Join(gitDir, "config.worktree")} {
-		if _, err := os.Stat(f); err != nil {
-			continue
+// readSmall reads a small regular file (a .git file, commondir, HEAD). Other
+// kinds of file are refused: opening a FIFO the agent host planted would
+// block forever.
+func readSmall(p string) ([]byte, error) {
+	if fi, err := os.Stat(p); err != nil {
+		return nil, err
+	} else if !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s: not a regular file", p)
+	}
+	f, err := os.OpenFile(p, os.O_RDONLY|oNonblock, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, 64<<10))
+}
+
+// configRec is one setting from the repository's own config.
+type configRec struct {
+	File  string // the config file it is set in
+	Key   string // as git lists it: section and key lower-cased
+	Value string
+	Bare  bool // set without "= value" (true for booleans)
+}
+
+// configError is a config file git cannot read.
+type configError struct {
+	File string
+	Err  error
+}
+
+// repoConfig reads the repository's own config: the shared config file and,
+// when extensions.worktreeConfig is set, the worktree's config.worktree,
+// without includes. It reads the files directly, from outside the
+// repository, so neither includes nor core.worktree come into play; nothing
+// runs. Missing files are skipped; files git cannot parse (or that are not
+// regular files) are returned in bad, the others are still read. err is set
+// only when ctx ends.
+func repoConfig(ctx context.Context, gitDir string) (recs []configRec, bad []configError, err error) {
+	read := func(f string) {
+		fi, err := os.Stat(f)
+		if err != nil {
+			return
+		}
+		if !fi.Mode().IsRegular() {
+			bad = append(bad, configError{f, errors.New("not a regular file")})
+			return
 		}
 		out, err := git(ctx, os.TempDir(), "config", "--file", f, "--no-includes", "--list", "-z")
 		if err != nil {
-			if strings.Contains(err.Error(), "exit status 1") {
-				continue // empty file
+			if !strings.Contains(err.Error(), "exit status 1") { // 1: empty file
+				bad = append(bad, configError{f, err})
 			}
-			return nil, err
+			return
 		}
 		for _, rec := range strings.Split(string(out), "\x00") {
 			if rec != "" {
-				recs = append(recs, rec)
+				k, v, ok := strings.Cut(rec, "\n")
+				recs = append(recs, configRec{File: f, Key: k, Value: v, Bare: !ok})
 			}
 		}
 	}
-	return recs, nil
+	read(filepath.Join(commonDir(gitDir), "config"))
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	// git reads config.worktree only with the extension on; when the main
+	// config cannot be read, read it anyway rather than miss something.
+	worktreeConfig := len(bad) > 0
+	for _, r := range recs {
+		if strings.ToLower(r.Key) == "extensions.worktreeconfig" {
+			worktreeConfig = isTrue(r)
+		}
+	}
+	if worktreeConfig {
+		read(filepath.Join(gitDir, "config.worktree"))
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
+	}
+	return recs, bad, nil
+}
+
+// isTrue interprets a config value as git does for booleans.
+func isTrue(r configRec) bool {
+	if r.Bare {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(r.Value)) {
+	case "true", "yes", "on":
+		return true
+	case "false", "no", "off", "":
+		return false
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(r.Value), 0, 64)
+	return err == nil && n != 0
+}
+
+// RepoConfig lists the repository's own config (see repoConfig) as
+// "key\nvalue" records. A config file git cannot read is an error.
+func RepoConfig(ctx context.Context, gitDir string) ([]string, error) {
+	recs, bad, err := repoConfig(ctx, gitDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(bad) > 0 {
+		return nil, fmt.Errorf("%s: %w", bad[0].File, bad[0].Err)
+	}
+	out := make([]string, 0, len(recs))
+	for _, r := range recs {
+		if r.Bare {
+			out = append(out, r.Key)
+		} else {
+			out = append(out, r.Key+"\n"+r.Value)
+		}
+	}
+	return out, nil
+}
+
+// headBranch reads the branch from the git directory's HEAD file, for when
+// git refuses to run (core.worktree planted): the branch name, or the short
+// commit hash and detached.
+func headBranch(gitDir string) (branch string, detached bool) {
+	b, err := readSmall(filepath.Join(gitDir, "HEAD"))
+	if err != nil {
+		return "", false
+	}
+	head := strings.TrimSpace(string(b))
+	if ref, ok := strings.CutPrefix(head, "ref:"); ok {
+		ref = strings.TrimSpace(ref)
+		return strings.TrimPrefix(ref, "refs/heads/"), false
+	}
+	if len(head) > 7 {
+		head = head[:7]
+	}
+	if head == "" {
+		return "HEAD", true
+	}
+	return head, true
 }
 
 // Get returns the status of dir. A directory outside any repository, or a
@@ -166,9 +290,7 @@ func Get(ctx context.Context, dir string) (Status, error) {
 		return st, err
 	} else if reason != "" {
 		st.Skipped = reason
-		if b, err := git(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
-			st.Branch = strings.TrimSpace(string(b))
-		}
+		st.Branch, st.Detached = headBranch(gd)
 		return st, nil
 	}
 	prefix, err := git(ctx, dir, "rev-parse", "--show-prefix")
@@ -190,12 +312,15 @@ func Get(ctx context.Context, dir string) (Status, error) {
 // other config, or that points git at another directory. Reading config
 // runs nothing.
 func unsafeConfig(ctx context.Context, gitDir string) (string, error) {
-	recs, err := RepoConfig(ctx, gitDir)
+	recs, bad, err := repoConfig(ctx, gitDir)
 	if err != nil {
 		return "", err
 	}
+	if len(bad) > 0 { // what git would make of it is unknown
+		return "repository config cannot be read (" + filepath.Base(bad[0].File) + ")", nil
+	}
 	for _, rec := range recs {
-		key, _, _ := strings.Cut(rec, "\n")
+		key := rec.Key
 		k := strings.ToLower(key)
 		switch {
 		case strings.HasPrefix(k, "filter."), // clean/smudge/process programs
@@ -319,14 +444,13 @@ func RemoteURL(ctx context.Context, dir string) string {
 	if err != nil || gd == "" {
 		return ""
 	}
-	recs, err := RepoConfig(ctx, gd)
+	recs, _, err := repoConfig(ctx, gd) // what can be read
 	if err != nil {
 		return ""
 	}
 	first := ""
 	for _, rec := range recs {
-		key, val, _ := strings.Cut(rec, "\n")
-		key = strings.ToLower(key)
+		key, val := strings.ToLower(rec.Key), rec.Value
 		if !strings.HasPrefix(key, "remote.") || !strings.HasSuffix(key, ".url") {
 			continue
 		}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,63 +36,65 @@ type Audit struct {
 }
 
 // Risky repository config keys, as lower-case patterns (* = any part).
-// With a value prefix, only values starting with it count (lower-case).
+// With value prefixes, only values starting with one of them count
+// (lower-case).
 var riskyKeys = []struct {
-	re    *regexp.Regexp
-	why   string
-	value string
+	re     *regexp.Regexp
+	why    string
+	values []string
 }{
-	{key("core.fsmonitor"), "runs a program on every git status", ""},
-	{key("core.hookspath"), "moves the hooks folder, possibly into the shared files", ""},
-	{key("core.sshcommand"), "replaces the ssh program used for fetch and push", ""},
-	{key("core.gitproxy"), "runs a program for git:// connections", ""},
-	{key("core.pager"), "runs a program to page output", ""},
-	{key("core.editor"), "runs a program as the editor", ""},
-	{key("core.askpass"), "runs a program to ask for passwords", ""},
-	{key("sequence.editor"), "runs a program during rebase", ""},
-	{key("credential.*"), "decides where your credentials go", ""},
-	{key("filter.*"), "runs a program on file contents (status, add, checkout)", ""},
-	{key("diff.external"), "runs a program for git diff", ""},
-	{key("diff.*.textconv"), "runs a program for git diff", ""},
-	{key("diff.*.command"), "runs a program for git diff", ""},
-	{key("merge.*.driver"), "runs a program during merges", ""},
-	{key("gpg.program"), "runs a program to sign commits", ""},
-	{key("gpg.*.program"), "runs a program to sign commits", ""},
-	{key("include.path"), "loads more config from another file", ""},
-	{key("includeif.*"), "loads more config from another file", ""},
-	{key("remote.*.pushurl"), "sends your pushes (and code) to another address", ""},
-	{key("url.*.insteadof"), "rewrites the addresses you fetch from or push to", ""},
-	{key("url.*.pushinsteadof"), "rewrites the addresses you push to", ""},
-	{key("http.proxy"), "routes git's HTTP traffic through a proxy", ""},
-	{key("http.*.proxy"), "routes git's HTTP traffic through a proxy", ""},
-	{key("remote.*.proxy"), "routes that remote's traffic through a proxy", ""},
-	{key("alias.*"), "a git alias that runs a shell command", "!"},
-	{key("pager.*"), "runs a program to page that command's output", ""},
-	{key("core.worktree"), "makes git work on another directory", ""},
-	{key("core.alternaterefscommand"), "runs a program to list refs of alternate repositories", ""},
-	{key("interactive.difffilter"), "runs a program in git add -p", ""},
-	{key("difftool.*.cmd"), "runs a program for git difftool", ""},
-	{key("difftool.*.path"), "runs a program for git difftool", ""},
-	{key("mergetool.*.cmd"), "runs a program for git mergetool", ""},
-	{key("mergetool.*.path"), "runs a program for git mergetool", ""},
-	{key("gpg.ssh.defaultkeycommand"), "runs a program to choose the signing key", ""},
-	{key("submodule.*.update"), "runs a shell command on git submodule update", "!"},
-	{key("remote.*.uploadpack"), "runs a program when fetching from a local remote", ""},
-	{key("remote.*.receivepack"), "runs a program when pushing to a local remote", ""},
-	{key("remote.*.url"), "an ext:: remote runs a shell command to fetch and push", "ext::"},
-	{key("protocol.allow"), "allows transports git blocks by default (ext:: runs commands)", ""},
-	{key("protocol.*.allow"), "allows transports git blocks by default (ext:: runs commands)", ""},
-	{key("browser.*.cmd"), "runs a program to open web pages (git help -w, instaweb)", ""},
-	{key("browser.*.path"), "runs a program to open web pages (git help -w, instaweb)", ""},
-	{key("man.*.cmd"), "runs a program to show help pages", ""},
-	{key("man.*.path"), "runs a program to show help pages", ""},
-	{key("tar.*.command"), "runs a program for git archive", ""},
-	{key("trailer.*.command"), "runs a command when trailers are added (git commit --trailer)", ""},
-	{key("trailer.*.cmd"), "runs a command when trailers are added (git commit --trailer)", ""},
-	{key("instaweb.httpd"), "runs a web server program for git instaweb", ""},
-	{key("sendemail.*cmd"), "runs a command for git send-email", ""},
-	{key("sendemail.smtpserver"), "runs a program to send mail (git send-email)", "/"},
-	{key("sendemail.*.smtpserver"), "runs a program to send mail (git send-email)", "/"},
+	{key("core.fsmonitor"), "runs a program on every git status", nil},
+	{key("core.hookspath"), "moves the hooks folder, possibly into the shared files", nil},
+	{key("core.sshcommand"), "replaces the ssh program used for fetch and push", nil},
+	{key("core.gitproxy"), "runs a program for git:// connections", nil},
+	{key("core.pager"), "runs a program to page output", nil},
+	{key("core.editor"), "runs a program as the editor", nil},
+	{key("core.askpass"), "runs a program to ask for passwords", nil},
+	{key("sequence.editor"), "runs a program during rebase", nil},
+	{key("credential.*"), "decides where your credentials go", nil},
+	{key("filter.*"), "runs a program on file contents (status, add, checkout)", nil},
+	{key("diff.external"), "runs a program for git diff", nil},
+	{key("diff.*.textconv"), "runs a program for git diff", nil},
+	{key("diff.*.command"), "runs a program for git diff", nil},
+	{key("merge.*.driver"), "runs a program during merges", nil},
+	{key("gpg.program"), "runs a program to sign commits", nil},
+	{key("gpg.*.program"), "runs a program to sign commits", nil},
+	{key("include.path"), "loads more config from another file", nil},
+	{key("includeif.*"), "loads more config from another file", nil},
+	{key("remote.*.pushurl"), "sends your pushes (and code) to another address", nil},
+	{key("url.*.insteadof"), "rewrites the addresses you fetch from or push to", nil},
+	{key("url.*.pushinsteadof"), "rewrites the addresses you push to", nil},
+	{key("http.proxy"), "routes git's HTTP traffic through a proxy", nil},
+	{key("http.*.proxy"), "routes git's HTTP traffic through a proxy", nil},
+	{key("remote.*.proxy"), "routes that remote's traffic through a proxy", nil},
+	{key("alias.*"), "a git alias that runs a shell command or sets options (-c …) that can run programs", []string{"!", "-", `"`, "'"}}, // git splits aliases like a shell: "-c" too
+	{key("pager.*"), "runs a program to page that command's output", nil},
+	{key("core.worktree"), "makes git work on another directory", nil},
+	{key("core.alternaterefscommand"), "runs a program to list refs of alternate repositories", nil},
+	{key("interactive.difffilter"), "runs a program in git add -p", nil},
+	{key("guitool.*.cmd"), "runs a program from git gui's Tools menu", nil},
+	{key("difftool.*.cmd"), "runs a program for git difftool", nil},
+	{key("difftool.*.path"), "runs a program for git difftool", nil},
+	{key("mergetool.*.cmd"), "runs a program for git mergetool", nil},
+	{key("mergetool.*.path"), "runs a program for git mergetool", nil},
+	{key("gpg.ssh.defaultkeycommand"), "runs a program to choose the signing key", nil},
+	{key("submodule.*.update"), "runs a shell command on git submodule update", []string{"!"}},
+	{key("remote.*.uploadpack"), "runs a program when fetching from a local remote", nil},
+	{key("remote.*.receivepack"), "runs a program when pushing to a local remote", nil},
+	{key("remote.*.url"), "an ext:: remote runs a shell command to fetch and push", []string{"ext::"}},
+	{key("protocol.allow"), "allows transports git blocks by default (ext:: runs commands)", nil},
+	{key("protocol.*.allow"), "allows transports git blocks by default (ext:: runs commands)", nil},
+	{key("browser.*.cmd"), "runs a program to open web pages (git help -w, instaweb)", nil},
+	{key("browser.*.path"), "runs a program to open web pages (git help -w, instaweb)", nil},
+	{key("man.*.cmd"), "runs a program to show help pages", nil},
+	{key("man.*.path"), "runs a program to show help pages", nil},
+	{key("tar.*.command"), "runs a program for git archive", nil},
+	{key("trailer.*.command"), "runs a command when trailers are added (git commit --trailer)", nil},
+	{key("trailer.*.cmd"), "runs a command when trailers are added (git commit --trailer)", nil},
+	{key("instaweb.httpd"), "runs a web server program for git instaweb", nil},
+	{key("sendemail.*cmd"), "runs a command for git send-email", nil},
+	{key("sendemail.smtpserver"), "runs a program to send mail (git send-email)", []string{"/"}},
+	{key("sendemail.*.smtpserver"), "runs a program to send mail (git send-email)", []string{"/"}},
 }
 
 func key(pattern string) *regexp.Regexp {
@@ -124,24 +128,36 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 	hooksPath := ""
 
 	// Config: the repository's own files only, without following includes.
-	recs, err := RepoConfig(ctx, gd)
+	// A file git cannot read is a finding of its own; the hooks are still
+	// checked.
+	recs, bad, err := repoConfig(ctx, gd)
 	if err != nil {
 		return a, err
 	}
+	for _, b := range bad {
+		a.Findings = append(a.Findings, Finding{
+			Kind: "config", Name: b.File, Detail: b.Err.Error(),
+			Why: "the repository's config cannot be read; git may behave unexpectedly",
+			Fix: "cat " + quote(b.File) + "   # inspect",
+		})
+		fp = append(fp, "unreadable "+b.File+" "+hashFile(b.File))
+	}
 	for _, rec := range recs {
-		name, value, _ := strings.Cut(rec, "\n")
+		name, value := rec.Key, rec.Value
 		k := strings.ToLower(name)
 		if k == "core.hookspath" {
 			hooksPath = value
 		}
 		for _, r := range riskyKeys {
-			if !r.re.MatchString(k) || !strings.HasPrefix(strings.ToLower(value), r.value) {
+			if !r.re.MatchString(k) || !hasPrefix(strings.ToLower(strings.TrimLeft(value, " \t")), r.values) {
 				continue
 			}
+			// --file and -C /: works whichever file it is in, and even when
+			// a planted core.worktree makes git refuse the repository.
 			a.Findings = append(a.Findings, Finding{
 				Kind: "config", Name: name, Why: r.why,
 				Detail: urlCredentials.ReplaceAllString(value, "${1}***@"),
-				Fix:    "git config --local --unset-all " + quote(name),
+				Fix:    "git -C / config --file " + quote(rec.File) + " --unset-all " + quote(name),
 			})
 			fp = append(fp, "config "+name+"="+value)
 			break
@@ -167,16 +183,16 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 		p := filepath.Join(hooks, e.Name())
 		info, err := os.Stat(p)
 		// git skips hooks without the executable bit, except on Windows.
-		if err != nil || (runtime.GOOS != "windows" && info.Mode()&0o111 == 0) {
+		// Only regular files (or links to them) run; reading a FIFO would
+		// block forever.
+		if err != nil || !info.Mode().IsRegular() || (runtime.GOOS != "windows" && info.Mode()&0o111 == 0) {
 			continue
 		}
-		data, _ := os.ReadFile(p)
-		sum := sha256.Sum256(data)
 		a.Findings = append(a.Findings, Finding{
 			Kind: "hook", Name: e.Name(), Detail: p, Why: "runs when git performs that action on this machine",
 			Fix: "cat " + quote(p) + "   # inspect;  rm " + quote(p) + "   # remove",
 		})
-		fp = append(fp, "hook "+e.Name()+" "+hex.EncodeToString(sum[:]))
+		fp = append(fp, "hook "+e.Name()+" "+hashFile(p))
 	}
 
 	sort.Slice(a.Findings, func(i, j int) bool {
@@ -191,6 +207,44 @@ func RunAudit(ctx context.Context, dir string) (Audit, error) {
 		a.Fingerprint = hex.EncodeToString(sum[:16])
 	}
 	return a, nil
+}
+
+// hasPrefix reports whether s starts with one of prefixes; no prefixes
+// match anything.
+func hasPrefix(s string, prefixes []string) bool {
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, p := range prefixes {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// maxHashed caps how much of a file is hashed for the fingerprint; beyond
+// it the size stands in for the rest.
+const maxHashed = 1 << 20
+
+// hashFile returns the hex SHA-256 of a regular file's contents (the first
+// maxHashed bytes, plus the size of a larger file); "" if it cannot be read.
+func hashFile(p string) string {
+	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
+		return ""
+	}
+	f, err := os.OpenFile(p, os.O_RDONLY|oNonblock, 0)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	h := sha256.New()
+	if n, _ := io.Copy(h, io.LimitReader(f, maxHashed)); n == maxHashed {
+		if fi, err := f.Stat(); err == nil {
+			fmt.Fprintf(h, "\x00size %d", fi.Size())
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // quote makes s one shell word for the fix commands the user may paste into

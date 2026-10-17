@@ -113,3 +113,57 @@ func TestEnsureRetriesAfterFailure(t *testing.T) {
 		t.Errorf("second Ensure reported the old failure again: %v", err2)
 	}
 }
+
+// fakeSSH puts an ssh on PATH that acts as sshfs: it sends an SFTP init and
+// one STAT request (the share's first request, after which it counts as
+// mounted), then runs body. $n is the number of the attempt, from 1.
+func fakeSSH(t *testing.T, body string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell")
+	}
+	bin := t.TempDir()
+	script := `#!/bin/sh
+n=$(cat "` + bin + `/n" 2>/dev/null || echo 0); n=$((n+1)); echo $n >"` + bin + `/n"
+printf '\000\000\000\005\001\000\000\000\003\000\000\000\012\021\000\000\000\001\000\000\000\001/'
+` + body + "\n"
+	if err := os.WriteFile(filepath.Join(bin, "ssh"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// An attempt that dies right after its first request must not report the
+// next attempt as mounted, nor close its ready channel (which the next
+// attempt's own timer closed again: a panic).
+func TestQuickFailureIsNotMounted(t *testing.T) {
+	fakeSSH(t, `if [ "$n" = 1 ]; then sleep 0.1; echo "connection reset" >&2; exit 1; fi
+exec cat >/dev/null`)
+	m := NewManager(nil)
+	defer m.StopAll()
+	spec := Spec{Target: "fakehost", LocalPath: t.TempDir(), RemotePath: "/tmp/x"}
+	// The first attempt is gone before its timer fires; the second starts
+	// after a second of backoff.
+	if err := m.Ensure("s-1", spec, 700*time.Millisecond); err == nil {
+		t.Errorf("mounted while the share was retrying (%v)", m.Status("s-1"))
+	}
+	if err := m.Ensure("s-1", spec, 5*time.Second); err != nil {
+		t.Fatalf("second attempt: %v", err)
+	}
+	time.Sleep(500 * time.Millisecond) // a stale timer would fire here
+	if st := m.Status("s-1"); st.State != "mounted" {
+		t.Errorf("status %v", st)
+	}
+}
+
+// A host without FUSE fails for good instead of retrying forever.
+func TestNoFUSEIsFatal(t *testing.T) {
+	fakeSSH(t, `sleep 0.1; echo "fuse: device not found, try 'modprobe fuse' first" >&2; exit 1`)
+	m := NewManager(nil)
+	defer m.StopAll()
+	spec := Spec{Target: "fakehost", LocalPath: t.TempDir(), RemotePath: "/tmp/x"}
+	err := m.Ensure("s-1", spec, 10*time.Second)
+	if st := m.Status("s-1"); err == nil || st.State != "failed" || !strings.Contains(st.Error, "FUSE") {
+		t.Errorf("Ensure: %v, status %v", err, st)
+	}
+}

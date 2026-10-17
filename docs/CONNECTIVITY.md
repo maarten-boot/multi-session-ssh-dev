@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.11).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.21).
 
 **Implemented** items work today. **Planned** items are proposals; they are not in the app yet.
 
@@ -45,8 +45,10 @@ Nothing is installed on the agent host by the app. To check it the way the app s
 ```sh
 ssh <target> 'exec "$SHELL" -lc "command -v tmux"'      # tmux
 ssh <target> 'exec "$SHELL" -lic "command -v claude"'   # claude
-ssh <target> 'command -v rsync git'                     # backups, working copies
-ssh <target> 'command -v sshfs && ls -l /dev/fuse'      # live share
+ssh <target> 'for c in rsync git tar find xargs cksum; do command -v "$c" || echo "$c: missing"; done'
+                                                        # backups, working copies (rsync optional)
+ssh <target> 'PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"; command -v sshfs && ls -l /dev/fuse'
+                                                        # live share
 ```
 
 ## SSH
@@ -123,8 +125,10 @@ through its own ssh connection to `sshfs -o passive` on the agent host, which mo
   host. Your host serves files over the connection that it opened itself.
 - Confinement: every file operation goes through Go's `os.Root`, so neither `..` nor symlinks
   can reach outside the session directory. The agent host may create symlinks only with
-  relative targets that stay inside it (otherwise it could plant, say, `README` → `~/.bashrc`
-  for you to edit on the host); hard links are refused. Files appear owned by the agent-side
+  relative targets that stay inside it, and only in folders it reaches without other symlinks
+  (otherwise it could plant, say, `README` → `~/.bashrc` for you to edit on the host, directly
+  or through a chain of links); a link moved to another folder is checked again from there;
+  hard links are refused. Files appear owned by the agent-side
   user; ownership changes are ignored.
 - Needs `sshfs` and FUSE on the agent host; no root. The mount command runs under `/bin/sh`,
   not your login shell, because text printed by a shell profile would corrupt the file
@@ -188,7 +192,12 @@ described next. Fetching commits does not: hooks and configuration are never tra
 Needs `git` on both machines, and `rsync` on both, or the built-in transfer: where this
 computer has no rsync (Windows) the app lists the files git does not ignore on both sides, compares
 them by checksum (POSIX `cksum`), sends new and changed ones as a tar stream and removes the
-deleted ones there, which gives the same result and the same preview. (Get uses `git fetch`
+deleted ones there. Files ignored by a `.gitignore` in the session directory are neither sent
+nor deleted there, as with rsync (for a session that is not a repository top, only the
+`.gitignore` files inside it count, as for rsync); a directory where everything is ignored is
+refused instead of emptying the copy. Differences from rsync: empty directories are not
+created or removed, a change of only the executable bit is not noticed, symlinks are always
+sent again, and submodule working trees are not sent. (Get uses `git fetch`
 over ssh, with Git for Windows on Windows; the Windows build has not been tried on a real
 machine yet.) Note that sending
 copies your `.git/config` to the agent host too: keep tokens out of remote URLs (see below).
@@ -208,7 +217,9 @@ repository's **`.git` directory**, and git on your host trusts what it finds the
   example `core.fsmonitor`, `core.hooksPath`, `core.sshCommand`, `core.gitProxy`, `core.pager`,
   `core.editor`, `core.askPass`, `sequence.editor`, `credential.*` (e.g. `credential.helper`),
   `filter.<name>.clean`/`smudge`/`process`, `diff.<name>.textconv`/`command`, `diff.external`,
-  `merge.<name>.driver`, `gpg.program`, `gpg.<format>.program`, `alias.*` (with `!`), and
+  `merge.<name>.driver`, `gpg.program`, `gpg.<format>.program`, `alias.*` (a shell command with `!`,
+  or options such as `-c core.fsmonitor=…` that run programs; a repository alias also hides your
+  own of the same name), `guitool.<name>.cmd`, and
   `include.path` / `includeIf`, which pull in more config; also `pager.<command>`,
   `difftool.*.cmd`/`path`, `mergetool.*.cmd`/`path`, `interactive.diffFilter`,
   `core.alternateRefsCommand`, `gpg.ssh.defaultKeyCommand`, `submodule.*.update` (with `!`),
@@ -217,7 +228,8 @@ repository's **`.git` directory**, and git on your host trusts what it finds the
   `sendemail.*Cmd` and `sendemail.smtpServer` (a program path). Others send your pushes,
   fetches and traffic elsewhere: `remote.<name>.pushurl`, `url.<base>.insteadOf` /
   `pushInsteadOf`, `http.proxy`, `http.<url>.proxy`, `remote.*.proxy`, an `ext::` remote URL
-  (runs a command) and `protocol.*.allow` (can allow such transports). `core.worktree` makes git
+  (runs a command) and `protocol.allow` / `protocol.*.allow` (can allow such transports).
+  `core.worktree` makes git
   work on a different directory. (These are what the app's repository check looks for; git may
   add more, so the check is a help, not a guarantee.)
 
@@ -241,11 +253,18 @@ Other things the agent host can read in shared modes:
    you; by hand, after a claude session and before committing or pushing from the host:
    ```sh
    ls -l "$(git rev-parse --git-path hooks)" | grep -v '\.sample$'   # executable entries run
-   git config --local --no-includes --list   # look for the keys above; include.* points to more
+   git config --show-scope --no-includes --list | grep -E '^(local|worktree)'   # the keys above
    git remote -v                             # the URLs fetch and push really use
    ```
    `git rev-parse --git-path hooks` follows `core.hooksPath` and works where `.git` is a file
-   (worktrees, submodules); neither command runs anything from the repository.
+   (worktrees, submodules); none of these runs anything from the repository. If git refuses to
+   work in the repository ("Invalid path", "must be run in a work tree" — a planted
+   `core.worktree` does that), read the files directly from the repository's top folder:
+   ```sh
+   git -C / config --file "$PWD/.git/config" --no-includes --list
+   ls -l .git/hooks | grep -v '\.sample$'
+   git -C / config --file "$PWD/.git/config" --unset-all core.worktree   # remove it once checked
+   ```
 2. **Run host-side git with risky settings switched off** for routine commands. Settings on the
    command line override the repository's:
    ```sh
@@ -268,8 +287,9 @@ Other things the agent host can read in shared modes:
 - The Files tab never executes files. It refuses programs and files the OS would run instead of
   open (native binaries, `.exe`/`.bat`/`.js`/`.lnk`…, `.app`/`.command`…, `.desktop`/`.run`…,
   `.jar`; full lists in SPEC.md §6), and it stays inside the session directory: a symlink the
-  agent host planted that leads out of it (say `README` → `~/.bashrc`) is marked *↗ outside*
-  and neither listed nor opened.
+  agent host planted that leads out of it (say `README` → `~/.bashrc`) is shown, marked
+  *↗ outside*, but not followed: not expanded or opened. A symlink to a program counts as the
+  program, and FIFOs and other special files are not opened.
 - The Files tab's git status runs read-only (`--no-optional-locks`), with `core.fsmonitor`
   disabled and without entering submodules. `git status` can also run a repository-defined
   *clean filter* (`filter.<name>.clean` / `.process`) when it re-reads a file whose timestamp
@@ -283,9 +303,12 @@ Other things the agent host can read in shared modes:
 - **Repository check.** For every session the app checks the repository for active hooks
   (in the folder git really uses, including one set by `core.hooksPath`) and for the risky
   config keys listed above. It reads only: the repository's config files directly (`git config
-  --file … --no-includes`) and the hooks folder (`git rev-parse --git-path hooks`), found through
-  the git directory, so a planted `core.worktree` — which makes git refuse to work in the
-  repository — cannot hide the other findings. Nothing from the repository runs. If anything is found, the session gets a
+  --file … --no-includes`; `config.worktree` only when `extensions.worktreeConfig` is on) and the
+  hooks folder (asked from git with `--git-dir`, or worked out from `core.hooksPath` when git
+  refuses), found through the git directory, so a planted `core.worktree` — which makes git
+  refuse to work in the repository — cannot hide the other findings. Only regular files count
+  as hooks (a planted FIFO cannot stall the check), and a config file git cannot read is itself
+  reported. Nothing from the repository runs. If anything is found, the session gets a
   ⚠ in the sidebar and the Files tab shows a banner; **Details…** lists each item with why it
   matters and a shell-quoted command to inspect or remove it (credentials in URLs are masked),
   for example:
@@ -293,7 +316,17 @@ Other things the agent host can read in shared modes:
   ```
   remote.origin.pushurl — sends your pushes (and code) to another address
   https://***@evil.example/repo.git
-  git config --local --unset-all remote.origin.pushurl
+  git -C / config --file /home/me/proj/.git/config --unset-all remote.origin.pushurl
+  ```
+
+  The fix commands name the config file the key is in and run from `/`, so they work even when
+  a planted `core.worktree` makes git refuse to run in the repository. A planted hook looks
+  like this:
+
+  ```
+  pre-push — runs when git performs that action on this machine
+  /home/me/proj/.git/hooks/pre-push
+  cat /home/me/proj/.git/hooks/pre-push   # inspect;  rm /home/me/proj/.git/hooks/pre-push   # remove
   ```
 
   If you set them up yourself (pre-commit, husky, git-lfs…), **Mark as reviewed**: the app
@@ -325,15 +358,18 @@ connects out, the agent host gets no access to your workstation.
   there, so it is safe on a fresh machine and does not roll back a working one.
 - **Without rsync** (Windows) the app streams a tar archive made on the agent host and unpacks
   it itself, confined to the backup folder: no absolute or `..` paths, symlinks only with
-  relative targets inside, no hard links or devices, and the exclusions applied again here. It
-  copies everything each time, where rsync copies only changes.
+  relative targets inside and not through other links (none at all on Windows), no hard links
+  or devices, and the exclusions applied again here. Skipped entries are mentioned in the host's
+  tooltip. It copies everything each time, where rsync copies only changes. A scheduled backup
+  gives up after 30 minutes.
 - Backups are kept per host **name** (`claude-backups/<name>/`); renaming a host starts a new
   folder.
 
 **Restoring a crashed or reinstalled agent host.** The order matters: restore before claude
 creates its own files there, because existing files are kept.
 
-1. Install `tmux`, `rsync` and `claude` on the new machine, but don't start claude yet.
+1. Install `tmux`, `rsync` (or just `tar`, which is standard) and `claude` on the new machine,
+   but don't start claude yet.
 2. If its address changed, edit the host in the app and change the SSH target; keep the host
    *name*.
 3. Host menu → *Restore Claude data to this host…*.
@@ -342,9 +378,12 @@ creates its own files there, because existing files are kept.
 Without the app, the same by hand:
 
 ```sh
-B=~/.local/share/session-workbench/claude-backups/<host name>/home
-rsync -a --ignore-existing "$B/.claude" "$B/.claude.json" <target>:
+B=~/.local/share/session-workbench/claude-backups/<host name>/home   # Linux; see the README for macOS/Windows
+rsync -a --ignore-existing --safe-links -e 'ssh -o ForwardAgent=no -o ClearAllForwardings=yes' \
+    "$B/.claude" "$B/.claude.json" <target>:
 ```
+
+(`<host name>` with characters other than letters, digits, `.`, `_` and `-` replaced by `_`.)
 
 ## Choosing a mode
 

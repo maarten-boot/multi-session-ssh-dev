@@ -12,11 +12,13 @@ const PLACEHOLDER = 'Notes for all sessions, and prompts you use often.\n\n' +
 
 // AppNotesPage is the notes page for the whole app: a notes editor and the
 // prompts found in it. paste(text) types a prompt into the current
-// session's Remote tab; label() names that session (null: none).
+// session's Remote tab; label() names that session (null: none);
+// canPaste() returns why a paste is not possible there (null: it is).
 export class AppNotesPage {
-    constructor(host, {paste, label, keyHint}) {
+    constructor(host, {paste, label, canPaste, keyHint}) {
         this.paste = paste;
         this.label = label;
+        this.canPaste = canPaste ?? (() => null);
         this.list = el('div', {className: 'prompt-list'});
         const close = el('button', {className: 'icon', textContent: '✕', title: `Close (Esc, ${keyHint})`});
         close.onclick = () => this.hide();
@@ -68,11 +70,12 @@ export class AppNotesPage {
 
     render() {
         const target = this.label();
+        const problem = target ? this.canPaste() : 'No session';
         this.list.replaceChildren(...this.prompts.map(p => {
             const copy = el('button', {type: 'button', textContent: 'Copy'});
             copy.onclick = () => ClipboardSetText(p.text).then(() => toast(`Copied “${p.name}”`));
-            const paste = el('button', {type: 'button', textContent: 'Paste into Remote', disabled: !target,
-                title: target ? `Into the Remote tab of ${target}, without Enter` : 'No session'});
+            const paste = el('button', {type: 'button', textContent: 'Paste into Remote', disabled: !!problem,
+                title: problem || `Into the Remote tab of ${target}, without Enter`});
             paste.onclick = () => {
                 this.hide();
                 this.paste(p.text);

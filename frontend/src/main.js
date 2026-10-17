@@ -80,13 +80,14 @@ class Tab {
         app.clearWaiting(this.session);
     }
 
+    // visible: on screen and looked at (the notes page covers the terminals).
     visible() {
-        return !this.pane.hidden && app.active === this.session && document.hasFocus();
+        return !this.pane.hidden && app.active === this.session && document.hasFocus() && !app.appNotes?.visible;
     }
 
     activity(kind, n) {
         const now = Date.now();
-        if (kind === 'bell' && !this.visible()) app.notifyWaiting(this.session, this.label);
+        if (kind === 'bell' && !this.visible()) app.notifyWaiting(this.session, this);
         if (this.visible() || !app.state.ui.activity_badges) {
             this.lastOutput = now;
             this.burst = null;
@@ -127,7 +128,6 @@ class Tab {
     }
 }
 
-// FilesTab hosts the session's file tree; it refreshes whenever shown.
 // WebTab shows the repository's web links and build runs; it refreshes when
 // shown and polls only while visible.
 class WebTab {
@@ -189,6 +189,7 @@ class NotesTab {
     }
 }
 
+// FilesTab hosts the session's file tree; it refreshes whenever shown.
 class FilesTab {
     constructor(session) {
         this.session = session;
@@ -232,7 +233,9 @@ class SessionUI {
             new Tab(this, 'Remote', (c, r) => StartRemote(this.data.id, c, r), {
                 what: 'ssh', again: 'reconnect', remote: true,
                 place: () => this.data.host,
-                autoReconnect: () => app.state.ui.auto_reconnect,
+                // A misconfigured session fails the same way every time.
+                autoReconnect: () => app.state.ui.auto_reconnect && !this.data.error,
+                problem: () => this.data.error,
                 missingDir: () => this.data.files === 'sync'
                     ? {text: 'There is no working copy on the agent host yet.',
                         actions: [{label: 'Send to agent…', primary: true, action: () => syncSendDialog(this)}]}
@@ -413,16 +416,19 @@ const app = {
         window.addEventListener('blur', hideMenu);
         window.addEventListener('focus', () => {
             if (this.active) this.checkRepo(this.active);
+            if (this.appNotes?.visible) return; // the page covers the session; closing it clears
             const t = this.active?.activeTabObj();
             t?.setBadge?.(null);
             if (this.active) this.clearWaiting(this.active);
         });
-        // A click on a desktop notification opens that session's Remote tab.
+        // A click on a desktop notification opens the session's tab that
+        // rang (Remote when that is not known).
         EventsOn('notification:open', id => {
             const s = this.sessions.get(id);
             if (!s) return;
+            const tab = s.notifiedTab || 'remote';
             this.select(s);
-            this.selectTab('remote');
+            this.selectTab(tab);
         });
         $('#btn-new').onclick = e => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -436,6 +442,7 @@ const app = {
         this.appNotes = new AppNotesPage($('#main'), {
             paste: text => this.pasteToRemote(text),
             label: () => this.active?.data.name ?? null,
+            canPaste: () => this.pasteProblem(),
             keyHint: keyHint('app_notes') || 'no key',
         });
         this.appNotes.onHide = () => this.active?.show();
@@ -443,17 +450,50 @@ const app = {
         $('#btn-notes').title = `Notes and prompts for all sessions (${keyHint('app_notes') || 'no key'})`;
     },
 
+    // pasteProblem says why a prompt cannot be pasted into the current
+    // session's Remote tab, or returns null when it can.
+    pasteProblem() {
+        const s = this.active;
+        if (!s) return 'No session';
+        if ((this.state.ui.hidden_tabs ?? []).includes('remote')) return 'The Remote tab is hidden (Settings)';
+        if (s.data.error) return `The session has a problem: ${s.data.error}`;
+        return null;
+    },
+
+    // leaveNotesPage closes the notes page without its onHide (the caller
+    // shows what comes next), saving the notes first.
+    leaveNotesPage() {
+        if (!this.appNotes?.visible) return;
+        this.appNotes.el.hidden = true;
+        this.appNotes.view.save();
+    },
+
     // pasteToRemote puts text into the current session's Remote tab as a
-    // paste (claude sees pasted text; nothing runs until Enter), once the
-    // tab is connected.
+    // paste (claude sees pasted text; nothing runs until Enter). It waits
+    // until the tab is connected and the program in it has turned on
+    // bracketed paste (claude and modern shells do): without it every line
+    // would be submitted on its own. A single line can still go without it,
+    // since it has no newline.
     async pasteToRemote(text) {
         const s = this.active;
-        if (!s) return;
+        if (!s || this.pasteProblem()) return;
         this.selectTab('remote');
         const v = s.tab('remote').ensureView();
-        for (let i = 0; i < 150 && !v.id; i++) await new Promise(r => setTimeout(r, 100));
-        if (!v.id) return toast('The Remote tab is not connected; the prompt was not pasted.', true);
-        v.term.paste(text);
+        if (v.exited && !v.reconnectTimer) v.restart();
+        const wait = async (ok, ms) => {
+            for (let t = 0; t < ms && !ok(); t += 100) await new Promise(r => setTimeout(r, 100));
+            return ok();
+        };
+        if (!await wait(() => v.id, 15000)) return toast('The Remote tab is not connected; the prompt was not pasted.', true);
+        if (!await wait(() => !v.id || v.term.modes.bracketedPasteMode, 20000) || !v.id) {
+            const line = text.replace(/\r?\n+$/, '');
+            if (!v.id || /[\r\n]/.test(line)) {
+                return toast('The Remote tab does not accept a safe paste yet; try again when claude is ready.', true);
+            }
+            v.term.paste(line);
+        } else {
+            v.term.paste(text);
+        }
         v.focus();
     },
 
@@ -468,7 +508,15 @@ const app = {
         const clampRem = px => Math.max(12, Math.min(px, window.innerWidth * 0.6) / remPx());
         const width = () => $('#sidebar').getBoundingClientRect().width;
         const save = () => store.set('sidebarWidth', Math.round(width() / remPx() * 100) / 100);
-        set(store.get('sidebarWidth', null));
+        // The saved width is in rem: a bigger font or a smaller window can
+        // push it past the limit, so it is clamped on load and on resize.
+        const fitSaved = () => {
+            const rem = store.get('sidebarWidth', null);
+            set(rem && clampRem(rem * remPx()));
+        };
+        fitSaved();
+        this.fitSidebar = fitSaved; // after a font change (reload)
+        window.addEventListener('resize', fitSaved);
         handle.onpointerdown = e => {
             if (e.button !== 0) return;
             e.preventDefault();
@@ -479,6 +527,8 @@ const app = {
             handle.onpointerup = handle.onpointercancel = () => {
                 handle.onpointermove = handle.onpointerup = handle.onpointercancel = null;
                 document.body.classList.remove('resizing');
+                // Terminals were not refitted during the drag (terminal.js).
+                this.active?.tabs.forEach(t => t.view?.term && !t.pane.hidden && t.view.fit.fit());
                 save();
             };
         };
@@ -517,6 +567,7 @@ const app = {
         this.state = await State();
         applyTheme(this.state.ui.theme);
         applyFont(this.state.ui);
+        this.fitSidebar?.();
         keymap = buildKeymap(this.state.keys, isMac);
         const seen = new Set();
         for (const d of this.state.sessions) {
@@ -646,13 +697,16 @@ const app = {
     },
 
     // notifyWaiting shows a desktop notification for a bell in a session you
-    // are not looking at (claude waiting, when it rings the bell); at most
-    // one per session per minute, and none again until it was looked at.
+    // are not looking at (claude waiting, when it rings the bell): at most
+    // one per session per minute; looking at the session withdraws it and
+    // lets the next bell notify right away. tab is the Tab that rang.
     notifyWaiting(s, tab) {
         if (this.state.ui.notifications === false) return;
         const now = Date.now();
         if (s.notifiedAt && now - s.notifiedAt < 60000) return;
         s.notifiedAt = now;
+        s.notifiedTab = tab.key;
+        tab = tab.label;
         const where = `${s.data.name} · ${s.data.host}`;
         Notify(s.id, tab === 'Remote' ? 'Claude is waiting' : `Bell in ${tab}`, where).catch(() => {});
     },
@@ -814,7 +868,7 @@ const app = {
     },
 
     select(s) {
-        if (this.appNotes?.visible) this.appNotes.el.hidden = true; // picking a session leaves the notes page
+        this.leaveNotesPage(); // picking a session leaves the notes page
         if (this.active && this.active !== s) this.active.hide();
         this.active = s;
         this.renderMain(); // un-hides the pane area before the terminal measures itself
@@ -824,13 +878,14 @@ const app = {
             this.mru = [s.id, ...this.mru.filter(id => id !== s.id)].slice(0, 50);
             store.set('mru', this.mru);
             s.show();
+            this.clearWaiting(s); // also when it opens on Files, Notes or Web
         }
         document.querySelectorAll('.session').forEach(i => i.classList.toggle('active', s && i.dataset.id === s.id));
     },
 
     selectTab(key) {
         if (!this.active) return;
-        if (this.appNotes?.visible) this.appNotes.el.hidden = true;
+        this.leaveNotesPage();
         this.active.selectTab(key);
         this.renderMain();
     },
@@ -859,7 +914,8 @@ const app = {
         else if (a === 'new_session') sessionDialog();
         else if (a === 'quick_switcher') quickSwitcher();
         else if (a === 'settings') settingsDialog();
-        else if (a === 'find') this.active?.activeTabObj()?.view?.openFind?.();
+        // The notes page covers the terminals: no find bar behind it.
+        else if (a === 'find') !this.appNotes?.visible && this.active?.activeTabObj()?.view?.openFind?.();
         else if (a === 'toggle_sidebar') this.setNarrow(!this.narrow);
         else if (a === 'app_notes') this.appNotes.toggle();
     },
@@ -1121,7 +1177,7 @@ function backupText(st, on) {
     if (st?.busy) return 'Claude data: backing up…';
     if (st?.error) return `Claude backup failed${when(st.last) ? ` (${when(st.last)})` : ''}: ${st.error}` +
         (when(st.last_ok) ? `\nLast good backup: ${when(st.last_ok)}` : '');
-    if (when(st?.last_ok)) return `Claude data backed up ${when(st.last_ok)}`;
+    if (when(st?.last_ok)) return `Claude data backed up ${when(st.last_ok)}` + (st.note ? ` (${st.note})` : '');
     return on ? 'Claude data not backed up yet' : 'Claude backups are off (Settings)';
 }
 
@@ -1407,6 +1463,8 @@ async function settingsDialog() {
             mv(-1, '↑'), mv(1, '↓'));
     }));
     renderTabs();
+    dlg.querySelector('.tab-order .caption').textContent =
+        `Tabs (order and which are shown; ${keyHint('tab_1') ? `${keyHint('tab_1')}… follow` : 'tab_1 … tab_9 follow'} this order)`;
     const rows = Object.keys(ACTIONS).filter(a => !a.startsWith('session_') && !/^tab_/.test(a)).map(a =>
         el('tr', {}, el('td', {textContent: ACTION_LABELS[a] ?? a}), el('td', {}, el('kbd', {textContent: keyHint(a) || '—'})),
             el('td', {className: 'action', textContent: a})));

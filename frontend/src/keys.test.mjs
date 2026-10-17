@@ -60,8 +60,36 @@ test('overrides, disabling, errors and conflicts', () => {
     assert.equal(errors.length, 3);
     assert.match(errors.join('\n'), /Banana/);
     assert.match(errors.join('\n'), /bogus_action/);
-    assert.match(errors.join('\n'), /both use Ctrl\+Shift\+3/);
-    assert.equal([map.tab_3, map.new_session].filter(Boolean).length, 1);
+    assert.match(errors.join('\n'), /"Ctrl\+Shift\+3": new_session \(yours\) replaces tab_3, which is now unbound/);
+    assert.equal(map.tab_3, null);
+    assert.equal(actionFor(ev('Digit3', {ctrlKey: true, shiftKey: true}), map), 'new_session');
+});
+
+test('your binding beats a default listed earlier', () => {
+    const {map, errors} = buildKeymap({session_1: 'Ctrl+Shift+P'}, false);
+    assert.equal(actionFor(ev('KeyP', {ctrlKey: true, shiftKey: true}), map), 'session_1');
+    assert.equal(map.quick_switcher, null);
+    assert.deepEqual(errors, ['[keys] "Ctrl+Shift+P": session_1 (yours) replaces quick_switcher, which is now unbound']);
+});
+
+test('two of yours on one key: the first in ACTIONS keeps it', () => {
+    const {map, errors} = buildKeymap({session_2: 'Ctrl+Shift+K', next_session: 'Ctrl+Shift+K'}, false);
+    assert.equal(actionFor(ev('KeyK', {ctrlKey: true, shiftKey: true}), map), 'next_session');
+    assert.equal(map.session_2, null);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /session_2 and next_session both use Ctrl\+Shift\+K; session_2 disabled/);
+});
+
+test('terminal copy/paste keys are kept but warned about (not on macOS)', () => {
+    const over = {find: 'Ctrl+C', settings: 'Ctrl+Shift+V', app_notes: 'Ctrl+Shift+X'};
+    const lin = buildKeymap(over, false);
+    assert.equal(actionFor(ev('KeyC', {ctrlKey: true}), lin.map), 'find');
+    assert.equal(actionFor(ev('KeyV', {ctrlKey: true, shiftKey: true}), lin.map), 'settings');
+    assert.equal(lin.errors.length, 2);
+    assert.match(lin.errors.join('\n'), /find: "Ctrl\+C" is the terminal's copy, paste or interrupt key/);
+    assert.match(lin.errors.join('\n'), /settings: "Ctrl\+Shift\+V"/);
+    assert.deepEqual(buildKeymap(over, true).errors, []);
+    assert.deepEqual(buildKeymap({}, false).errors, []); // no default uses them
 });
 
 test('format', () => {

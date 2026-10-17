@@ -104,6 +104,41 @@ func TestUnpackIsConfined(t *testing.T) {
 	}
 }
 
+// A symlink placed through a symlinked directory is checked where it really
+// lands: d -> . and then d/e -> ../secret would leave e -> ../secret at the top.
+func TestUnpackLinkThroughLinkedDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks")
+	}
+	dest := t.TempDir()
+	root, _ := os.OpenRoot(dest)
+	defer root.Close()
+	stream := tarOf(t,
+		&tar.Header{Name: "d", Typeflag: tar.TypeSymlink, Linkname: "."},
+		&tar.Header{Name: "d/e", Typeflag: tar.TypeSymlink, Linkname: "../secret"},
+		&tar.Header{Name: "sub/", Typeflag: tar.TypeDir, Mode: 0o755},
+		&tar.Header{Name: "sub/up", Typeflag: tar.TypeSymlink, Linkname: ".."},
+		&tar.Header{Name: "f", Typeflag: tar.TypeSymlink, Linkname: "sub/up/../.."},
+		&tar.Header{Name: "sub/in", Typeflag: tar.TypeSymlink, Linkname: "../d"},
+	)
+	skipped, err := Unpack(root, stream, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l, err := os.Readlink(filepath.Join(dest, "e")); err == nil {
+		t.Errorf("e -> %q was created at the top", l)
+	}
+	if l, err := os.Readlink(filepath.Join(dest, "f")); err != nil || l != "." {
+		t.Errorf("f -> %q %v, want the cleaned target \".\"", l, err)
+	}
+	if l, err := os.Readlink(filepath.Join(dest, "sub", "in")); err != nil || l != "../d" {
+		t.Errorf("ordinary link from a real directory: %q %v", l, err)
+	}
+	if len(skipped) != 1 || skipped[0] != "d/e" {
+		t.Errorf("skipped %v", skipped)
+	}
+}
+
 func TestPackUnpackRoundTrip(t *testing.T) {
 	src, dest := t.TempDir(), t.TempDir()
 	os.MkdirAll(filepath.Join(src, "a", "b"), 0o755)

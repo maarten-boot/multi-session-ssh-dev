@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func names(a Audit) []string {
@@ -209,6 +210,9 @@ func TestAuditMoreKeys(t *testing.T) {
 		"instaweb.httpd":               "evil",
 		"sendemail.toCmd":              "evil",
 		"sendemail.smtpServer":         "/usr/local/bin/evil",
+		"alias.st":                     `-c core.fsmonitor="touch PWNED; false" status`,
+		"alias.lg":                     " !evil",
+		"guitool.x.cmd":                "evil",
 	}
 	harmless := map[string]string{
 		"submodule.lib.url":      "https://example.com/lib.git",
@@ -216,6 +220,7 @@ func TestAuditMoreKeys(t *testing.T) {
 		"remote.origin.url":      "https://example.com/repo.git",
 		"sendemail.smtpServer2":  "x",
 		"user.name":              "someone",
+		"alias.co":               "checkout",
 	}
 	for k, v := range risky {
 		set(k, v)
@@ -281,7 +286,179 @@ func TestPlantedWorktreeDoesNotHideFindings(t *testing.T) {
 	if err != nil || !st.Repo || !strings.Contains(st.Skipped, "core.worktree") {
 		t.Errorf("git status with core.worktree planted: %+v %v", st, err)
 	}
+	if st.Branch != "main" || st.Detached { // read from HEAD: git refuses rev-parse
+		t.Errorf("branch with core.worktree planted: %q detached=%v", st.Branch, st.Detached)
+	}
 	if u := RemoteURL(context.Background(), repo); u != "" {
 		t.Errorf("RemoteURL: %q", u)
+	}
+	// The suggested fix works although git refuses the repository.
+	for _, f := range a.Findings {
+		if f.Name == "core.worktree" {
+			if out, err := exec.Command("/bin/sh", "-c", f.Fix).CombinedOutput(); err != nil {
+				t.Errorf("fix %q: %v\n%s", f.Fix, err, out)
+			}
+		}
+	}
+	if again, _ := RunAudit(context.Background(), repo); strings.Contains(strings.Join(names(again), " "), "core.worktree") {
+		t.Errorf("fix did not remove core.worktree: %v", names(again))
+	}
+}
+
+// A FIFO planted as a hook must not hang the audit (reading it blocks
+// until something writes to it).
+func TestAuditFIFOHook(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs git and mkfifo")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	fifo := filepath.Join(repo, ".git", "hooks", "pre-push")
+	if out, err := exec.Command("mkfifo", "-m", "755", fifo).CombinedOutput(); err != nil {
+		t.Skipf("mkfifo: %v %s", err, out)
+	}
+	done := make(chan Audit, 1)
+	go func() {
+		a, _ := RunAudit(context.Background(), repo)
+		done <- a
+	}()
+	select {
+	case a := <-done:
+		if len(a.Findings) != 0 {
+			t.Errorf("a FIFO is not a hook git runs: %v", names(a))
+		}
+	case <-time.After(10 * time.Second):
+		os.Remove(fifo) // let the goroutine go
+		t.Fatal("RunAudit hangs on a FIFO hook")
+	}
+}
+
+// Large hooks are hashed up to a cap; a change past it still changes the
+// fingerprint (through the size).
+func TestAuditLargeHook(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs git and executable hooks")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	hook := filepath.Join(repo, ".git", "hooks", "pre-commit")
+	big := "#!/bin/sh\n" + strings.Repeat("#", maxHashed)
+	write(t, hook, big)
+	os.Chmod(hook, 0o755)
+	a, _ := RunAudit(context.Background(), repo)
+	write(t, hook, big+"\ntouch /tmp/x\n")
+	b, _ := RunAudit(context.Background(), repo)
+	if a.Fingerprint == "" || a.Fingerprint == b.Fingerprint {
+		t.Errorf("fingerprints %q %q", a.Fingerprint, b.Fingerprint)
+	}
+}
+
+// A config file git cannot parse must not hide the other findings, and is
+// a finding itself; config.worktree counts only with the extension on.
+func TestAuditBrokenConfig(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("needs git and executable hooks")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	hook := filepath.Join(repo, ".git", "hooks", "pre-push")
+	write(t, hook, "#!/bin/sh\n")
+	os.Chmod(hook, 0o755)
+	wt := filepath.Join(repo, ".git", "config.worktree")
+	write(t, wt, "[broken\n")
+
+	// Without extensions.worktreeConfig git ignores the file, and so do we.
+	a, err := RunAudit(context.Background(), repo)
+	if err != nil || strings.Join(names(a), " ") != "hook:pre-push" {
+		t.Errorf("config.worktree without the extension: %v %v", names(a), err)
+	}
+	if st, err := Get(context.Background(), repo); err != nil || st.Skipped != "" {
+		t.Errorf("status: %+v %v", st, err)
+	}
+
+	run(t, repo, "config", "extensions.worktreeConfig", "true")
+	a, err = RunAudit(context.Background(), repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(names(a), " "), "config:"+wt+" hook:pre-push"; got != want {
+		t.Errorf("broken config.worktree:\n got %s\nwant %s", got, want)
+	}
+	for _, f := range a.Findings {
+		if f.Why == "" || f.Fix == "" {
+			t.Errorf("finding without explanation or fix: %+v", f)
+		}
+	}
+	st, err := Get(context.Background(), repo)
+	if err != nil || !st.Repo || !strings.Contains(st.Skipped, "cannot be read") || st.Branch != "main" {
+		t.Errorf("status with broken config.worktree: %+v %v", st, err)
+	}
+
+	// Readable again: its keys are checked, and the fix names that file.
+	write(t, wt, "[core]\n\tsshCommand = evil\n")
+	a, _ = RunAudit(context.Background(), repo)
+	var fix string
+	for _, f := range a.Findings {
+		if f.Name == "core.sshcommand" {
+			fix = f.Fix
+		}
+	}
+	if !strings.Contains(fix, "config.worktree") {
+		t.Fatalf("key from config.worktree: %v, fix %q", names(a), fix)
+	}
+	if out, err := exec.Command("/bin/sh", "-c", fix).CombinedOutput(); err != nil {
+		t.Errorf("fix %q: %v\n%s", fix, err, out)
+	}
+	if a, _ = RunAudit(context.Background(), repo); strings.Contains(strings.Join(names(a), " "), "sshcommand") {
+		t.Errorf("fix did not remove the key: %v", names(a))
+	}
+
+	// A broken main config: still a finding, not an error; hooks checked.
+	cfg := filepath.Join(repo, ".git", "config")
+	b, _ := os.ReadFile(cfg)
+	write(t, cfg, string(b)+"[oops\n")
+	a, err = RunAudit(context.Background(), repo)
+	if err != nil || !strings.Contains(strings.Join(names(a), " "), "config:"+cfg) || !strings.Contains(strings.Join(names(a), " "), "hook:pre-push") {
+		t.Errorf("broken config: %v %v", names(a), err)
+	}
+}
+
+// A session directory that does not exist is not in its parent's
+// repository.
+func TestMissingDirectoryIsNotParentRepo(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := t.TempDir()
+	run(t, repo, "init", "-q")
+	run(t, repo, "config", "core.sshCommand", "evil")
+	missing := filepath.Join(repo, "gone")
+	if a, err := RunAudit(context.Background(), missing); err != nil || a.Repo || len(a.Findings) != 0 {
+		t.Errorf("audit of a missing dir: %+v %v", a, err)
+	}
+	if st, err := Get(context.Background(), missing); err != nil || st.Repo {
+		t.Errorf("status of a missing dir: %+v %v", st, err)
+	}
+}
+
+func TestHeadBranch(t *testing.T) {
+	gd := t.TempDir()
+	for head, want := range map[string]string{
+		"ref: refs/heads/feature/x\n":                "feature/x",
+		"0123456789abcdef0123456789abcdef01234567\n": "0123456",
+	} {
+		write(t, filepath.Join(gd, "HEAD"), head)
+		b, detached := headBranch(gd)
+		if b != want || detached != !strings.HasPrefix(head, "ref:") {
+			t.Errorf("HEAD %q: %q %v", head, b, detached)
+		}
 	}
 }

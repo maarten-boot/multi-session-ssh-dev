@@ -454,7 +454,9 @@ func TestProblemsOfHandEditedConfig(t *testing.T) {
 	base := t.TempDir()
 	dir := func(name string) string { return filepath.Join(base, name) }
 	text := strings.NewReplacer("@BASE@", base, "@A@", dir("a"), "@B@", dir("b"), "@C@", dir("c"),
-		"@T1@", dir("t1"), "@T2@", dir("t2")).Replace(`[[hosts]]
+		"@T1@", dir("t1"), "@T2@", dir("t2")).Replace(`groups = ["g1", "g1", ""]
+
+[[hosts]]
 name = "ok"
 ssh_target = "me@ok"
 local_prefix = '@BASE@'
@@ -519,6 +521,14 @@ name = "twin 2"
 host = "ok"
 local_path = '@T2@'
 start_mode = "shell"
+
+[[sessions]]
+id = "s-0007"
+name = "lost"
+host = "ghost"
+local_path = '@A@'
+start_mode = "shell"
+group = "nope"
 `)
 	if err := os.WriteFile(cfgPath, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
@@ -551,10 +561,17 @@ start_mode = "shell"
 		`session "s-0005" has no name`,
 		dir("a") + ` already has a session on host "ok"`,
 		`session "bad mode": unknown start mode "zsh"`,
+		`session "lost": host "ghost" is not configured`,
+		`session "lost": folder "nope" is not in groups; it is shown as (missing)`,
+		`folder "g1" is listed twice in groups`,
+		`groups has an empty folder name`,
 	} {
 		if !strings.Contains(all, want) {
 			t.Errorf("problems lack %q:\n%s", want, all)
 		}
+	}
+	if strings.Contains(all, `session "on bad host": host "bad"`) {
+		t.Errorf("an invalid host is listed per session too:\n%s", all)
 	}
 	if got := m.Links("s-0003"); len(got) != 0 {
 		t.Errorf("an invalid hand-edited link is passed on: %v", got)

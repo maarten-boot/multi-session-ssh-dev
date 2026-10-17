@@ -1,7 +1,8 @@
 #!/bin/bash
 # Headless GUI test of working-copy sessions (files = "sync"): missing copy,
 # Send with preview, Remote tab in the copy, commit there, Get + fast-forward.
-# Needs `ssh localhost` without prompts, git and rsync.
+# Needs `ssh localhost` without prompts and git; rsync is used when installed
+# (SW_NO_RSYNC=1 tests the built-in transfer).
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-sync.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"

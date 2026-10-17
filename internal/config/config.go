@@ -153,10 +153,12 @@ func Default() *Config {
 }
 
 func (c *Config) applyDefaults() {
-	if c.UI.FontSize <= 0 {
+	// Unset or out of range (a hand-edited file): the default, so the UI
+	// is usable and Settings → Save passes ValidateUI.
+	if c.UI.FontSize < 6 || c.UI.FontSize > 48 {
 		c.UI.FontSize = 13
 	}
-	if c.UI.Scrollback <= 0 {
+	if c.UI.Scrollback < 1 || c.UI.Scrollback > 1000000 {
 		c.UI.Scrollback = 10000
 	}
 	if c.UI.ConnectOnStart != "eager" {

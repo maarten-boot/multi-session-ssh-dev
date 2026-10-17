@@ -1,9 +1,11 @@
 # Session Workbench — Specification
 
-Status: v1.1 (2026-10-17, app v0.8.11) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
-narrow sidebar (F6), Claude backups (F7), one instance per config (F8), git status and the
-repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), live share and working
-copies (docs/CONNECTIVITY.md) and Linux packages. Sections describe the implemented behaviour.
+Status: v1.2 (2026-10-17, app v0.8.21) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
+copies and backups without rsync (F9), desktop notifications (F4), git status and the
+repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
+(N2), terminal copy/paste (T2), live share and working copies (docs/CONNECTIVITY.md) and Linux
+packages. Sections describe the implemented behaviour.
 
 ## 1. Problem
 
@@ -64,7 +66,7 @@ Remote path = `remote_prefix + (local_path − local_prefix)`; separators are no
 `local_prefix` is rejected. Without prefixes the local path is used as-is, which only works for
 POSIX paths (not on Windows). `~` is expanded in local paths and prefixes. Prefixes are not used
 with `files = "sync"`/`"sshfs"`; set both prefixes or neither. Host rules are checked by the host
-dialog; hand-edited values are checked when used.
+dialog and, for hand-edited values, when the config is read (§4.7).
 
 **Session**:
 ```toml
@@ -111,8 +113,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   runtime notifications: freedesktop D-Bus on Linux, toasts on Windows, Notification Center on
   macOS, which may refuse an unsigned app): "Claude is waiting" for a Remote tab, "Bell in
   <tab>" otherwise, with the session name and host; at most one per session per minute, and
-  none again until the session was looked at, which withdraws it. A click brings the window
-  forward and opens that session's Remote tab. Without a notification service nothing is shown.
+  none again until the session was looked at, which withdraws it and resets the minute. A click
+  brings the window forward and opens that session's tab that rang. Without a notification service nothing is shown.
 - F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
   gives their order, `group` on a session its folder. The sidebar shows ungrouped sessions first,
   then each folder (collapsible, with a count), each split by host. Folders can be created,
@@ -142,11 +144,17 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
   running window forward (Wails single-instance lock, keyed on the config path) or, where that
   is not available, shows only a message and touches nothing.
-- F9. Working copies without rsync (Windows): the built-in transfer gives rsync's result. Files
-  to send are those git does not ignore (`git ls-files --cached --others --exclude-standard`) plus
-  `.git`; the agent copy is listed the same way with POSIX `cksum`; new and changed files (by CRC
-  and size) go over as a tar stream (executable bit from git's index on Windows), files missing
-  here are removed there, files ignored there stay. The preview counts the same changes.
+- F9. Working copies without rsync (Windows, or `SW_NO_RSYNC=1`): the built-in transfer gives
+  rsync's result (`-a --delete --filter=':- .gitignore'`). At a repository's top the files to
+  send are those git does not ignore (`git ls-files --cached --others --exclude-standard`) plus
+  `.git`; for a session in a subdirectory (or outside a repository) every file that no
+  `.gitignore` inside the session directory ignores (`git check-ignore --no-index` against an
+  empty temporary repository). The agent copy is listed with POSIX `cksum`; new and changed
+  files (by CRC and size) go over as a tar stream (executable bit from git's index on Windows);
+  files missing here are removed there unless ignored here (those stay, as with rsync's filter).
+  Symlinks are sent as links; none is followed through a linked parent. If every file is ignored
+  nothing is sent (an error, not a deleted agent copy); without git here and with a
+  `.gitignore`, nothing is deleted and the preview says why. The preview counts the same changes.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
@@ -196,8 +204,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - B3. Context menu: on a file open and open containing folder (Linux: the file manager selects it
   via D-Bus FileManager1, else `xdg-open` on the folder); on a folder expand/collapse and open in
   the file manager; always copy path (local), copy path (remote), refresh. Symlinks are followed
-  only inside the session directory: one leading out is marked *↗ outside* and neither listed nor
-  opened (§6).
+  only inside the session directory: one leading out (or broken and pointing out) is shown,
+  marked *↗ outside*, but not expanded or opened (§6). A link's size and time are its target's.
 - B4. Manual refresh + refresh whenever the tab is shown (no filesystem watching in v1).
 - B5. Git status (host-side `git status --porcelain=v2`, read-only: `--no-optional-locks`,
   `core.fsmonitor=false`, no submodules, 15 s timeout; skipped when the repository's own config
@@ -207,13 +215,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   ahead/behind in the files bar ("git status skipped" or "git: error" with the reason in its
   tooltip). Loaded after the listing; works when the session directory is a subdirectory of the
   repository; nothing shown outside a repository or without git.
-- B6. Repository check: active hooks (executable files in the folder git uses, following
-  `core.hooksPath`) and risky repository config, found through the git directory (not the
+- B6. Repository check: active hooks (executable regular files, or links to them, in the folder
+  git uses, following `core.hooksPath`) and risky repository config, found through the git directory (not the
   worktree, which a planted `core.worktree` redirects) (programs git would run, push and traffic
   redirection; list in docs/CONNECTIVITY.md) are shown as a ⚠ on the session and a Files-tab
   banner; Details… lists each with why it matters and a shell-quoted command to inspect or remove
-  it, credentials in URLs masked. "Mark as reviewed" stores a fingerprint (`trusted_git`: hook
-  names with a SHA-256 of their contents, names and values of the flagged keys) and the warning
+  it (`git -C / config --file <file> --unset-all <key>`, which works even when git refuses the
+  repository), credentials in URLs masked. A config file git cannot read is a finding too. "Mark as reviewed" stores a fingerprint (`trusted_git`: hook
+  names with a SHA-256 of their contents (first MB, plus the size), names and values of the flagged keys) and the warning
   returns when it changes; changes to keys that are not flagged don't count. Read-only; runs at
   start, on session switch and window focus, on Files refresh, when Details… opens, and every 2
   minutes for all sessions.
@@ -228,8 +237,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
   editor for `notes/_app.md` (`_` keeps it apart from session ids). Every `## name` heading starts a
   prompt (its text runs to the next `#`/`##` heading); the page lists them with Copy (clipboard)
-  and Paste into Remote (bracketed paste into the active session's Remote tab once connected; no
-  Enter). Esc, ✕, the key or selecting a session closes it.
+  and Paste into Remote (bracketed paste into the active session's Remote tab once connected and
+  the program there has turned bracketed paste on; a multi-line prompt is refused until then, so
+  its lines cannot run one by one; no Enter). Headings inside fenced code blocks don't count. Esc, ✕, the key or selecting a session closes it.
 
 ### 4.4b Web tab
 - W1. Links for the repository's web pages derived from its git remote (read from the
@@ -287,8 +297,9 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 Each tab's tooltip shows its shortcut. Rebinding: `[keys]` table, action name → key (`Mod` =
 Cmd on macOS, Ctrl elsewhere; `"none"` disables; `PgUp`/`PgDn` = `PageUp`/`PageDown`). A binding
 needs Ctrl, Alt or Cmd, except F-keys. A bad binding is reported in the UI and the default is
-kept; when two actions use the same key, both are named and the later one in this table is
-disabled. Read at start (restart after editing); Settings lists the current bindings.
+kept; when two actions use the same key, both are named: your binding beats a default (whose
+action becomes unbound), otherwise the later one in this table is disabled. Binding the terminal's
+copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. Read at start (restart after editing); Settings lists the current bindings.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),
@@ -304,14 +315,17 @@ disabled. Read at start (restart after editing); Settings lists the current bind
   and the file is not changed. What keeps a session from working (invalid host, unknown start
   mode, relative `local_path`, duplicate id) is its error: red dot, reason above the tabs, no
   Remote tab. Otherwise the app falls back: unknown color mode → the global one, a non-http(s)
-  link is not shown, the second of two hosts with one name is ignored; an empty name or a
-  directory with two sessions on one host is only reported.
+  link is not shown, the second of two hosts with one name is ignored; an empty name, a
+  directory with two sessions on one host, a folder not in `groups`, a duplicate or empty folder
+  name are only reported. A Remote tab that cannot start for such an error does not reconnect
+  automatically; it shows the reason. Out-of-range `font_size` (6–48) and `scrollback`
+  (1–1 000 000) get their defaults.
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
   too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
-  WebKit's storage. Window state (active session, last tab per session, collapsed headers, sidebar width,
+  WebKit's storage. Window state (active session, last tab per session, Hidden files per session, collapsed headers, sidebar width,
   narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.
@@ -327,7 +341,8 @@ disabled. Read at start (restart after editing); Settings lists the current bind
 │        │          OpenPath, session/host/folder CRUD, Sync*, Backup*│
 │ Backend (Go)                                                      │
 │   config · session manager · pty manager · pathmap · fs · opener  │
-│   gitstatus · notes · forge · syncer · share · backup · instance  │
+│   gitstatus · notes · forge · syncer · xfer · share · backup ·    │
+│   instance · notify                                               │
 └───────────┬───────────────────────────────┬───────────────────────┘
             │ PTY: local shell              │ PTY: ssh → agent host → tmux → claude
 ```
@@ -350,6 +365,8 @@ disabled. Read at start (restart after editing); Settings lists the current bind
 ### Package layout
 ```
 main.go, app.go, menu.go   Wails entry, bindings, macOS menu
+notify.go                  desktop notifications
+proc_*.go                  child processes without a console window (Windows)
 internal/terminal          PTY processes, batched output events
 internal/remote            ssh/tmux command lines
 internal/pathmap           local -> remote path mapping
@@ -359,13 +376,14 @@ internal/fsbrowse          Files tab listing
 internal/opener            open / reveal, refusing executables
 internal/gitstatus         git markers and repository check for the Files tab
 internal/forge             Web tab: forge links, GitHub runs via gh
-internal/syncer            working copies (rsync out, git fetch back)
+internal/syncer            working copies (rsync or built-in out, git fetch back)
+internal/xfer              built-in transfer without rsync (tar over ssh, cksum)
 internal/share             live share (confined SFTP server, sshfs mounts)
 internal/notes             per-session notes files
-internal/backup            Claude backups (rsync of ~/.claude, restore)
+internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
-frontend/src               main.js, terminal.js, files.js, notes.js, web.js, ui.js, appearance.js,
-                           keys.js, fuzzy.js
+frontend/src               main.js, terminal.js, files.js, notes.js, appnotes.js, prompts.js,
+                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, style.css
 ```
 
 ## 6. Security considerations
@@ -384,20 +402,24 @@ repository config and warns again whenever they change.
   quoted with single-quote escaping.
 - Files tab only operates on the host side, inside the session directory: paths from the UI
   cannot escape it, and symlinks are followed only when their target is inside it (a link the
-  agent host plants, e.g. `README` → `~/.bashrc`, is marked and neither listed nor opened). It
+  agent host plants, e.g. `README` → `~/.bashrc`, is shown marked but not expanded or opened).
+  Opening resolves the link first and checks and opens its target; only regular files open. It
   never executes files, only "open with default app". Refused (case-insensitive):
   - everywhere, by content: native binaries (ELF, PE/MZ, Mach-O thin and universal);
   - Windows: `.exe .com .bat .cmd .ps1 .psm1 .psd1 .vbs .vbe .js .jse .wsf .wsh .msi .msp .msc
     .scr .pif .lnk .hta .cpl .jar .reg .inf .scf .url .application .appref-ms .gadget
-    .settingcontent-ms .library-ms .appx .msix`;
+    .settingcontent-ms .library-ms .appx .msix .py .pyw .pyz .pyzw .chm .ws .wsc .sct .vb .xll`;
   - macOS: `.app .command .tool .terminal .workflow .action .pkg .mpkg .jar .webloc .inetloc
     .fileloc` and files with an executable bit;
   - Linux and other Unix: `.desktop .appimage .run .jar`.
 - Fix commands the repository check suggests are shell-quoted: key names and paths come from a
   repository the agent host may have written.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
-  inside the directory; hard links refused; ownership changes ignored. Claude backups: rsync
-  `--safe-links --no-devices --no-specials`, never `--delete`, nothing in a backup is run.
+  inside the directory, never created through a symlinked parent (a rename re-checks moved
+  links); hard links refused; ownership changes ignored. Working copies: the built-in transfer
+  refuses paths through linked parents; fetching back uses `transfer.fsckObjects`. Claude
+  backups: rsync `--safe-links --no-devices --no-specials`, never `--delete`, nothing in a
+  backup is run; scheduled ones time out after 30 minutes.
 
 ## 7. Open questions
 1. ~~Wails v2 vs v3~~ → v2.16 (decided).

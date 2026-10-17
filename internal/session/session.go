@@ -199,7 +199,7 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 		return r, fmt.Errorf("host %q is not configured", s.Host)
 	}
 	if err := validHost(h); err != nil {
-		return r, fmt.Errorf("host %q: %w", h.Name, err)
+		return r, invalidHostError{fmt.Errorf("host %q: %w", h.Name, err)}
 	}
 	if err := validMode(s.StartMode); err != nil {
 		return r, err
@@ -219,6 +219,13 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	r.RemotePath = rp
 	return r, nil
 }
+
+// invalidHostError is resolve's error for a configured host that breaks
+// validHost; Problems lists those per host, not per session.
+type invalidHostError struct{ err error }
+
+func (e invalidHostError) Error() string { return e.err.Error() }
+func (e invalidHostError) Unwrap() error { return e.err }
 
 func countID(c *config.Config, id string) int {
 	n := 0
@@ -248,6 +255,16 @@ func Problems(c *config.Config) []string {
 			out = append(out, fmt.Sprintf("host %q: %v", h.Name, err))
 		}
 	}
+	seenGroup := map[string]bool{}
+	for _, g := range c.Groups {
+		switch {
+		case strings.TrimSpace(g) == "":
+			out = append(out, "groups has an empty folder name")
+		case seenGroup[g]:
+			out = append(out, fmt.Sprintf("folder %q is listed twice in groups", g))
+		}
+		seenGroup[g] = true
+	}
 	type dirHost struct{ dir, host string }
 	seenDir := map[dirHost]bool{}
 	for _, s := range c.Sessions {
@@ -255,8 +272,12 @@ func Problems(c *config.Config) []string {
 		if label == "" {
 			label = s.ID
 		}
-		if _, err := resolve(c, s); err != nil && !strings.HasPrefix(err.Error(), "host ") {
-			out = append(out, fmt.Sprintf("session %q: %v", label, err)) // host problems are listed above
+		var hostErr invalidHostError
+		if _, err := resolve(c, s); err != nil && !errors.As(err, &hostErr) {
+			out = append(out, fmt.Sprintf("session %q: %v", label, err)) // invalid hosts are listed above
+		}
+		if s.Group != "" && !seenGroup[s.Group] {
+			out = append(out, fmt.Sprintf("session %q: folder %q is not in groups; it is shown as (missing)", label, s.Group))
 		}
 		if strings.TrimSpace(s.Name) == "" {
 			out = append(out, fmt.Sprintf("session %q has no name", s.ID))

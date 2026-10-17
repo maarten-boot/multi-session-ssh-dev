@@ -91,8 +91,9 @@ func run(ctx context.Context, dir string, env []string, name string, args ...str
 	return out.String(), errb.String(), nil
 }
 
-// localGit runs git in the host repository. fsmonitor is off; nothing
-// here checks out files, so no filters run.
+// localGit runs git in the host repository with fsmonitor off. Note that
+// FastForward's merge updates the work tree, so checkout filters and
+// attributes of the host repository apply there.
 func localGit(ctx context.Context, s Session, args ...string) (string, error) {
 	out, _, err := run(ctx, s.LocalPath, []string{"GIT_SSH_COMMAND=" + remote.SSHCommand(), "GIT_TERMINAL_PROMPT=0"},
 		"git", append([]string{"-c", "core.fsmonitor=false"}, args...)...)
@@ -118,6 +119,15 @@ func subdirOf(ctx context.Context, s Session) string {
 	return filepath.FromSlash(top)
 }
 
+// repoTop reports whether the session directory is the top of a git
+// repository here.
+func repoTop(ctx context.Context, s Session) bool {
+	if _, err := localGit(ctx, s, "rev-parse", "--show-toplevel"); err != nil {
+		return false
+	}
+	return subdirOf(ctx, s) == ""
+}
+
 func subdirProblem(top string) string {
 	return fmt.Sprintf("this folder is part of the repository at %s; a working copy gets only this folder, "+
 		"without .git, so claude's commits cannot come back with Get. Create a session for %s to use Get", top, top)
@@ -133,17 +143,21 @@ cd %s 2>/dev/null || { echo NODIR; exit 0; }
 git rev-parse --git-dir >/dev/null 2>&1 || { echo NOREPO; exit 0; }
 echo "DIRTY $(git status --porcelain 2>/dev/null | wc -l)"
 git for-each-ref --format='HEAD %%(objectname)' refs/heads`, parent, dir)
-	args, err := remote.ScriptArgs(s.Target, script)
-	if err != nil {
-		return AgentState{}, nil, err
+	// /bin/sh, not the login shell: the script is POSIX (fish would fail).
+	out, code, stderr, err := xfer.Run(ctx, s.Target, script, nil)
+	if err == nil && code != 0 {
+		msg := strings.TrimSpace(stderr)
+		if msg == "" {
+			msg = fmt.Sprintf("exit %d", code)
+		}
+		err = fmt.Errorf("ssh: %s", msg)
 	}
-	out, _, err := run(ctx, "", nil, "ssh", args...)
 	if err != nil {
 		return AgentState{}, nil, fmt.Errorf("checking the agent copy: %w", err)
 	}
 	st := AgentState{Exists: true, Repo: true}
 	var heads []string
-	sc := bufio.NewScanner(strings.NewReader(out))
+	sc := bufio.NewScanner(bytes.NewReader(out))
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())
 		switch {
@@ -300,7 +314,7 @@ func Get(ctx context.Context, s Session) (Fetched, error) {
 	}
 	f.AgentDirty = agent.Dirty
 	url := s.Target + ":" + rsyncPath(s.RemotePath)
-	if _, err := localGit(ctx, s, "fetch", "--no-tags", "--prune", "--quiet", url,
+	if _, err := localGit(ctx, s, "-c", "transfer.fsckObjects=true", "fetch", "--no-tags", "--prune", "--quiet", url,
 		"+refs/heads/*:"+RefPrefix(s.ID)+"*"); err != nil {
 		return f, fmt.Errorf("fetching from the agent copy: %w", err)
 	}

@@ -222,6 +222,34 @@ func TestAttachMissingDirFails(t *testing.T) {
 	}
 }
 
+// The missing-directory message shows the path literally: nothing in it
+// is expanded or executed by the remote shell.
+func TestAttachMissingDirNoInjection(t *testing.T) {
+	env, log := fakeRemote(t)
+	marker := filepath.Join(t.TempDir(), "ran")
+	dir := t.TempDir() + "/a$(touch " + marker + ")`touch " + marker + "`$HOME\"'b"
+	args, err := AttachArgs("host", "s-1", dir, ModeShell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/bin/sh", "-c", args[len(args)-1])
+	cmd.Env, cmd.Dir = env, "/"
+	out, err := cmd.CombinedOutput()
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != ExitMissingDir {
+		t.Errorf("attach to missing directory: %v, want exit %d", err, ExitMissingDir)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("a command in the remote path was executed")
+	}
+	if want := "\nsession directory " + dir + " does not exist on this host\n"; !strings.HasSuffix("\n"+string(out), want) {
+		t.Errorf("message %q\nwant %q", out, want)
+	}
+	if got := readLog(t, log); slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "tmux") }) {
+		t.Errorf("tmux ran despite missing dir: %q", got)
+	}
+}
+
 func TestKillCommandExecutes(t *testing.T) {
 	env, log := fakeRemote(t)
 	args, err := KillArgs("host", "s-1")

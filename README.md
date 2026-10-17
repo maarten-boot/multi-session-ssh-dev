@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.11: sessions with Local, Files, Remote, Notes and Web tabs, session
+Status: v0.8.21: sessions with Local, Files, Remote, Notes and Web tabs, session
 folders, themes and color modes, quick switcher, activity badges, auto-reconnect,
 live share and working copies for hosts without a shared file system, Claude backups,
 settings; builds for Linux, Windows and macOS.
@@ -34,7 +34,8 @@ files itself) and `gh` (Web tab runs). The agent host needs `tmux`, `claude`, an
 to check them: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#requirements-on-the-agent-host)).
 `session-workbench -version` prints the version; it is also shown in Settings.
 
-To release: tag and push (`git tag v0.8.12 && git push origin v0.8.12`); CI builds all three
+To release: tag and push (`git tag -s vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`, a numeric
+version: it also becomes the Windows file version); CI builds all three
 platforms, sets the version from the tag (also in `wails.json`'s `productVersion`, which local
 builds take as is) and publishes a GitHub release.
 
@@ -63,8 +64,9 @@ make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test);
              # CI runs them on Linux, Windows and macOS (race detector on Linux)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux, working-copy, live-share and Claude-backup
-             # round trips against a real host (key auth, tmux, rsync, sshfs; same paths on both
-             # sides), working copies and backups also with the built-in transfer (SW_NO_RSYNC=1)
+             # round trips against a real host (key auth, tmux, sshfs, tar there; rsync optional;
+             # same paths on both sides), working copies and backups also with the built-in
+             # transfer (SW_NO_RSYNC=1)
 make vet     # vet for linux and windows (all packages), darwin (internal packages)
 make clean   # remove build output (build/bin, dist, generated package docs)
 make smoke   # headless GUI test of terminal fidelity
@@ -84,7 +86,9 @@ make smoke-all       # all GUI tests; each checks its results and fails on a wro
 binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
-(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux rsync sshfs git jq dbus python3-dbus`
+(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux sshfs git jq dbus python3-dbus python3-gi`
+(rsync is optional: without it those runs use the built-in transfer; the working-copy and backup tests
+run once more with `SW_NO_RSYNC=1` anyway)
 (Debian/Ubuntu package names) and `ssh localhost` without a password; they use
 throwaway configs, never yours. One test on its own:
 
@@ -124,8 +128,10 @@ Default order:
   Dotfiles (including `.git`) are hidden unless "Hidden files" is ticked. Programs and
   files the OS would execute rather than open (native binaries — ELF, PE, Mach-O — and
   per OS `.exe`, `.bat`, `.js`, `.lnk`…, `.app`, `.command`…, `.desktop`, `.run`…, `.jar`)
-  are refused. A symlink that leads out of the session directory is marked *↗ outside*
-  and not opened or listed (the agent host could have planted it). Very large
+  are refused, also through a symlink (a link `docs` → `Evil.app` counts as the app), and so are
+  FIFOs and other special files. A symlink that leads out of the session directory is shown,
+  marked *↗ outside*, but not followed: not expanded or opened (the agent host could have planted
+  it). Very large
   directories show at most 5000 entries.
 
   In a git repository each entry gets a letter — **M** modified, **A** added,
@@ -146,18 +152,6 @@ Default order:
   not in the project, so they stay out of git and off the agent host. Emptying the notes
   removes the file; notes are kept when a session is deleted.
 
-**Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M) opens a notes page
-for the whole app, for prompts you use often and notes that belong to no session (stored as
-`notes/_app.md` next to `config.toml`). Every `## name` heading starts a prompt: the page lists
-them on the right with *Copy* and *Paste into Remote*, which puts the prompt into the current
-session's Remote tab as pasted text — claude runs it when you press Enter. For example:
-
-```
-## Review
-Review the changes since the last commit for bugs and missing tests. Be brief.
-```
-
-Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
 - **Web** (Ctrl+Shift+5): the repository's latest **GitHub Actions runs** (the last 12:
   status, workflow, title, branch, age; refreshed while shown, every 15 s while one is
   running, otherwise every 2 minutes; click to open it in your browser), buttons for the
@@ -167,6 +161,28 @@ Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
   other hosts the repository page. The runs need the GitHub CLI (`gh`) installed and
   logged in (`gh auth login`) on your computer; the app stores no tokens. Pages open in
   your normal browser: GitHub cannot be shown inside the app.
+
+**Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M) opens a notes page
+for the whole app, for prompts you use often and notes that belong to no session (stored as
+`notes/_app.md` next to `config.toml`). Every `## name` heading starts a prompt: the page lists
+them on the right with *Copy* and *Paste into Remote*, which puts the prompt into the current
+session's Remote tab as pasted text — claude runs it when you press Enter. It waits until claude
+(or the shell) accepts a *bracketed* paste; a multi-line prompt is not pasted before that, so
+its lines cannot run one by one. A prompt runs to the next `#` or `##` heading (`###` and deeper
+stay in it, headings inside ``` code blocks too); prompts without text are skipped. For example:
+
+```
+## Review
+Review the changes since the last commit for bugs and missing tests. Be brief.
+
+## Fix tests
+Run the tests and fix what fails.
+### Details      ← part of "Fix tests"
+
+# Other notes    ← not a prompt; ends the one above
+```
+
+Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
 
 A session reopens on the tab you used last; new sessions start on Local. Sessions
 look the way Settings says (theme, font, colors); a session can override the colors
@@ -212,11 +228,14 @@ shortcuts lists the current bindings. A key is modifiers plus one key: `Ctrl`, `
 `Alt` (`Option`), `Cmd` (`Meta`, `Super`) and `Mod` (Cmd on macOS, Ctrl elsewhere), then a
 letter, digit, `F1`–`F24`, `PageUp`/`PgUp`, `PageDown`/`PgDn`, `Home`, `End`, `Insert`,
 `Delete`, `Tab`, `Enter`, `Escape`, `Space`, `Backspace`, `Up`/`Down`/`Left`/`Right` or a
-punctuation key (`[ ] , . / ; ' \` - =`). Every binding needs Ctrl, Alt or Cmd (F-keys
+punctuation key (`` [ ] , . / ; ' ` \ - = ``). Every binding needs Ctrl, Alt or Cmd (F-keys
 excepted): plain keys belong to the terminal. `"none"` disables a shortcut. Keys are
 physical positions, so `Ctrl+Alt+1` is the 1 key on any layout. A bad binding is shown in
-the sidebar and the default is kept; when two actions share a key, both are named and the
-later one in the table is disabled. The config is read at start: edit `[keys]` while the
+the sidebar and the default is kept. When your binding uses a key another action has by
+default, yours wins and the other action is unbound (both are named in the sidebar); when two
+of your bindings collide, the one earlier in Settings → Keyboard shortcuts wins. Binding Ctrl+C,
+Ctrl+V, Ctrl+Shift+C or Ctrl+Shift+V is allowed but warned about: the terminal then no longer gets
+that copy, paste or interrupt key. The config is read at start: edit `[keys]` while the
 app is not running, or restart it afterwards.
 
 **Colors.** The default theme is black on white. Programs often pick colors for dark
@@ -234,7 +253,8 @@ the window is in the background. The tab that caused it is marked too; the mark 
 when you look at it, and the window title shows how many sessions want attention. A bell in
 a session you are not looking at (or while the window is in the background) also shows a
 desktop notification — *Claude is waiting* for the Remote tab — at most once a minute per
-session; clicking it opens that session, and looking at the session withdraws it (Settings:
+session (`<name> · <host>`; "Bell in Local" etc. for other tabs); clicking it opens that session
+on the tab that rang, and looking at the session withdraws it (Settings:
 *Desktop notification when claude waits*; Linux uses the desktop's notification service,
 macOS may refuse notifications for the unsigned app). To have claude ring the bell when it
 waits for you, run `/config` inside claude on the agent host
@@ -259,7 +279,7 @@ folder…*, rename, move up/down or delete (deleting keeps its sessions). Sessio
 a folder are listed first.
 
 Right-click a session (or its ⋯) for *Edit…* (name, folder, start mode, colors),
-*Move up*, *Move down*, *Move to folder…*, *Use mono colors* / *Use full colors*,
+*Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
 session too; its notes are kept). Working-copy sessions also have *Send to agent…* and
 *Get commits from agent…*, live-share sessions *Stop sharing*. Drag sessions to reorder
@@ -325,13 +345,18 @@ interactive login shell, so it is found on the same PATH as when you log in by h
 override with `-config <file>`. The app reads it at start and rewrites it on every change;
 hand edits are fine while it is not running (comments are not kept). Unknown keys are
 rejected: if the file cannot be parsed the app shows why and saves nothing, so your file
-is never overwritten. A setting with an invalid value gets its default. Hosts and sessions
+is never overwritten; a value of the wrong type (`font_size = 13.5`, `auto_reconnect = "yes"`)
+makes the file unreadable too. A setting with an invalid value, or a number out of its range,
+gets its default. Write Windows paths in single quotes (`local_prefix = 'C:\Users\me\share'`):
+in double quotes a backslash starts an escape. Hosts and sessions
 are checked with the dialogs' rules when the file is read, and problems are listed at the
 top of the sidebar; nothing in the file is changed. A session that cannot work (an invalid
 host, an unknown start mode, a relative `local_path`, an id used twice) gets a red dot and
 the reason above its tabs; for the rest (an unknown color mode, a link that is not http(s),
-an empty name, a host or directory defined twice) the app uses the default, skips the value
-or ignores the later duplicate.
+a host defined twice, a folder not listed in `groups`) the app uses the default, skips the
+value, ignores the second host or shows the folder as *(missing)*; an empty name and a
+directory with two sessions on one host are only reported. A session that cannot work does not
+reconnect its Remote tab by itself; the tab shows the reason.
 
 Only one copy of the app runs per config file: starting it again brings the running
 window to the front (where that is not possible, the second window only says so).
@@ -410,7 +435,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
 `-config`. Window state is what this computer remembers outside `config.toml`: the active
-session, the last tab per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
+session, the last tab per session, *Hidden files* per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
 recent order and the last host and start mode used for a new session. Nothing is stored in
 your projects; on the agent hosts only the tmux sessions and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).
@@ -419,6 +444,7 @@ share, the directories under `remote_workdir` (deleting a session leaves them).
 
 ```
 main.go, app.go        Wails entry point and frontend bindings
+notify.go              desktop notifications when claude waits
 menu.go, proc_*.go     macOS menu bar; hiding console windows on Windows
 internal/terminal      pty processes + batched output events
 internal/pathmap       host path -> agent-host path
@@ -430,9 +456,10 @@ internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab
-internal/syncer        working copies: rsync send, git fetch back
+internal/syncer        working copies: send (rsync or built-in), git fetch back
 internal/share         live share: confined SFTP server + sshfs mount manager
-internal/backup        Claude backups: ~/.claude of the agent hosts, rsync, restore
+internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
+internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
 internal/instance      one instance per config file (lock)
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js, web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
@@ -443,6 +470,7 @@ packaging/             .desktop file, icons, man page, copyright, nfpm config fo
                        gen-docs.sh (changelog and man page per version)
 docs/                  CONNECTIVITY.md: agent host setup, file access modes, security
 scripts/deps.sh        make check / make deps
-scripts/gui-smoke*.sh  headless GUI tests; scripts/smoke-lib.sh holds their shared checks
+scripts/gui-smoke*.sh  headless GUI tests; scripts/smoke-lib.sh holds their shared checks,
+                       scripts/fake-notifyd.py stands in for the desktop's notification service
 .github/workflows      CI: test + build on Linux/Windows/macOS, release on v* tags
 ```
