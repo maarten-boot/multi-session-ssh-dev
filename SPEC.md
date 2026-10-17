@@ -112,7 +112,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   then each folder (collapsible, with a count), each split by host. Folders can be created,
   renamed (sessions follow), reordered and deleted (sessions stay, ungrouped). Sessions move
   between folders via the session dialog, "Move to folder…", or drag onto a folder header.
-- F6. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail
+- F6. Sidebar width: drag the sidebar's right edge (or ←/→ on the focused edge; 12 rem to 60% of
+  the window), double-click for the default (18.5 rem); stored in rem, so it scales with the font
+  size, and remembered. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail
   of session markers (initials, number, status dot, badges; name and path as tooltip). Folder
   and host headers stay, abbreviated; the sidebar footer (Add host…, Settings…) is hidden.
   Remembered across restarts.
@@ -281,8 +283,8 @@ disabled. Read at start (restart after editing); Settings lists the current bind
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
-  WebKit's storage. Window state (active session, last tab per session, collapsed headers, narrow
-  sidebar, switcher order, last host and start mode for a new session) is in the web view's
+  WebKit's storage. Window state (active session, last tab per session, collapsed headers, sidebar width,
+  narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.
 

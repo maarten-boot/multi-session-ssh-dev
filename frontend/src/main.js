@@ -422,6 +422,45 @@ const app = {
         $('#btn-settings').onclick = () => settingsDialog();
         $('#btn-narrow').onclick = () => this.setNarrow(!this.narrow);
         this.setNarrow(store.get('narrow', false));
+        this.initSidebarResize();
+    },
+
+    // initSidebarResize lets the sidebar be resized by dragging its right
+    // edge (or with ←/→ on the focused handle); double-click resets it. The
+    // width is kept in rem, so it scales with the font size like the rest.
+    initSidebarResize() {
+        const handle = $('#sidebar-resizer');
+        const root = document.documentElement;
+        const remPx = () => parseFloat(getComputedStyle(root).fontSize) || 13;
+        const set = rem => rem ? root.style.setProperty('--sidebar-width', `${rem}rem`) : root.style.removeProperty('--sidebar-width');
+        const clampRem = px => Math.max(12, Math.min(px, window.innerWidth * 0.6) / remPx());
+        const width = () => $('#sidebar').getBoundingClientRect().width;
+        const save = () => store.set('sidebarWidth', Math.round(width() / remPx() * 100) / 100);
+        set(store.get('sidebarWidth', null));
+        handle.onpointerdown = e => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            document.body.classList.add('resizing');
+            const left = $('#sidebar').getBoundingClientRect().left;
+            handle.onpointermove = ev => set(clampRem(ev.clientX - left));
+            handle.onpointerup = handle.onpointercancel = () => {
+                handle.onpointermove = handle.onpointerup = handle.onpointercancel = null;
+                document.body.classList.remove('resizing');
+                save();
+            };
+        };
+        handle.ondblclick = () => {
+            set(null);
+            store.set('sidebarWidth', null);
+        };
+        handle.onkeydown = e => {
+            const d = {ArrowLeft: -1, ArrowRight: 1}[e.key];
+            if (!d) return;
+            e.preventDefault();
+            set(clampRem(width() + d * remPx()));
+            save();
+        };
     },
 
     // setNarrow shrinks the sidebar to a rail of session markers (number or

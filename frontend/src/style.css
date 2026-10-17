@@ -97,7 +97,7 @@ button {
 /* --- sidebar --- */
 
 #sidebar {
-    width: 18.5rem;
+    width: var(--sidebar-width, 18.5rem); /* set by dragging #sidebar-resizer */
     flex: none;
     display: flex;
     flex-direction: column;
@@ -1645,4 +1645,30 @@ body.sidebar-narrow .folder-head .label {
 .host-head .backup-warn {
     color: var(--warn);
     font-size: 1rem;
+}
+
+/* --- sidebar resize handle: a thin strip over the sidebar's right border --- */
+
+#sidebar-resizer {
+    flex: none;
+    width: 6px;
+    margin-left: -3px;
+    margin-right: -3px;
+    position: relative;
+    z-index: 5;
+    cursor: col-resize;
+}
+
+#sidebar-resizer:hover, #sidebar-resizer:focus-visible, body.resizing #sidebar-resizer {
+    background: var(--accent);
+    outline: none;
+}
+
+body.resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+body.sidebar-narrow #sidebar-resizer {
+    display: none;
 }

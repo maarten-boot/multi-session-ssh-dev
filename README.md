@@ -241,9 +241,13 @@ right-click a host (or its ⋯) to add a session on it, edit it, back up or rest
 Claude data, or delete it (once no session uses it). Menus also work from the keyboard
 (arrows, Home/End, Enter, Esc, first letter).
 
+**Sidebar width.** Drag the sidebar's right edge to make it wider or narrower (or focus the
+edge with Tab and use ← / →); double-click the edge for the default width. The width is
+remembered and scales with the font size.
+
 **Narrow sidebar.** « in the sidebar header (or Ctrl+Shift+B) shrinks the sidebar to a
 rail of session markers: initials, number, status dot and badges; hover for the name
-and path. » widens it again; the choice is remembered. While narrow, *Add host…* and
+and path. » widens it again (to the width you dragged it to); the choice is remembered. While narrow, *Add host…* and
 *Settings…* are hidden: use "+" and Ctrl+Shift+, instead.
 
 ### Without a shared file system
@@ -369,7 +373,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
 `-config`. Window state is what this computer remembers outside `config.toml`: the active
-session, the last tab per session, collapsed headers, the narrow sidebar, the switcher's
+session, the last tab per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
 recent order and the last host and start mode used for a new session. Nothing is stored in
 your projects; on the agent hosts only the tmux sessions and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).
