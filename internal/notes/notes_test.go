@@ -59,3 +59,17 @@ func TestSizeLimit(t *testing.T) {
 		t.Error("oversized notes saved")
 	}
 }
+
+func TestAppNotes(t *testing.T) {
+	s := Store{Dir: t.TempDir()}
+	if _, err := s.Save(AppID, "## Review\nReview the diff.\n"); err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.Load(AppID)
+	if err != nil || n.Text != "## Review\nReview the diff.\n" || filepath.Base(n.Path) != "_app.md" {
+		t.Errorf("app notes: %+v %v", n, err)
+	}
+	if _, err := s.Load("_other"); err == nil {
+		t.Error("an id starting with _ other than the app notes was accepted")
+	}
+}

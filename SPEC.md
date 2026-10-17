@@ -225,6 +225,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   stay out of git and are not visible to the agent host. Empty notes remove the file. Reloaded
   when shown if changed outside the app (unless there are unsaved edits); kept when the session
   is deleted.
+- N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
+  editor for `notes/_app.md` (`_` keeps it apart from session ids). Every `## name` heading starts a
+  prompt (its text runs to the next `#`/`##` heading); the page lists them with Copy (clipboard)
+  and Paste into Remote (bracketed paste into the active session's Remote tab once connected; no
+  Enter). Esc, ✕, the key or selecting a session closes it.
 
 ### 4.4b Web tab
 - W1. Links for the repository's web pages derived from its git remote (read from the
@@ -242,7 +247,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
   true color; scrollback configurable (default 10 000).
 - T2. Copy on select (optional, `copy_on_select`), Ctrl+Shift+C/V copy/paste (Cmd+C/V on macOS),
-  clickable URLs (opened in the default browser).
+  and on Linux/Windows plain Ctrl+C (copies only when text is selected, else the program gets its
+  interrupt) and Ctrl+V (`ctrl_copy_paste`, default on); a right-click menu (Copy, Paste, Select
+  all, Find…, Clear scrollback); clickable URLs (opened in the default browser).
 - T3. Font family/size, theme (light/dark), configurable globally. The font size scales the whole
   app (sidebar, tab bar, dialogs, menus); a set font family is used everywhere too. The light
   theme is black text on a white background (the primary user's preference); all ordinary app text
@@ -274,6 +281,7 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 | Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    | `quick_switcher`              |
 | Find in terminal       | Ctrl+Shift+F         | Cmd+F          | `find`                        |
 | Narrow / wide sidebar  | Ctrl+Shift+B         | Cmd+Shift+B    | `toggle_sidebar`              |
+| Notes for all sessions | Ctrl+Shift+M         | Cmd+Shift+M    | `app_notes`                   |
 | Settings               | Ctrl+Shift+,         | Cmd+,          | `settings`                    |
 
 Each tab's tooltip shows its shortcut. Rebinding: `[keys]` table, action name → key (`Mod` =

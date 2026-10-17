@@ -6,6 +6,7 @@ import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {NotesView} from './notes';
+import {AppNotesPage} from './appnotes';
 import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
@@ -432,6 +433,28 @@ const app = {
         $('#btn-narrow').onclick = () => this.setNarrow(!this.narrow);
         this.setNarrow(store.get('narrow', false));
         this.initSidebarResize();
+        this.appNotes = new AppNotesPage($('#main'), {
+            paste: text => this.pasteToRemote(text),
+            label: () => this.active?.data.name ?? null,
+            keyHint: keyHint('app_notes') || 'no key',
+        });
+        this.appNotes.onHide = () => this.active?.show();
+        $('#btn-notes').onclick = () => this.appNotes.toggle();
+        $('#btn-notes').title = `Notes and prompts for all sessions (${keyHint('app_notes') || 'no key'})`;
+    },
+
+    // pasteToRemote puts text into the current session's Remote tab as a
+    // paste (claude sees pasted text; nothing runs until Enter), once the
+    // tab is connected.
+    async pasteToRemote(text) {
+        const s = this.active;
+        if (!s) return;
+        this.selectTab('remote');
+        const v = s.tab('remote').ensureView();
+        for (let i = 0; i < 150 && !v.id; i++) await new Promise(r => setTimeout(r, 100));
+        if (!v.id) return toast('The Remote tab is not connected; the prompt was not pasted.', true);
+        v.term.paste(text);
+        v.focus();
     },
 
     // initSidebarResize lets the sidebar be resized by dragging its right
@@ -791,6 +814,7 @@ const app = {
     },
 
     select(s) {
+        if (this.appNotes?.visible) this.appNotes.el.hidden = true; // picking a session leaves the notes page
         if (this.active && this.active !== s) this.active.hide();
         this.active = s;
         this.renderMain(); // un-hides the pane area before the terminal measures itself
@@ -806,6 +830,7 @@ const app = {
 
     selectTab(key) {
         if (!this.active) return;
+        if (this.appNotes?.visible) this.appNotes.el.hidden = true;
         this.active.selectTab(key);
         this.renderMain();
     },
@@ -836,6 +861,7 @@ const app = {
         else if (a === 'settings') settingsDialog();
         else if (a === 'find') this.active?.activeTabObj()?.view?.openFind?.();
         else if (a === 'toggle_sidebar') this.setNarrow(!this.narrow);
+        else if (a === 'app_notes') this.appNotes.toggle();
     },
 
     focusActive() {
@@ -1338,7 +1364,7 @@ async function setSessionColors(s, mode) {
 const ACTION_LABELS = {
     next_session: 'Next session', prev_session: 'Previous session', new_session: 'New session',
     quick_switcher: 'Quick switcher', settings: 'Settings', find: 'Find in terminal',
-    toggle_sidebar: 'Narrow / wide sidebar',
+    toggle_sidebar: 'Narrow / wide sidebar', app_notes: 'Notes for all sessions',
 };
 
 async function settingsDialog() {
@@ -1352,6 +1378,8 @@ async function settingsDialog() {
     f.copy_on_select.checked = !!ui.copy_on_select;
     f.claude_backup.checked = ui.claude_backup !== false;
     f.notifications.checked = ui.notifications !== false;
+    f.ctrl_copy_paste.checked = ui.ctrl_copy_paste !== false;
+    f.ctrl_copy_paste.closest('label').hidden = isMac; // Cmd+C/V there
     const every = f.claude_backup_every;
     if (![...every.options].some(o => o.value === ui.claude_backup_every)) {
         every.append(el('option', {value: ui.claude_backup_every, textContent: ui.claude_backup_every}));
@@ -1404,6 +1432,7 @@ async function settingsDialog() {
         copy_on_select: f.copy_on_select.checked,
         claude_backup: f.claude_backup.checked,
         notifications: f.notifications.checked,
+        ctrl_copy_paste: f.ctrl_copy_paste.checked,
         claude_backup_every: f.claude_backup_every.value,
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),

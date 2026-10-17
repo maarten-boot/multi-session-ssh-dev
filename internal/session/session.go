@@ -603,7 +603,7 @@ func (m *Manager) SaveUI(ui config.UI) error {
 		return err
 	}
 	ui.TabOrder, ui.HiddenTabs = config.NormalizedTabs(ui)
-	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil {
+	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil {
 		return errors.New("incomplete UI settings")
 	}
 	return m.update(func(c *config.Config) error {

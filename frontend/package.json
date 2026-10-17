@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/appearance.test.mjs src/fuzzy.test.mjs src/keys.test.mjs"
+    "test": "node --test src/appearance.test.mjs src/fuzzy.test.mjs src/keys.test.mjs src/prompts.test.mjs"
   },
   "devDependencies": {
     "vite": "^6.4.4"

@@ -1594,7 +1594,7 @@ dialog pre.changes {
 }
 
 body.sidebar-narrow #sidebar {
-    width: 5.5rem;
+    width: 7rem; /* room for the three header buttons */
 }
 
 body.sidebar-narrow #sidebar-head {
@@ -1674,4 +1674,95 @@ body.resizing {
 
 body.sidebar-narrow #sidebar-resizer {
     display: none;
+}
+
+/* --- notes and prompts for all sessions: a page over the main area --- */
+
+#main {
+    position: relative;
+}
+
+#app-notes {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+}
+
+.app-notes-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 2.6rem;
+    padding: 0 6px 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.app-notes-hint {
+    margin-left: auto;
+    font-size: 0.923rem;
+}
+
+.app-notes-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.app-notes-editor {
+    position: relative; /* .notes fills it */
+    flex: 1;
+    min-width: 0;
+}
+
+.prompts {
+    width: 24rem;
+    flex: none;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    padding: 8px 12px;
+}
+
+.prompts-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.prompt {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+}
+
+.prompt-name {
+    font-weight: 600;
+}
+
+.prompt-text {
+    margin: 4px 0 6px;
+    font-size: 0.923rem;
+    white-space: pre-wrap;
+    max-height: 4.5em;
+    overflow: hidden;
+}
+
+.prompt-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.prompt-actions button {
+    padding: 3px 9px;
+    font-size: 0.923rem;
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    background: var(--btn-bg);
+    cursor: pointer;
+}
+
+.prompt-actions button:hover:not(:disabled) {
+    background: var(--btn-hover);
 }

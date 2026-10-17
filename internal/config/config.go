@@ -83,6 +83,9 @@ type UI struct {
 	ActivityBadges *bool `toml:"activity_badges,omitempty" json:"activity_badges"`
 	// CopyOnSelect copies terminal selections to the clipboard as they are made.
 	CopyOnSelect bool `toml:"copy_on_select,omitempty" json:"copy_on_select"`
+	// CtrlCopyPaste (Linux, Windows): Ctrl+C copies when text is selected
+	// (otherwise it interrupts as usual) and Ctrl+V pastes.
+	CtrlCopyPaste *bool `toml:"ctrl_copy_paste,omitempty" json:"ctrl_copy_paste"`
 	// TabOrder is the order of a session's tabs; HiddenTabs are not shown.
 	TabOrder   []string `toml:"tab_order,omitempty" json:"tab_order"`
 	HiddenTabs []string `toml:"hidden_tabs,omitempty" json:"hidden_tabs"`
@@ -179,6 +182,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.UI.Notifications == nil {
 		c.UI.Notifications = ptr(true)
+	}
+	if c.UI.CtrlCopyPaste == nil {
+		c.UI.CtrlCopyPaste = ptr(true)
 	}
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"

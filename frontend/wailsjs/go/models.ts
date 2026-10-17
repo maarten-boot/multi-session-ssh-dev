@@ -47,6 +47,7 @@ export namespace config {
 	    auto_reconnect?: boolean;
 	    activity_badges?: boolean;
 	    copy_on_select: boolean;
+	    ctrl_copy_paste?: boolean;
 	    tab_order: string[];
 	    hidden_tabs: string[];
 	    claude_backup?: boolean;
@@ -69,6 +70,7 @@ export namespace config {
 	        this.auto_reconnect = source["auto_reconnect"];
 	        this.activity_badges = source["activity_badges"];
 	        this.copy_on_select = source["copy_on_select"];
+	        this.ctrl_copy_paste = source["ctrl_copy_paste"];
 	        this.tab_order = source["tab_order"];
 	        this.hidden_tabs = source["hidden_tabs"];
 	        this.claude_backup = source["claude_backup"];

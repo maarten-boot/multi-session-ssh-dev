@@ -75,7 +75,7 @@ make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/u
                      # folders, git markers, repository check, working copies, live share,
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
-                     # desktop notifications, badges (~2 min)
+                     # desktop notifications, notes for all sessions and copy/paste, badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -145,6 +145,19 @@ Default order:
   the app's config (`notes/<session id>.md` next to `config.toml`, owner-only, up to 4 MB),
   not in the project, so they stay out of git and off the agent host. Emptying the notes
   removes the file; notes are kept when a session is deleted.
+
+**Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M) opens a notes page
+for the whole app, for prompts you use often and notes that belong to no session (stored as
+`notes/_app.md` next to `config.toml`). Every `## name` heading starts a prompt: the page lists
+them on the right with *Copy* and *Paste into Remote*, which puts the prompt into the current
+session's Remote tab as pasted text — claude runs it when you press Enter. For example:
+
+```
+## Review
+Review the changes since the last commit for bugs and missing tests. Be brief.
+```
+
+Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
 - **Web** (Ctrl+Shift+5): the repository's latest **GitHub Actions runs** (the last 12:
   status, workflow, title, branch, age; refreshed while shown, every 15 s while one is
   running, otherwise every 2 minutes; click to open it in your browser), buttons for the
@@ -173,8 +186,12 @@ the Files tab refreshes, when Details… opens, and every two minutes. Backgroun
 
 Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
 previous); links are clickable; emoji and CJK characters get their proper two-cell
-width. With *Copy terminal selection to the clipboard automatically* (Settings,
-`copy_on_select`) a selection goes to the clipboard at once.
+width. Copy and paste: Ctrl+C copies when text is selected and otherwise interrupts the program
+as usual, Ctrl+V pastes (*Ctrl+C copies selected text…* in Settings, `ctrl_copy_paste`; switch it
+off if you need Ctrl+V in vim — Ctrl+Q works there too); Ctrl+Shift+C / V always work, Cmd+C / V
+on macOS. Right-click a terminal for Copy, Paste, Select all, Find… and Clear scrollback. With
+*Copy terminal selection to the clipboard automatically* (Settings, `copy_on_select`) a selection
+goes to the clipboard at once.
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -187,7 +204,8 @@ width. With *Copy terminal selection to the clipboard automatically* (Settings,
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
 | Ctrl+Shift+F | ⌘F | find in terminal | `find` |
 | Ctrl+Shift+B | ⇧⌘B | narrow / wide sidebar | `toggle_sidebar` |
-| Ctrl+Shift+C / V | ⌘C / V | copy / paste | — |
+| Ctrl+Shift+M | ⇧⌘M | notes and prompts for all sessions | `app_notes` |
+| Ctrl+C (with a selection) / Ctrl+V, Ctrl+Shift+C / V | ⌘C / V | copy / paste | — (`ctrl_copy_paste`) |
 
 Rebind in the config's `[keys]` table (see the example below); Settings → Keyboard
 shortcuts lists the current bindings. A key is modifiers plus one key: `Ctrl`, `Shift`,
@@ -333,6 +351,7 @@ connect_on_start = "lazy"                 # or "eager": connect all Remote tabs 
 auto_reconnect = true
 activity_badges = true
 copy_on_select = false
+ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pastes (Linux/Windows)
 notifications = true                      # desktop notification when claude waits (bell)
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
@@ -416,7 +435,8 @@ internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts, rsync, restore
 internal/instance      one instance per config file (lock)
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js, web.js,
-                       ui.js, appearance.js (themes, mono filter), keys.js, fuzzy.js,
+                       appnotes.js and prompts.js (notes for all sessions), ui.js,
+                       appearance.js (themes, mono filter), keys.js, fuzzy.js,
                        style.css; *.test.mjs are the node --test unit tests
 build/                 app icon, Windows/macOS resources for Wails
 packaging/             .desktop file, icons, man page, copyright, nfpm config for .deb/.rpm,

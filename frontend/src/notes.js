@@ -5,22 +5,25 @@ const SAVE_DELAY = 600; // ms after the last keystroke
 
 // NotesView is the Notes tab: a plain-text editor for the session's notes,
 // saved automatically. The file lives next to the app's config, not in the
-// project directory.
+// project directory. The app-wide notes page uses it too (session.id is
+// then "_app"); opts: title, placeholder, onChange(text).
 export class NotesView {
-    constructor(container, session) {
+    constructor(container, session, opts = {}) {
         this.session = session;
+        this.onChange = opts.onChange ?? (() => {});
         this.dirty = false;
         this.saving = null;
         this.text = el('textarea', {className: 'notes-text', spellcheck: true,
-            placeholder: 'Notes about this project: plans, open questions, what claude is working on…\n\n' +
+            placeholder: opts.placeholder ?? 'Notes about this project: plans, open questions, what claude is working on…\n\n' +
                 'Saved automatically. Stored with the app settings, not in the project, so they are not in git ' +
                 'and not visible on the agent host.'});
         this.status = el('span', {className: 'notes-status'});
         this.path = el('span', {className: 'notes-path'});
         container.append(el('div', {className: 'notes'},
-            el('div', {className: 'notes-bar'}, el('span', {className: 'notes-title', textContent: 'Notes'}), this.path, this.status),
+            el('div', {className: 'notes-bar'}, el('span', {className: 'notes-title', textContent: opts.title ?? 'Notes'}), this.path, this.status),
             this.text));
         this.text.addEventListener('input', () => {
+            this.onChange(this.text.value);
             this.dirty = true;
             this.say('Unsaved changes…');
             clearTimeout(this.timer);
@@ -43,6 +46,7 @@ export class NotesView {
         try {
             const n = await LoadNotes(this.session.id);
             this.text.value = n.text;
+            this.onChange(n.text);
             this.path.textContent = '\u200e' + n.path; // keeps the path intact in the rtl-ellipsis box
             this.path.title = n.path;
             this.mtime = n.mtime;
@@ -60,6 +64,7 @@ export class NotesView {
             const n = await LoadNotes(this.session.id);
             if (n.mtime !== this.mtime) {
                 this.text.value = n.text;
+                this.onChange(n.text);
                 this.mtime = n.mtime;
                 this.say(`Reloaded (changed outside the app ${when(n.mtime)})`);
             }

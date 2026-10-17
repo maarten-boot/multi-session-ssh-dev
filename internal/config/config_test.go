@@ -218,3 +218,9 @@ func TestNotificationsDefaultOn(t *testing.T) {
 		t.Errorf("notifications default: %v", c.UI.Notifications)
 	}
 }
+
+func TestCtrlCopyPasteDefaultOn(t *testing.T) {
+	if c := Default(); c.UI.CtrlCopyPaste == nil || !*c.UI.CtrlCopyPaste {
+		t.Errorf("ctrl_copy_paste default: %v", c.UI.CtrlCopyPaste)
+	}
+}

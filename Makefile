@@ -83,7 +83,8 @@ clean:
 #   find/unicode/copy-on-select, folders, git markers, repository check, working
 #   copies, live share, notes and tab order, Web tab and custom tab order, layout
 #   (font size, current tab, narrow sidebar), desktop notifications (fake
-#   notification service, needs python3-dbus), activity badges (~2 minutes).
+#   notification service, needs python3-dbus), notes for all sessions and
+#   copy/paste, activity badges (~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -116,6 +117,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-web.sh build/bin/session-workbench $(SMOKE_OUT)-web
 	$(XVFB) scripts/gui-smoke-layout.sh build/bin/session-workbench $(SMOKE_OUT)-layout
 	$(XVFB) scripts/gui-smoke-notify.sh build/bin/session-workbench $(SMOKE_OUT)-notify
+	$(XVFB) scripts/gui-smoke-appnotes.sh build/bin/session-workbench $(SMOKE_OUT)-appnotes
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

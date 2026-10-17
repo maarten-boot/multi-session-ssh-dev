@@ -8,6 +8,7 @@ import {Unicode11Addon} from '@xterm/addon-unicode11';
 
 import {TermKill, TermResize, TermWrite} from '../wailsjs/go/main/App';
 import {SgrFilter, termOptions} from './appearance';
+import {showMenu} from './ui';
 import {BrowserOpenURL, ClipboardGetText, ClipboardSetText, EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
 
 export const isMac = navigator.platform.toUpperCase().includes('MAC');
@@ -44,6 +45,7 @@ export class TermView {
         this.term = new Terminal({cursorBlink: true, allowProposedApi: true, ...termOptions(ui, colorMode)});
         this.setColorFilter(colorMode);
         this.copyOnSelect = !!ui.copy_on_select;
+        this.ctrlCopyPaste = ui.ctrl_copy_paste !== false;
         this.fit = new FitAddon();
         this.term.loadAddon(this.fit);
         this.term.loadAddon(new WebLinksAddon((e, uri) => BrowserOpenURL(uri)));
@@ -58,6 +60,10 @@ export class TermView {
             if (this.copyOnSelect && this.term.hasSelection()) ClipboardSetText(this.term.getSelection());
         });
         this.term.attachCustomKeyEventHandler(e => this.handleKey(e));
+        container.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            this.contextMenu(e.clientX, e.clientY);
+        });
         this.term.onBell(() => this.onActivity('bell'));
         this.term.onData(d => this.id && this.send(d));
         this.term.onResize(({cols, rows}) => this.id && this.resizePty(cols, rows));
@@ -272,16 +278,41 @@ export class TermView {
             return false;
         }
         const mod = isMac ? e.metaKey : (e.ctrlKey && e.shiftKey);
-        if (mod && e.code === 'KeyC' && this.term.hasSelection()) {
-            ClipboardSetText(this.term.getSelection());
+        // Linux/Windows, as in Windows Terminal: plain Ctrl+C copies only when
+        // text is selected (else the program gets its interrupt), Ctrl+V pastes.
+        const plainCtrl = !isMac && this.ctrlCopyPaste && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey;
+        if ((mod || plainCtrl) && e.code === 'KeyC' && this.term.hasSelection()) {
+            this.copy();
             return false;
         }
-        if (mod && e.code === 'KeyV') {
+        if ((mod || plainCtrl) && e.code === 'KeyV') {
             e.preventDefault();
-            ClipboardGetText().then(t => t && this.term.paste(t));
+            this.pasteClipboard();
             return false;
         }
         return true;
+    }
+
+    copy() {
+        ClipboardSetText(this.term.getSelection());
+        this.term.clearSelection();
+    }
+
+    pasteClipboard() {
+        ClipboardGetText().then(t => t && this.term.paste(t));
+    }
+
+    // contextMenu is the terminal's right-click menu.
+    contextMenu(x, y) {
+        const k = isMac ? '⌘' : (this.ctrlCopyPaste ? 'Ctrl+' : 'Ctrl+Shift+');
+        showMenu(x, y, [
+            {label: `Copy   ${k}C`, disabled: !this.term.hasSelection(), action: () => this.copy()},
+            {label: `Paste   ${k}V`, action: () => this.pasteClipboard()},
+            {label: 'Select all', action: () => this.term.selectAll()},
+            '-',
+            {label: 'Find…', action: () => this.openFind()},
+            {label: 'Clear scrollback', action: () => this.term.clear()},
+        ]);
     }
 
     setColorFilter(colorMode) {
@@ -293,6 +324,7 @@ export class TermView {
     // (via the contrast ratio); new output arrives without colors.
     setAppearance(ui, colorMode) {
         this.copyOnSelect = !!ui.copy_on_select;
+        this.ctrlCopyPaste = ui.ctrl_copy_paste !== false;
         const changed = (colorMode === 'mono') !== !!this.filter;
         Object.assign(this.term.options, termOptions(ui, colorMode));
         this.setColorFilter(colorMode);

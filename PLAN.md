@@ -63,6 +63,7 @@ implementation differs from the original plan.
 - Resizable sidebar; hosts and sessions checked when the config loads; more risky git keys;
   working copies and backups without rsync (Windows, F9); desktop notifications when claude
   waits (F4); signed commits and tags (ssh key).
+- Notes and prompts for all sessions (N2); Ctrl+C/Ctrl+V and a right-click menu in terminals (T2).
 - Docs/code cross-check (v0.8.11): shell-quoted fix commands in the repository check, Files tab
   refuses symlinks leading out of the session directory, failed live shares retried, backups
   pause without local rsync, `PgDn`/`PgUp` in `[keys]`.
@@ -75,12 +76,12 @@ implementation differs from the original plan.
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore.
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 22
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 23
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

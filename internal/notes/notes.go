@@ -23,12 +23,19 @@ type Note struct {
 	Mtime int64  `json:"mtime"` // Unix milliseconds; 0 if there is no file yet
 }
 
+// AppID names the app-wide notes (notes/_app.md): common prompts and notes
+// that belong to no session. Session ids cannot start with "_".
+const AppID = "_app"
+
 // Store keeps notes files in one directory.
 type Store struct {
 	Dir string
 }
 
 func (s Store) path(id string) (string, error) {
+	if id == AppID {
+		return filepath.Join(s.Dir, AppID+".md"), nil
+	}
 	if !remote.ValidID(id) {
 		return "", fmt.Errorf("notes: invalid session id %q", id)
 	}
