@@ -27,9 +27,10 @@ artifacts); tagged versions (`v*`) are published under **Releases**:
 | `…-windows-amd64.zip` | Windows 10/11 (x86-64) | uses the built-in OpenSSH client and the WebView2 runtime (both standard on current Windows). The exe is unsigned: SmartScreen asks once (*More info → Run anyway*). |
 | `…-macos-universal.zip` | macOS 12+ (Apple silicon and Intel) | contains `session-workbench.app`; unsigned: the first time, right-click the app → *Open*, or run `xattr -dr com.apple.quarantine session-workbench.app` |
 
-On your computer the app uses `ssh`, and optionally `git` (Files tab markers),
-`rsync` (Claude backups, working copies) and `gh` (Web tab runs). The agent host needs
-`tmux`, `claude` and `rsync`; nothing is installed there by the app (requirements and how
+On your computer the app uses `ssh`, and optionally `git` (Files tab markers, working
+copies), `rsync` (faster Claude backups and working copies; without it the app transfers
+files itself) and `gh` (Web tab runs). The agent host needs `tmux`, `claude`, and `rsync` or
+`tar` (standard); nothing is installed there by the app (requirements and how
 to check them: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#requirements-on-the-agent-host)).
 `session-workbench -version` prints the version; it is also shown in Settings.
 
@@ -62,7 +63,8 @@ make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test);
              # CI runs them on Linux, Windows and macOS (race detector on Linux)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux, working-copy, live-share and Claude-backup
-             # round trips against a real host (key auth, tmux, rsync, sshfs; same paths on both sides)
+             # round trips against a real host (key auth, tmux, rsync, sshfs; same paths on both
+             # sides), working copies and backups also with the built-in transfer (SW_NO_RSYNC=1)
 make vet     # vet for linux and windows (all packages), darwin (internal packages)
 make clean   # remove build output (build/bin, dist, generated package docs)
 make smoke   # headless GUI test of terminal fidelity
@@ -267,8 +269,9 @@ agent commits), and **⇣ Get** fetches the commits claude made there into
 `agent-<id>/<branch>` and can fast-forward your branch. Until the first Send the Remote
 tab says there is no working copy yet and offers *Send to agent…*. Create the session for
 the repository's top folder: a subdirectory is sent without `.git`, so commits cannot come
-back (Send and Get say so). Needs rsync on both
-sides (not available on Windows yet). Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
+back (Send and Get say so). Uses rsync where it is installed; without it (Windows) a
+built-in transfer over the same ssh connection (tar on the agent host) gives the same
+result. Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
 **Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`
 (settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
@@ -282,8 +285,8 @@ back, keeping files that exist there) and *Open Claude backup folder*. A backup 
 files deleted on the agent host stay in it. Left out are claude's login
 (`.credentials.json`; log in to claude once after a restore) and caches and downloads
 claude recreates. Backups are kept per host *name*: keep the name when the machine behind
-it changes. Needs rsync on both sides; without rsync on this computer (Windows) automatic
-backups pause and the host tooltip says so. Restoring a crashed agent host, step by step:
+it changes. Uses rsync where it is installed (only changes are copied); without it (Windows)
+a built-in transfer over the same ssh connection copies everything each time. Restoring a crashed agent host, step by step:
 [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#claude-backups).
 
 Agent and X11 forwarding are always forced off on every ssh connection. The

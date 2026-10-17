@@ -26,6 +26,7 @@ import (
 	"session-workbench/internal/share"
 	"session-workbench/internal/syncer"
 	"session-workbench/internal/terminal"
+	"session-workbench/internal/xfer"
 )
 
 // App is the object bound to the frontend; its exported methods become
@@ -70,6 +71,7 @@ func (a *App) startup(ctx context.Context) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
 	backup.Configure = hideConsole
+	xfer.Configure = hideConsole
 	a.backups = &backup.Runner{
 		Dir: filepath.Join(a.dataDir, "claude-backups"),
 		Hosts: func() []backup.Host {
@@ -124,14 +126,6 @@ func (a *App) secondInstance(options.SecondInstanceData) {
 
 // BackupStatus is the last backup per host name.
 func (a *App) BackupStatus() map[string]backup.Status { return a.backups.Status() }
-
-// BackupProblem says why backups cannot run on this computer; "" if they can.
-func (a *App) BackupProblem() string {
-	if err := backup.Available(); err != nil {
-		return err.Error()
-	}
-	return ""
-}
 
 // BackupNow backs one host up and waits for it.
 func (a *App) BackupNow(host string) error {

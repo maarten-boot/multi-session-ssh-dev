@@ -13,8 +13,6 @@ import {forge} from '../models';
 
 export function BackupNow(arg1:string):Promise<void>;
 
-export function BackupProblem():Promise<string>;
-
 export function BackupStatus():Promise<Record<string, backup.Status>>;
 
 export function BrowseDirectory(arg1:string):Promise<string>;

@@ -54,7 +54,9 @@ test:
 # the same /tmp path visible on both sides, e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
-	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup
+	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer
+	@echo "== again with the built-in transfer (as on Windows, without rsync)"
+	SW_NO_RSYNC=1 SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip' -v ./internal/syncer ./internal/backup
 
 # The main package needs cgo (webkit) on Linux and macOS: vet it natively and
 # for Windows (pure Go); macOS only the internal packages.
@@ -92,6 +94,7 @@ smoke-sessions: build
 	$(XVFB) scripts/gui-smoke-startmode.sh build/bin/session-workbench $(SMOKE_OUT)-startmode
 	$(XVFB) scripts/gui-smoke-instance.sh build/bin/session-workbench $(SMOKE_OUT)-instance
 	$(XVFB) scripts/gui-smoke-backup.sh build/bin/session-workbench $(SMOKE_OUT)-backup
+	SW_NO_RSYNC=1 $(XVFB) scripts/gui-smoke-backup.sh build/bin/session-workbench $(SMOKE_OUT)-backup-builtin
 
 smoke-files: build
 	$(XVFB) scripts/gui-smoke-files.sh build/bin/session-workbench $(SMOKE_OUT)-files
@@ -106,6 +109,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-git.sh build/bin/session-workbench $(SMOKE_OUT)-git
 	$(XVFB) scripts/gui-smoke-repocheck.sh build/bin/session-workbench $(SMOKE_OUT)-repocheck
 	$(XVFB) scripts/gui-smoke-sync.sh build/bin/session-workbench $(SMOKE_OUT)-sync
+	SW_NO_RSYNC=1 $(XVFB) scripts/gui-smoke-sync.sh build/bin/session-workbench $(SMOKE_OUT)-sync-builtin
 	$(XVFB) scripts/gui-smoke-share.sh build/bin/session-workbench $(SMOKE_OUT)-share
 	$(XVFB) scripts/gui-smoke-notes.sh build/bin/session-workbench $(SMOKE_OUT)-notes
 	$(XVFB) scripts/gui-smoke-web.sh build/bin/session-workbench $(SMOKE_OUT)-web

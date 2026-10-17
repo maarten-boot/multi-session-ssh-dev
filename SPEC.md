@@ -128,11 +128,19 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `statsig/`, `telemetry/`, `debug/`. A missing `~/.claude` is a failure, a missing
   `~/.claude.json` is not. Status per host in the host header tooltip, ⚠ after a failure; host
   menu: back up now, restore (`--ignore-existing`: for a new or reinstalled host), open the
-  backup folder. Needs rsync on both sides; without rsync on this computer automatic backups
-  pause and the tooltip says so.
+  backup folder. Uses rsync where installed; without it (Windows) the built-in transfer
+  (internal/xfer): `tar -cf -` with the same exclusions on the agent host, unpacked here through
+  `os.Root` (no absolute or `..` paths, symlinks only relative and inside, no hard links or
+  devices; the exclusions applied here too), copying everything each time; restore sends a
+  tar unpacked there with GNU `--skip-old-files` / BSD `-k`.
 - F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
   running window forward (Wails single-instance lock, keyed on the config path) or, where that
   is not available, shows only a message and touches nothing.
+- F9. Working copies without rsync (Windows): the built-in transfer gives rsync's result. Files
+  to send are those git does not ignore (`git ls-files --cached --others --exclude-standard`) plus
+  `.git`; the agent copy is listed the same way with POSIX `cksum`; new and changed files (by CRC
+  and size) go over as a tar stream (executable bit from git's index on Windows), files missing
+  here are removed there, files ignored there stay. The preview counts the same changes.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

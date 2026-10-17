@@ -36,6 +36,8 @@ reach that machine. Your ssh agent is not forwarded to it either.
   example `~/.local/bin`): claude is started like a manual login, with `"$SHELL" -lic`.
 - `rsync` for Claude backups (on by default) and working copies, and `git` for working copies,
   both on the default PATH (for example `/usr/bin`): ssh starts them without a login shell.
+  Where this computer has no rsync (Windows) the app uses `tar`, `find`, `xargs` and `cksum`
+  there instead, which every Linux and macOS system has.
 - Depending on the file access mode: an NFS client, or `sshfs` + FUSE for live share (see below).
 
 Nothing is installed on the agent host by the app. To check it the way the app sees it:
@@ -69,14 +71,14 @@ the agent host).
 
 | | A. Shared file system | B. Live share over ssh | C. Working copy + sync |
 |---|---|---|---|
-| Status | **Implemented** | **Implemented** | **Implemented** (Linux/macOS hosts) |
+| Status | **Implemented** | **Implemented** | **Implemented** |
 | How | NFS, SMB, or a hypervisor share (virtiofs / 9p) | the app serves the session directory; the agent host mounts it with `sshfs` | a copy on the agent host; you send changes there and fetch commits back |
 | Set up by | you (admin) | the app (`files = "sshfs"` on the host) | the app (`files = "sync"` on the host) |
 | Root on agent host | for the mount (once) | no (`sshfs` + FUSE) | no |
 | Works while the app is closed | yes | **no** — claude loses its files until the app reconnects | yes |
 | Speed | good on a LAN | slower: every file access is a round trip | local speed on the agent host |
 | What the agent host can change on your host | everything under the share, **including `.git`** | the session directory only, **including `.git`** | nothing until you fetch; only commits come back |
-| Windows hosts | yes | yes | not yet: needs rsync on the host |
+| Windows hosts | yes | yes | yes (built-in transfer instead of rsync) |
 
 ### A. Shared file system (implemented)
 
@@ -183,8 +185,12 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
 Why not `rsync` back? Copying the agent's `.git` directory onto your host has the problem
 described next. Fetching commits does not: hooks and configuration are never transferred.
 
-Needs `rsync` on both machines and `git` on the agent host. Windows has no built-in `rsync`, so
-working copies are not available on Windows hosts yet; macOS and Linux work. Note that sending
+Needs `git` on both machines, and `rsync` on both, or the built-in transfer: where this
+computer has no rsync (Windows) the app lists the files git does not ignore on both sides, compares
+them by checksum (POSIX `cksum`), sends new and changed ones as a tar stream and removes the
+deleted ones there, which gives the same result and the same preview. (Get uses `git fetch`
+over ssh, with Git for Windows on Windows; the Windows build has not been tried on a real
+machine yet.) Note that sending
 copies your `.git/config` to the agent host too: keep tokens out of remote URLs (see below).
 Deleting a session, or changing the host's `remote_workdir` or file access later, leaves the
 copies on the agent host where they are.
@@ -317,6 +323,10 @@ connects out, the agent host gets no access to your workstation.
   readable by you only; treat them like the projects themselves.
 - **Restore** copies a backup back to an agent host without overwriting files that are already
   there, so it is safe on a fresh machine and does not roll back a working one.
+- **Without rsync** (Windows) the app streams a tar archive made on the agent host and unpacks
+  it itself, confined to the backup folder: no absolute or `..` paths, symlinks only with
+  relative targets inside, no hard links or devices, and the exclusions applied again here. It
+  copies everything each time, where rsync copies only changes.
 - Backups are kept per host **name** (`claude-backups/<name>/`); renaming a host starts a new
   folder.
 

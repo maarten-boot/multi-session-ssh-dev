@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"session-workbench/internal/remote"
+	"session-workbench/internal/xfer"
 )
 
 // Configure is applied to every command (hides console windows on Windows).
@@ -176,9 +177,6 @@ func unknownCommits(ctx context.Context, s Session, heads []string) int {
 // what would change). Files ignored by .gitignore are neither sent nor
 // deleted on the agent host.
 func Send(ctx context.Context, s Session, dryRun, overwriteDirty bool) (Plan, error) {
-	if _, err := exec.LookPath("rsync"); err != nil {
-		return Plan{}, errors.New("rsync is not installed on this computer (needed to send files)")
-	}
 	if err := remote.CheckTarget(s.Target); err != nil {
 		return Plan{}, err
 	}
@@ -200,6 +198,13 @@ func Send(ctx context.Context, s Session, dryRun, overwriteDirty bool) (Plan, er
 		p.Blocked = fmt.Sprintf("the agent copy has uncommitted changes in %d file(s), which sending would overwrite", agent.Dirty)
 	}
 	if p.Blocked != "" && !dryRun {
+		return p, nil
+	}
+	if !xfer.UseRsync() { // Windows: the built-in transfer
+		if err := sendBuiltin(ctx, s, dryRun, &p); err != nil {
+			return p, fmt.Errorf("sending: %w", err)
+		}
+		p.Done = !dryRun
 		return p, nil
 	}
 	args := []string{"-a", "--delete", "--itemize-changes", "--filter=:- .gitignore", "-e", remote.SSHCommand()}

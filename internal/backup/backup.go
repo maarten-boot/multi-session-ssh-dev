@@ -4,7 +4,9 @@
 // history, checkpoints) and ~/.claude.json (per-project state, MCP servers).
 //
 // It uses rsync over the user's ssh with the forced options, as working
-// copies do. A backup only grows: files removed on the agent host stay in
+// copies do, or, where rsync is missing (Windows), the built-in transfer
+// (internal/xfer: tar on the agent host, confined unpacking here), which
+// copies everything each time instead of only what changed. A backup only grows: files removed on the agent host stay in
 // it, so a broken or compromised host cannot empty it. Left out are
 // claude's login (.credentials.json: the app stores no secrets; log in to
 // claude again after a restore) and what claude downloads or recreates.
@@ -16,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +28,7 @@ import (
 	"time"
 
 	"session-workbench/internal/remote"
+	"session-workbench/internal/xfer"
 )
 
 // Configure is applied to every command (hides console windows on Windows).
@@ -68,19 +72,7 @@ func remoteDir(h Host) string {
 	return strings.TrimSuffix(h.Home, "/") + "/"
 }
 
-// Available says why backups cannot run on this computer (no rsync, e.g.
-// on Windows); nil when they can.
-func Available() error {
-	if _, err := exec.LookPath("rsync"); err != nil {
-		return errors.New("Claude backups need rsync on this computer")
-	}
-	return nil
-}
-
 func rsync(ctx context.Context, args ...string) (string, int, error) {
-	if err := Available(); err != nil {
-		return "", 0, err
-	}
 	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	var errb bytes.Buffer
@@ -109,6 +101,9 @@ func Run(ctx context.Context, h Host, dir string) error {
 	dest := filepath.Join(dir, "home")
 	if err := os.MkdirAll(dest, 0o700); err != nil {
 		return err
+	}
+	if !xfer.UseRsync() {
+		return pull(ctx, h, dest)
 	}
 	args := commonArgs()
 	for _, x := range Exclude {
@@ -150,6 +145,79 @@ func classify(code int, stderr string) error {
 	return fmt.Errorf("rsync exit %d: %s", code, strings.TrimSpace(lastLines(stderr, 3)))
 }
 
+// excluded reports whether a path (relative to the remote home, slashes)
+// is left out of backups.
+func excluded(name string) bool {
+	for _, x := range Exclude {
+		x = strings.TrimPrefix(x, "/")
+		if name == strings.TrimSuffix(x, "/") || strings.HasPrefix(name, strings.TrimSuffix(x, "/")+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// homeDir is the remote directory holding .claude, as a shell word.
+func homeDir(h Host) string {
+	if h.Home == "" {
+		return `"$HOME"`
+	}
+	return remote.Quote(h.Home)
+}
+
+// pull is Run without rsync: tar on the agent host with the same
+// exclusions, unpacked here through os.Root; the exclusions are applied
+// here too, in case the agent host's tar ignored them.
+func pull(ctx context.Context, h Host, dest string) error {
+	var ex strings.Builder
+	for _, x := range Exclude {
+		ex.WriteString(" --exclude=" + remote.Quote(strings.Trim(x, "/")))
+	}
+	script := "cd " + homeDir(h) + ` || exit 1
+[ -e .claude ] || { echo "no ~/.claude" >&2; exit 3; }
+set -- .claude
+[ -e .claude.json ] && set -- "$@" .claude.json
+exec tar -cf -` + ex.String() + ` "$@"`
+	code, stderr, _, err := xfer.Pull(ctx, h.Target, script, dest, excluded)
+	if err != nil {
+		return err
+	}
+	switch code {
+	case 0, 1: // 1: GNU tar, a file changed while it was read (claude was writing)
+		return nil
+	case 3:
+		return errors.New("no ~/.claude on the agent host (claude not used there yet?)")
+	}
+	return fmt.Errorf("tar on the agent host, exit %d: %s", code, strings.TrimSpace(lastLines(stderr, 3)))
+}
+
+// push is Restore without rsync: the backup as a tar stream, unpacked on
+// the agent host without replacing existing files (GNU tar
+// --skip-old-files, BSD tar -k).
+func push(ctx context.Context, h Host, src string) error {
+	var files []xfer.File
+	for _, top := range []string{".claude", ".claude.json"} {
+		filepath.WalkDir(filepath.Join(src, top), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(src, p)
+			files = append(files, xfer.File{Path: filepath.ToSlash(rel)})
+			return nil
+		})
+	}
+	script := "mkdir -p " + homeDir(h) + " && cd " + homeDir(h) + ` || exit 1
+if tar --version 2>/dev/null | grep -q GNU; then exec tar -xf - --skip-old-files; else exec tar -xkf -; fi`
+	code, stderr, err := xfer.Push(ctx, h.Target, script, src, files)
+	if err != nil {
+		return err
+	}
+	if code != 0 {
+		return fmt.Errorf("tar on the agent host, exit %d: %s", code, strings.TrimSpace(lastLines(stderr, 3)))
+	}
+	return nil
+}
+
 // Restore copies a backup to h without overwriting files that exist there:
 // for a new or reinstalled agent host.
 func Restore(ctx context.Context, h Host, dir string) error {
@@ -165,6 +233,9 @@ func Restore(ctx context.Context, h Host, dir string) error {
 	}
 	if len(sources) == 0 {
 		return errors.New("there is no backup for this host yet")
+	}
+	if !xfer.UseRsync() {
+		return push(ctx, h, src)
 	}
 	base := remoteDir(h)
 	if base == "" {
@@ -324,8 +395,7 @@ func (r *Runner) Start(ctx context.Context) {
 				return
 			case <-t.C:
 			}
-			// Without rsync here only "Back up now" tries (and says why).
-			if every, on := r.Every(); on && Available() == nil {
+			if every, on := r.Every(); on {
 				for _, h := range r.Hosts() {
 					if r.due(h.Name, every, time.Now()) {
 						go r.backup(ctx, h)

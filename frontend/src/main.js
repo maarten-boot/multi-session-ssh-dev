@@ -10,7 +10,7 @@ import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
-    BackupNow, BackupProblem, BackupStatus, OpenBackupFolder, RestoreBackup,
+    BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
@@ -392,7 +392,6 @@ const app = {
             return;
         }
         this.backups = await BackupStatus().catch(() => ({}));
-        this.backupProblem = await BackupProblem().catch(() => '');
         EventsOn('backup', (host, st) => {
             this.backups[host] = st;
             this.renderBackup(host);
@@ -618,7 +617,7 @@ const app = {
     renderBackup(host) {
         const st = this.backups?.[host];
         for (const h of this.hostHeads.filter(h => h.name === host)) {
-            h.head.title = `${h.target}\n${this.backupProblem && !st?.error ? this.backupProblem : backupText(st, this.state.ui.claude_backup)}`;
+            h.head.title = `${h.target}\n${backupText(st, this.state.ui.claude_backup)}`;
             h.head.querySelector('.backup-warn').hidden = !st?.error;
         }
     },

@@ -172,3 +172,79 @@ func TestSubdirectoryOfRepository(t *testing.T) {
 		t.Errorf("repository top reported as subdirectory of %q", got)
 	}
 }
+
+// TestSSHSendMirror checks that rsync and the built-in transfer give the
+// same result: the preview counts, changed and new files arrive, files
+// deleted here are deleted there, and files git ignores on the agent host
+// stay. Run with SW_SSH_TARGET (make test-ssh).
+func TestSSHSendMirror(t *testing.T) {
+	target := os.Getenv("SW_SSH_TARGET")
+	if target == "" {
+		t.Skip("SW_SSH_TARGET not set")
+	}
+	for _, mode := range []string{"rsync", "builtin"} {
+		t.Run(mode, func(t *testing.T) {
+			if mode == "builtin" {
+				t.Setenv("SW_NO_RSYNC", "1")
+			} else if _, err := exec.LookPath("rsync"); err != nil {
+				t.Skip("no rsync here")
+			} else {
+				t.Setenv("SW_NO_RSYNC", "")
+			}
+			ctx := context.Background()
+			host := t.TempDir()
+			os.WriteFile(filepath.Join(host, "a.txt"), []byte("one\n"), 0o644)
+			os.WriteFile(filepath.Join(host, "b.txt"), []byte("bee\n"), 0o644)
+			os.WriteFile(filepath.Join(host, ".gitignore"), []byte("build/\n"), 0o644)
+			gitIn(t, host, "init", "-q")
+			gitIn(t, host, "add", "-A")
+			gitIn(t, host, "commit", "-q", "-m", "base")
+			base := fmt.Sprintf("sw-mirror-%s-%d", mode, os.Getpid())
+			t.Cleanup(func() { exec.Command("ssh", must(remote.ScriptArgs(target, "rm -rf ~/"+base))...).Run() })
+			s := Session{ID: "s-mir", Target: target, LocalPath: host, RemotePath: "~/" + base + "/proj"}
+			agent := "cd ~/" + base + "/proj && "
+			if p, err := Send(ctx, s, false, false); err != nil || !p.Done || p.New < 3 {
+				t.Fatalf("first send: %+v %v", p, err)
+			}
+			// On the agent: build output (ignored) and an untracked file.
+			remoteSh(t, target, agent+"mkdir -p build && echo out > build/agent-only && echo x > extra.txt")
+			// Here: a.txt changed, b.txt deleted, c.txt new.
+			os.WriteFile(filepath.Join(host, "a.txt"), []byte("two\n"), 0o644)
+			os.Remove(filepath.Join(host, "b.txt"))
+			os.WriteFile(filepath.Join(host, "c.txt"), []byte("sea\n"), 0o644)
+			p, err := Send(ctx, s, true, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[string]string{}
+			for _, c := range p.Changes {
+				if !strings.HasPrefix(c.Path, ".git/") {
+					got[c.Path] = c.Op
+				}
+			}
+			want := map[string]string{"a.txt": "changed", "b.txt": "deleted", "c.txt": "new", "extra.txt": "deleted"}
+			for k, v := range want {
+				if got[k] != v {
+					t.Errorf("preview: %s = %q, want %q (all: %v)", k, got[k], v, got)
+				}
+			}
+			if _, ok := got["build/agent-only"]; ok {
+				t.Error("preview lists an ignored file on the agent host")
+			}
+			if p, err = Send(ctx, s, false, true); err != nil || !p.Done {
+				t.Fatalf("send: %+v %v", p, err)
+			}
+			out := remoteSh(t, target, agent+"cat a.txt c.txt; ls; cat build/agent-only")
+			for _, w := range []string{"two", "sea", "out"} {
+				if !strings.Contains(out, w) {
+					t.Errorf("agent copy lacks %q: %q", w, out)
+				}
+			}
+			for _, w := range []string{"b.txt", "extra.txt"} {
+				if strings.Contains(out, w) {
+					t.Errorf("agent copy still has %s: %q", w, out)
+				}
+			}
+		})
+	}
+}
