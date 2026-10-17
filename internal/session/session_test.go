@@ -449,9 +449,16 @@ func TestLinks(t *testing.T) {
 // tab, the rest is reported; nothing in the file changes.
 func TestProblemsOfHandEditedConfig(t *testing.T) {
 	cfgPath := filepath.Join(t.TempDir(), "config.toml")
-	text := `[[hosts]]
+	// Native absolute paths under a mapped prefix, so the test means the same
+	// on Windows (where /srv/a is not absolute and needs a mapping anyway).
+	base := t.TempDir()
+	dir := func(name string) string { return filepath.Join(base, name) }
+	text := strings.NewReplacer("@BASE@", base, "@A@", dir("a"), "@B@", dir("b"), "@C@", dir("c"),
+		"@T1@", dir("t1"), "@T2@", dir("t2")).Replace(`[[hosts]]
 name = "ok"
 ssh_target = "me@ok"
+local_prefix = '@BASE@'
+remote_prefix = "/r"
 
 [[hosts]]
 name = "bad"
@@ -466,21 +473,21 @@ ssh_target = "me@other"
 id = "s-0001"
 name = "fine"
 host = "ok"
-local_path = "/srv/a"
+local_path = '@A@'
 start_mode = "shell"
 
 [[sessions]]
 id = "s-0002"
 name = "on bad host"
 host = "bad"
-local_path = "/srv/b"
+local_path = '@B@'
 start_mode = "shell"
 
 [[sessions]]
 id = "s-0003"
 name = "odd values"
 host = "ok"
-local_path = "/srv/c"
+local_path = '@C@'
 start_mode = "claude"
 color_mode = "purple"
 links = [{ name = "x", url = "javascript:alert(1)" }]
@@ -496,23 +503,23 @@ start_mode = "zsh"
 id = "s-0005"
 name = ""
 host = "ok"
-local_path = "/srv/a"
+local_path = '@A@'
 start_mode = "shell"
 
 [[sessions]]
 id = "s-0006"
 name = "twin 1"
 host = "ok"
-local_path = "/srv/t1"
+local_path = '@T1@'
 start_mode = "shell"
 
 [[sessions]]
 id = "s-0006"
 name = "twin 2"
 host = "ok"
-local_path = "/srv/t2"
+local_path = '@T2@'
 start_mode = "shell"
-`
+`)
 	if err := os.WriteFile(cfgPath, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +549,7 @@ start_mode = "shell"
 		`unknown color mode "purple"; the global setting is used`,
 		`link: "javascript:alert(1)" is not an http(s) address`,
 		`session "s-0005" has no name`,
-		`/srv/a already has a session on host "ok"`,
+		dir("a") + ` already has a session on host "ok"`,
 		`session "bad mode": unknown start mode "zsh"`,
 	} {
 		if !strings.Contains(all, want) {
