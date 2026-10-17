@@ -101,7 +101,9 @@ echo "tmux cwd=$(pwd)" >>"$LOG"
 for a in "$@"; do echo "tmux arg=$a" >>"$LOG"; done
 for last in "$@"; do :; done
 case "$1" in new-session) exec /bin/sh -c "$last" ;; esac`,
-		"claude": `echo "claude cwd=$(pwd) args=$*" >>"$LOG"`,
+		// claude --continue fails like the real one when NO_CONVERSATION is set.
+		"claude": `echo "claude cwd=$(pwd) args=$*" >>"$LOG"
+if [ "$1" = --continue ] && [ -n "$NO_CONVERSATION" ]; then echo "No conversation found to continue" >&2; exit 1; fi`,
 	}
 	for name, body := range scripts {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
@@ -176,6 +178,31 @@ func TestAttachCommandExecutes(t *testing.T) {
 				t.Errorf("pane ran:\n got %q\nwant %q", pane, c.pane)
 			}
 		})
+	}
+}
+
+// claude --continue without a conversation in the directory starts a new
+// claude instead of leaving the user in a shell.
+func TestAttachContinueWithoutConversation(t *testing.T) {
+	env, log := fakeRemote(t)
+	env = append(env, "NO_CONVERSATION=1")
+	dir := t.TempDir()
+	args, err := AttachArgs("host", "s-1", dir, ModeClaudeContinue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runRemote(t, env, args); err != nil {
+		t.Fatal(err)
+	}
+	var ran []string
+	for _, l := range readLog(t, log) {
+		if !strings.HasPrefix(l, "tmux ") {
+			ran = append(ran, l)
+		}
+	}
+	want := []string{"interactive-login", "claude cwd=" + dir + " args=--continue", "claude cwd=" + dir + " args=", "login-shell"}
+	if !slices.Equal(ran, want) {
+		t.Errorf("pane ran:\n got %q\nwant %q", ran, want)
 	}
 }
 

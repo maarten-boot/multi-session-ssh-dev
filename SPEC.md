@@ -109,7 +109,10 @@ Sidebar order is the order of `[[sessions]]` in the file (no separate `order` fi
   windows and network drops (not agent-host reboots). Reopening the tab re-attaches (`-A`); the
   start command only runs when the tmux session is first created. When claude exits, the pane
   falls back to a shell: pane cmd = `exec "$SHELL" -lic '<cmd>; exec "$SHELL" -l'`
-  (`claude`, `claude --continue`, or just a login shell). claude starts from an *interactive*
+  (`claude`, `claude --continue || claude`, or just a login shell: `--continue` exits 1 without a
+  conversation in the directory, quitting claude exits 0). Changing a session's start mode
+  offers to end a running tmux session and reconnects an open Remote tab, since a running
+  session keeps its command. claude starts from an *interactive*
   login shell, so it gets the PATH of a manual login: a non-interactive shell skips most of
   `~/.bashrc` (Ubuntu's returns early), where `~/.local/bin` is often added.
 - R3. When the connection ends, an overlay says why and offers to reconnect (Enter). Failed or

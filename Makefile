@@ -69,7 +69,8 @@ clean:
 # checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails
 # on a wrong one; `make -k smoke-all` runs the rest after a failure.
 # smoke: terminal fidelity in a Local tab.
-# smoke-sessions: sidebar, dialogs, switching, menus, restart; needs
+# smoke-sessions: sidebar, dialogs, switching, menus, restart, changing the
+#   start mode of a running session; needs
 #   `ssh localhost` without prompts and tmux.
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
@@ -84,6 +85,7 @@ smoke: build
 smoke-sessions: build
 	$(XVFB) scripts/gui-smoke-sessions.sh build/bin/session-workbench $(SMOKE_OUT)-sessions
 	$(XVFB) scripts/gui-smoke-hosts.sh build/bin/session-workbench $(SMOKE_OUT)-hosts
+	$(XVFB) scripts/gui-smoke-startmode.sh build/bin/session-workbench $(SMOKE_OUT)-startmode
 
 smoke-files: build
 	$(XVFB) scripts/gui-smoke-files.sh build/bin/session-workbench $(SMOKE_OUT)-files

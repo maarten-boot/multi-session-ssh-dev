@@ -72,7 +72,10 @@ func paneCommand(mode Mode) (string, error) {
 	case ModeClaude:
 		cmd = "claude"
 	case ModeClaudeContinue:
-		cmd = "claude --continue"
+		// --continue exits 1 when the directory has no conversation yet
+		// (new host or project); start a new one then. Quitting claude
+		// (/exit, Ctrl+C twice) exits 0 and does not start another.
+		cmd = "claude --continue || claude"
 	case ModeShell:
 		return `exec "$SHELL" -l`, nil
 	default:

@@ -78,7 +78,9 @@ Start `session-workbench`. The first time it shows **Add host…** to set up an 
 
 Then **New session** (Ctrl+Shift+N): pick a directory under the local prefix,
 a name, and what a new remote tmux session starts with (`claude`,
-`claude --continue`, or a shell). Each session has:
+`claude --continue`, or a shell). `claude --continue` starts a new conversation when the
+directory has none yet. The start mode only applies when the remote tmux session is
+created; after changing it in *Edit…* the app offers to restart a running one. Each session has:
 
 Default tab order (change it, or hide tabs, in Settings → Tabs; Ctrl+Shift+1…
 always selects the 1st… visible tab):

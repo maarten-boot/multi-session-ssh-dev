@@ -1024,14 +1024,14 @@ function runDialog(dlg, submit, focus = null) {
     });
 }
 
-async function confirmDialog({title, text, ok = 'OK', check, action}) {
+async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, action}) {
     const dlg = $('#dlg-confirm');
     dlg.querySelector('h2').textContent = title;
     dlg.querySelector('.text').textContent = text;
     const okBtn = dlg.querySelector('button[value=ok]');
     okBtn.hidden = !ok;
     okBtn.textContent = ok || '';
-    dlg.querySelector('button[value=cancel]').textContent = ok ? 'Cancel' : 'Close';
+    dlg.querySelector('button[value=cancel]').textContent = ok ? cancel : 'Close';
     const checkLabel = dlg.querySelector('label.check');
     const box = dlg.querySelector('input[name=check]');
     checkLabel.hidden = !check;
@@ -1101,6 +1101,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     update();
 
     let created = null;
+    const oldMode = s?.data.start_mode;
     const ok = await runDialog(dlg, async () => {
         if (editing) {
             await UpdateSession(s.id, {
@@ -1119,6 +1120,31 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     if (!ok) return;
     await app.reload();
     if (created) app.select(app.sessions.get(created.id));
+    if (editing && s.data.start_mode !== oldMode) await offerRestart(s, oldMode);
+}
+
+const MODE_LABELS = {claude: 'claude', 'claude-continue': 'claude --continue', shell: 'a shell'};
+
+// offerRestart: a new start mode only applies when the remote tmux session is
+// created; one that is already running keeps what it started with. Offer to
+// end it, and reconnect an open Remote tab so it starts in the new mode.
+async function offerRestart(s, oldMode) {
+    await confirmDialog({
+        title: 'Restart the remote session?',
+        text: `New sessions on the agent host now start with ${MODE_LABELS[s.data.start_mode]}. ` +
+            `If tmux session ${s.data.tmux_name} on ${s.data.host} is already running, it keeps ` +
+            `running what it started with (${MODE_LABELS[oldMode]}) until it ends. Restarting ends it now, ` +
+            'including claude or anything else running in it.',
+        ok: 'Restart now',
+        cancel: 'Later',
+        action: async () => {
+            await KillRemote(s.id);
+            const v = s.tab('remote').view;
+            if (!v) return; // not open in this app run: starts in the new mode when shown
+            for (let i = 0; i < 50 && !v.exited; i++) await new Promise(r => setTimeout(r, 100));
+            if (v.exited) v.restart();
+        },
+    });
 }
 
 async function hostDialog(h = null, presetName = null) {
