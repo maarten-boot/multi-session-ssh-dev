@@ -74,7 +74,8 @@ make smoke-files     # Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/unicode/copy,
                      # folders, git markers, repository check, working copies, live share,
                      # notes and tab order, Web tab and custom tab order,
-                     # layout (font size everywhere, current tab, narrow sidebar), badges (~2 min)
+                     # layout (font size everywhere, current tab, narrow sidebar),
+                     # desktop notifications, badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -83,7 +84,7 @@ make smoke-all       # all GUI tests; each checks its results and fails on a wro
 binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
-(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux rsync sshfs git jq dbus`
+(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux rsync sshfs git jq dbus python3-dbus`
 (Debian/Ubuntu package names) and `ssh localhost` without a password; they use
 throwaway configs, never yours. One test on its own:
 
@@ -212,8 +213,13 @@ Settings value there removes the session's override.
 terminals rings the bell, and a blue ring when it starts printing again after 10 s of
 quiet (tmux's clock redraw does not count). The same happens to the visible session while
 the window is in the background. The tab that caused it is marked too; the mark clears
-when you look at it, and the window title shows how many sessions want attention. To have
-claude ring the bell when it waits for you, run `/config` inside claude on the agent host
+when you look at it, and the window title shows how many sessions want attention. A bell in
+a session you are not looking at (or while the window is in the background) also shows a
+desktop notification — *Claude is waiting* for the Remote tab — at most once a minute per
+session; clicking it opens that session, and looking at the session withdraws it (Settings:
+*Desktop notification when claude waits*; Linux uses the desktop's notification service,
+macOS may refuse notifications for the unsigned app). To have claude ring the bell when it
+waits for you, run `/config` inside claude on the agent host
 and set the notification channel to *terminal bell* (setting `preferredNotifChannel`, value
 `terminal_bell`).
 
@@ -327,6 +333,7 @@ connect_on_start = "lazy"                 # or "eager": connect all Remote tabs 
 auto_reconnect = true
 activity_badges = true
 copy_on_select = false
+notifications = true                      # desktop notification when claude waits (bell)
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
 tab_order = ["local", "files", "remote", "notes", "web"]

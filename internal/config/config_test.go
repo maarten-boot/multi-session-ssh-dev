@@ -212,3 +212,9 @@ func TestDefaultPathIgnoresRelativeXDG(t *testing.T) {
 		t.Errorf("DefaultPath() = %q, %v; want %q", p, err, want)
 	}
 }
+
+func TestNotificationsDefaultOn(t *testing.T) {
+	if c := Default(); c.UI.Notifications == nil || !*c.UI.Notifications {
+		t.Errorf("notifications default: %v", c.UI.Notifications)
+	}
+}

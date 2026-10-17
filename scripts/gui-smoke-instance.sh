@@ -3,8 +3,9 @@
 # the same config exits (D-Bus) or, without D-Bus, only shows a message and
 # leaves the config alone; another config may run alongside.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-instance.sh <binary> <outdir>
-# Needs a session bus for the first part; starts one if there is none.
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -z "$SW_IN_DBUS" ]; then
+# Needs a session bus for the first part: always its own private one (the
+# test library otherwise points the tests at an unreachable bus).
+if [ -z "$SW_IN_DBUS" ]; then
 	SW_IN_DBUS=1 exec dbus-run-session -- "$0" "$@"
 fi
 BIN=$1; OUT=$2; mkdir -p $OUT

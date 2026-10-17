@@ -89,7 +89,10 @@ type UI struct {
 	// ClaudeBackup copies each agent host's ~/.claude and ~/.claude.json to
 	// DataDir every ClaudeBackupEvery (a Go duration) while the app runs, to
 	// restore a crashed or reinstalled agent host (see internal/backup).
-	ClaudeBackup      *bool  `toml:"claude_backup,omitempty" json:"claude_backup"`
+	ClaudeBackup *bool `toml:"claude_backup,omitempty" json:"claude_backup"`
+	// Notifications shows a desktop notification when a terminal of a
+	// session you are not looking at rings the bell (claude waiting).
+	Notifications     *bool  `toml:"notifications,omitempty" json:"notifications"`
 	ClaudeBackupEvery string `toml:"claude_backup_every,omitempty" json:"claude_backup_every"`
 }
 
@@ -173,6 +176,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.UI.ClaudeBackup == nil {
 		c.UI.ClaudeBackup = ptr(true)
+	}
+	if c.UI.Notifications == nil {
+		c.UI.Notifications = ptr(true)
 	}
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"

@@ -17,6 +17,8 @@ export function BackupStatus():Promise<Record<string, backup.Status>>;
 
 export function BrowseDirectory(arg1:string):Promise<string>;
 
+export function ClearNotification(arg1:string):Promise<void>;
+
 export function CreateSession(arg1:session.NewSession):Promise<session.View>;
 
 export function DeleteGroup(arg1:string):Promise<void>;
@@ -40,6 +42,8 @@ export function LoadNotes(arg1:string):Promise<notes.Note>;
 export function MoveGroup(arg1:string,arg2:string):Promise<void>;
 
 export function MoveSession(arg1:string,arg2:string):Promise<void>;
+
+export function Notify(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function OpenBackupFolder(arg1:string):Promise<void>;
 

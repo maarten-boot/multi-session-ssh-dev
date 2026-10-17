@@ -50,6 +50,7 @@ export namespace config {
 	    tab_order: string[];
 	    hidden_tabs: string[];
 	    claude_backup?: boolean;
+	    notifications?: boolean;
 	    claude_backup_every: string;
 	
 	    static createFrom(source: any = {}) {
@@ -71,6 +72,7 @@ export namespace config {
 	        this.tab_order = source["tab_order"];
 	        this.hidden_tabs = source["hidden_tabs"];
 	        this.claude_backup = source["claude_backup"];
+	        this.notifications = source["notifications"];
 	        this.claude_backup_every = source["claude_backup_every"];
 	    }
 	}

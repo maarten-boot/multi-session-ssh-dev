@@ -107,6 +107,12 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   least max(512 bytes, 2 × columns) within 2 s; redraws within 1.5 s of a resize don't count). The
   tab that caused it is marked too; the window title counts sessions with badges. claude waiting
   for input → bell; the user sets Claude Code's `preferredNotifChannel` to `terminal_bell`.
+  A bell in such a terminal also shows a desktop notification (`notifications`, default on; Wails
+  runtime notifications: freedesktop D-Bus on Linux, toasts on Windows, Notification Center on
+  macOS, which may refuse an unsigned app): "Claude is waiting" for a Remote tab, "Bell in
+  <tab>" otherwise, with the session name and host; at most one per session per minute, and
+  none again until the session was looked at, which withdraws it. A click brings the window
+  forward and opens that session's Remote tab. Without a notification service nothing is shown.
 - F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
   gives their order, `group` on a session its folder. The sidebar shows ungrouped sessions first,
   then each folder (collapsible, with a count), each split by host. Folders can be created,

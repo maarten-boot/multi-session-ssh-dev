@@ -39,6 +39,7 @@ type App struct {
 	notes    notes.Store
 	backups  *backup.Runner
 	dataDir  string // config.DataDir: Claude backups
+	notify   notifier
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
 	running error
@@ -91,6 +92,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.dataDir != "" {
 		a.backups.Start(ctx)
 	}
+	a.notify.start(ctx)
 }
 
 // shutdown drops all connections; remote tmux sessions keep running.
@@ -100,6 +102,7 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	a.terms.KillAll()
 	a.shares.StopAll() // the agent host unmounts
+	a.notify.stop(ctx)
 }
 
 // InstanceProblem says why this instance does nothing (another one uses the

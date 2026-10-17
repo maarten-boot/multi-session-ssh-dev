@@ -10,7 +10,7 @@ import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
-    BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup,
+    BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
@@ -76,6 +76,7 @@ class Tab {
         this.pane.hidden = false;
         this.ensureView().focus();
         this.setBadge(null);
+        app.clearWaiting(this.session);
     }
 
     visible() {
@@ -84,6 +85,7 @@ class Tab {
 
     activity(kind, n) {
         const now = Date.now();
+        if (kind === 'bell' && !this.visible()) app.notifyWaiting(this.session, this.label);
         if (this.visible() || !app.state.ui.activity_badges) {
             this.lastOutput = now;
             this.burst = null;
@@ -412,6 +414,14 @@ const app = {
             if (this.active) this.checkRepo(this.active);
             const t = this.active?.activeTabObj();
             t?.setBadge?.(null);
+            if (this.active) this.clearWaiting(this.active);
+        });
+        // A click on a desktop notification opens that session's Remote tab.
+        EventsOn('notification:open', id => {
+            const s = this.sessions.get(id);
+            if (!s) return;
+            this.select(s);
+            this.selectTab('remote');
         });
         $('#btn-new').onclick = e => {
             const r = e.currentTarget.getBoundingClientRect();
@@ -610,6 +620,25 @@ const app = {
         if (this.active && !this.sessions.has(this.active.id)) this.active = null;
         for (const h of this.hostHeads) this.renderBackup(h.name);
         this.renderMain();
+    },
+
+    // notifyWaiting shows a desktop notification for a bell in a session you
+    // are not looking at (claude waiting, when it rings the bell); at most
+    // one per session per minute, and none again until it was looked at.
+    notifyWaiting(s, tab) {
+        if (this.state.ui.notifications === false) return;
+        const now = Date.now();
+        if (s.notifiedAt && now - s.notifiedAt < 60000) return;
+        s.notifiedAt = now;
+        const where = `${s.data.name} · ${s.data.host}`;
+        Notify(s.id, tab === 'Remote' ? 'Claude is waiting' : `Bell in ${tab}`, where).catch(() => {});
+    },
+
+    // clearWaiting withdraws a session's notification once it is looked at.
+    clearWaiting(s) {
+        if (!s.notifiedAt) return;
+        s.notifiedAt = 0;
+        ClearNotification(s.id).catch(() => {});
     },
 
     // renderBackup shows a host's Claude backup state in its header tooltip,
@@ -1322,6 +1351,7 @@ async function settingsDialog() {
     f.activity_badges.checked = !!ui.activity_badges;
     f.copy_on_select.checked = !!ui.copy_on_select;
     f.claude_backup.checked = ui.claude_backup !== false;
+    f.notifications.checked = ui.notifications !== false;
     const every = f.claude_backup_every;
     if (![...every.options].some(o => o.value === ui.claude_backup_every)) {
         every.append(el('option', {value: ui.claude_backup_every, textContent: ui.claude_backup_every}));
@@ -1373,6 +1403,7 @@ async function settingsDialog() {
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
         claude_backup: f.claude_backup.checked,
+        notifications: f.notifications.checked,
         claude_backup_every: f.claude_backup_every.value,
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),

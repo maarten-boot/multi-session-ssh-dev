@@ -11,6 +11,12 @@ rm -rf "$SW_OUT"; mkdir -p "$SW_OUT"
 # cannot leave state behind for the next. Restarts within a test keep it.
 export XDG_DATA_HOME=$OUT/xdg-data
 rm -rf "$XDG_DATA_HOME"; mkdir -p "$XDG_DATA_HOME"
+# Keep the tests away from the real desktop session (notifications, file
+# manager): an unreachable bus, unless the test runs its own private one
+# (SW_IN_DBUS). An empty address would fall back to the user bus.
+if [ -z "$SW_IN_DBUS" ]; then
+	export DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent
+fi
 FAILED=0
 
 ok() { echo "ok: $*"; }

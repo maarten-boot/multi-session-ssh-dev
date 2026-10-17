@@ -60,6 +60,9 @@ implementation differs from the original plan.
   current session; narrow sidebar (F6); black text everywhere (T3).
 - `claude --continue` falls back to a new conversation; restart offer on a start-mode change.
 - Claude backups (F7); one instance per config (F8); tab shortcuts in tooltips.
+- Resizable sidebar; hosts and sessions checked when the config loads; more risky git keys;
+  working copies and backups without rsync (Windows, F9); desktop notifications when claude
+  waits (F4); signed commits and tags (ssh key).
 - Docs/code cross-check (v0.8.11): shell-quoted fix commands in the repository check, Files tab
   refuses symlinks leading out of the session directory, failed live shares retried, backups
   pause without local rsync, `PgDn`/`PgUp` in `[keys]`.
@@ -72,11 +75,13 @@ implementation differs from the original plan.
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore.
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 21
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 22
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
-  check, working copies, live share, notes and tab order, Web tab, layout, badges.
+  check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
+  (fake notification service), badges; working copies and backups also with the built-in
+  transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.
   CI runs neither vet, `test-ssh` nor the GUI tests.
@@ -86,5 +91,5 @@ implementation differs from the original plan.
 - GUI verification there runs headless under Xvfb with screenshots; the "Local" tab then is a
   VM-local shell, which is fine for testing. Real use: copy the built binary to the host.
 - Linux build deps: npm, libgtk-3-dev, libwebkit2gtk-4.1-dev, build-essential, pkg-config;
-  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync, sshfs, git, jq, dbus, and
+  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync, sshfs, git, jq, dbus, python3-dbus, and
   `ssh localhost` without a password.

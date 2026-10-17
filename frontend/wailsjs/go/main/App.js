@@ -14,6 +14,10 @@ export function BrowseDirectory(arg1) {
   return window['go']['main']['App']['BrowseDirectory'](arg1);
 }
 
+export function ClearNotification(arg1) {
+  return window['go']['main']['App']['ClearNotification'](arg1);
+}
+
 export function CreateSession(arg1) {
   return window['go']['main']['App']['CreateSession'](arg1);
 }
@@ -60,6 +64,10 @@ export function MoveGroup(arg1, arg2) {
 
 export function MoveSession(arg1, arg2) {
   return window['go']['main']['App']['MoveSession'](arg1, arg2);
+}
+
+export function Notify(arg1, arg2, arg3) {
+  return window['go']['main']['App']['Notify'](arg1, arg2, arg3);
 }
 
 export function OpenBackupFolder(arg1) {
