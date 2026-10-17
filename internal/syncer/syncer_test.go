@@ -148,3 +148,27 @@ func must(a []string, err error) []string {
 	}
 	return a
 }
+
+// A session for a subdirectory of a repository: Get says why it cannot
+// work instead of "use Send first", and the send preview warns.
+func TestSubdirectoryOfRepository(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	repo := t.TempDir()
+	gitIn(t, repo, "init", "-q")
+	sub := filepath.Join(repo, "sub")
+	os.MkdirAll(sub, 0o755)
+	s := Session{ID: "s-sub", Target: "nohost.invalid", LocalPath: sub, RemotePath: "~/sw/sub-s-sub"}
+	top := subdirOf(context.Background(), s)
+	if top == "" {
+		t.Fatal("subdirectory not detected")
+	}
+	_, err := Get(context.Background(), s)
+	if err == nil || !strings.Contains(err.Error(), "part of the repository at") || strings.Contains(err.Error(), "use Send") {
+		t.Errorf("Get on a subdirectory: %v", err)
+	}
+	if got := subdirOf(context.Background(), Session{LocalPath: repo}); got != "" {
+		t.Errorf("repository top reported as subdirectory of %q", got)
+	}
+}

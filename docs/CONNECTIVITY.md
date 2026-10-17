@@ -171,7 +171,9 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
   yet (commits on a detached HEAD, stashes and tags there are not protected), and uncommitted
   changes there are only overwritten after you tick a confirmation box, so agent work is never
   lost silently. The session directory must be the top of the repository: from a subdirectory
-  no `.git` is sent and Get has nothing to fetch.
+  no `.git` is sent, so claude cannot commit there and Get has nothing to fetch. The Send
+  preview notes this, and Get says so and names the repository's top folder to create the
+  session for.
 - **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
   agent's copy into `agent-<session id>/<branch>`, shows the new commits on your current
   branch, and offers to fast-forward it. If both sides have new commits, it tells you the

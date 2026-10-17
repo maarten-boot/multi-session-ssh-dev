@@ -49,6 +49,7 @@ type Plan struct {
 	Deleted   int        `json:"deleted"`
 	Truncated bool       `json:"truncated"`
 	Blocked   string     `json:"blocked"` // why sending is not allowed now
+	Note      string     `json:"note"`    // a caveat that does not block sending
 	Done      bool       `json:"done"`    // false for a dry run
 }
 
@@ -95,6 +96,30 @@ func localGit(ctx context.Context, s Session, args ...string) (string, error) {
 	out, _, err := run(ctx, s.LocalPath, []string{"GIT_SSH_COMMAND=" + remote.SSHCommand(), "GIT_TERMINAL_PROMPT=0"},
 		"git", append([]string{"-c", "core.fsmonitor=false"}, args...)...)
 	return out, err
+}
+
+// subdirOf returns the repository's top folder when the session directory
+// is inside a repository but not its top: a working copy of it gets no
+// .git, so claude cannot commit there and Get has nothing to fetch.
+func subdirOf(ctx context.Context, s Session) string {
+	out, err := localGit(ctx, s, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return ""
+	}
+	top := strings.TrimSpace(out)
+	// The same directory, however it is written (symlinks, C:/ vs C:\,
+	// short names on Windows).
+	a, errA := os.Stat(top)
+	b, errB := os.Stat(s.LocalPath)
+	if top == "" || errA != nil || errB != nil || os.SameFile(a, b) {
+		return ""
+	}
+	return filepath.FromSlash(top)
+}
+
+func subdirProblem(top string) string {
+	return fmt.Sprintf("this folder is part of the repository at %s; a working copy gets only this folder, "+
+		"without .git, so claude's commits cannot come back with Get. Create a session for %s to use Get", top, top)
 }
 
 // probe inspects the agent copy. It also creates the parent directory so
@@ -162,6 +187,9 @@ func Send(ctx context.Context, s Session, dryRun, overwriteDirty bool) (Plan, er
 		return Plan{}, err
 	}
 	p := Plan{Agent: agent, Changes: []Change{}}
+	if top := subdirOf(ctx, s); top != "" {
+		p.Note = subdirProblem(top)
+	}
 	if agent.Repo && len(heads) > 0 {
 		p.Agent.Unfetched = unknownCommits(ctx, s, heads)
 		if p.Agent.Unfetched > 0 {
@@ -251,12 +279,19 @@ func Get(ctx context.Context, s Session) (Fetched, error) {
 	if _, err := localGit(ctx, s, "rev-parse", "--git-dir"); err != nil {
 		return f, errors.New("the session directory is not a git repository on this computer")
 	}
+	if top := subdirOf(ctx, s); top != "" {
+		return f, errors.New(subdirProblem(top))
+	}
 	agent, _, err := probe(ctx, s)
 	if err != nil {
 		return f, err
 	}
-	if !agent.Exists || !agent.Repo {
-		return f, errors.New("there is no git working copy on the agent host yet; use Send to agent first")
+	if !agent.Exists {
+		return f, errors.New("there is no working copy on the agent host yet; use Send to agent first")
+	}
+	if !agent.Repo {
+		return f, errors.New("the working copy on the agent host has no .git (removed there?); " +
+			"Send to agent again to restore it")
 	}
 	f.AgentDirty = agent.Dirty
 	url := s.Target + ":" + rsyncPath(s.RemotePath)

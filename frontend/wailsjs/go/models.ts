@@ -631,6 +631,7 @@ export namespace syncer {
 	    deleted: number;
 	    truncated: boolean;
 	    blocked: string;
+	    note: string;
 	    done: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -646,6 +647,7 @@ export namespace syncer {
 	        this.deleted = source["deleted"];
 	        this.truncated = source["truncated"];
 	        this.blocked = source["blocked"];
+	        this.note = source["note"];
 	        this.done = source["done"];
 	    }
 	

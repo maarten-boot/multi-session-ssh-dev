@@ -265,7 +265,9 @@ session directory. The share runs while the app runs; the bar shows *● shared*
 **⇡ Send** mirrors your directory there (with a preview, never destroying unfetched
 agent commits), and **⇣ Get** fetches the commits claude made there into
 `agent-<id>/<branch>` and can fast-forward your branch. Until the first Send the Remote
-tab says there is no working copy yet and offers *Send to agent…*. Needs rsync on both
+tab says there is no working copy yet and offers *Send to agent…*. Create the session for
+the repository's top folder: a subdirectory is sent without `.git`, so commits cannot come
+back (Send and Get say so). Needs rsync on both
 sides (not available on Windows yet). Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 
 **Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`

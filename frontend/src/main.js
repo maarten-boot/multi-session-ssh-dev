@@ -1446,6 +1446,7 @@ async function syncSendDialog(s) {
         };
         parts.push(el('p', {className: 'bad', textContent: `Not now: ${p.blocked}.`}), get);
     }
+    if (p.note) parts.push(el('p', {className: 'bad', textContent: `Note: ${p.note}.`}));
     const total = p.new + p.changed + p.deleted;
     parts.push(el('p', {textContent: !p.agent.exists ? `First copy: ${p.new} file(s) will be sent.` :
         total ? `On the agent host: ${p.new} new, ${p.changed} changed, ${p.deleted} deleted.` :
