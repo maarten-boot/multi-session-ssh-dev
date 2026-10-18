@@ -71,8 +71,10 @@ func main() {
 		bg = &options.RGBA{R: 30, G: 30, B: 30, A: 1}
 	}
 
-	// The size the window had when it was last closed (winstate).
+	// The size the window had when it was last closed (winstate); the
+	// position follows once the window exists (domReady).
 	win := winstate.Load(dataDir)
+	app.win = win
 	start := options.Normal
 	if win.Maximised {
 		start = options.Maximised
@@ -97,6 +99,7 @@ func main() {
 			OnSecondInstanceLaunch: app.secondInstance,
 		},
 		OnStartup:     app.startup,
+		OnDomReady:    app.domReady,
 		OnBeforeClose: app.beforeClose,
 		OnShutdown:    app.shutdown,
 		Bind: []interface{}{

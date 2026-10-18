@@ -41,7 +41,8 @@ type App struct {
 	shares   *share.Manager
 	notes    notes.Store
 	backups  *backup.Runner
-	dataDir  string // config.DataDir: Claude backups
+	dataDir  string         // config.DataDir: Claude backups, window.json
+	win      winstate.State // as the window was last closed
 	notify   notifier
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
@@ -116,15 +117,47 @@ func (a *App) shutdown(ctx context.Context) {
 	a.notify.stop(ctx)
 }
 
-// beforeClose saves the window's size for the next start; it never stops
-// the window from closing.
+// domReady puts the window back where it was closed, if that is still on
+// a screen. Wails sets a position relative to the current monitor but
+// reports it in screen coordinates (Linux, Windows), so the move is read
+// back and corrected, at most three times.
+func (a *App) domReady(ctx context.Context) {
+	if a.running != nil || !a.win.Pos || a.win.Maximised {
+		return
+	}
+	all, err := runtime.ScreenGetAll(ctx)
+	if err != nil {
+		return
+	}
+	var screens []winstate.Screen
+	for _, s := range all {
+		screens = append(screens, winstate.Screen{Width: s.Size.Width, Height: s.Size.Height, Primary: s.IsPrimary})
+	}
+	if !a.win.OnScreen(screens) {
+		return
+	}
+	x, y := a.win.X, a.win.Y
+	for range 3 {
+		runtime.WindowSetPosition(ctx, x, y)
+		time.Sleep(100 * time.Millisecond) // the window manager moves it
+		cx, cy := runtime.WindowGetPosition(ctx)
+		if cx == a.win.X && cy == a.win.Y {
+			return
+		}
+		x, y = x+a.win.X-cx, y+a.win.Y-cy
+	}
+}
+
+// beforeClose saves the window's size and position for the next start; it
+// never stops the window from closing.
 func (a *App) beforeClose(ctx context.Context) bool {
 	if a.running != nil || a.dataDir == "" {
 		return false
 	}
 	w, h := runtime.WindowGetSize(ctx)
+	x, y := runtime.WindowGetPosition(ctx)
 	normal := !runtime.WindowIsFullscreen(ctx) && !runtime.WindowIsMinimised(ctx)
-	if err := winstate.Closing(a.dataDir, w, h, runtime.WindowIsMaximised(ctx), normal); err != nil {
+	if err := winstate.Closing(a.dataDir, w, h, x, y, runtime.WindowIsMaximised(ctx), normal); err != nil {
 		fmt.Fprintln(os.Stderr, "warning: window size not saved:", err)
 	}
 	return false

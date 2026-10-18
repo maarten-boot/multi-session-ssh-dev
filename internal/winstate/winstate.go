@@ -1,4 +1,4 @@
-// Package winstate keeps the window's size across restarts: saved in
+// Package winstate keeps the window's size and position across restarts: saved in
 // <data dir>/window.json when the window closes, read at the next start
 // (before the window exists, so it cannot live in the web view's storage).
 package winstate
@@ -18,11 +18,15 @@ const (
 	MaxSide             = 16384
 )
 
-// State is the window's normal (not maximised) size and whether it was
-// maximised.
+// State is the window's normal (not maximised) size and position and
+// whether it was maximised. Without a position (Pos false) the window
+// manager places the window.
 type State struct {
 	Width     int  `json:"width"`
 	Height    int  `json:"height"`
+	Pos       bool `json:"pos,omitempty"`
+	X         int  `json:"x,omitempty"`
+	Y         int  `json:"y,omitempty"`
 	Maximised bool `json:"maximised"`
 }
 
@@ -48,15 +52,50 @@ func Load(dir string) State {
 }
 
 // Closing records the window as it closes. While maximised (or fullscreen
-// or minimised, normal false) the size is not the one to come back to, so
-// the last normal size is kept.
-func Closing(dir string, width, height int, maximised, normal bool) error {
+// or minimised, normal false) size and position are not the ones to come
+// back to, so the last normal ones are kept.
+func Closing(dir string, width, height, x, y int, maximised, normal bool) error {
 	s := Load(dir)
 	s.Maximised = maximised
 	if normal && !maximised {
 		s.Width, s.Height = width, height
+		s.Pos, s.X, s.Y = true, x, y
 	}
 	return Save(dir, s)
+}
+
+// Screen is a monitor's size; the primary one starts at 0,0.
+type Screen struct {
+	Width, Height int
+	Primary       bool
+}
+
+// OnScreen reports whether a window at the saved position would still show
+// enough of itself (100 pixels, and its title bar) with these monitors,
+// which may have changed since it closed. Only the primary monitor's place
+// is known (0,0); the others may be on any side of it, so the check only
+// keeps the window from being put off every screen.
+func (s State) OnScreen(screens []Screen) bool {
+	if !s.Pos || len(screens) == 0 {
+		return false
+	}
+	p := 0 // the primary monitor (the first if none says so)
+	for i, sc := range screens {
+		if sc.Primary {
+			p = i
+			break
+		}
+	}
+	otherW, otherH := 0, 0
+	for i, sc := range screens {
+		if i != p {
+			otherW += sc.Width
+			otherH += sc.Height
+		}
+	}
+	const margin = 100
+	return s.X+s.Width >= margin-otherW && s.X <= screens[p].Width+otherW-margin &&
+		s.Y >= -otherH && s.Y <= screens[p].Height+otherH-margin
 }
 
 // Save writes the state atomically (temp file + rename).

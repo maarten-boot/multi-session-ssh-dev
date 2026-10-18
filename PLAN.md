@@ -73,8 +73,8 @@ implementation differs from the original plan.
   unreadable config, `config.worktree`, aliases with options, `git -C / config --file` fixes),
   opener checks link targets, config ranges, safer paste (bracketed paste only), key conflict
   rule, docs brought in line.
-- Files tab: modification date column and sorting by name or date; window size remembered
-  across restarts (SIGTERM closes the window the normal way).
+- Files tab: modification date column and sorting by name or date; window size and position
+  remembered across restarts (SIGTERM closes the window the normal way).
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
@@ -88,7 +88,7 @@ implementation differs from the original plan.
   (`SW_NO_RSYNC=1`).
 - Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 24
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
-  instance per config, remembered window size, Claude backups; Files; colors, switcher, settings/keys, reconnect,
+  instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, badges; working copies and backups also with the built-in

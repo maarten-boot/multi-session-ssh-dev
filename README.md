@@ -434,15 +434,17 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | config (`config.toml`, its `.lock`, `notes/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
-| window size (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
 `-config`. Window state is what this computer remembers outside `config.toml`: the active
 session, the last tab per session, *Hidden files* and the sort order per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
-recent order and the last host and start mode used for a new session. The window's size
-(and whether it was maximised) is saved in `window.json` when the window closes — also on
-SIGTERM, e.g. at logout — and the next start opens at that size; delete the file to get the
-default 1280×800 back. The position is left to the window manager. Nothing is stored in
+recent order and the last host and start mode used for a new session. The window's size,
+position and whether it was maximised are saved in `window.json` when the window closes — also
+on SIGTERM, e.g. at logout — and the next start opens there. A position that is no longer on
+a screen (a monitor was unplugged) is not used, and on Wayland, where apps cannot place their
+windows, the compositor decides. Delete the file to get the default (1280×800, placed by the
+window manager) back. Nothing is stored in
 your projects; on the agent hosts only the tmux sessions and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).
 
@@ -467,7 +469,7 @@ internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
 internal/instance      one instance per config file (lock)
-internal/winstate      window size across restarts (window.json in the data dir)
+internal/winstate      window size and position across restarts (window.json in the data dir)
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js, web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,

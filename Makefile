@@ -76,7 +76,7 @@ clean:
 # smoke: terminal fidelity in a Local tab.
 # smoke-sessions: sidebar, dialogs, switching, menus, restart; empty config and
 #   add-host dialog; changing the start mode of a running session; one instance
-#   per config; remembered window size; Claude backups (needs a ~/.claude here).
+#   per config; remembered window size and position; Claude backups (needs a ~/.claude here).
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
