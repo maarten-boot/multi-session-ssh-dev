@@ -122,7 +122,8 @@ Default order:
 - **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
 - **Files** (Ctrl+Shift+2): the directory as a tree with each file's size and each
   entry's last modification time (local time, `2026-10-18 09:30`; a symlink shows its
-  target's), refreshed whenever you switch to it. Double-click or Enter opens a file with its default application
+  target's), refreshed whenever you switch to it. The menu in the bar sorts by *Name*,
+  *Newest first* or *Oldest first* (folders stay on top; remembered per session). Double-click or Enter opens a file with its default application
   (directories expand); arrows move (Left/Right collapse and expand), Home/End and
   PgUp/PgDn jump, F5 refreshes. Right-click a file to open it or its containing folder,
   a folder to open it in the file manager; both offer copy local / remote path and refresh.
@@ -436,7 +437,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
 `-config`. Window state is what this computer remembers outside `config.toml`: the active
-session, the last tab per session, *Hidden files* per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
+session, the last tab per session, *Hidden files* and the sort order per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
 recent order and the last host and start mode used for a new session. Nothing is stored in
 your projects; on the agent hosts only the tmux sessions and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).

@@ -196,7 +196,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 ### 4.4 Files tab
 - B1. Lazy-loaded tree of `local_path` (expand to load children); directories first, sorted
   case-insensitively; columns for size (files) and last modification time (local,
-  `YYYY-MM-DD HH:MM`, aligned; the status line repeats it for the selected entry); at most 5000 entries per directory. Hidden files (dotfiles, incl. `.git`)
+  `YYYY-MM-DD HH:MM`, aligned; the status line repeats it for the selected entry); sort order
+  name, newest first or oldest first (folders first, ties by name; per session, remembered); at most 5000 entries per directory. Hidden files (dotfiles, incl. `.git`)
   toggle, remembered per session (the Windows hidden attribute is not used). The 5000 cut is
   made in directory order, before sorting. Keyboard navigation: arrows (Left/Right collapse /
   expand or go to the parent), Home/End, PgUp/PgDn (20 rows), Enter, F5.
@@ -326,7 +327,7 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
-  WebKit's storage. Window state (active session, last tab per session, Hidden files per session, collapsed headers, sidebar width,
+  WebKit's storage. Window state (active session, last tab per session, Hidden files and sort order per session, collapsed headers, sidebar width,
   narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.

@@ -1,7 +1,7 @@
 import {GitStatus, ItemPaths, ListDir, OpenPath, RevealPath} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {el, showMenu, store} from './ui';
-import {fmtDate, fmtSize} from './format';
+import {fmtDate, fmtSize, sortEntries, SORTS} from './format';
 
 const errText = err => err?.message ?? String(err);
 
@@ -12,6 +12,7 @@ export class FilesView {
     constructor(container, session) {
         this.session = session;
         this.showHidden = store.get(`hidden:${session.id}`, false);
+        this.sort = store.get(`sort:${session.id}`, 'name');
         this.children = new Map(); // rel -> {entries, truncated} | {error}
         this.expanded = new Set([""]);
         this.selected = null;
@@ -23,6 +24,14 @@ export class FilesView {
             store.set(`hidden:${session.id}`, this.showHidden);
             this.refresh();
         };
+        this.sortBox = el('select', {className: 'files-sort', title: 'Sort order (folders stay first)'},
+            ...Object.entries(SORTS).map(([value, label]) => el('option', {value, textContent: label})));
+        this.sortBox.value = this.sort in SORTS ? this.sort : 'name';
+        this.sortBox.onchange = () => {
+            this.sort = this.sortBox.value;
+            store.set(`sort:${session.id}`, this.sort);
+            this.render();
+        };
         const refreshBtn = el('button', {className: 'icon', textContent: '⟳', title: 'Refresh'});
         refreshBtn.onclick = () => this.refresh();
         this.rootLabel = el('span', {className: 'files-root'});
@@ -32,7 +41,7 @@ export class FilesView {
         this.repoBanner = el('div', {className: 'repo-banner', hidden: true});
         this.status = el('div', {className: 'files-status'});
         container.append(el('div', {className: 'files'},
-            el('div', {className: 'files-bar'}, this.branchLabel, this.rootLabel,
+            el('div', {className: 'files-bar'}, this.branchLabel, this.rootLabel, this.sortBox,
                 el('label', {className: 'files-hidden'}, this.hiddenBox, ' Hidden files'), refreshBtn),
             this.repoBanner, this.tree, this.status));
 
@@ -172,7 +181,7 @@ export class FilesView {
                 this.rows.push({entry: {rel: null, name: c.error, error: true}, depth});
                 return;
             }
-            for (const e of c.entries) {
+            for (const e of sortEntries(c.entries, this.sort)) {
                 this.rows.push({entry: e, depth});
                 if (e.dir && this.expanded.has(e.rel)) walk(e.rel, depth + 1);
             }

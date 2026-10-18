@@ -65,6 +65,9 @@ shot 03-refused
 k shift+Tab; k shift+Tab; k space; sleep 1     # Hidden files on
 shot 04-hidden
 k space; sleep 0.5                             # and off again
+k shift+Tab; KD=0.8 k n; sleep 0.5             # sort: Newest first (README.md is from 2021)
+click $X $(row 0); k End; k Return; sleep 1    # last row is the oldest file: README.md
+shot 07-newest-first
 alive
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-files'" 2>/dev/null
@@ -72,5 +75,5 @@ expect "copied remote and local paths" "remote=[/srv/agent/proj/README.md]|local
 check "Local tab works in the session directory" test -e "$FIX/NEW-FILE.txt"
 # Without D-Bus "Open containing folder" falls back to xdg-open on the folder;
 # the ELF "tool" is refused, so it never reaches xdg-open.
-expect "xdg-open calls: containing folder, README.md" "$FIX|$FIX/README.md|" "$(tr '\n' '|' <$LOG)"
+expect "xdg-open calls: containing folder, README.md, README.md last when newest first" "$FIX|$FIX/README.md|$FIX/README.md|" "$(tr '\n' '|' <$LOG)"
 finish
