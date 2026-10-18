@@ -76,7 +76,7 @@ clean:
 # smoke: terminal fidelity in a Local tab.
 # smoke-sessions: sidebar, dialogs, switching, menus, restart; empty config and
 #   add-host dialog; changing the start mode of a running session; one instance
-#   per config; Claude backups (needs a ~/.claude here).
+#   per config; remembered window size; Claude backups (needs a ~/.claude here).
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
@@ -95,6 +95,7 @@ smoke-sessions: build
 	$(XVFB) scripts/gui-smoke-hosts.sh build/bin/session-workbench $(SMOKE_OUT)-hosts
 	$(XVFB) scripts/gui-smoke-startmode.sh build/bin/session-workbench $(SMOKE_OUT)-startmode
 	$(XVFB) scripts/gui-smoke-instance.sh build/bin/session-workbench $(SMOKE_OUT)-instance
+	$(XVFB) scripts/gui-smoke-window.sh build/bin/session-workbench $(SMOKE_OUT)-window
 	$(XVFB) scripts/gui-smoke-backup.sh build/bin/session-workbench $(SMOKE_OUT)-backup
 	SW_NO_RSYNC=1 $(XVFB) scripts/gui-smoke-backup.sh build/bin/session-workbench $(SMOKE_OUT)-backup-builtin
 

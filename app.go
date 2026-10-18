@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -26,6 +28,7 @@ import (
 	"session-workbench/internal/share"
 	"session-workbench/internal/syncer"
 	"session-workbench/internal/terminal"
+	"session-workbench/internal/winstate"
 	"session-workbench/internal/xfer"
 )
 
@@ -51,6 +54,14 @@ func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// SIGTERM (logout, kill) and Ctrl+C close the window the normal way, so
+	// its size is saved and connections are dropped (beforeClose, shutdown).
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sig
+		runtime.Quit(ctx)
+	}()
 	if a.running != nil {
 		return
 	}
@@ -103,6 +114,20 @@ func (a *App) shutdown(ctx context.Context) {
 	a.terms.KillAll()
 	a.shares.StopAll() // the agent host unmounts
 	a.notify.stop(ctx)
+}
+
+// beforeClose saves the window's size for the next start; it never stops
+// the window from closing.
+func (a *App) beforeClose(ctx context.Context) bool {
+	if a.running != nil || a.dataDir == "" {
+		return false
+	}
+	w, h := runtime.WindowGetSize(ctx)
+	normal := !runtime.WindowIsFullscreen(ctx) && !runtime.WindowIsMinimised(ctx)
+	if err := winstate.Closing(a.dataDir, w, h, runtime.WindowIsMaximised(ctx), normal); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: window size not saved:", err)
+	}
+	return false
 }
 
 // InstanceProblem says why this instance does nothing (another one uses the

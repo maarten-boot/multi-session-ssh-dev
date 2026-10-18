@@ -16,6 +16,7 @@ import (
 	"session-workbench/internal/config"
 	"session-workbench/internal/instance"
 	"session-workbench/internal/session"
+	"session-workbench/internal/winstate"
 )
 
 //go:embed all:frontend/dist
@@ -70,10 +71,18 @@ func main() {
 		bg = &options.RGBA{R: 30, G: 30, B: 30, A: 1}
 	}
 
+	// The size the window had when it was last closed (winstate).
+	win := winstate.Load(dataDir)
+	start := options.Normal
+	if win.Maximised {
+		start = options.Maximised
+	}
+
 	err = wails.Run(&options.App{
-		Title:  "Session Workbench",
-		Width:  1280,
-		Height: 800,
+		Title:            "Session Workbench",
+		Width:            win.Width,
+		Height:           win.Height,
+		WindowStartState: start,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -87,8 +96,9 @@ func main() {
 			UniqueId:               instance.ID(*cfgPath),
 			OnSecondInstanceLaunch: app.secondInstance,
 		},
-		OnStartup:  app.startup,
-		OnShutdown: app.shutdown,
+		OnStartup:     app.startup,
+		OnBeforeClose: app.beforeClose,
+		OnShutdown:    app.shutdown,
 		Bind: []interface{}{
 			app,
 		},

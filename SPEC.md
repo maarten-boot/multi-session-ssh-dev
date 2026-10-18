@@ -326,8 +326,11 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
   too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
-  `~/Library/Application Support/session-workbench` (macOS): Claude backups, and on Linux
-  WebKit's storage. Window state (active session, last tab per session, Hidden files and sort order per session, collapsed headers, sidebar width,
+  `~/Library/Application Support/session-workbench` (macOS): Claude backups, the window size
+  (`window.json`: width, height, maximised; written atomically when the window closes, also on
+  SIGTERM/Ctrl+C, which close it the normal way; while maximised, fullscreen or minimised the
+  last normal size is kept; a missing file or a size outside 640×400…16384 gives 1280×800;
+  the position is left to the window manager), and on Linux WebKit's storage. Window state (active session, last tab per session, Hidden files and sort order per session, collapsed headers, sidebar width,
   narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.
@@ -384,6 +387,7 @@ internal/share             live share (confined SFTP server, sshfs mounts)
 internal/notes             per-session notes files
 internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
+internal/winstate          window size across restarts
 frontend/src               main.js, terminal.js, files.js, notes.js, appnotes.js, prompts.js,
                            web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, style.css
 ```

@@ -73,20 +73,22 @@ implementation differs from the original plan.
   unreadable config, `config.worktree`, aliases with options, `git -C / config --file` fixes),
   opener checks link targets, config ranges, safer paste (bracketed paste only), key conflict
   rule, docs brought in line.
+- Files tab: modification date column and sorting by name or date; window size remembered
+  across restarts (SIGTERM closes the window the normal way).
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
-  check, syncer incl. the built-in transfer, xfer, share, backup, instance, terminal incl. a ConPTY test on Windows) —
+  check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, prompts
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 23
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 24
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
-  instance per config, Claude backups; Files; colors, switcher, settings/keys, reconnect,
+  instance per config, remembered window size, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, badges; working copies and backups also with the built-in
