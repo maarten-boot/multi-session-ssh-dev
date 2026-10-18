@@ -1,6 +1,7 @@
 import {GitStatus, ItemPaths, ListDir, OpenPath, RevealPath} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {el, showMenu, store} from './ui';
+import {fmtDate, fmtSize} from './format';
 
 const errText = err => err?.message ?? String(err);
 
@@ -201,9 +202,13 @@ export class FilesView {
             const caret = e.dir ? (this.expanded.has(e.rel) ? '▾' : '▸') : '';
             row.append(el('span', {className: 'caret', textContent: caret}),
                 el('span', {className: 'name', textContent: e.name + (e.dir ? '/' : '')}));
-            if (!e.dir) row.append(el('span', {className: 'size', textContent: fmtSize(e.size)}));
+            // Size (files only) and date as columns; the empty size cell keeps
+            // folders' dates in line.
+            row.append(el('span', {className: 'size', textContent: e.dir ? '' : fmtSize(e.size)}),
+                el('span', {className: 'mtime', textContent: fmtDate(e.mtime)}));
             const mark = GIT_MARK[gc];
-            if (mark) row.append(el('span', {className: 'git-mark', textContent: mark.text, title: mark.title}));
+            // Always there (empty without a mark), so the columns line up.
+            row.append(el('span', {className: 'git-mark', textContent: mark?.text || '', title: mark?.title || ''}));
             return row;
         }));
         this.tree.scrollTop = scroll;
@@ -230,7 +235,7 @@ export class FilesView {
         const label = {M: 'modified', A: 'added', D: 'deleted', R: 'renamed', '?': 'untracked', C: 'merge conflict',
             I: 'ignored by git', 'dir-M': 'contains changes', 'dir-?': 'contains untracked files', 'dir-C': 'contains conflicts'}[gc];
         if (label) parts.push(label);
-        parts.push('modified ' + new Date(e.mtime * 1000).toLocaleString());
+        if (e.mtime) parts.push('modified ' + fmtDate(e.mtime));
         this.status.textContent = parts.join('  ·  ');
         this.status.classList.remove('bad');
     }
@@ -353,14 +358,3 @@ const GIT_MARK = {
     'dir-?': {text: '•', title: 'contains untracked files'},
     'dir-C': {text: '!', title: 'contains merge conflicts'},
 };
-
-function fmtSize(n) {
-    if (n < 1024) return `${n} B`;
-    const u = ['KB', 'MB', 'GB', 'TB'];
-    let i = -1;
-    do {
-        n /= 1024;
-        i++;
-    } while (n >= 1024 && i < u.length - 1);
-    return `${n < 10 ? n.toFixed(1) : Math.round(n)} ${u[i]}`;
-}

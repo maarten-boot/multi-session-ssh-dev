@@ -7,6 +7,7 @@ BIN=$1; OUT=$2; MEASURE=$3; mkdir -p $OUT
 FIX=$OUT/fixture/proj; rm -rf $OUT/fixture
 mkdir -p "$FIX/src/pkg" "$FIX/docs" "$FIX/.git/objects" "$FIX/with space"
 echo '# readme' >"$FIX/README.md"; echo 'package main' >"$FIX/src/main.go"
+touch -d '2021-03-04 05:06' "$FIX/README.md"         # date column: 2021-03-04 05:06
 echo x >"$FIX/.gitignore"; echo y >"$FIX/with space/it's.txt"
 head -c 3000 /dev/urandom >"$FIX/docs/blob.bin"
 cp /bin/true "$FIX/tool"                       # ELF: must be refused

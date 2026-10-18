@@ -195,7 +195,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 
 ### 4.4 Files tab
 - B1. Lazy-loaded tree of `local_path` (expand to load children); directories first, sorted
-  case-insensitively; at most 5000 entries per directory. Hidden files (dotfiles, incl. `.git`)
+  case-insensitively; columns for size (files) and last modification time (local,
+  `YYYY-MM-DD HH:MM`, aligned; the status line repeats it for the selected entry); at most 5000 entries per directory. Hidden files (dotfiles, incl. `.git`)
   toggle, remembered per session (the Windows hidden attribute is not used). The 5000 cut is
   made in directory order, before sorting. Keyboard navigation: arrows (Left/Right collapse /
   expand or go to the parent), Home/End, PgUp/PgDn (20 rows), Enter, F5.
@@ -383,7 +384,7 @@ internal/notes             per-session notes files
 internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
 frontend/src               main.js, terminal.js, files.js, notes.js, appnotes.js, prompts.js,
-                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, style.css
+                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, style.css
 ```
 
 ## 6. Security considerations

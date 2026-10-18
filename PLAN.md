@@ -79,7 +79,7 @@ implementation differs from the original plan.
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, prompts
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, prompts
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer

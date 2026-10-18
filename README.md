@@ -120,8 +120,9 @@ Ctrl+Shift+1… always selects the 1st… visible tab, and hovering a tab shows 
 Default order:
 
 - **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
-- **Files** (Ctrl+Shift+2): the directory as a tree, refreshed whenever you
-  switch to it. Double-click or Enter opens a file with its default application
+- **Files** (Ctrl+Shift+2): the directory as a tree with each file's size and each
+  entry's last modification time (local time, `2026-10-18 09:30`; a symlink shows its
+  target's), refreshed whenever you switch to it. Double-click or Enter opens a file with its default application
   (directories expand); arrows move (Left/Right collapse and expand), Home/End and
   PgUp/PgDn jump, F5 refreshes. Right-click a file to open it or its containing folder,
   a folder to open it in the file manager; both offer copy local / remote path and refresh.
