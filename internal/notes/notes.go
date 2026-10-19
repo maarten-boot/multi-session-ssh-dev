@@ -154,8 +154,9 @@ func checkElem(e string) error {
 		base = base[:i]
 	}
 	switch base {
-	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM¹", "COM²", "COM³",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³":
 		return fmt.Errorf("notes: %q is a reserved name on Windows", e)
 	}
 	return nil
@@ -272,6 +273,11 @@ func (s Store) Save(book, page, text string) (Note, error) {
 		return Note{}, err
 	}
 	defer r.Close()
+	return saveLocked(r, d, page, text)
+}
+
+// saveLocked is Save for the book r in folder d, with mu held.
+func saveLocked(r *os.Root, d, page, text string) (Note, error) {
 	p := filepath.Join(d, file(page))
 	if text == "" {
 		if err := r.Remove(file(page)); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -342,18 +348,67 @@ func (s Store) Create(book, page string) (Note, error) {
 		return Note{}, err
 	}
 	mu.Lock()
-	r, _, err := s.open(book)
+	defer mu.Unlock()
+	r, d, err := s.open(book)
 	if err != nil {
-		mu.Unlock()
 		return Note{}, err
 	}
-	taken := exists(r, page)
-	r.Close()
-	mu.Unlock()
-	if taken {
+	defer r.Close()
+	if exists(r, page) {
 		return Note{}, fmt.Errorf("notes: page %q exists already", page)
 	}
-	return s.Save(book, page, "# "+path.Base(page)+"\n\n")
+	return saveLocked(r, d, page, "# "+path.Base(page)+"\n\n")
+}
+
+// within reports whether page p lies inside page root (or is root),
+// ignoring case: on Windows and macOS "design/X" is inside "Design".
+func within(p, root string) bool {
+	ps, rs := strings.Split(p, "/"), strings.Split(root, "/")
+	if len(ps) < len(rs) {
+		return false
+	}
+	for i, e := range rs {
+		if !strings.EqualFold(ps[i], e) {
+			return false
+		}
+	}
+	return true
+}
+
+// depth is the number of elements of page path p.
+func depth(p string) int { return strings.Count(p, "/") + 1 }
+
+// subDepth returns how many levels of subpages page has (0: none).
+func subDepth(r *os.Root, page string) int {
+	dir := filepath.FromSlash(page)
+	if fi, err := r.Stat(dir); err != nil || !fi.IsDir() {
+		return 0
+	}
+	deepest := 0
+	fs.WalkDir(r.FS(), page, func(p string, e fs.DirEntry, err error) error {
+		if err == nil && p != page {
+			deepest = max(deepest, strings.Count(strings.TrimPrefix(p, page), "/"))
+		}
+		return nil
+	})
+	return deepest
+}
+
+// same reports whether pages a and b are the same files on disk: a
+// case-only rename on a case-insensitive file system. Every part of b (file,
+// folder) that exists must be that part of a.
+func same(r *os.Root, a, b string) bool {
+	for _, name := range []func(string) string{file, filepath.FromSlash} {
+		fb, err := r.Stat(name(b))
+		if err != nil {
+			continue
+		}
+		fa, err := r.Stat(name(a))
+		if err != nil || !os.SameFile(fa, fb) {
+			return false
+		}
+	}
+	return true
 }
 
 // Rename moves a page with its subpages; the new name must be free and may
@@ -365,7 +420,7 @@ func (s Store) Rename(book, from, to string) error {
 	if err := CheckName(to); err != nil {
 		return err
 	}
-	if to == from || strings.HasPrefix(to, from+"/") {
+	if to == from || (within(to, from) && depth(to) > depth(from)) {
 		return fmt.Errorf("notes: cannot move %q into itself", from)
 	}
 	mu.Lock()
@@ -379,9 +434,13 @@ func (s Store) Rename(book, from, to string) error {
 		return fmt.Errorf("notes: page %q does not exist", from)
 	}
 	// On case-insensitive file systems "Design" and "design" are one name:
-	// only refuse a target that is a different page.
-	if exists(r, to) && !strings.EqualFold(to, from) {
+	// only refuse a target that is a different page. On case-sensitive ones
+	// both may exist.
+	if exists(r, to) && !(strings.EqualFold(to, from) && same(r, from, to)) {
 		return fmt.Errorf("notes: page %q exists already", to)
+	}
+	if sub := subDepth(r, from); depth(to)+sub > MaxDepth {
+		return fmt.Errorf("notes: pages nest at most %d deep: %q has %d levels of subpages", MaxDepth, from, sub)
 	}
 	if err := r.MkdirAll(filepath.Dir(file(to)), 0o700); err != nil {
 		return err

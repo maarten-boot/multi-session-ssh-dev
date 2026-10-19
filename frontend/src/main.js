@@ -9,7 +9,7 @@ import {NotesView} from './notes';
 import {AppNotesPage} from './appnotes';
 import {WebView} from './web';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
-import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
+import {EventsOn, Quit, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -398,6 +398,13 @@ const app = {
             return;
         }
         this.backups = await BackupStatus().catch(() => ({}));
+        // Quitting: notes typed in the last moments are saved first (the
+        // backend waits up to 3 s, see beforeClose).
+        EventsOn('app:closing', async () => {
+            const views = [...this.sessions.values()].map(s => s.tab('notes')?.view);
+            await Promise.allSettled([...views, this.appNotes?.view].filter(Boolean).map(v => v.save()));
+            Quit();
+        });
         // Remote tabs being recorded (session id → true), kept up to date by
         // the backend's "record" events.
         this.recording = (await RecordInfo().catch(() => null))?.recording ?? {};

@@ -52,3 +52,16 @@ test('headings inside fenced code blocks stay in the prompt', () => {
         {name: 'Next', text: 'next text'},
     ]);
 });
+
+test('a fence left open keeps the rest of the page in the prompt', () => {
+    const notes = ['## Open', 'text', '```', '## not a heading', '# nor this', 'end'].join('\n');
+    assert.deepEqual(parsePrompts(notes), [
+        {name: 'Open', text: 'text\n```\n## not a heading\n# nor this\nend'},
+    ]);
+});
+
+test('indented, bare and unspaced ## are not headings', () => {
+    const notes = ['## A', 'one', '  ## indented', '##', '##x', 'two'].join('\n');
+    assert.deepEqual(parsePrompts(notes), [{name: 'A', text: 'one\n  ## indented\n##\n##x\ntwo'}]);
+    assert.deepEqual(parsePrompts('  ## x\ntext'), []);
+});

@@ -18,7 +18,8 @@ order:
 a shell on this computer in the same directory;
 .TP
 .B Files
-the directory as a tree, with git status markers and a check for
+the directory as a tree with sizes and modification times (sorted by name or
+date), with git status markers and a check for
 repository hooks and settings that git on this computer would run;
 .TP
 .B Remote
@@ -58,6 +59,9 @@ and
 .IR ~/.claude.json ,
 without claude's login) is copied to this computer, every hour by default,
 while the application runs, so a lost agent host can be restored.
+.PP
+The Remote tab can be recorded as readable text (off by default; for all
+sessions or per session), with input typed at a password prompt hidden.
 .PP
 When claude waits for input in a session you are not looking at, the session
 is marked and a desktop notification is shown.

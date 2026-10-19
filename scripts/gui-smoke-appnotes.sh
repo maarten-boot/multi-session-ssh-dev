@@ -41,6 +41,20 @@ xdotool type --delay 10 'echo $((6*7))-pasted'; sleep 1.5
 shot 1-notes-page
 check "old notes moved to the Prompts page" test ! -e $OUT/notes/_app.md
 expect "prompt saved to notes/_app/Prompts.md" $'## Old\necho old-prompt\n\n## Answer\necho $((6*7))-pasted' "$(cat $OUT/notes/_app/Prompts.md 2>&1)"
+# The page's right-click menus (they open above it): the editor's Copy,
+# Paste, and the page tree's New page.
+k End; k Return; xdotool type --delay 10 'menu-copy'; k shift+Home
+click 480 216 3; shot 1a-menu; menu c           # the selected line: Copy
+k End; k Return
+click 600 600 3; menu p                         # below the text: Paste
+sleep 1.5
+expect "copy and paste from the right-click menu" $'menu-copy\nmenu-copy' "$(tail -2 $OUT/notes/_app/Prompts.md 2>&1)"
+k ctrl+End; k shift+Up; k shift+Up; k shift+End; k Delete; sleep 1.5   # the two lines go again
+expect "copied lines removed" $'## Old\necho old-prompt\n\n## Answer\necho $((6*7))-pasted' "$(cat $OUT/notes/_app/Prompts.md 2>&1)"
+click 330 300 3; menu                            # tree menu: "New page…" (the first item)
+xdotool type --delay 10 'Ideas'; k Return; sleep 1.5
+check "New page from the tree menu" test -f $OUT/notes/_app/Ideas.md
+click 330 146; sleep 1                          # back to Prompts (Home, Ideas, Prompts)
 click 1070 222                                   # Paste into Remote (second prompt)
 sleep 4
 shot 2-pasted

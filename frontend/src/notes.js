@@ -10,7 +10,7 @@ const isMac = navigator.platform.startsWith('Mac');
 const SESSION_HOME = 'Notes about this project: plans, open questions, what claude is working on…\n\n' +
     'Saved automatically. Stored with the app settings, not in the project, so they are not in git ' +
     'and not visible on the agent host. Right-click a page on the left for new pages and subpages.';
-const PAGE = 'An empty page. Type here; it is saved automatically.';
+export const PAGE = 'An empty page. Type here; it is saved automatically.';
 
 const errText = err => (err?.message ?? String(err)).replace(/^notes: /, '');
 // tidy makes backend errors read well in a dialog.
@@ -43,7 +43,7 @@ export class NotesView {
         this.page = null;
         this.seq = 0; // counts opens, see open
         this.dirty = false;
-        this.saving = null;
+        this.saving = null; // the last save, until it is done
 
         this.treeEl = el('div', {className: 'notes-tree', tabIndex: 0});
         const newBtn = el('button', {className: 'icon', textContent: '+', title: 'New page'});
@@ -91,7 +91,8 @@ export class NotesView {
             this.menu(e.target.closest('.notes-row')?.dataset.path ?? null, e.clientX, e.clientY);
         });
         this.treeEl.addEventListener('keydown', e => this.onKey(e));
-        window.addEventListener('blur', () => this.save());
+        this.onWindowBlur = () => this.save();
+        window.addEventListener('blur', this.onWindowBlur);
         this.loaded = this.init();
     }
 
@@ -213,21 +214,31 @@ export class NotesView {
         }
     }
 
+    // save writes the page if it has unsaved changes. Saves run one after
+    // the other (each SavePage runs on its own in the backend, so two at once
+    // could land in the wrong order); the promise resolves when the latest
+    // text is on disk, or its save failed.
     async save() {
         clearTimeout(this.timer);
         if (!this.dirty) return this.saving;
         this.dirty = false;
-        const text = this.editor.text, page = this.page, had = !!this.mtime;
-        this.saving = SavePage(this.book, page, text).then(n => {
+        const text = this.editor.text, page = this.page, prev = this.saving;
+        const saving = (async () => {
+            await prev; // never rejects
+            const had = !!this.mtime;
+            const n = await SavePage(this.book, page, text);
             if (page !== this.page) return;
             this.mtime = n.mtime;
-            if (!this.dirty) this.say(text ? `Saved ${when(n.mtime || Date.now())}` : 'Empty (no file)');
+            if (!this.dirty && this.saving === saving) this.say(text ? `Saved ${when(n.mtime || Date.now())}` : 'Empty (no file)');
             if (had !== !!n.mtime) this.loadTree(); // the page appeared or went
-        }).catch(err => {
-            this.dirty = true;
+        })().catch(err => {
+            if (this.saving === saving) this.dirty = true; // else a later save has newer text
             this.say(`Not saved: ${errText(err)}`, true);
-        }).finally(() => this.saving = null);
-        return this.saving;
+        }).finally(() => {
+            if (this.saving === saving) this.saving = null;
+        });
+        this.saving = saving;
+        return saving;
     }
 
     // --- pages ---
@@ -284,7 +295,8 @@ export class NotesView {
         await this.loadTree();
         const page = this.page, seq = ++this.seq;
         const n = await LoadPage(this.book, page).catch(() => null);
-        if (n && seq === this.seq) this.show(page, n);
+        // Edits the save before the rename could not store stay in the editor.
+        if (n && seq === this.seq && !this.dirty) this.show(page, n);
     }
 
     async remove(path) {
@@ -295,12 +307,23 @@ export class NotesView {
             text: (subs ? `Its ${subs} subpage(s) are deleted too. ` : '') + 'This cannot be undone.',
             ok: 'Delete',
             action: tidy(async () => {
+                // Unsaved edits of a page that goes are dropped, but only
+                // once it is gone: if the delete fails they are kept.
+                let dirty = false;
                 if (within(this.page, path)) {
                     clearTimeout(this.timer);
+                    dirty = this.dirty;
                     this.dirty = false;
                     await this.saving;
+                    dirty ||= this.dirty; // that save failed
+                    this.dirty = false;
                 }
-                await DeletePage(this.book, path);
+                try {
+                    await DeletePage(this.book, path);
+                } catch (err) {
+                    if (dirty) this.dirty = true;
+                    throw err;
+                }
             }),
         });
         if (!ok) return;
@@ -339,6 +362,7 @@ export class NotesView {
     }
 
     dispose() {
+        window.removeEventListener('blur', this.onWindowBlur);
         return this.save();
     }
 }

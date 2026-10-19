@@ -70,10 +70,19 @@ click $X $(row 0); k End; k Return; sleep 1    # last row is the oldest file: RE
 shot 07-newest-first
 alive
 kill $APP; wait $APP 2>/dev/null
+# The sort order is remembered: after a restart README.md is still last.
+env PATH=$BINDIR:$PATH DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent $BIN -config $CFG >>$OUT/app.log 2>&1 &
+APP=$!
+wait_window
+sleep 3; xdotool windowactivate --sync $W 2>/dev/null
+k ctrl+shift+2; sleep 1.5
+click $X $(row 0); k End; k Return; sleep 1
+shot 08-sort-after-restart
+kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-files'" 2>/dev/null
 expect "copied remote and local paths" "remote=[/srv/agent/proj/README.md]|local=[$FIX/with space]|" "$(tr '\n' '|' <$SW_OUT/pasted 2>&1)"
 check "Local tab works in the session directory" test -e "$FIX/NEW-FILE.txt"
 # Without D-Bus "Open containing folder" falls back to xdg-open on the folder;
 # the ELF "tool" is refused, so it never reaches xdg-open.
-expect "xdg-open calls: containing folder, README.md, README.md last when newest first" "$FIX|$FIX/README.md|$FIX/README.md|" "$(tr '\n' '|' <$LOG)"
+expect "xdg-open calls: containing folder, README.md, README.md last when newest first, also after a restart" "$FIX|$FIX/README.md|$FIX/README.md|$FIX/README.md|" "$(tr '\n' '|' <$LOG)"
 finish

@@ -1,7 +1,7 @@
 import {EditorSelection, EditorState} from '@codemirror/state';
 import {Decoration, EditorView, MatchDecorator, ViewPlugin, drawSelection, keymap, placeholder} from '@codemirror/view';
-import {defaultKeymap, history, historyKeymap, insertNewline} from '@codemirror/commands';
-import {HighlightStyle, syntaxHighlighting} from '@codemirror/language';
+import {defaultKeymap, history, historyKeymap, indentMore, insertNewline} from '@codemirror/commands';
+import {HighlightStyle, indentUnit, syntaxHighlighting} from '@codemirror/language';
 import {markdown, markdownLanguage} from '@codemirror/lang-markdown';
 import {tags as t} from '@lezer/highlight';
 import {ClipboardGetText, ClipboardSetText} from '../wailsjs/runtime/runtime';
@@ -53,7 +53,11 @@ const theme = EditorView.theme({
     },
     '.cm-content': {padding: '12px 16px', caretColor: 'var(--text-strong)'},
     '.cm-cursor': {borderLeftColor: 'var(--text-strong)'},
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {backgroundColor: 'var(--focus-selected)'},
+    // The base theme's focused selection ("&light.cm-focused > .cm-scroller >
+    // .cm-selectionLayer .cm-selectionBackground", lavender) has five
+    // classes: ".cm-editor" makes ours six, so it wins in both themes.
+    '&.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionLayer .cm-selectionBackground, ::selection':
+        {background: 'var(--focus-selected)'},
     '.cm-placeholder': {color: 'var(--text-strong)', fontStyle: 'italic'},
     '.cm-md-mark': {fontStyle: 'italic'},
     '.cm-md-underline': {textDecoration: 'underline'},
@@ -120,6 +124,7 @@ export class Editor {
             doc,
             extensions: [
                 history(),
+                indentUnit.of('  '),
                 drawSelection(),
                 EditorView.lineWrapping,
                 EditorView.contentAttributes.of({spellcheck: 'true', 'aria-label': 'Notes'}),
@@ -131,9 +136,11 @@ export class Editor {
                 keymap.of([
                     ...Object.entries(MARKUP).map(([name, m]) => ({key: m.key, run: v => format(v, name)})),
                     // Enter starts a plain new line (no copied indentation), Tab
-                    // indents by two spaces instead of leaving the editor.
+                    // inserts two spaces instead of leaving the editor; with a
+                    // selection it indents the selected lines.
                     {key: 'Enter', run: insertNewline},
-                    {key: 'Tab', run: v => (v.dispatch({...v.state.replaceSelection('  '), userEvent: 'input'}), true)},
+                    {key: 'Tab', run: v => v.state.selection.ranges.some(r => !r.empty) ? indentMore(v) :
+                        (v.dispatch({...v.state.replaceSelection('  '), userEvent: 'input'}), true)},
                     ...historyKeymap,
                     ...defaultKeymap,
                 ]),

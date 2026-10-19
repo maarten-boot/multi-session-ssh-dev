@@ -437,9 +437,18 @@ button.link:hover {
 
 /* --- menu --- */
 
+/* Placeholders in the theme's text color, in italics: never grey (SPEC T3). */
+::placeholder {
+    color: var(--text);
+    opacity: 1;
+    font-style: italic;
+}
+
+/* Above everything but dialogs, the notes page for all sessions (20)
+   included. */
 .menu {
     position: fixed;
-    z-index: 10;
+    z-index: 100;
     min-width: 180px;
     padding: 4px 0;
     background: var(--menu-bg);
@@ -1341,7 +1350,7 @@ dialog pre.changes {
 
 .toast {
     position: fixed;
-    z-index: 20;
+    z-index: 100;
     right: 16px;
     bottom: 16px;
     max-width: 420px;

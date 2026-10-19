@@ -272,3 +272,55 @@ func TestRecordSettings(t *testing.T) {
 		}
 	}
 }
+
+// Every [ui] value out of range or unknown in a hand-edited file gets its
+// default, so Settings → Save passes ValidateUI right after loading.
+func TestBadUIValuesReset(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "c.toml")
+	os.WriteFile(p, []byte(`[ui]
+theme = "purple"
+color_mode = "rainbow"
+min_contrast = 99
+connect_on_start = "never"
+claude_backup_every = "1s"
+record_every = "7d"
+record_dir = "relative/logs"
+`), 0o644)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateUI(c.UI); err != nil {
+		t.Errorf("loaded UI does not validate: %v (%+v)", err, c.UI)
+	}
+	if c.UI.RecordDir != "" || c.UI.RecordEvery != "1h" {
+		t.Errorf("record_dir %q, record_every %q", c.UI.RecordDir, c.UI.RecordEvery)
+	}
+}
+
+// The config example in README.md loads (no unknown keys) and validates.
+func TestReadmeExample(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "README.md"))
+	if err != nil {
+		t.Skip(err)
+	}
+	text := string(b)
+	i := strings.Index(text, "```toml\nworkspace_roots")
+	if i < 0 {
+		t.Fatal("the ```toml config example (starting with workspace_roots) is gone from README.md")
+	}
+	block := text[i+len("```toml\n"):]
+	block = block[:strings.Index(block, "```")]
+	p := filepath.Join(t.TempDir(), "c.toml")
+	os.WriteFile(p, []byte(block), 0o644)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("README example: %v", err)
+	}
+	if err := ValidateUI(c.UI); err != nil {
+		t.Errorf("README example [ui]: %v", err)
+	}
+	if len(c.Hosts) == 0 || len(c.Sessions) == 0 {
+		t.Errorf("README example: %d hosts, %d sessions", len(c.Hosts), len(c.Sessions))
+	}
+}

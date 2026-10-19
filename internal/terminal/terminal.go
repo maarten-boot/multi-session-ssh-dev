@@ -48,6 +48,9 @@ type Spec struct {
 	Env     []string // appended to the current environment
 	Cols    int
 	Rows    int
+	// OnStart, if set, gets the new terminal's id before its output is
+	// read or its exit reported (to tell the tap what it is).
+	OnStart func(id string)
 }
 
 // ExitInfo is the payload of the exit event.
@@ -126,6 +129,9 @@ func (m *Manager) Start(spec Spec) (string, error) {
 	t := &term{id: fmt.Sprintf("t%d", m.next), pty: p, cmd: cmd, out: make(chan []byte, 64)}
 	m.terms[t.id] = t
 	m.mu.Unlock()
+	if spec.OnStart != nil {
+		spec.OnStart(t.id)
+	}
 
 	readDone := make(chan struct{})
 	go t.readLoop(readDone)

@@ -9,10 +9,12 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.21: sessions with Local, Files, Remote, Notes and Web tabs, session
-folders, themes and color modes, quick switcher, activity badges, auto-reconnect,
-live share and working copies for hosts without a shared file system, Claude backups,
-settings; builds for Linux, Windows and macOS.
+Status: v0.8.29: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Notes (page trees with formatting) and Web tabs, Remote tab recordings, session folders,
+themes and color modes, quick switcher, activity badges, desktop notifications,
+auto-reconnect, live share and working copies for hosts without a shared file system,
+Claude backups, remembered window size and position, settings; builds for Linux, Windows
+and macOS.
 
 ## Download
 
@@ -68,10 +70,10 @@ make test-ssh SSH_TARGET=localhost  # ssh/tmux, working-copy, live-share and Cla
              # same paths on both sides), working copies and backups also with the built-in
              # transfer (SW_NO_RSYNC=1)
 make vet     # vet for linux and windows (all packages), darwin (internal packages)
-make clean   # remove build output (build/bin, dist, generated package docs)
+make clean   # remove build output (build/bin, frontend/dist/assets, dist, generated package docs)
 make smoke   # headless GUI test of terminal fidelity
 make smoke-sessions  # sessions/dialogs/switching/restart, add host, start-mode restart,
-                     # one instance per config, Claude backups
+                     # one instance per config, remembered window size and position, Claude backups
 make smoke-files     # Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/unicode/copy,
                      # folders, git markers, repository check, working copies, live share,
@@ -87,7 +89,7 @@ make smoke-all       # all GUI tests; each checks its results and fails on a wro
 binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
-(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux sshfs git jq dbus python3-dbus python3-gi`
+(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (gdbus)
 (rsync is optional: without it those runs use the built-in transfer; the working-copy and backup tests
 run once more with `SW_NO_RSYNC=1` anyway)
 (Debian/Ubuntu package names) and `ssh localhost` without a password; they use
@@ -122,8 +124,8 @@ Default order:
 
 - **Local** (Ctrl+Shift+1): your shell in the directory (not kept across app restarts).
 - **Files** (Ctrl+Shift+2): the directory as a tree with each file's size and each
-  entry's last modification time (local time, `2026-10-18 09:30`; a symlink shows its
-  target's), refreshed whenever you switch to it. The menu in the bar sorts by *Name*,
+  entry's last modification time (local time, `2026-10-18 09:30`; a symlink inside the session
+  directory shows its target's), refreshed whenever you switch to it. The menu in the bar sorts by *Name*,
   *Newest first* or *Oldest first* (folders stay on top; remembered per session). Double-click or Enter opens a file with its default application
   (directories expand); arrows move (Left/Right collapse and expand), Home/End and
   PgUp/PgDn jump, F5 refreshes. Right-click a file to open it or its containing folder,
@@ -151,15 +153,20 @@ Default order:
   When claude exits you get a shell.
 - **Notes** (Ctrl+Shift+4): your notes about the project, as pages in a tree like the
   Zim desktop wiki: the tree on the left, the open page on the right. Every session starts
-  with a *Home* page; right-click a page (or **+**) for *New page…*, *New subpage…*,
-  *Rename or move…* (subpages move along; `Design/API` puts a page under *Design*) and
-  *Delete…* (with its subpages, after asking). Arrow keys move through the tree.
+  with a *Home* page. **+** (or a right-click on empty space in the tree) makes a *New page…*;
+  right-click a page for *New page…*, *New subpage…*, *Rename or move…* (subpages move along;
+  `Design/API` puts a page under *Design*) and *Delete…* (with its subpages, after asking).
+  In the tree ↑/↓ open the next or previous page, →/← unfold and fold (← on a folded page
+  goes to its parent), Enter goes to the page. Page names: up to 100 characters per level
+  and 10 levels deep; not `/ \ : * ? " < > |`, no dot at the start, no space at either end.
+  The tab opens on the page you had open, else *Home*.
   Pages are Markdown, shown with their formatting while the markers stay visible
-  (in italics): headings larger, `**bold**` bold, `_italic_` italic, `~~struck~~` struck
+  (in italics): headings bold (`#` and `##` larger), `**bold**` bold, `_italic_` italic, `~~struck~~` struck
   through and `<u>underlined</u>` underlined (Markdown has no underline of its own; GitHub
   shows `<u>`). The **B I U S** buttons above the page, or Ctrl+B, Ctrl+I, Ctrl+U and
   Ctrl+Shift+X (⌘ on macOS), add or remove those markers around the selection (each line
-  of a longer selection separately). Tab indents by two spaces. Ctrl+C / Ctrl+X / Ctrl+V
+  of a longer selection separately). Tab inserts two spaces (with a selection: indents its
+  lines); Enter starts a plain new line. Ctrl+C / Ctrl+X / Ctrl+V
   (⌘ on macOS) copy, cut and paste; right-click the page for *Cut*, *Copy*, *Paste*,
   *Select all* and the four formats (a right-click outside the selection moves the cursor
   there first). Both note panels work the same.
@@ -168,9 +175,11 @@ Default order:
   per page: `notes/<session id>/Home.md`, `notes/<session id>/Design.md`,
   `notes/<session id>/Design/API.md` next to `config.toml` (owner-only, up to 4 MB each),
   not in the project, so they stay out of git and off the agent host. You can edit them
-  with any editor; the app reloads a page changed outside it. Emptying a page removes its
+  with any editor; the app reloads a page changed outside it when you come back to the tab
+  (unless you have unsaved edits there). Emptying a page removes its
   file; notes are kept when a session is deleted. Notes from before pages existed
-  (`notes/<session id>.md`) become the session's *Home* page.
+  (`notes/<session id>.md`) become the session's *Home* page (unless it exists already;
+  then the old file is left alone).
 
 - **Web** (Ctrl+Shift+5): the repository's latest **GitHub Actions runs** (the last 12:
   status, workflow, title, branch, age; refreshed while shown, every 15 s while one is
@@ -192,9 +201,11 @@ Remote*, which puts the prompt into the current
 session's Remote tab as pasted text — claude runs it when you press Enter. It waits until claude
 (or the shell) accepts a *bracketed* paste; a multi-line prompt is not pasted before that, so
 its lines cannot run one by one. A prompt runs to the next `#` or `##` heading (`###` and deeper
-stay in it, headings inside ``` code blocks too); prompts without text are skipped. For example:
+stay in it, and so do headings inside ```` ``` ```` or `~~~` code blocks); a heading starts at the
+beginning of the line with a space after the `#`s (`  ## x` and `##x` are text); prompts without
+text are skipped. For example (the arrows are comments here, not part of the page):
 
-```
+````
 ## Review
 Review the changes since the last commit for bugs and missing tests. Be brief.
 
@@ -202,8 +213,14 @@ Review the changes since the last commit for bugs and missing tests. Be brief.
 Run the tests and fix what fails.
 ### Details      ← part of "Fix tests"
 
-# Other notes    ← not a prompt; ends the one above
+## Clean build
+```sh
+# not a heading: inside a code block, part of "Clean build"
+make clean all
 ```
+
+# Other notes    ← not a prompt; ends the one above
+````
 
 Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
 
@@ -256,7 +273,7 @@ excepted): plain keys belong to the terminal. `"none"` disables a shortcut. Keys
 physical positions, so `Ctrl+Alt+1` is the 1 key on any layout. A bad binding is shown in
 the sidebar and the default is kept. When your binding uses a key another action has by
 default, yours wins and the other action is unbound (both are named in the sidebar); when two
-of your bindings collide, the one earlier in Settings → Keyboard shortcuts wins. Binding Ctrl+C,
+of your bindings collide (or two defaults), the first in this order keeps the key: next/prev session, the tabs by name, new session, quick switcher, settings, find, narrow sidebar, notes for all sessions, session 1–9, tab 1–9. Binding Ctrl+C,
 Ctrl+V, Ctrl+Shift+C or Ctrl+Shift+V is allowed but warned about: the terminal then no longer gets
 that copy, paste or interrupt key. The config is read at start: edit `[keys]` while the
 app is not running, or restart it afterwards.
@@ -363,9 +380,12 @@ sessions* records every session from that moment; a session's own setting (*Edit
 shows a red **● recording**. A recording is readable text, not a byte dump: colors and
 cursor codes are removed and a progress bar ends as its last state; what you type is
 written as a timestamped `>` line, and what you type after a password prompt (a line
-ending in `password:`, `passphrase:`, `PIN:`…) as `[hidden]`. The remote side's echo
-setting cannot be seen through ssh and tmux, so other secrets you type are recorded.
-Full-screen programs (claude's own screen, vim) come out as fragments of their redraws.
+containing password, passphrase, passcode, PIN, token or secret and ending in `:` or `?`,
+also when tmux redraws its status bar after it) as `[hidden]`. The remote side's echo
+setting cannot be seen through ssh and tmux, so other secrets you type are recorded, and so
+is anything the remote side echoes. Full-screen programs (claude's own screen, vim) come out
+as fragments of their redraws, and tmux's status line and screen redraws (blank lines when
+you attach) appear too.
 
 ```
 # workbench (vibe: /home/me/proj) — recording from 2026-10-19 11:30:02
@@ -377,10 +397,16 @@ nothing to commit, working tree clean
 [sudo] password for me:
 ```
 
-Files start every hour by default (Settings: 15 minutes to a day, counted from midnight)
-and are named after when they start: `logs/<host>/<session path>/20261019-1130.log` in the
-data folder (`~/.local/share/session-workbench/` on Linux), or in the folder set in
-Settings. A reconnect within the same hour continues its file. Files are owner-only;
+Files start every hour by default (Settings: 15 minutes to a day; `record_every` in the
+config: 5m to 24h), at clock times counted from local midnight (6h gives 00:00, 06:00, 12:00
+and 18:00, also on a DST day). The first file is named after when recording starts, later ones
+after their segment: `logs/<host>/<session path>/20261019-1130.log`, then `…-1200.log`, in the
+data folder (`~/.local/share/session-workbench/` on Linux), or in the folder set in Settings.
+A new file only starts when something is recorded. A reconnect within the same segment
+continues its file (while the app runs); after a restart, or switching off and on, a new file
+starts. Switched on while the Remote tab is not connected, recording starts (and the marker
+shows) when it connects. Changing the folder or the segment length starts a new file. A file
+that cannot be written is reported once and tried again every minute. Files are owner-only;
 nothing removes old ones. The session menu's *Open recordings folder* opens a session's
 folder.
 
@@ -403,10 +429,11 @@ in double quotes a backslash starts an escape. Hosts and sessions
 are checked with the dialogs' rules when the file is read, and problems are listed at the
 top of the sidebar; nothing in the file is changed. A session that cannot work (an invalid
 host, an unknown start mode, a relative `local_path`, an id used twice) gets a red dot and
-the reason above its tabs; for the rest (an unknown color mode, a link that is not http(s),
-a host defined twice, a folder not listed in `groups`) the app uses the default, skips the
-value, ignores the second host or shows the folder as *(missing)*; an empty name and a
-directory with two sessions on one host are only reported. A session that cannot work does not
+the reason above its tabs; for the rest (an unknown color mode or `record` value, a link that
+is not http(s), a host defined twice, a folder not listed in `groups`) the app uses the
+default, skips the value, ignores the second host or shows the folder as *(missing)*; an empty
+name, a directory with two sessions on one host and a folder listed twice or empty in `groups`
+are only reported. A session that cannot work does not
 reconnect its Remote tab by itself; the tab shows the reason.
 
 Only one copy of the app runs per config file: starting it again brings the running
@@ -466,7 +493,7 @@ ssh_target = "me@cloud-box"
 files = "sshfs"                           # mounted at ~/sw/<dir>-<session id> while the app runs
 
 [[sessions]]                              # sidebar order = order in this file
-id = "s-7f3a"                             # tmux session cw-s-7f3a; [a-z0-9-], at most 63 characters
+id = "s-7f3a"                             # tmux session cw-s-7f3a; [a-z0-9-], not starting with -, at most 63 characters
 name = "workbench"
 host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
@@ -495,9 +522,10 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 session, the last tab per session, *Hidden files* and the sort order per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
 recent order and the last host and start mode used for a new session. The window's size,
 position and whether it was maximised are saved in `window.json` when the window closes — also
-on SIGTERM, e.g. at logout — and the next start opens there. A position that is no longer on
-a screen (a monitor was unplugged) is not used, and on Wayland, where apps cannot place their
-windows, the compositor decides. Delete the file to get the default (1280×800, placed by the
+on SIGTERM (e.g. at logout) or Ctrl+C in the terminal that started it — and the next start
+opens there. A minimised or fullscreen window changes nothing. A position that is no longer on
+a screen (a monitor was unplugged) is not used, and on Wayland, where apps cannot see or place
+their windows, the position is neither saved nor set: the compositor decides. Delete the file to get the default (1280×800, placed by the
 window manager) back. Nothing is stored in
 your projects; on the agent hosts only the tmux sessions and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).
@@ -529,7 +557,7 @@ frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, note
                        editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,
-                       style.css; *.test.mjs are the node --test unit tests
+                       format.js (Files tab size/date columns and sort order), style.css; *.test.mjs are the node --test unit tests
 build/                 app icon, Windows/macOS resources for Wails
 packaging/             .desktop file, icons, man page, copyright, nfpm config for .deb/.rpm,
                        gen-docs.sh (changelog and man page per version)

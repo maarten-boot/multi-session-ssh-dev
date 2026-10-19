@@ -1,9 +1,9 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.21).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.29).
 
-**Implemented** items work today. **Planned** items are proposals; they are not in the app yet.
+Everything described here is implemented.
 
 ## The setup in one picture
 
@@ -393,7 +393,7 @@ rsync -a --ignore-existing --safe-links -e 'ssh -o ForwardAgent=no -o ClearAllFo
 | Agent host on your LAN, NFS available | A, with NFS |
 | No NFS, agent host reachable by ssh, files only needed while you work | B |
 | Agent host less trusted, or you already work with rsync | C |
-| Windows workstation | A with SMB, or B |
+| Windows workstation | A with SMB, B, or C (built-in transfer) |
 
 In every mode: review what comes back before you run git on your host, and keep credentials and
 secrets out of what you share.

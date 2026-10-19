@@ -104,6 +104,12 @@ func TestCreateRenameDelete(t *testing.T) {
 	if _, err := s.Create(book, "Design/API"); err == nil {
 		t.Error("created a page that exists")
 	}
+	// A page with subpages but no text exists too.
+	s.Save(book, "Folder/Sub", "x")
+	if _, err := s.Create(book, "Folder"); err == nil {
+		t.Error("created a page that has subpages")
+	}
+	s.Delete(book, "Folder")
 	// Rename moves the page with its subpages.
 	if err := s.Rename(book, "Design", "Architecture"); err != nil {
 		t.Fatal(err)
@@ -148,7 +154,8 @@ func TestNames(t *testing.T) {
 		}
 	}
 	for _, p := range []string{"", "/a", "a/", "a//b", "..", "../x", ".hidden", "a\\b", "a:b", "a*", "a?", `a"`, "a<b", "a|b",
-		" a", "a ", "a.", "x\x01", "notes.md", "CON", "nul.txt", "com1", strings.Repeat("x", 101),
+		" a", "a ", "a.", "x\x01", "notes.md", "CON", "nul.txt", "com1", "CONIN$", "conout$.txt", "COM¹", "lpt³", "LPT².x",
+		strings.Repeat("x", 101),
 		strings.Repeat("a/", 10) + "a"} {
 		if err := CheckName(p); err == nil {
 			t.Errorf("CheckName(%q) accepted", p)
@@ -169,6 +176,92 @@ func TestSizeLimit(t *testing.T) {
 	s := newStore(t)
 	if _, err := s.Save(book, Home, strings.Repeat("x", MaxSize+1)); err == nil {
 		t.Error("oversized page saved")
+	}
+	// One written by something else is not loaded.
+	d := filepath.Join(s.Dir, book)
+	os.MkdirAll(d, 0o700)
+	if err := os.WriteFile(filepath.Join(d, "Big.md"), make([]byte, MaxSize+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Load(book, "Big"); err == nil {
+		t.Error("oversized page loaded")
+	}
+}
+
+// A symlink out of the book is not followed.
+func TestSymlinkOutside(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	s := newStore(t)
+	outside := filepath.Join(t.TempDir(), "secret.md")
+	os.WriteFile(outside, []byte("secret"), 0o600)
+	d := filepath.Join(s.Dir, book)
+	os.MkdirAll(d, 0o700)
+	if err := os.Symlink(outside, filepath.Join(d, "Home.md")); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.Load(book, Home); err == nil {
+		t.Errorf("loaded through a symlink out of the book: %+v", n)
+	}
+}
+
+// caseSensitive reports whether the file system under dir tells "a" from "A".
+func caseSensitive(t *testing.T, dir string) bool {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "a"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := os.Stat(filepath.Join(dir, "A"))
+	return err != nil
+}
+
+func TestRenameCase(t *testing.T) {
+	s := newStore(t)
+	if _, err := s.Create(book, "Design"); err != nil {
+		t.Fatal(err)
+	}
+	// "design/X" lies inside "Design" on Windows and macOS.
+	if err := s.Rename(book, "Design", "design/X"); err == nil {
+		t.Error("moved a page into itself (other case)")
+	}
+	if got := tree(t, s, book); !slices.Equal(got, []string{"Design*"}) {
+		t.Errorf("after refused move: %v", got)
+	}
+	if !caseSensitive(t, t.TempDir()) {
+		t.Skip("case-insensitive file system")
+	}
+	// Here "Design" and "design" are two pages: no overwriting.
+	if _, err := s.Save(book, "design", "keep me"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Rename(book, "Design", "design"); err == nil {
+		t.Error("rename overwrote a page that differs only in case")
+	}
+	if n, _ := s.Load(book, "design"); n.Text != "keep me" {
+		t.Errorf("design: %q", n.Text)
+	}
+}
+
+func TestRenameDepth(t *testing.T) {
+	s := newStore(t)
+	for _, p := range []string{"A/B/C/D/E", "P/Q/R/S/T/U/V"} {
+		if _, err := s.Save(book, p, "x"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A has 4 levels below it: at depth 8 that is 12.
+	if err := s.Rename(book, "A", "P/Q/R/S/T/U/V/A"); err == nil {
+		t.Error("moved pages deeper than MaxDepth")
+	}
+	if err := s.Rename(book, "A", "P/Q/R/S/T/A"); err != nil {
+		t.Errorf("move to depth 10: %v", err)
+	}
+	if _, err := s.Tree(book); err != nil {
+		t.Error(err)
+	}
+	if n, err := s.Load(book, "P/Q/R/S/T/A/B/C/D/E"); err != nil || n.Text != "x" {
+		t.Errorf("deepest page: %+v %v", n, err)
 	}
 }
 

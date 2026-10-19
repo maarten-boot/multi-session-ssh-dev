@@ -43,6 +43,10 @@ sleep 1; shot 1-recording
 t 'echo rec-$((6*7))'
 t "read -s -p 'Password: ' x; echo; echo got-\${#x}-chars"
 t 's3cret' 1.5
+# A program of its own: tmux renames the window and redraws its status bar
+# after the prompt, so the prompt is no longer the line the cursor is on.
+t "python3 -c 'import getpass; print(\"py-got-%d-chars\" % len(getpass.getpass(\"Password: \")))'" 2
+t 'pyS3cret' 1.5
 F=$(ls "$LOGS"/*.log 2>/dev/null | head -1)
 check "log file named YYYYMMDD-HHMM.log" grep -qE '/[0-9]{8}-[0-9]{4}\.log$' <<<"$F"
 check "input recorded with a timestamp" grep -qE '^[0-9-]{10} [0-9:]{8} > echo rec-\$\(\(6\*7\)\)$' <<<"$(logtext)"
@@ -50,6 +54,9 @@ check "output recorded as text" grep -qx 'rec-42' <<<"$(logtext)"
 check "password input hidden" grep -qE '> \[hidden\]$' <<<"$(logtext)"
 check "password not in the log" test -z "$(logtext | grep -F s3cret)"
 check "output after it" grep -qx 'got-6-chars' <<<"$(logtext)"
+check "password hidden after a window rename" test "$(logtext | grep -cE '> \[hidden\]$')" -ge 2
+check "that password not in the log" test -z "$(logtext | grep -F pyS3cret)"
+check "output after that" grep -qx 'py-got-8-chars' <<<"$(logtext)"
 check "not recorded before switching on" test -z "$(logtext | grep -F not-recorded-1)"
 expect "log file is private" "-rw-------" "$(stat -c %A "$F" 2>&1)"
 

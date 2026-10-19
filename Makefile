@@ -69,7 +69,8 @@ clean:
 	rm -rf build/bin frontend/dist/assets dist build/pkgdocs
 
 # Headless GUI tests (Linux; need xvfb, xdotool, imagemagick, and for most of
-# them `ssh localhost` without prompts, tmux, rsync, sshfs, git, jq, dbus). Screenshots
+# them `ssh localhost` without prompts, tmux, rsync, sshfs, git, jq, dbus, python3-dbus,
+# python3-gi, gdbus). Screenshots
 # land in $(SMOKE_OUT)-*. They use throwaway configs, never yours. Each test
 # checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails
 # on a wrong one; `make -k smoke-all` runs the rest after a failure.
@@ -83,7 +84,7 @@ clean:
 #   find/unicode/copy-on-select, folders, git markers, repository check, working
 #   copies, live share, notes and tab order, Web tab and custom tab order, layout
 #   (font size, current tab, narrow sidebar), desktop notifications (fake
-#   notification service, needs python3-dbus), notes for all sessions and
+#   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
 #   copy/paste, Remote tab recordings, activity badges (~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"

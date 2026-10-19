@@ -205,6 +205,9 @@ func (c *Config) applyDefaults() {
 	if _, err := RecordEvery(c.UI); err != nil {
 		c.UI.RecordEvery = "1h"
 	}
+	if !validRecordDir(c.UI.RecordDir) {
+		c.UI.RecordDir = "" // the default folder
+	}
 	normalizeTabs(&c.UI)
 }
 
@@ -226,6 +229,11 @@ func RecordEvery(u UI) (time.Duration, error) {
 		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
 	}
 	return d, nil
+}
+
+// validRecordDir: empty (the default), absolute, or under ~.
+func validRecordDir(d string) bool {
+	return d == "" || filepath.IsAbs(d) || d == "~" || strings.HasPrefix(d, "~/") || strings.HasPrefix(d, `~\`)
 }
 
 // ValidateUI checks UI settings coming from the settings dialog.
@@ -250,8 +258,8 @@ func ValidateUI(u UI) error {
 	if _, err := RecordEvery(u); err != nil {
 		return err
 	}
-	if d := u.RecordDir; d != "" && !filepath.IsAbs(d) && d != "~" && !strings.HasPrefix(d, "~/") && !strings.HasPrefix(d, `~\`) {
-		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", d)
+	if !validRecordDir(u.RecordDir) {
+		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", u.RecordDir)
 	}
 	for _, t := range append(append([]string{}, u.TabOrder...), u.HiddenTabs...) {
 		if !slices.Contains(Tabs, t) {

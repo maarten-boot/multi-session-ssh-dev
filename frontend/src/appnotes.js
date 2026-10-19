@@ -1,6 +1,6 @@
 import {CreatePage, LoadPage} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
-import {NotesView} from './notes';
+import {NotesView, PAGE} from './notes';
 import {parsePrompts} from './prompts';
 import {el, toast} from './ui';
 
@@ -41,9 +41,10 @@ export class AppNotesPage {
         host.append(this.el);
         this.texts = new Map(); // Prompts page path → its text, in tree order
         this.hasPromptsPage = false;
+        this.promptsSeq = 0; // counts loadPrompts runs: only the last one counts
         this.view = new NotesView(editor, '_app', {
             title: 'Notes', dialogs,
-            placeholder: page => PLACEHOLDERS[page] ?? 'An empty page. Type here; it is saved automatically.',
+            placeholder: page => PLACEHOLDERS[page] ?? PAGE,
             onChange: (page, text) => {
                 if (!isPrompts(page)) return;
                 this.texts.set(page, text);
@@ -67,13 +68,15 @@ export class AppNotesPage {
             walk(p.children);
         });
         walk(pages);
-        this.hasPromptsPage = paths.length > 0;
+        const seq = ++this.promptsSeq;
         const texts = new Map();
         for (const p of paths) {
             // The open page's text is the editor's, which may not be saved yet.
             const known = p === this.view.page ? this.view.editor.text : null;
             texts.set(p, known ?? (await LoadPage('_app', p).catch(() => ({text: ''}))).text);
         }
+        if (seq !== this.promptsSeq) return;
+        this.hasPromptsPage = paths.length > 0;
         this.texts = texts;
         this.render();
     }

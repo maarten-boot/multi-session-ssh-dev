@@ -8,7 +8,10 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -45,6 +48,8 @@ type App struct {
 	rec      *reclog.Recorder // Remote tab recordings
 	dataDir  string           // config.DataDir: Claude backups, window.json
 	win      winstate.State   // as the window was last closed
+	placed   sync.Once        // the window was put back where it was (domReady)
+	closing  atomic.Bool      // the page was asked to save before quitting (beforeClose)
 	notify   notifier
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
@@ -65,6 +70,7 @@ func (a *App) startup(ctx context.Context) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sig
+		signal.Stop(sig) // a second Ctrl+C kills the app the default way
 		runtime.Quit(ctx)
 	}()
 	if a.running != nil {
@@ -133,10 +139,17 @@ func (a *App) shutdown(ctx context.Context) {
 // a screen. Wails sets a position relative to the current monitor but
 // reports it in screen coordinates (Linux, Windows), so the move is read
 // back and corrected, at most three times.
+// It runs once, in the background: Wails calls OnDomReady on the goroutine
+// that handles the page's messages. Closing within those 300 ms may save a
+// half-corrected position.
 func (a *App) domReady(ctx context.Context) {
-	if a.running != nil || !a.win.Pos || a.win.Maximised {
+	if a.running != nil || !a.win.Pos || a.win.Maximised || onWayland() {
 		return
 	}
+	a.placed.Do(func() { go a.place(ctx) })
+}
+
+func (a *App) place(ctx context.Context) {
 	all, err := runtime.ScreenGetAll(ctx)
 	if err != nil {
 		return
@@ -160,16 +173,26 @@ func (a *App) domReady(ctx context.Context) {
 	}
 }
 
-// beforeClose saves the window's size and position for the next start; it
-// never stops the window from closing.
+// beforeClose runs before the window closes. The first time it keeps the
+// window open and asks the page to save its notes ("app:closing"); the page
+// then quits again, or after 3 s the app quits anyway. Then it saves the
+// window's size and position for the next start.
 func (a *App) beforeClose(ctx context.Context) bool {
-	if a.running != nil || a.dataDir == "" {
+	if a.running != nil {
+		return false
+	}
+	if a.closing.CompareAndSwap(false, true) {
+		runtime.EventsEmit(ctx, "app:closing")
+		time.AfterFunc(3*time.Second, func() { runtime.Quit(ctx) })
+		return true
+	}
+	if a.dataDir == "" {
 		return false
 	}
 	w, h := runtime.WindowGetSize(ctx)
 	x, y := runtime.WindowGetPosition(ctx)
 	normal := !runtime.WindowIsFullscreen(ctx) && !runtime.WindowIsMinimised(ctx)
-	if err := winstate.Closing(a.dataDir, w, h, x, y, runtime.WindowIsMaximised(ctx), normal); err != nil {
+	if err := winstate.Closing(a.dataDir, w, h, x, y, runtime.WindowIsMaximised(ctx), normal, !onWayland()); err != nil {
 		fmt.Fprintln(os.Stderr, "warning: window size not saved:", err)
 	}
 	return false
@@ -604,11 +627,11 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tid, err := a.terms.Start(terminal.Spec{Command: ssh, Args: args, Cols: cols, Rows: rows})
-	if err == nil {
-		a.rec.Attach(tid, reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath})
-	}
-	return tid, err
+	tgt := reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath}
+	// Attached before any output is read: none is lost, and a connection
+	// that ends at once is not left recording.
+	return a.terms.Start(terminal.Spec{Command: ssh, Args: args, Cols: cols, Rows: rows,
+		OnStart: func(tid string) { a.rec.Attach(tid, tgt) }})
 }
 
 // --- Remote tab recordings ---
@@ -657,7 +680,11 @@ func (a *App) OpenLogFolder(id string) error {
 	if r.ID == "" {
 		return err
 	}
-	dir := reclog.Dir(a.recordBase(), r.Host.Name, r.LocalPath)
+	base := a.recordBase()
+	if base == "" {
+		return fmt.Errorf("no folder for recordings: set one in Settings")
+	}
+	dir := reclog.Dir(base, r.Host.Name, r.LocalPath)
 	if _, err := os.Stat(dir); err != nil {
 		return fmt.Errorf("no recordings of %s yet (they go to %s)", r.Name, dir)
 	}
@@ -700,4 +727,15 @@ func (a *App) TermResize(id string, cols, rows int) error {
 
 func (a *App) TermKill(id string) error {
 	return a.terms.Kill(id)
+}
+
+// onWayland reports whether the window runs under Wayland, where an app
+// cannot see or set its own position (GTK uses Wayland when it can, unless
+// GDK_BACKEND says x11).
+func onWayland() bool {
+	if goruntime.GOOS != "linux" || os.Getenv("WAYLAND_DISPLAY") == "" {
+		return false
+	}
+	b := os.Getenv("GDK_BACKEND")
+	return b == "" || strings.HasPrefix(b, "wayland")
 }

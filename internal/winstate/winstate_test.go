@@ -11,21 +11,31 @@ func TestRoundTrip(t *testing.T) {
 	if s := Load(dir); s != Default {
 		t.Errorf("first start: %+v", s)
 	}
-	if err := Closing(dir, 1500, 900, 40, 30, false, true); err != nil {
+	if err := Closing(dir, 1500, 900, 40, 30, false, true, true); err != nil {
 		t.Fatal(err)
 	}
 	if s := Load(dir); s != (State{Width: 1500, Height: 900, Pos: true, X: 40, Y: 30}) {
 		t.Errorf("after close: %+v", s)
 	}
 	// Maximised: remembered as such, the normal size and position are kept.
-	Closing(dir, 2560, 1400, 0, 0, true, true)
+	Closing(dir, 2560, 1400, 0, 0, true, true, true)
 	if s := Load(dir); s != (State{Width: 1500, Height: 900, Pos: true, X: 40, Y: 30, Maximised: true}) {
 		t.Errorf("maximised: %+v", s)
 	}
-	// Fullscreen or minimised (not normal): size and position kept.
-	Closing(dir, 10, 10, -5000, -5000, false, false)
-	if s := Load(dir); s != (State{Width: 1500, Height: 900, Pos: true, X: 40, Y: 30}) {
+	// Minimised (or fullscreen): nothing changes, maximised stays (Windows
+	// reports a minimised window as not maximised).
+	Closing(dir, 10, 10, -5000, -5000, false, false, true)
+	if s := Load(dir); s != (State{Width: 1500, Height: 900, Pos: true, X: 40, Y: 30, Maximised: true}) {
 		t.Errorf("not normal: %+v", s)
+	}
+	// Position unknown (Wayland): the size is saved, the position kept.
+	Closing(dir, 1200, 700, 0, 0, false, true, false)
+	if s := Load(dir); s != (State{Width: 1200, Height: 700, Pos: true, X: 40, Y: 30}) {
+		t.Errorf("position unknown: %+v", s)
+	}
+	// No data dir: nothing to do, no error.
+	if err := Closing("", 1, 1, 0, 0, false, true, true); err != nil {
+		t.Error(err)
 	}
 }
 

@@ -1,11 +1,13 @@
 # Session Workbench — Specification
 
-Status: v1.2 (2026-10-17, app v0.8.21) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.3 (2026-10-19, app v0.8.29) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
-(N2), terminal copy/paste (T2), live share and working copies (docs/CONNECTIVITY.md) and Linux
-packages. Sections describe the implemented behaviour.
+(N2), terminal copy/paste (T2), live share and working copies (docs/CONNECTIVITY.md), Linux
+packages, Files tab date column and sort order (B1), window size and position remembered
+(§4.7), notes as page trees with a formatting editor (N1, N1a) and Remote tab recordings (F10).
+Sections describe the implemented behaviour.
 
 ## 1. Problem
 
@@ -28,7 +30,7 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 | **Local**  | Terminal: local shell on the host, cwd = `<local path>` (git, builds, etc.)      |
 | **Files**  | Tree view of `<local path>`; double-click opens the file with the OS default app |
 | **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
-| **Notes**  | Free-text notes about the project (N1)                                          |
+| **Notes**  | Notes as a tree of Markdown pages, shown formatted (N1, N1a)                    |
 | **Web**    | Build runs and web links of the repository (W1)                                 |
 
 A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
@@ -39,7 +41,7 @@ the sidebar (tinted background, thick accent bar, bold label).
 Switching sessions and tabs is instant and keyboard driven.
 
 ### Non-goals (v1)
-- No built-in editor, diff viewer, or git UI.
+- No built-in code editor, diff viewer, or git UI (only the Markdown notes editor, N1a).
 - No credential handling of any kind (the app relies on the user's existing SSH setup).
 - No running the app on the agent host; no multi-user features.
 - No managing NFS mounts.
@@ -81,6 +83,7 @@ local_init = "git status"              # optional, typed into the Local tab (L2)
 env        = { FOO = "bar" }           # optional, Local tab environment (L2)
 group      = "Work"                    # optional, sidebar folder listed in `groups` (F5)
 links      = [{ name = "Staging", url = "https://staging.example.com" }]   # optional, Web tab (W1)
+record     = "on"                      # optional, "on"/"off" overrides record_remote (F10)
 ```
 Session ids are generated (`s-` + 4 hex digits) and restricted to `[a-z0-9-]`, starting with a
 letter or digit, at most 63 characters.
@@ -162,16 +165,31 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   taps output and input (internal/reclog): output as readable text (escape sequences dropped;
   CR, BS, erase-in-line, column moves and character insert/delete applied to the current line;
   a move to another row or a screen clear ends the line; lines at most 10 000 characters),
-  input as `YYYY-MM-DD HH:MM:SS > line` per Enter (editing keys applied, arrows and function
-  keys dropped, ^C/^D/^Z shown, each line of a paste a line), input typed while the output
-  line ends in a password prompt (`password`, `passphrase`, `passcode`, `PIN`, `token`,
-  `secret` followed by `:` or `?`) as `[hidden]`. Files per segment (`record_every`, 5m–24h,
-  default 1h, aligned to local midnight), named `YYYYMMDD-HHMM.log` after their start, in
-  `<record_dir or data dir/logs>/<host>/<local path>` (path elements made safe for every
-  OS), owner-only, each starting with a `#` line (session, host, path, time) and ending
-  with `# continued in …`, `# recording stopped at …` or `# connection ended at …`. A
-  reconnect within the segment continues the file. A red "● recording" in the session bar;
-  the session menu opens the folder. Failing to open a file is shown as a message.
+  input as `YYYY-MM-DD HH:MM:SS > line` per Enter (editing keys applied, arrows, function
+  keys and mouse reports dropped, a lone Esc dropped, ^C/^D/^Z shown, each line of a paste a
+  line), input typed while the output line ends in a password prompt (`password`,
+  `passphrase`, `passcode`, `PIN`, `token`, `secret` followed by `:` or `?`), or after such a
+  prompt line that a cursor move rather than a newline ended (tmux redrawing its status bar),
+  as `[hidden]` (`[hidden]^C` if ended by ^C/^D/^Z; ^C alone stays `^C`; once a line of a
+  paste is hidden, the rest of it is too). Files per segment (`record_every`, 5m–24h, default
+  1h; bounds are clock times counted from local midnight, so a DST day has one longer or
+  shorter segment, and when the length does not divide 24h the day's last segment ends at
+  midnight), the first named `YYYYMMDD-HHMM.log` after the moment recording starts, later
+  ones after their segment's start, in `<record_dir or data dir/logs>/<host>/<local path>`
+  (path elements made safe for every OS; Windows reserved names such as `CON` or `nul.txt`
+  get a `_`), owner-only, each starting with a `#` line (session, host, path, time) and
+  ending with `# continued in …`, `# recording stopped at …` or `# connection ended at …`
+  (the last line goes into the current file even after its segment ended). A new file only
+  starts when something is recorded. A reconnect within the segment continues the file
+  (within one app run). Recording switched on while the Remote tab is not connected starts
+  when it connects. A red "● recording" in the session bar; the session menu opens the
+  folder. Failing to open or write a file is shown as a message, once per folder and segment
+  setting; a file that fails while recording is tried again once a minute. A changed
+  `record_dir` or `record_every` ends the running file (`# recording stopped at …`) and
+  starts a new one. Output and input are queued for a writer and never wait for the disk;
+  what does not fit is left out with a `# N bytes not recorded` line, and the next input line
+  is hidden. Terminals register with the recorder before they start (`terminal.Spec.OnStart`),
+  so even a connection that ends at once is recorded and closed.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
@@ -251,24 +269,26 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (Home always first, then by name; pages without text of their own in italics; expanded
   folders and the open page remembered per session), editor on the right. Context menu / +:
   new page, new subpage, rename or move (a path with `/`; subpages follow; the target must be
-  free and not inside the page), delete (with subpages, confirmed). Page `Design/API` is
+  free, not inside the page (ignoring case) and keep the subpages within 10 levels; a
+  case-only rename only of the page itself), delete (with subpages, confirmed). Page `Design/API` is
   `notes/<session id>/Design/API.md` next to the config file (owner-only folders and files,
   atomic writes, at most 4 MB a page, through `os.Root`), not in the project: notes stay out
   of git and are not visible to the agent host. Names: 1–100 characters per element, at most
-  10 deep, none of `/ \ : * ? " < > |`, no leading dot, no leading/trailing space or trailing
+  10 deep (at most 5000 pages listed per tree), none of `/ \ : * ? " < > |`, no leading dot, no leading/trailing space or trailing
   dot, not ending in `.md`, no Windows device names. An empty page removes its file and
   folders left empty. Saved automatically (shortly after typing stops, on opening another
   page, on leaving the tab, when the window loses focus); reloaded when shown if changed
   outside the app (unless there are unsaved edits); kept when the session is deleted. The old
   `notes/<id>.md` is moved to the Home page on first use (unless Home exists).
 - N1a. Editor: CodeMirror 6 with Markdown (GFM); the text keeps its markers, shown in
-  italics, and is drawn formatted: headings larger and bold, `**bold**`, `_italic_`,
-  `~~strike~~`, `<u>underline</u>`, inline code in the monospace font. Toolbar B I U S and
+  italics, and is drawn formatted: headings bold (`#` 1.4×, `##` 1.2×), `**bold**`, `_italic_`,
+  `~~strike~~`, `<u>underline</u>`, quotes in italics, links underlined; the page uses the
+  terminal font (Settings). Toolbar B I U S and
   Mod+B / Mod+I / Mod+U / Mod+Shift+X toggle the markers around the selection: no selection
   inserts a pair (or removes an empty one around the cursor); one line keeps outer whitespace
   outside and removes markers inside or just outside the selection, else adds them; several
   lines are toggled line by line (removed only if every non-blank line has them). Enter is a
-  plain new line, Tab inserts two spaces. Mod+C/X/V copy, cut and paste; a right-click menu
+  plain new line, Tab inserts two spaces (with a selection: indents its lines by two). Mod+C/X/V copy, cut and paste; a right-click menu
   offers Cut, Copy, Paste (system clipboard), Select all and the four formats; a right-click
   outside the selection moves the cursor there first.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
@@ -278,7 +298,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   heading there starts a prompt (its text runs to the next `#`/`##` heading); the page lists them with Copy (clipboard)
   and Paste into Remote (bracketed paste into the active session's Remote tab once connected and
   the program there has turned bracketed paste on; a multi-line prompt is refused until then, so
-  its lines cannot run one by one; no Enter). Headings inside fenced code blocks don't count. Esc, ✕, the key or selecting a session closes it.
+  its lines cannot run one by one; no Enter). Headings inside fenced code blocks (``` or ~~~, closed by a fence of the same kind and at least the same length) don't count; a heading starts in column 0 with a space after the `#`s. Esc, ✕, the key or selecting a session closes it.
 
 ### 4.4b Web tab
 - W1. Links for the repository's web pages derived from its git remote (read from the
@@ -337,7 +357,8 @@ Each tab's tooltip shows its shortcut. Rebinding: `[keys]` table, action name �
 Cmd on macOS, Ctrl elsewhere; `"none"` disables; `PgUp`/`PgDn` = `PageUp`/`PageDown`). A binding
 needs Ctrl, Alt or Cmd, except F-keys. A bad binding is reported in the UI and the default is
 kept; when two actions use the same key, both are named: your binding beats a default (whose
-action becomes unbound), otherwise the later one in this table is disabled. Binding the terminal's
+action becomes unbound), otherwise the first in this order keeps it (the other is disabled):
+next/prev session, the tabs by name, new session, quick switcher, settings, find, narrow sidebar, notes for all sessions, session 1–9, tab 1–9 (`ACTIONS` in frontend/src/keys.js). Binding the terminal's
 copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. Read at start (restart after editing); Settings lists the current bindings.
 
 ### 4.7 Configuration
@@ -353,25 +374,33 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
   dialogs' rules when the file is read (`session.Problems`), listed at the top of the sidebar,
   and the file is not changed. What keeps a session from working (invalid host, unknown start
   mode, relative `local_path`, duplicate id) is its error: red dot, reason above the tabs, no
-  Remote tab. Otherwise the app falls back: unknown color mode → the global one, a non-http(s)
+  Remote tab. Otherwise the app falls back: unknown color mode or `record` value → the global
+  one, a non-http(s)
   link is not shown, the second of two hosts with one name is ignored; an empty name, a
   directory with two sessions on one host, a folder not in `groups`, a duplicate or empty folder
   name are only reported. A Remote tab that cannot start for such an error does not reconnect
-  automatically; it shows the reason. Out-of-range `font_size` (6–48) and `scrollback`
-  (1–1 000 000) get their defaults.
+  automatically; it shows the reason. Every `[ui]` value out of range or unknown gets its
+  default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
+  `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),
+  `record_dir` (absolute or under `~`).
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
   too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, the window size
-  and position (`window.json`: width, height, x, y, maximised; written atomically when the
-  window closes, also on SIGTERM/Ctrl+C, which close it the normal way; while maximised,
-  fullscreen or minimised the last normal size and position are kept; a missing file or a size
-  outside 640×400…16384 gives 1280×800). The position is restored once the page is loaded:
-  Wails sets it relative to the current monitor but reports screen coordinates, so the move is
-  read back and corrected (at most 3 times); it is skipped when less than 100 pixels of the
+  and position (`window.json`: width, height, pos (x, y known), x, y, maximised; written
+  atomically when the window closes, also on SIGTERM/Ctrl+C, which close it the normal way (a
+  second signal kills the app); a minimised or fullscreen window changes nothing (Windows
+  reports a minimised window as not maximised); while maximised the last normal size and
+  position are kept; a missing file or a size outside 640×400…16384 gives 1280×800). The
+  position is restored once, in the background, when the page is loaded: Wails sets it
+  relative to the current monitor but reports screen coordinates, so the move is read back and
+  corrected (at most 3 times, 100 ms apart); it is skipped when less than 100 pixels of the
   window, or its title bar, would be on a screen (only the primary monitor's place is known,
-  the others count as possibly on any side), and on Wayland the compositor places windows. and on Linux WebKit's storage. Window state (active session, last tab per session, Hidden files and sort order per session, collapsed headers, sidebar width,
+  the others count as possibly on any side). On Wayland (`WAYLAND_DISPLAY` set, `GDK_BACKEND`
+  not x11) the position is neither saved nor set: the compositor places windows.
+  On Linux the data dir also holds WebKit's storage. Window state (active session, last tab
+  per session, Hidden files and sort order per session, collapsed headers, sidebar width,
   narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.
@@ -388,7 +417,7 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 │ Backend (Go)                                                      │
 │   config · session manager · pty manager · pathmap · fs · opener  │
 │   gitstatus · notes · forge · syncer · xfer · share · backup ·    │
-│   instance · notify                                               │
+│   instance · winstate · reclog · notify                           │
 └───────────┬───────────────────────────────┬───────────────────────┘
             │ PTY: local shell              │ PTY: ssh → agent host → tmux → claude
 ```
@@ -466,6 +495,10 @@ repository config and warns again whenever they change.
   visible, so other secrets typed there are recorded.
 - Fix commands the repository check suggests are shell-quoted: key names and paths come from a
   repository the agent host may have written.
+- Notes: the book is a validated session id or `_app`; page names are checked (no `..`,
+  separators, reserved characters or Windows device names) and files are read and written
+  through `os.Root` on the book's folder (no escape through `..` or symlinks out of it),
+  owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
   inside the directory, never created through a symlinked parent (a rename re-checks moved
   links); hard links refused; ownership changes ignored. Working copies: the built-in transfer

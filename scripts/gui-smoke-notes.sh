@@ -1,5 +1,5 @@
 #!/bin/bash
-# Headless GUI test of the tab order (Local, Files, Remote, Notes) and the
+# Headless GUI test of the default tab order (Local, Files, Remote, Notes, Web) and the
 # Notes tab: pages in a tree (notes/<id>/Home.md, Design.md, Design/API.md…),
 # autosaved, formatting from keys and the toolbar, copy and paste from the
 # right-click menu and Ctrl+C / Ctrl+V, new page / subpage,

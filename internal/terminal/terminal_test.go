@@ -198,3 +198,31 @@ func TestTap(t *testing.T) {
 		t.Errorf("input %q, exited %v", tp.in.String(), tp.exited)
 	}
 }
+
+// OnStart gets the id before the tap sees any output or the end, even of a
+// process that exits at once.
+func TestOnStart(t *testing.T) {
+	r := newRecorder()
+	m := NewManager(r)
+	tp := &tap{}
+	m.SetTap(tp)
+	var started string
+	id, err := m.Start(Spec{Command: "/bin/sh", Args: []string{"-c", "echo early"}, OnStart: func(id string) {
+		time.Sleep(100 * time.Millisecond) // the process has exited by now
+		tp.mu.Lock()
+		defer tp.mu.Unlock()
+		if tp.out.Len() > 0 || len(tp.exited) > 0 {
+			t.Error("the tap saw the terminal before OnStart")
+		}
+		started = id
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.waitExit(t)
+	tp.mu.Lock()
+	defer tp.mu.Unlock()
+	if started != id || !strings.Contains(tp.out.String(), "early") {
+		t.Errorf("OnStart got %q (id %q), tap output %q", started, id, tp.out.String())
+	}
+}

@@ -51,15 +51,26 @@ func Load(dir string) State {
 	return s
 }
 
-// Closing records the window as it closes. While maximised (or fullscreen
-// or minimised, normal false) size and position are not the ones to come
-// back to, so the last normal ones are kept.
-func Closing(dir string, width, height, x, y int, maximised, normal bool) error {
+// Closing records the window as it closes. A fullscreen or minimised
+// window (normal false) changes nothing: Windows reports a minimised window
+// as not maximised even when it is. While maximised, size and position are
+// not the ones to come back to, so the last normal ones are kept. posKnown
+// false (Wayland: apps cannot see or set their position) keeps the saved
+// position too.
+func Closing(dir string, width, height, x, y int, maximised, normal, posKnown bool) error {
+	if dir == "" {
+		return nil
+	}
 	s := Load(dir)
+	if !normal {
+		return nil
+	}
 	s.Maximised = maximised
-	if normal && !maximised {
+	if !maximised {
 		s.Width, s.Height = width, height
-		s.Pos, s.X, s.Y = true, x, y
+		if posKnown {
+			s.Pos, s.X, s.Y = true, x, y
+		}
 	}
 	return Save(dir, s)
 }

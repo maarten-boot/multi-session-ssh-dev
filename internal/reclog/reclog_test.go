@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -57,7 +58,7 @@ func TestScreen(t *testing.T) {
 func TestKeys(t *testing.T) {
 	var out []string
 	starts := 0
-	k := &keys{start: func() { starts++ }, emit: func(l string) { out = append(out, l) }}
+	k := &keys{start: func() { starts++ }, emit: func(l, suffix string) { out = append(out, l+suffix) }}
 	k.write([]byte("git statsu\x7f\x7fus\r"))       // backspace
 	k.write([]byte("\x1b[A\x1b[B\x1bOP\r"))         // arrows, F1, empty Enter: nothing
 	k.write([]byte("sleep 9\x03"))                  // ^C ends the line
@@ -74,9 +75,22 @@ func TestKeys(t *testing.T) {
 }
 
 // clock is a settable test clock.
-type clock struct{ t time.Time }
+type clock struct {
+	mu sync.Mutex
+	t  time.Time
+}
 
-func (c *clock) now() time.Time { return c.t }
+func (c *clock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.t
+}
+
+func (c *clock) add(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
 
 func read(t *testing.T, p string) string {
 	t.Helper()
@@ -89,8 +103,8 @@ func read(t *testing.T, p string) string {
 
 func TestLog(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "logs") // created by Open
-	c := &clock{time.Date(2026, 10, 19, 11, 37, 2, 0, time.Local)}
-	l, err := Open(dir, "proj (vibe: /home/me/proj)", time.Hour, c.now, nil)
+	c := &clock{t: time.Date(2026, 10, 19, 11, 37, 2, 0, time.Local)}
+	l, err := Open(dir, "proj (vibe: /home/me/proj)", time.Hour, c.now, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +113,8 @@ func TestLog(t *testing.T) {
 	l.Output([]byte("ls\r\na  b\r\n[sudo] password for me: "))
 	l.Input([]byte("s3cret\r"))
 	l.Output([]byte("\r\nme@vibe:~$ "))
-	c.t = c.t.Add(30 * time.Minute) // 12:07: the next hour's file
+	l.wait()
+	c.add(30 * time.Minute) // 12:07: the next hour's file
 	l.Input([]byte("exit\r"))
 	l.Output([]byte("exit\r\n"))
 	l.Close("connection ended")
@@ -132,7 +147,7 @@ func TestLog(t *testing.T) {
 			t.Errorf("permissions: file %v, dir %v", fi.Mode().Perm(), di.Mode().Perm())
 		}
 	}
-	if _, err := Open(dir, "x", time.Minute, c.now, nil); err == nil {
+	if _, err := Open(dir, "x", time.Minute, c.now, nil, nil); err == nil {
 		t.Error("a 1 minute segment was accepted")
 	}
 }
@@ -150,8 +165,8 @@ func TestSegmentEnd(t *testing.T) {
 		{at(11, 37), 6 * time.Hour, at(12, 0)},
 		{at(23, 59), 24 * time.Hour, at(24, 0)},
 	} {
-		if got := segmentEnd(c.t, c.every); !got.Equal(c.want) {
-			t.Errorf("segmentEnd(%v, %v) = %v, want %v", c.t, c.every, got, c.want)
+		if _, got := segment(c.t, c.every); !got.Equal(c.want) {
+			t.Errorf("segment(%v, %v) ends %v, want %v", c.t, c.every, got, c.want)
 		}
 	}
 }
@@ -162,6 +177,7 @@ func TestDir(t *testing.T) {
 		{"lab", `C:\Users\me\proj`, filepath.Join("B", "lab", "C", "Users", "me", "proj")},
 		{"a:b", "/x/../y/./z", filepath.Join("B", "ab", "x", "y", "z")},
 		{"h", "/what?/trailing. ", filepath.Join("B", "h", "what", "trailing")},
+		{"con", "/home/Nul.txt/lpt1/com10/console", filepath.Join("B", "con_", "home", "Nul_.txt", "lpt1_", "com10", "console")},
 	} {
 		if got := Dir("B", c.host, c.path); got != c.want {
 			t.Errorf("Dir(%q, %q) = %q, want %q", c.host, c.path, got, c.want)
@@ -172,7 +188,7 @@ func TestDir(t *testing.T) {
 func TestRecorder(t *testing.T) {
 	base := t.TempDir()
 	on := map[string]bool{}
-	c := &clock{time.Date(2026, 10, 19, 9, 5, 0, 0, time.Local)}
+	c := &clock{t: time.Date(2026, 10, 19, 9, 5, 0, 0, time.Local)}
 	r := &Recorder{Now: c.now, Settings: func(s string) (bool, string, time.Duration) { return on[s], base, time.Hour }}
 	tgt := Target{Session: "s-1", Name: "proj", Host: "vibe", Path: "/home/me/proj"}
 	r.Attach("t1", tgt)
@@ -203,16 +219,17 @@ func TestRecorder(t *testing.T) {
 	r.Attach("t2", tgt)
 	r.Output("t2", []byte("first\r\n"))
 	r.Exit("t2")
-	c.t = c.t.Add(10 * time.Minute) // 09:15
+	c.add(10 * time.Minute) // 09:15
 	r.Attach("t3", tgt)
 	r.Output("t3", []byte("reconnected\r\n"))
 	r.Exit("t3")
 	dir := Dir(base, "vibe", "/home/me/proj")
 	got = read(t, filepath.Join(dir, "20261019-0905.log"))
-	if !strings.Contains(got, "first\n") || !strings.Contains(got, "reconnected\n") || !strings.Contains(got, "recording resumed 2026-10-19 09:15:00") {
+	if !strings.Contains(got, "first\n") || !strings.Contains(got, "reconnected\n") ||
+		!strings.Contains(got, "# connection ended at 2026-10-19 09:05:00\n# proj (vibe: /home/me/proj) — recording resumed 2026-10-19 09:15:00\n") {
 		t.Errorf("reconnect did not continue the file:\n%s", got)
 	}
-	c.t = c.t.Add(time.Hour) // 10:15: the 09:00 segment is over
+	c.add(time.Hour) // 10:15: the 09:00 segment is over
 	r.Attach("t4", tgt)
 	r.Output("t4", []byte("later\r\n"))
 	r.Exit("t4")

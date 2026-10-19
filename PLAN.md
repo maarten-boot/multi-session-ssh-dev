@@ -106,5 +106,5 @@ implementation differs from the original plan.
 - GUI verification there runs headless under Xvfb with screenshots; the "Local" tab then is a
   VM-local shell, which is fine for testing. Real use: copy the built binary to the host.
 - Linux build deps: npm, libgtk-3-dev, libwebkit2gtk-4.1-dev, build-essential, pkg-config;
-  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus, and
+  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus, python3-gi, libglib2.0-bin (gdbus), and
   `ssh localhost` without a password.

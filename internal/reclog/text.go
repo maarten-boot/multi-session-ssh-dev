@@ -22,6 +22,10 @@ type screen struct {
 	params []byte // of the CSI sequence being read
 	pend   []byte // an incomplete UTF-8 sequence from the last write
 	emit   func(line string)
+	// prompt: the last line was a password prompt ended by a cursor move,
+	// not a newline (tmux redrawing its status bar after the program
+	// started); cleared by a newline or an input line.
+	prompt bool
 }
 
 const (
@@ -72,7 +76,7 @@ func (s *screen) byte(c byte) {
 		case c == '\b':
 			s.col = max(s.col-1, 0)
 		case c == '\t':
-			s.col = (s.col/8 + 1) * 8
+			s.col = min((s.col/8+1)*8, maxLine-1)
 		case c >= 0x20 && c < 0x7f:
 			s.put(rune(c))
 		}
@@ -135,7 +139,7 @@ func (s *screen) csi(final byte) {
 		parts := strings.Split(p, ";")
 		if i < len(parts) {
 			if v, err := strconv.Atoi(parts[i]); err == nil && v > 0 {
-				return v
+				return min(v, maxLine) // a line never gets longer
 			}
 		}
 		return def
@@ -148,16 +152,16 @@ func (s *screen) csi(final byte) {
 				s.line = s.line[:s.col]
 			}
 		case 1:
-			for i := 0; i < s.col && i < len(s.line); i++ {
+			for i := 0; i <= s.col && i < len(s.line); i++ {
 				s.line[i] = ' '
 			}
 		case 2:
 			s.line = s.line[:0]
 		}
 	case 'G', '`':
-		s.col = n(0, 1) - 1
+		s.col = min(n(0, 1), maxLine) - 1
 	case 'C':
-		s.col += n(0, 1)
+		s.col = min(s.col+n(0, 1), maxLine-1)
 	case 'D':
 		s.col = max(s.col-n(0, 1), 0)
 	case 'P': // delete characters
@@ -173,6 +177,7 @@ func (s *screen) csi(final byte) {
 		if s.col < len(s.line) {
 			k := n(0, 1)
 			s.line = append(s.line[:s.col], append([]rune(strings.Repeat(" ", k)), s.line[s.col:]...)...)
+			s.line = s.line[:min(len(s.line), maxLine-1)]
 		}
 	case 'H', 'f', 'A', 'B', 'E', 'F', 'd', 'J':
 		s.end(false) // another row (or a cleared screen): the line is done
@@ -198,6 +203,11 @@ func (s *screen) put(r rune) {
 func (s *screen) end(newline bool) {
 	text := strings.TrimRight(string(s.line), " ")
 	s.line, s.col = s.line[:0], 0
+	if newline {
+		s.prompt = false
+	} else if text != "" && passwordPrompt.MatchString(text) {
+		s.prompt = true
+	}
 	if text != "" || newline {
 		s.emit(text)
 	}
@@ -209,14 +219,19 @@ func (s *screen) current() string {
 }
 
 // keys collects what the user types into lines: editing keys are applied,
-// other keys (arrows, function keys) dropped, a paste kept as typed text
-// (each of its lines a line).
+// other keys (arrows, function keys, mouse reports) dropped, a paste kept
+// as typed text (each of its lines a line).
 type keys struct {
-	buf   []rune
-	st    int
-	pend  []byte
-	start func()            // the first character of a line
-	emit  func(line string) // a finished line (Enter, or ^C / ^D)
+	buf    []rune
+	st     int
+	params []byte // of the CSI sequence being read
+	paste  bool   // inside a bracketed paste: an ESC there is not Alt
+	skip   int    // bytes of an X10 mouse report still to drop
+	pend   []byte
+	start  func() // the first character of a line
+	// emit gets a finished line: the text typed and how it ended ("" for
+	// Enter, "^C", "^D" or "^Z").
+	emit func(text, suffix string)
 }
 
 func (k *keys) write(b []byte) {
@@ -226,6 +241,11 @@ func (k *keys) write(b []byte) {
 	}
 	for i := 0; i < len(b); {
 		c := b[i]
+		if k.skip > 0 {
+			k.skip--
+			i++
+			continue
+		}
 		if k.st == ground && c >= 0x80 {
 			if !utf8.FullRune(b[i:]) {
 				k.pend = append([]byte(nil), b[i:]...)
@@ -239,15 +259,23 @@ func (k *keys) write(b []byte) {
 		k.byte(c)
 		i++
 	}
+	// A key's sequence comes in one write (Alt+x too): an ESC that ends a
+	// write is the Esc key, not the start of the next key.
+	if k.st == escape {
+		k.st = ground
+	}
 }
 
 func (k *keys) byte(c byte) {
 	switch k.st {
 	case escape:
-		switch c {
-		case '[':
-			k.st = csi
-		case 'O':
+		switch {
+		case c == '[':
+			k.st, k.params = csi, k.params[:0]
+		case k.paste: // pasted text with an ESC in it: the ESC is dropped
+			k.st = ground
+			k.byte(c)
+		case c == 'O':
 			k.st = escInter // SS3: one more byte (F1–F4, keypad)
 		default:
 			k.st = ground // Alt+key
@@ -257,8 +285,19 @@ func (k *keys) byte(c byte) {
 		k.st = ground
 		return
 	case csi: // arrows, function keys, the paste brackets: dropped
-		if c >= 0x40 && c <= 0x7e {
+		switch {
+		case c >= 0x20 && c <= 0x3f:
+			k.params = append(k.params, c)
+		case c >= 0x40 && c <= 0x7e:
 			k.st = ground
+			switch p := string(k.params); {
+			case c == 'M' && p == "": // X10 mouse report: 3 bytes follow
+				k.skip = 3
+			case c == '~' && p == "200":
+				k.paste = true
+			case c == '~' && p == "201":
+				k.paste = false
+			}
 		}
 		return
 	}
@@ -293,9 +332,9 @@ func (k *keys) add(r rune) {
 
 // done ends the line; an empty Enter is not written.
 func (k *keys) done(suffix string) {
-	line := string(k.buf) + suffix
+	text := string(k.buf)
 	k.buf = k.buf[:0]
-	if line != "" {
-		k.emit(line)
+	if text != "" || suffix != "" {
+		k.emit(text, suffix)
 	}
 }
