@@ -599,8 +599,9 @@ func TestRecords(t *testing.T) {
 			t.Errorf("Records(%q, global %v) = %v", c.record, c.global, got)
 		}
 	}
-	c := &config.Config{Hosts: []config.Host{{Name: "h", SSHTarget: "h"}},
-		Sessions: []config.Session{{ID: "s-1", Name: "x", Host: "h", LocalPath: "/x", StartMode: "shell", Record: "always"}}}
+	root := t.TempDir() // prefixes: a Windows path needs them
+	c := &config.Config{Hosts: []config.Host{{Name: "h", SSHTarget: "h", LocalPrefix: root, RemotePrefix: "/remote"}},
+		Sessions: []config.Session{{ID: "s-1", Name: "x", Host: "h", LocalPath: filepath.Join(root, "x"), StartMode: "shell", Record: "always"}}}
 	if p := Problems(c); len(p) != 1 || !strings.Contains(p[0], `record must be "on", "off"`) {
 		t.Errorf("problems: %q", p)
 	}

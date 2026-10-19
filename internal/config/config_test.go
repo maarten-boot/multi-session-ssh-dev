@@ -263,7 +263,8 @@ func TestRecordSettings(t *testing.T) {
 			t.Errorf("ValidateUI with record_every %q: %v", every, err)
 		}
 	}
-	for dir, ok := range map[string]bool{"": true, "/var/log/sw": true, "~": true, "~/logs": true, "logs": false, "./logs": false} {
+	abs := t.TempDir() // an absolute path on every OS
+	for dir, ok := range map[string]bool{"": true, abs: true, "~": true, "~/logs": true, "logs": false, "./logs": false} {
 		u := c.UI
 		u.RecordDir = dir
 		if err := ValidateUI(u); (err == nil) != ok {
