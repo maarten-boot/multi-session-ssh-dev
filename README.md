@@ -159,7 +159,10 @@ Default order:
   through and `<u>underlined</u>` underlined (Markdown has no underline of its own; GitHub
   shows `<u>`). The **B I U S** buttons above the page, or Ctrl+B, Ctrl+I, Ctrl+U and
   Ctrl+Shift+X (⌘ on macOS), add or remove those markers around the selection (each line
-  of a longer selection separately). Tab indents by two spaces.
+  of a longer selection separately). Tab indents by two spaces. Ctrl+C / Ctrl+X / Ctrl+V
+  (⌘ on macOS) copy, cut and paste; right-click the page for *Cut*, *Copy*, *Paste*,
+  *Select all* and the four formats (a right-click outside the selection moves the cursor
+  there first). Both note panels work the same.
   A page is saved shortly after you stop typing, when you open another page or leave the
   tab, and when the window loses focus. Pages are stored with the app's config, one file
   per page: `notes/<session id>/Home.md`, `notes/<session id>/Design.md`,

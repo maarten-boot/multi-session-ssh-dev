@@ -268,7 +268,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   inserts a pair (or removes an empty one around the cursor); one line keeps outer whitespace
   outside and removes markers inside or just outside the selection, else adds them; several
   lines are toggled line by line (removed only if every non-blank line has them). Enter is a
-  plain new line, Tab inserts two spaces.
+  plain new line, Tab inserts two spaces. Mod+C/X/V copy, cut and paste; a right-click menu
+  offers Cut, Copy, Paste (system clipboard), Select all and the four formats; a right-click
+  outside the selection moves the cursor there first.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
   page tree and editor for `notes/_app/` (`_` keeps it apart from session ids; the old
   `notes/_app.md` becomes the page *Prompts*). Prompts come from the page *Prompts* and its

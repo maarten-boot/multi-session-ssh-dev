@@ -4,7 +4,11 @@ import {defaultKeymap, history, historyKeymap, insertNewline} from '@codemirror/
 import {HighlightStyle, syntaxHighlighting} from '@codemirror/language';
 import {markdown, markdownLanguage} from '@codemirror/lang-markdown';
 import {tags as t} from '@lezer/highlight';
+import {ClipboardGetText, ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {MARKUP, toggleMarkup} from './markup';
+import {showMenu} from './ui';
+
+const isMac = navigator.platform.startsWith('Mac');
 
 // The notes editor: Markdown source shown with its formatting (bold drawn
 // bold, struck text struck through…) while the markers stay visible, in
@@ -73,6 +77,42 @@ export class Editor {
         this.placeholderText = '';
         this.view = new EditorView({parent, state: this.state('')});
         this.view.contentDOM.addEventListener('blur', () => onBlur?.());
+        this.view.dom.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            this.contextMenu(e.clientX, e.clientY);
+        });
+    }
+
+    // contextMenu is the editor's right-click menu: clipboard and formatting.
+    // A click outside the selection moves the cursor there first, as in
+    // other editors.
+    contextMenu(x, y) {
+        const v = this.view;
+        const at = v.posAtCoords({x, y});
+        const sel = v.state.selection.main;
+        if (at !== null && (at < sel.from || at > sel.to)) v.dispatch({selection: {anchor: at}});
+        v.focus();
+        const range = v.state.selection.main;
+        const text = v.state.sliceDoc(range.from, range.to);
+        const k = isMac ? '⌘' : 'Ctrl+';
+        const key = m => m.key.replace('Mod-', k).replace('Shift-', 'Shift+').replace(/[a-z]$/, c => c.toUpperCase());
+        showMenu(x, y, [
+            {label: `Cut   ${k}X`, disabled: range.empty, action: () => ClipboardSetText(text).then(() => {
+                v.dispatch({changes: {from: range.from, to: range.to}, userEvent: 'delete.cut'});
+                v.focus();
+            })},
+            {label: `Copy   ${k}C`, disabled: range.empty, action: () => ClipboardSetText(text).then(() => v.focus())},
+            {label: `Paste   ${k}V`, action: () => ClipboardGetText().then(t => {
+                if (t) v.dispatch({...v.state.replaceSelection(t), userEvent: 'input.paste', scrollIntoView: true});
+                v.focus();
+            })},
+            {label: 'Select all', action: () => {
+                v.dispatch({selection: {anchor: 0, head: v.state.doc.length}});
+                v.focus();
+            }},
+            '-',
+            ...Object.entries(MARKUP).map(([name, m]) => ({label: `${m.title}   ${key(m)}`, action: () => format(v, name)})),
+        ]);
     }
 
     state(doc) {

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Headless GUI test of the tab order (Local, Files, Remote, Notes) and the
 # Notes tab: pages in a tree (notes/<id>/Home.md, Design.md, Design/API.md…),
-# autosaved, formatting from keys and the toolbar, new page / subpage,
+# autosaved, formatting from keys and the toolbar, copy and paste from the
+# right-click menu and Ctrl+C / Ctrl+V, new page / subpage,
 # rename (subpages move along) and delete from the tree, notes from before
 # pages existed becoming the Home page, the open page kept across restarts.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-notes.sh <binary> <outdir>
@@ -66,6 +67,17 @@ sleep 1; shot 3-formatting
 k ctrl+alt+2; sleep 1
 expect "bold, underline and italic markers" "**bold** and <u>plain</u> _it_" "$(tail -1 $N/Home.md 2>&1)"
 
+# Copy and paste: the right-click menu, then Ctrl+C / Ctrl+V.
+k ctrl+alt+1; sleep 1; k ctrl+End; k Return
+type "menu-word"; k shift+Home
+click 460 216 3; shot 3a-menu; menu c            # on the selected line: Copy
+k End; k Return
+click 700 600 3; menu p                         # below the text: Paste (at the end)
+k shift+Home; k ctrl+c; k End; k Return; k ctrl+v
+sleep 1; shot 3b-copy-paste
+k ctrl+alt+2; sleep 1
+expect "copied and pasted with the menu and the keys" $'menu-word\nmenu-word\nmenu-word' "$(tail -3 $N/Home.md 2>&1)"
+
 # A new page (the + button), a subpage (right-click), both saved as files.
 k ctrl+alt+1; sleep 1
 click 393 75; type "Design"; k Return; sleep 1
@@ -104,6 +116,6 @@ k ctrl+alt+1; sleep 1.5                         # reopens on Notes, on the last 
 shot 8-after-restart
 alive
 kill $APP; wait $APP 2>/dev/null
-expect "Home unchanged after restart" "$NOTE"$'\n'"**bold** and <u>plain</u> _it_" "$(cat $N/Home.md 2>&1)"
+expect "Home unchanged after restart" "$NOTE"$'\n'"**bold** and <u>plain</u> _it_"$'\nmenu-word\nmenu-word\nmenu-word' "$(cat $N/Home.md 2>&1)"
 for id in s-nt1 s-nt2; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done
 finish
