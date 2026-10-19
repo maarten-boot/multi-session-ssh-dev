@@ -1,12 +1,14 @@
 #!/bin/bash
 # Headless GUI test of the notes page for all sessions and of copy/paste in
-# the terminals: a "## name" prompt written on the page (Ctrl+Shift+M) is
-# saved to notes/_app.md and "Paste into Remote" puts it into the Remote tab
+# the terminals: the notes from before pages existed (notes/_app.md) are the
+# Prompts page now, a "## name" prompt added there (Ctrl+Shift+M) is saved to
+# notes/_app/Prompts.md and "Paste into Remote" puts it into the Remote tab
 # without running it; Ctrl+C copies a selection, Ctrl+V pastes, Ctrl+C
 # without a selection still interrupts; the right-click menu pastes.
 # Needs `ssh localhost` without prompts and tmux.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-appnotes.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes
+mkdir -p $OUT/notes; printf '## Old\necho old-prompt\n\n' >$OUT/notes/_app.md
 . "$(dirname "$0")/smoke-lib.sh"
 CFG=$OUT/config.toml
 cat >$CFG <<TOML
@@ -30,13 +32,16 @@ APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 
-# The notes page: a prompt, saved, then pasted into the Remote tab.
-k ctrl+shift+m; sleep 0.5
+# The notes page opens on the Prompts page (the old notes); a second
+# prompt, saved, then pasted into the Remote tab.
+k ctrl+shift+m; sleep 1
+k ctrl+End
 xdotool type --delay 10 '## Answer'; xdotool key Return
 xdotool type --delay 10 'echo $((6*7))-pasted'; sleep 1.5
 shot 1-notes-page
-expect "notes saved to notes/_app.md" $'## Answer\necho $((6*7))-pasted' "$(cat $OUT/notes/_app.md 2>&1)"
-click 1070 135                                   # Paste into Remote (first prompt)
+check "old notes moved to the Prompts page" test ! -e $OUT/notes/_app.md
+expect "prompt saved to notes/_app/Prompts.md" $'## Old\necho old-prompt\n\n## Answer\necho $((6*7))-pasted' "$(cat $OUT/notes/_app/Prompts.md 2>&1)"
+click 1070 222                                   # Paste into Remote (second prompt)
 sleep 4
 shot 2-pasted
 check "pasted into the Remote tab" grep -qF 'echo $((6*7))-pasted' <<<"$(pane s-apn)"

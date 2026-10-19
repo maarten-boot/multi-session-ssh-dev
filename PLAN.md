@@ -75,13 +75,15 @@ implementation differs from the original plan.
   rule, docs brought in line.
 - Files tab: modification date column and sorting by name or date; window size and position
   remembered across restarts (SIGTERM closes the window the normal way).
+- Notes as page trees (like Zim) per session and for the app, Markdown with formatting shown
+  in a CodeMirror editor, B I U S toolbar and keys; prompts from the Prompts page.
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, prompts
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, prompts
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer

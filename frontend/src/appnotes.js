@@ -1,21 +1,30 @@
+import {CreatePage, LoadPage} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {NotesView} from './notes';
 import {parsePrompts} from './prompts';
 import {el, toast} from './ui';
 
-const PLACEHOLDER = 'Notes for all sessions, and prompts you use often.\n\n' +
-    'Every "## name" heading starts a prompt: it shows up on the right with Copy and\n' +
-    'Paste into Remote. For example:\n\n' +
-    '## Review\n' +
-    'Review the changes since the last commit for bugs and missing tests. Be brief.\n\n' +
-    'Saved automatically, with the app settings (notes/_app.md next to config.toml).';
+const PROMPTS = 'Prompts';
+const isPrompts = page => page === PROMPTS || page?.startsWith(PROMPTS + '/');
 
-// AppNotesPage is the notes page for the whole app: a notes editor and the
-// prompts found in it. paste(text) types a prompt into the current
-// session's Remote tab; label() names that session (null: none);
-// canPaste() returns why a paste is not possible there (null: it is).
+const PLACEHOLDERS = {
+    Home: 'Notes for all sessions: things that belong to no single project.\n\n' +
+        'Prompts you use often go on the Prompts page. Right-click a page on the left for new pages ' +
+        'and subpages. Saved automatically, with the app settings (notes/_app/ next to config.toml).',
+    [PROMPTS]: 'Prompts you use often. Every "## name" heading starts a prompt: it shows up on the\n' +
+        'right with Copy and Paste into Remote. For example:\n\n' +
+        '## Review\n' +
+        'Review the changes since the last commit for bugs and missing tests. Be brief.\n\n' +
+        'Subpages of this page (right-click it) hold more prompts.',
+};
+
+// AppNotesPage is the notes page for the whole app: a book of notes pages
+// and the prompts on its Prompts page and that page's subpages. paste(text)
+// types a prompt into the current session's Remote tab; label() names that
+// session (null: none); canPaste() returns why a paste is not possible
+// there (null: it is); dialogs as for NotesView.
 export class AppNotesPage {
-    constructor(host, {paste, label, canPaste, keyHint}) {
+    constructor(host, {paste, label, canPaste, keyHint, dialogs}) {
         this.paste = paste;
         this.label = label;
         this.canPaste = canPaste ?? (() => null);
@@ -30,20 +39,47 @@ export class AppNotesPage {
             el('div', {className: 'app-notes-body'}, editor,
                 el('div', {className: 'prompts'}, el('div', {className: 'prompts-title', textContent: 'Prompts'}), this.list)));
         host.append(this.el);
-        this.prompts = [];
-        this.view = new NotesView(editor, {id: '_app'}, {
-            title: 'Notes', placeholder: PLACEHOLDER,
-            onChange: text => {
-                this.prompts = parsePrompts(text);
+        this.texts = new Map(); // Prompts page path → its text, in tree order
+        this.hasPromptsPage = false;
+        this.view = new NotesView(editor, '_app', {
+            title: 'Notes', dialogs,
+            placeholder: page => PLACEHOLDERS[page] ?? 'An empty page. Type here; it is saved automatically.',
+            onChange: (page, text) => {
+                if (!isPrompts(page)) return;
+                this.texts.set(page, text);
                 this.render();
             },
+            onTree: pages => this.loadPrompts(pages),
         });
         this.el.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !e.defaultPrevented) {
                 e.preventDefault();
                 this.hide();
             }
         });
+    }
+
+    // loadPrompts reads the Prompts page and its subpages (tree order).
+    async loadPrompts(pages) {
+        const paths = [];
+        const walk = ps => ps.filter(p => isPrompts(p.path)).forEach(p => {
+            paths.push(p.path);
+            walk(p.children);
+        });
+        walk(pages);
+        this.hasPromptsPage = paths.length > 0;
+        const texts = new Map();
+        for (const p of paths) {
+            // The open page's text is the editor's, which may not be saved yet.
+            const known = p === this.view.page ? this.view.editor.text : null;
+            texts.set(p, known ?? (await LoadPage('_app', p).catch(() => ({text: ''}))).text);
+        }
+        this.texts = texts;
+        this.render();
+    }
+
+    get prompts() {
+        return [...this.texts.values()].flatMap(parsePrompts);
     }
 
     get visible() {
@@ -71,7 +107,8 @@ export class AppNotesPage {
     render() {
         const target = this.label();
         const problem = target ? this.canPaste() : 'No session';
-        this.list.replaceChildren(...this.prompts.map(p => {
+        const prompts = this.prompts;
+        this.list.replaceChildren(...prompts.map(p => {
             const copy = el('button', {type: 'button', textContent: 'Copy'});
             copy.onclick = () => ClipboardSetText(p.text).then(() => toast(`Copied “${p.name}”`));
             const paste = el('button', {type: 'button', textContent: 'Paste into Remote', disabled: !!problem,
@@ -85,8 +122,18 @@ export class AppNotesPage {
                 el('div', {className: 'prompt-text', textContent: p.text}),
                 el('div', {className: 'prompt-actions'}, copy, paste));
         }));
-        if (!this.prompts.length) {
-            this.list.append(el('p', {className: 'prompt-empty', textContent: 'No prompts yet: start one with a "## name" line.'}));
+        if (prompts.length) return;
+        if (this.hasPromptsPage) {
+            this.list.append(el('p', {className: 'prompt-empty', textContent: 'No prompts yet: start one with a "## name" line on the Prompts page.'}));
+            return;
         }
+        const make = el('button', {type: 'button', textContent: 'Create the Prompts page'});
+        make.onclick = async () => {
+            await CreatePage('_app', PROMPTS).catch(err => toast(err?.message ?? String(err), true));
+            await this.view.loadTree();
+            await this.view.open(PROMPTS);
+        };
+        this.list.append(el('p', {className: 'prompt-empty', textContent: 'Prompts come from a page named “Prompts” and its subpages.'}),
+            el('div', {className: 'prompt-actions'}, make));
     }
 }

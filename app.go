@@ -366,14 +366,37 @@ func (a *App) SetLinks(id string, links []config.Link) error {
 	return a.sessions.SetLinks(id, links)
 }
 
-// LoadNotes returns a session's notes (empty if none yet).
-func (a *App) LoadNotes(id string) (notes.Note, error) {
-	return a.notes.Load(id)
+// Notes come in books: a session's id, or "_app" for the notes for all
+// sessions. Pages are paths like "Design/API".
+
+// NotesTree lists a book's pages.
+func (a *App) NotesTree(book string) ([]notes.Page, error) {
+	return a.notes.Tree(book)
 }
 
-// SaveNotes stores a session's notes.
-func (a *App) SaveNotes(id, text string) (notes.Note, error) {
-	return a.notes.Save(id, text)
+// LoadPage returns a page (empty if it has no file yet).
+func (a *App) LoadPage(book, page string) (notes.Note, error) {
+	return a.notes.Load(book, page)
+}
+
+// SavePage stores a page; empty text removes its file.
+func (a *App) SavePage(book, page, text string) (notes.Note, error) {
+	return a.notes.Save(book, page, text)
+}
+
+// CreatePage makes a new page; it may not exist yet.
+func (a *App) CreatePage(book, page string) (notes.Note, error) {
+	return a.notes.Create(book, page)
+}
+
+// RenamePage moves a page and its subpages.
+func (a *App) RenamePage(book, from, to string) error {
+	return a.notes.Rename(book, from, to)
+}
+
+// DeletePage removes a page and its subpages.
+func (a *App) DeletePage(book, page string) error {
+	return a.notes.Delete(book, page)
 }
 
 // RepoCheck lists hooks and risky repository config that git on this

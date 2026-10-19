@@ -1418,19 +1418,126 @@ dialog pre.changes {
     color: var(--danger);
 }
 
-.notes-text {
-    flex: 1;
-    margin: 0;
-    padding: 12px 16px;
-    border: none;
-    outline: none;
-    resize: none;
-    background: var(--bg);
+.notes-page-title {
     color: var(--text-strong);
-    font-family: var(--mono-family, "DejaVu Sans Mono", "Cascadia Mono", Menlo, monospace);
-    font-size: var(--mono-size, 13px);
-    line-height: 1.5;
-    tab-size: 4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 40%;
+}
+
+.notes-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+/* The page tree, like the Zim desktop wiki's index. */
+.notes-side {
+    width: 13rem;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.notes-side-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 2px 10px;
+    font-size: 0.923rem;
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.notes-tree {
+    flex: 1;
+    overflow: auto;
+    outline: none;
+    padding-bottom: 8px;
+}
+
+.notes-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 1.7em;
+    padding-right: 8px;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+    color: var(--text);
+}
+
+.notes-row .caret {
+    width: 1em;
+    flex: none;
+    text-align: center;
+}
+
+.notes-row .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* A page without text of its own (only subpages, or new Home). */
+.notes-row.empty .name {
+    font-style: italic;
+}
+
+.notes-row:hover {
+    background: var(--panel-2);
+}
+
+.notes-row.selected {
+    background: var(--selected);
+    font-weight: 600;
+}
+
+.notes-tree:focus .notes-row.selected {
+    background: var(--focus-selected);
+}
+
+.notes-page {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.notes-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.notes-tool {
+    min-width: 2em;
+    padding: 1px 6px;
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    background: var(--btn-bg);
+    color: var(--text-strong);
+    font: inherit;
+    cursor: pointer;
+}
+
+.notes-tool:hover {
+    background: var(--btn-hover);
+}
+
+.notes-tool-bold { font-weight: bold; }
+.notes-tool-italic { font-style: italic; }
+.notes-tool-underline { text-decoration: underline; }
+.notes-tool-strike { text-decoration: line-through; }
+
+.notes-editor {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* --- settings: tab order --- */

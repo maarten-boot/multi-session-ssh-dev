@@ -230,15 +230,33 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   minutes for all sessions.
 
 ### 4.4a Notes tab
-- N1. A plain-text editor per session, saved automatically (shortly after typing stops, on
-  leaving the tab, when the window loses focus). Stored as `notes/<session id>.md` next to the
-  config file (owner-only permissions, atomic writes, at most 4 MB), not in the project: notes
-  stay out of git and are not visible to the agent host. Empty notes remove the file. Reloaded
-  when shown if changed outside the app (unless there are unsaved edits); kept when the session
-  is deleted.
+- N1. Notes per session as a tree of pages (like the Zim desktop wiki): page tree on the left
+  (Home always first, then by name; pages without text of their own in italics; expanded
+  folders and the open page remembered per session), editor on the right. Context menu / +:
+  new page, new subpage, rename or move (a path with `/`; subpages follow; the target must be
+  free and not inside the page), delete (with subpages, confirmed). Page `Design/API` is
+  `notes/<session id>/Design/API.md` next to the config file (owner-only folders and files,
+  atomic writes, at most 4 MB a page, through `os.Root`), not in the project: notes stay out
+  of git and are not visible to the agent host. Names: 1–100 characters per element, at most
+  10 deep, none of `/ \ : * ? " < > |`, no leading dot, no leading/trailing space or trailing
+  dot, not ending in `.md`, no Windows device names. An empty page removes its file and
+  folders left empty. Saved automatically (shortly after typing stops, on opening another
+  page, on leaving the tab, when the window loses focus); reloaded when shown if changed
+  outside the app (unless there are unsaved edits); kept when the session is deleted. The old
+  `notes/<id>.md` is moved to the Home page on first use (unless Home exists).
+- N1a. Editor: CodeMirror 6 with Markdown (GFM); the text keeps its markers, shown in
+  italics, and is drawn formatted: headings larger and bold, `**bold**`, `_italic_`,
+  `~~strike~~`, `<u>underline</u>`, inline code in the monospace font. Toolbar B I U S and
+  Mod+B / Mod+I / Mod+U / Mod+Shift+X toggle the markers around the selection: no selection
+  inserts a pair (or removes an empty one around the cursor); one line keeps outer whitespace
+  outside and removes markers inside or just outside the selection, else adds them; several
+  lines are toggled line by line (removed only if every non-blank line has them). Enter is a
+  plain new line, Tab inserts two spaces.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
-  editor for `notes/_app.md` (`_` keeps it apart from session ids). Every `## name` heading starts a
-  prompt (its text runs to the next `#`/`##` heading); the page lists them with Copy (clipboard)
+  page tree and editor for `notes/_app/` (`_` keeps it apart from session ids; the old
+  `notes/_app.md` becomes the page *Prompts*). Prompts come from the page *Prompts* and its
+  subpages (tree order; without that page the list offers to create it). Every `## name`
+  heading there starts a prompt (its text runs to the next `#`/`##` heading); the page lists them with Copy (clipboard)
   and Paste into Remote (bracketed paste into the active session's Remote tab once connected and
   the program there has turned bracketed paste on; a multi-line prompt is refused until then, so
   its lines cannot run one by one; no Enter). Headings inside fenced code blocks don't count. Esc, ✕, the key or selecting a session closes it.
@@ -343,7 +361,7 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 
 ```
 ┌──────────────────────── Wails app (host) ────────────────────────┐
-│ Frontend (plain JS + xterm.js, no framework)                      │
+│ Frontend (plain JS + xterm.js + CodeMirror, no framework)         │
 │   sidebar · tab bar · xterm instances · file tree · dialogs       │
 │        ▲  events: term:data:<id> (base64), term:exit:<id>         │
 │        │  calls:  TermWrite/Resize, StartLocal/Remote, ListDir,   │
@@ -357,8 +375,8 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 ```
 
 - **Language/framework**: Go 1.25+ + Wails v2.16 (v3 is still beta). On Ubuntu 24.04+ build with
-  `-tags webkit2_41` (libwebkit2gtk-4.1). Frontend is vanilla JS with xterm.js installed via npm
-  and bundled by Vite 6 (Node 18+); no frontend framework.
+  `-tags webkit2_41` (libwebkit2gtk-4.1). Frontend is vanilla JS with xterm.js (terminals) and
+  CodeMirror 6 (notes editor) installed via npm and bundled by Vite 6 (Node 18+); no frontend framework.
 - **PTY**: `github.com/aymanbagabas/go-pty` (Unix pty via creack/pty + Windows ConPTY behind one
   API).
 - **SSH**: system `ssh` binary (OpenSSH; built into Windows 10+/macOS/Linux) run in a PTY. This keeps
@@ -388,11 +406,12 @@ internal/forge             Web tab: forge links, GitHub runs via gh
 internal/syncer            working copies (rsync or built-in out, git fetch back)
 internal/xfer              built-in transfer without rsync (tar over ssh, cksum)
 internal/share             live share (confined SFTP server, sshfs mounts)
-internal/notes             per-session notes files
+internal/notes             notes pages (a Markdown tree per session and for the app)
 internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
 internal/winstate          window size and position across restarts
-frontend/src               main.js, terminal.js, files.js, notes.js, appnotes.js, prompts.js,
+frontend/src               main.js, terminal.js, files.js, notes.js, editor.js, markup.js,
+                           appnotes.js, prompts.js,
                            web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, style.css
 ```
 

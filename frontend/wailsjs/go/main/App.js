@@ -18,6 +18,10 @@ export function ClearNotification(arg1) {
   return window['go']['main']['App']['ClearNotification'](arg1);
 }
 
+export function CreatePage(arg1, arg2) {
+  return window['go']['main']['App']['CreatePage'](arg1, arg2);
+}
+
 export function CreateSession(arg1) {
   return window['go']['main']['App']['CreateSession'](arg1);
 }
@@ -28,6 +32,10 @@ export function DeleteGroup(arg1) {
 
 export function DeleteHost(arg1) {
   return window['go']['main']['App']['DeleteHost'](arg1);
+}
+
+export function DeletePage(arg1, arg2) {
+  return window['go']['main']['App']['DeletePage'](arg1, arg2);
 }
 
 export function DeleteSession(arg1) {
@@ -54,8 +62,8 @@ export function ListDir(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListDir'](arg1, arg2, arg3);
 }
 
-export function LoadNotes(arg1) {
-  return window['go']['main']['App']['LoadNotes'](arg1);
+export function LoadPage(arg1, arg2) {
+  return window['go']['main']['App']['LoadPage'](arg1, arg2);
 }
 
 export function MoveGroup(arg1, arg2) {
@@ -64,6 +72,10 @@ export function MoveGroup(arg1, arg2) {
 
 export function MoveSession(arg1, arg2) {
   return window['go']['main']['App']['MoveSession'](arg1, arg2);
+}
+
+export function NotesTree(arg1) {
+  return window['go']['main']['App']['NotesTree'](arg1);
 }
 
 export function Notify(arg1, arg2, arg3) {
@@ -80,6 +92,10 @@ export function OpenPath(arg1, arg2) {
 
 export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
+}
+
+export function RenamePage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RenamePage'](arg1, arg2, arg3);
 }
 
 export function RepoCheck(arg1) {
@@ -102,8 +118,8 @@ export function SaveHost(arg1, arg2) {
   return window['go']['main']['App']['SaveHost'](arg1, arg2);
 }
 
-export function SaveNotes(arg1, arg2) {
-  return window['go']['main']['App']['SaveNotes'](arg1, arg2);
+export function SavePage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SavePage'](arg1, arg2, arg3);
 }
 
 export function SaveUI(arg1) {

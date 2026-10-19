@@ -148,11 +148,25 @@ Default order:
 - **Remote** (Ctrl+Shift+3): `ssh` → tmux session `cw-<id>` in the mapped
   directory. It survives closing the app and lost connections; Enter reconnects.
   When claude exits you get a shell.
-- **Notes** (Ctrl+Shift+4): your notes about the project, saved shortly after you stop
-  typing, when you leave the tab and when the window loses focus. They are stored with
-  the app's config (`notes/<session id>.md` next to `config.toml`, owner-only, up to 4 MB),
-  not in the project, so they stay out of git and off the agent host. Emptying the notes
-  removes the file; notes are kept when a session is deleted.
+- **Notes** (Ctrl+Shift+4): your notes about the project, as pages in a tree like the
+  Zim desktop wiki: the tree on the left, the open page on the right. Every session starts
+  with a *Home* page; right-click a page (or **+**) for *New page…*, *New subpage…*,
+  *Rename or move…* (subpages move along; `Design/API` puts a page under *Design*) and
+  *Delete…* (with its subpages, after asking). Arrow keys move through the tree.
+  Pages are Markdown, shown with their formatting while the markers stay visible
+  (in italics): headings larger, `**bold**` bold, `_italic_` italic, `~~struck~~` struck
+  through and `<u>underlined</u>` underlined (Markdown has no underline of its own; GitHub
+  shows `<u>`). The **B I U S** buttons above the page, or Ctrl+B, Ctrl+I, Ctrl+U and
+  Ctrl+Shift+X (⌘ on macOS), add or remove those markers around the selection (each line
+  of a longer selection separately). Tab indents by two spaces.
+  A page is saved shortly after you stop typing, when you open another page or leave the
+  tab, and when the window loses focus. Pages are stored with the app's config, one file
+  per page: `notes/<session id>/Home.md`, `notes/<session id>/Design.md`,
+  `notes/<session id>/Design/API.md` next to `config.toml` (owner-only, up to 4 MB each),
+  not in the project, so they stay out of git and off the agent host. You can edit them
+  with any editor; the app reloads a page changed outside it. Emptying a page removes its
+  file; notes are kept when a session is deleted. Notes from before pages existed
+  (`notes/<session id>.md`) become the session's *Home* page.
 
 - **Web** (Ctrl+Shift+5): the repository's latest **GitHub Actions runs** (the last 12:
   status, workflow, title, branch, age; refreshed while shown, every 15 s while one is
@@ -165,9 +179,12 @@ Default order:
   your normal browser: GitHub cannot be shown inside the app.
 
 **Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M) opens a notes page
-for the whole app, for prompts you use often and notes that belong to no session (stored as
-`notes/_app.md` next to `config.toml`). Every `## name` heading starts a prompt: the page lists
-them on the right with *Copy* and *Paste into Remote*, which puts the prompt into the current
+for the whole app, for prompts you use often and notes that belong to no session: the same
+page tree and editor, stored under `notes/_app/` next to `config.toml`. Prompts live on the
+page named *Prompts* and its subpages (the notes from before pages existed, `notes/_app.md`,
+became that page; without one, the prompts list offers to create it). Every `## name`
+heading there starts a prompt: the page lists them on the right with *Copy* and *Paste into
+Remote*, which puts the prompt into the current
 session's Remote tab as pasted text — claude runs it when you press Enter. It waits until claude
 (or the shell) accepts a *bracketed* paste; a multi-line prompt is not pasted before that, so
 its lines cannot run one by one. A prompt runs to the next `#` or `##` heading (`###` and deeper
@@ -459,7 +476,7 @@ internal/pathmap       host path -> agent-host path
 internal/remote        ssh/tmux command lines (quoting, forced options)
 internal/config        TOML config load / atomic save, data directory
 internal/session       hosts + sessions: validation, mapping, ordering
-internal/notes         per-session notes files
+internal/notes         notes pages: a tree of Markdown files per session and for the app
 internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
@@ -470,7 +487,8 @@ internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or bu
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
 internal/instance      one instance per config file (lock)
 internal/winstate      window size and position across restarts (window.json in the data dir)
-frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js, web.js,
+frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js (page tree),
+                       editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,
                        style.css; *.test.mjs are the node --test unit tests

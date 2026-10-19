@@ -173,7 +173,7 @@ class NotesTab {
 
     show() {
         this.pane.hidden = false;
-        if (!this.view) this.view = new NotesView(this.pane, this.session);
+        if (!this.view) this.view = new NotesView(this.pane, this.session.id, {dialogs: pageDialogs});
         else this.view.refresh();
         this.view.focus();
     }
@@ -444,6 +444,7 @@ const app = {
             label: () => this.active?.data.name ?? null,
             canPaste: () => this.pasteProblem(),
             keyHint: keyHint('app_notes') || 'no key',
+            dialogs: pageDialogs,
         });
         this.appNotes.onHide = () => this.active?.show();
         $('#btn-notes').onclick = () => this.appNotes.toggle();
@@ -1652,6 +1653,26 @@ async function folderDialog(oldName = '') {
     const ok = await runDialog(dlg, () => SaveGroup(oldName, f.value.value), f.value);
     if (ok) await app.reload();
 }
+
+// pageDialogs are the notes pages' dialogs (new, rename, delete).
+const pageDialogs = {
+    async prompt({title, hint, value, ok, submit}) {
+        const dlg = $('#dlg-prompt');
+        const f = dlg.querySelector('form').elements;
+        const okBtn = dlg.querySelector('button[value=ok]');
+        dlg.querySelector('h2').textContent = title;
+        dlg.querySelector('.hint').textContent = hint;
+        f.value.value = value;
+        f.value.placeholder = 'Page name';
+        okBtn.textContent = ok;
+        try {
+            return await runDialog(dlg, () => submit(f.value.value), f.value);
+        } finally {
+            okBtn.textContent = 'Save';
+        }
+    },
+    confirm: confirmDialog,
+};
 
 async function deleteFolder(sec) {
     const n = sec.hosts.reduce((k, h) => k + h.sessions.length, 0);

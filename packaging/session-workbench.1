@@ -32,9 +32,11 @@ session that runs
 connections;
 .TP
 .B Notes
-notes about the project, stored next to the configuration file, not in the
-project. A separate notes page for all sessions holds prompts you use often
-and can paste them into the current session's Remote tab;
+notes about the project as a tree of Markdown pages with simple formatting
+(bold, italic, underline, strikethrough), stored next to the configuration
+file, not in the project. A separate notes page for all sessions holds
+prompts you use often (on its Prompts page) and can paste them into the
+current session's Remote tab;
 .TP
 .B Web
 the repository's latest GitHub Actions runs (with
@@ -86,8 +88,11 @@ cannot be read is never overwritten.
 Keeps a second instance from using the same configuration.
 .TP
 .I ~/.config/session-workbench/notes/
-The Notes tab's files, one per session, and
-.I _app.md
+The notes pages: a folder per session
+.RI ( <id>/Home.md ,
+.IR <id>/Design/API.md ,
+\&...) and
+.I _app/
 for the notes page of all sessions.
 .TP
 .I ~/.local/share/session-workbench/
