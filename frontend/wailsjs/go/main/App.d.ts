@@ -53,9 +53,13 @@ export function Notify(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function OpenBackupFolder(arg1:string):Promise<void>;
 
+export function OpenLogFolder(arg1:string):Promise<void>;
+
 export function OpenPath(arg1:string,arg2:string):Promise<void>;
 
 export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>;
+
+export function RecordInfo():Promise<main.RecordInfo>;
 
 export function RenamePage(arg1:string,arg2:string,arg3:string):Promise<void>;
 

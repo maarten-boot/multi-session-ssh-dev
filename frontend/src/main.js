@@ -15,7 +15,7 @@ import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
-    SyncPreview, SyncSend, SyncGet, SyncFastForward, ShareStatus, StopShare,
+    SyncPreview, SyncSend, SyncGet, SyncFastForward, ShareStatus, StopShare, RecordInfo, OpenLogFolder,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -398,6 +398,14 @@ const app = {
             return;
         }
         this.backups = await BackupStatus().catch(() => ({}));
+        // Remote tabs being recorded (session id → true), kept up to date by
+        // the backend's "record" events.
+        this.recording = (await RecordInfo().catch(() => null))?.recording ?? {};
+        EventsOn('record', (id, on, err) => {
+            this.recording[id] = on;
+            if (err) toast(`Recording ${this.sessions.get(id)?.data.name ?? id}: ${err}`, true);
+            if (this.active?.id === id) this.renderMain();
+        });
         EventsOn('backup', (host, st) => {
             this.backups[host] = st;
             this.renderBackup(host);
@@ -846,6 +854,10 @@ const app = {
         this.renderBadges(s);
         const sync = $('#sync-actions');
         sync.replaceChildren();
+        if (this.recording?.[s.id]) {
+            sync.append(el('span', {className: 'rec-state', textContent: '● recording',
+                title: 'The Remote tab is recorded (input and output as text). Session menu: Open recordings folder.'}));
+        }
         if (d.files === 'sshfs') {
             const st = s.share?.state ?? 'stopped';
             const label = {mounted: '● shared', starting: '◌ connecting share…', retrying: '◌ share reconnecting…',
@@ -1125,6 +1137,11 @@ function sessionMenu(s, x, y) {
             label: effectiveColorMode(app.state.ui, s.data) === 'mono' ? 'Use full colors' : 'Use mono colors (no colors)',
             action: () => setSessionColors(s, effectiveColorMode(app.state.ui, s.data) === 'mono' ? 'full' : 'mono'),
         },
+        {
+            label: recordsRemote(app.state.ui, s.data) ? 'Stop recording the Remote tab' : 'Record the Remote tab',
+            action: () => setSessionRecord(s, !recordsRemote(app.state.ui, s.data)),
+        },
+        {label: 'Open recordings folder', action: () => OpenLogFolder(s.id).catch(err => toast(err?.message ?? String(err), true))},
         '-',
         {label: 'Disconnect', action: () => s.disconnect()},
         {label: 'End remote session…', danger: true, action: () => endRemote(s)},
@@ -1290,6 +1307,9 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.colors.value = s?.data.color_mode ?? '';
     // New sessions look as set in Settings; an override is for Edit only.
     f.elements.colors.closest('label').hidden = !editing;
+    f.elements.record.value = s?.data.record ?? '';
+    f.elements.record.options[0].textContent = `default (${app.state.ui.record_remote ? 'on' : 'off'}, from Settings)`;
+    f.elements.record.closest('label').hidden = !editing;
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
         ...app.state.groups.map(g => el('option', {value: g, textContent: g})));
     f.elements.group.value = s?.data.group ?? presetGroup ?? '';
@@ -1337,7 +1357,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
         if (editing) {
             await UpdateSession(s.id, {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
-                color_mode: f.elements.colors.value, group: f.elements.group.value,
+                color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
             });
         } else {
             created = await CreateSession({
@@ -1411,9 +1431,27 @@ async function hostDialog(h = null, presetName = null) {
 async function setSessionColors(s, mode) {
     const override = mode === app.state.ui.color_mode ? '' : mode;
     try {
-        await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: override, group: s.data.group});
+        await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: override, group: s.data.group,
+            record: s.data.record});
     } catch (err) {
         await confirmDialog({title: 'Could not change colors', text: String(err), ok: null});
+    }
+    await app.reload();
+}
+
+// recordsRemote: does the session's Remote tab get recorded (its own
+// setting, else the global one)?
+const recordsRemote = (ui, d) => d.record === 'on' || (d.record !== 'off' && !!ui.record_remote);
+
+// setSessionRecord turns recording on or off for one session; choosing what
+// the global setting says clears the override.
+async function setSessionRecord(s, on) {
+    const override = on === !!app.state.ui.record_remote ? '' : on ? 'on' : 'off';
+    try {
+        await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: s.data.color_mode,
+            group: s.data.group, record: override});
+    } catch (err) {
+        await confirmDialog({title: 'Could not change recording', text: String(err), ok: null});
     }
     await app.reload();
 }
@@ -1442,6 +1480,15 @@ async function settingsDialog() {
         every.append(el('option', {value: ui.claude_backup_every, textContent: ui.claude_backup_every}));
     }
     every.value = ui.claude_backup_every;
+    f.record_remote.checked = !!ui.record_remote;
+    const recEvery = f.record_every;
+    if (![...recEvery.options].some(o => o.value === ui.record_every)) {
+        recEvery.append(el('option', {value: ui.record_every, textContent: ui.record_every}));
+    }
+    recEvery.value = ui.record_every;
+    f.record_dir.value = ui.record_dir ?? '';
+    RecordInfo().then(r => dlg.querySelector('.record-default').textContent =
+        `Default: ${r.default_dir || '(no data folder)'}. Files: <folder>/<host>/<session path>/YYYYMMDD-HHMM.log`).catch(() => {});
     // Tabs: order with ↑/↓, shown or not with the checkbox.
     const TAB_LABELS = {local: 'Local', files: 'Files', remote: 'Remote', notes: 'Notes', web: 'Web'};
     let order = [...(ui.tab_order ?? Object.keys(TAB_LABELS))];
@@ -1493,6 +1540,9 @@ async function settingsDialog() {
         notifications: f.notifications.checked,
         ctrl_copy_paste: f.ctrl_copy_paste.checked,
         claude_backup_every: f.claude_backup_every.value,
+        record_remote: f.record_remote.checked,
+        record_every: f.record_every.value,
+        record_dir: f.record_dir.value.trim(),
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),
     }));

@@ -156,6 +156,23 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   nothing is sent (an error, not a deleted agent copy); without git here and with a
   `.gitignore`, nothing is deleted and the preview says why. The preview counts the same changes.
 
+- F10. Remote tab recordings (off by default): `record_remote` (Settings) records every
+  session's Remote tab from the moment it is switched on; a session's `record` ("on"/"off",
+  Edit… or the session menu) overrides it; switching off stops at once. The terminal manager
+  taps output and input (internal/reclog): output as readable text (escape sequences dropped;
+  CR, BS, erase-in-line, column moves and character insert/delete applied to the current line;
+  a move to another row or a screen clear ends the line; lines at most 10 000 characters),
+  input as `YYYY-MM-DD HH:MM:SS > line` per Enter (editing keys applied, arrows and function
+  keys dropped, ^C/^D/^Z shown, each line of a paste a line), input typed while the output
+  line ends in a password prompt (`password`, `passphrase`, `passcode`, `PIN`, `token`,
+  `secret` followed by `:` or `?`) as `[hidden]`. Files per segment (`record_every`, 5m–24h,
+  default 1h, aligned to local midnight), named `YYYYMMDD-HHMM.log` after their start, in
+  `<record_dir or data dir/logs>/<host>/<local path>` (path elements made safe for every
+  OS), owner-only, each starting with a `#` line (session, host, path, time) and ending
+  with `# continued in …`, `# recording stopped at …` or `# connection ended at …`. A
+  reconnect within the segment continues the file. A red "● recording" in the session bar;
+  the session menu opens the folder. Failing to open a file is shown as a message.
+
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
   per §6):
@@ -410,6 +427,7 @@ internal/notes             notes pages (a Markdown tree per session and for the 
 internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
 internal/winstate          window size and position across restarts
+internal/reclog            Remote tab recordings
 frontend/src               main.js, terminal.js, files.js, notes.js, editor.js, markup.js,
                            appnotes.js, prompts.js,
                            web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, style.css
@@ -441,6 +459,9 @@ repository config and warns again whenever they change.
   - macOS: `.app .command .tool .terminal .workflow .action .pkg .mpkg .jar .webloc .inetloc
     .fileloc` and files with an executable bit;
   - Linux and other Unix: `.desktop .appimage .run .jar`.
+- Remote tab recordings (F10, off by default) contain what was typed and shown, owner-only;
+  input after a recognised password prompt is hidden, but the remote echo state is not
+  visible, so other secrets typed there are recorded.
 - Fix commands the repository check suggests are shell-quoted: key names and paths come from a
   repository the agent host may have written.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets

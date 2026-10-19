@@ -77,23 +77,25 @@ implementation differs from the original plan.
   remembered across restarts (SIGTERM closes the window the normal way).
 - Notes as page trees (like Zim) per session and for the app, Markdown with formatting shown
   in a CodeMirror editor, B I U S toolbar and keys; prompts from the Prompts page.
+- Remote tab recordings (F10): global and per session, readable text, hidden passwords,
+  files per time segment.
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
-  check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, terminal incl. a ConPTY test on Windows) —
+  check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, prompts
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 24
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 25
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

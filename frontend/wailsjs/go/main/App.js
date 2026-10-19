@@ -86,12 +86,20 @@ export function OpenBackupFolder(arg1) {
   return window['go']['main']['App']['OpenBackupFolder'](arg1);
 }
 
+export function OpenLogFolder(arg1) {
+  return window['go']['main']['App']['OpenLogFolder'](arg1);
+}
+
 export function OpenPath(arg1, arg2) {
   return window['go']['main']['App']['OpenPath'](arg1, arg2);
 }
 
 export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
+}
+
+export function RecordInfo() {
+  return window['go']['main']['App']['RecordInfo']();
 }
 
 export function RenamePage(arg1, arg2, arg3) {

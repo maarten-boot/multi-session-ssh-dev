@@ -77,7 +77,8 @@ make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/u
                      # folders, git markers, repository check, working copies, live share,
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
-                     # desktop notifications, notes for all sessions and copy/paste, badges (~2 min)
+                     # desktop notifications, notes for all sessions and copy/paste,
+                     # Remote tab recordings, badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -352,6 +353,34 @@ it changes. Uses rsync where it is installed (only changes are copied); without 
 a built-in transfer over the same ssh connection copies everything each time. Restoring a crashed agent host, step by step:
 [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#claude-backups).
 
+**Recording the Remote tab.** Off by default. Settings → *Record the Remote tabs of all
+sessions* records every session from that moment; a session's own setting (*Edit…* →
+*Record the Remote tab*: default / on / off, or the session menu's *Record the Remote tab* /
+*Stop recording the Remote tab*) overrides it. While a tab is recorded, the session bar
+shows a red **● recording**. A recording is readable text, not a byte dump: colors and
+cursor codes are removed and a progress bar ends as its last state; what you type is
+written as a timestamped `>` line, and what you type after a password prompt (a line
+ending in `password:`, `passphrase:`, `PIN:`…) as `[hidden]`. The remote side's echo
+setting cannot be seen through ssh and tmux, so other secrets you type are recorded.
+Full-screen programs (claude's own screen, vim) come out as fragments of their redraws.
+
+```
+# workbench (vibe: /home/me/proj) — recording from 2026-10-19 11:30:02
+2026-10-19 11:30:05 > git status
+me@vibe:~/proj$ git status
+On branch main
+nothing to commit, working tree clean
+2026-10-19 11:30:20 > [hidden]
+[sudo] password for me:
+```
+
+Files start every hour by default (Settings: 15 minutes to a day, counted from midnight)
+and are named after when they start: `logs/<host>/<session path>/20261019-1130.log` in the
+data folder (`~/.local/share/session-workbench/` on Linux), or in the folder set in
+Settings. A reconnect within the same hour continues its file. Files are owner-only;
+nothing removes old ones. The session menu's *Open recordings folder* opens a session's
+folder.
+
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux` on the PATH of a login shell; `claude` is started from an
 interactive login shell, so it is found on the same PATH as when you log in by hand
@@ -399,6 +428,9 @@ ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pa
 notifications = true                      # desktop notification when claude waits (bell)
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
+record_remote = false                     # record every session's Remote tab (as text)
+record_every = "1h"                       # a new recording file every 5m … 24h
+record_dir = "~/sw-logs"                  # optional: default <data dir>/logs
 tab_order = ["local", "files", "remote", "notes", "web"]
 hidden_tabs = []                          # e.g. ["web"]; at least one tab stays visible
 
@@ -438,6 +470,7 @@ local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
 start_mode = "claude-continue"            # or "claude" or "shell"
 group = "Work"                            # optional: sidebar folder (listed in groups)
 color_mode = "mono"                       # optional: overrides [ui] color_mode
+record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
@@ -449,6 +482,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | What | Linux | macOS | Windows |
 |---|---|---|---|
 | config (`config.toml`, its `.lock`, `notes/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
+| Remote tab recordings (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
@@ -487,6 +521,7 @@ internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or bu
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
 internal/instance      one instance per config file (lock)
 internal/winstate      window size and position across restarts (window.json in the data dir)
+internal/reclog        Remote tab recordings: readable text, hidden passwords, time segments
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js (page tree),
                        editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,

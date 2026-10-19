@@ -36,7 +36,8 @@ type View struct {
 	Files      string `json:"files"` // the host's file access mode
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
-	Error      string `json:"error"` // why the Remote tab cannot work, if it cannot
+	Record     string `json:"record"` // "on", "off", "" = follow the global setting
+	Error      string `json:"error"`  // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -78,6 +79,7 @@ type Edit struct {
 	StartMode string `json:"start_mode"`
 	ColorMode string `json:"color_mode"`
 	Group     string `json:"group"`
+	Record    string `json:"record"`
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -145,7 +147,7 @@ func (m *Manager) State() State {
 	s.Problems = Problems(m.cfg)
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
-			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID)}
+			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -285,6 +287,9 @@ func Problems(c *config.Config) []string {
 		if err := validColorMode(s.ColorMode); err != nil {
 			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
 		}
+		if err := validRecord(s.Record); err != nil {
+			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
+		}
 		for _, l := range s.Links {
 			if err := forge.ValidLink(forge.Link{Name: l.Name, URL: l.URL}); err != nil {
 				out = append(out, fmt.Sprintf("session %q: link: %v; it is not shown", label, err))
@@ -416,6 +421,25 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	return s, nil
 }
 
+func validRecord(r string) error {
+	if r != "" && r != "on" && r != "off" {
+		return fmt.Errorf(`record must be "on", "off" or left out, not %q`, r)
+	}
+	return nil
+}
+
+// Records reports whether a session's Remote tab is to be recorded: its
+// own "on"/"off", else the global setting.
+func Records(s config.Session, ui config.UI) bool {
+	switch s.Record {
+	case "on":
+		return true
+	case "off":
+		return false
+	}
+	return ui.RecordRemote
+}
+
 func validColorMode(mode string) error {
 	if mode != "" && mode != "full" && mode != "mono" {
 		return fmt.Errorf("unknown color mode %q", mode)
@@ -458,6 +482,9 @@ func (m *Manager) Update(id string, e Edit) error {
 	if err := validColorMode(e.ColorMode); err != nil {
 		return err
 	}
+	if err := validRecord(e.Record); err != nil {
+		return err
+	}
 	return m.update(func(c *config.Config) error {
 		i := indexOf(c, id)
 		if i < 0 {
@@ -470,6 +497,7 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].StartMode = e.StartMode
 		c.Sessions[i].ColorMode = e.ColorMode
 		c.Sessions[i].Group = e.Group
+		c.Sessions[i].Record = e.Record
 		return nil
 	})
 }

@@ -32,6 +32,14 @@ type EmitterFunc func(name string, data ...any)
 
 func (f EmitterFunc) Emit(name string, data ...any) { f(name, data...) }
 
+// Tap sees every terminal's output and input as they pass, and when a
+// terminal ends (the Remote tab recorder). It must not block.
+type Tap interface {
+	Output(id string, b []byte)
+	Input(id string, b []byte)
+	Exit(id string)
+}
+
 // Spec describes the process to start.
 type Spec struct {
 	Command string
@@ -57,6 +65,7 @@ func ExitEvent(id string) string { return "term:exit:" + id }
 // Manager owns all running terminals.
 type Manager struct {
 	emit  Emitter
+	tap   Tap // set before the first Start
 	mu    sync.Mutex
 	next  int
 	terms map[string]*term
@@ -65,6 +74,9 @@ type Manager struct {
 func NewManager(emit Emitter) *Manager {
 	return &Manager{emit: emit, terms: map[string]*term{}}
 }
+
+// SetTap installs tap; call it before starting terminals.
+func (m *Manager) SetTap(tap Tap) { m.tap = tap }
 
 type term struct {
 	id   string
@@ -118,7 +130,7 @@ func (m *Manager) Start(spec Spec) (string, error) {
 	readDone := make(chan struct{})
 	go t.readLoop(readDone)
 	pumpDone := make(chan struct{})
-	go t.pump(m.emit, pumpDone)
+	go t.pump(m.emit, m.tap, pumpDone)
 	go m.waitLoop(t, readDone, pumpDone)
 	return t.id, nil
 }
@@ -142,7 +154,7 @@ func (t *term) readLoop(done chan struct{}) {
 
 // pump coalesces output into batches so a chatty process does not flood
 // the event bus with tiny messages.
-func (t *term) pump(emit Emitter, done chan struct{}) {
+func (t *term) pump(emit Emitter, tap Tap, done chan struct{}) {
 	defer close(done)
 	var pending []byte
 	var tick <-chan time.Time
@@ -159,6 +171,9 @@ func (t *term) pump(emit Emitter, done chan struct{}) {
 			if !ok {
 				flush()
 				return
+			}
+			if tap != nil {
+				tap.Output(t.id, b)
 			}
 			pending = append(pending, b...)
 			if len(pending) >= flushSize {
@@ -194,6 +209,9 @@ func (m *Manager) waitLoop(t *term, readDone, pumpDone chan struct{}) {
 	m.mu.Lock()
 	delete(m.terms, t.id)
 	m.mu.Unlock()
+	if m.tap != nil {
+		m.tap.Exit(t.id)
+	}
 	m.emit.Emit(ExitEvent(t.id), info)
 }
 
@@ -218,6 +236,9 @@ func (m *Manager) Write(id string, data []byte) error {
 		return err
 	}
 	_, err = t.pty.Write(data)
+	if err == nil && m.tap != nil {
+		m.tap.Input(id, data)
+	}
 	return err
 }
 

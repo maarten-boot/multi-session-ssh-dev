@@ -1376,6 +1376,18 @@ dialog pre.changes {
     color: var(--danger);
 }
 
+#dlg-settings .record-default {
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
+
+/* The Remote tab is being recorded. */
+.rec-state {
+    font-size: 0.923rem;
+    color: var(--danger);
+    white-space: nowrap;
+}
+
 /* --- notes --- */
 
 .notes {

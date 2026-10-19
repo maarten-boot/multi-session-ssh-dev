@@ -23,6 +23,7 @@ import (
 	"session-workbench/internal/instance"
 	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
+	"session-workbench/internal/reclog"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
 	"session-workbench/internal/share"
@@ -41,8 +42,9 @@ type App struct {
 	shares   *share.Manager
 	notes    notes.Store
 	backups  *backup.Runner
-	dataDir  string         // config.DataDir: Claude backups, window.json
-	win      winstate.State // as the window was last closed
+	rec      *reclog.Recorder // Remote tab recordings
+	dataDir  string           // config.DataDir: Claude backups, window.json
+	win      winstate.State   // as the window was last closed
 	notify   notifier
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
@@ -50,7 +52,9 @@ type App struct {
 }
 
 func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
-	return &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir}
+	a := &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir}
+	a.rec = &reclog.Recorder{Settings: a.recordSettings}
+	return a
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -83,6 +87,14 @@ func (a *App) startup(ctx context.Context) {
 	a.terms = terminal.NewManager(terminal.EmitterFunc(func(name string, data ...any) {
 		runtime.EventsEmit(ctx, name, data...)
 	}))
+	a.rec.Changed = func(id string, on bool, err error) {
+		msg := ""
+		if err != nil {
+			msg = err.Error()
+		}
+		runtime.EventsEmit(ctx, "record", id, on, msg)
+	}
+	a.terms.SetTap(a.rec)
 	backup.Configure = hideConsole
 	xfer.Configure = hideConsole
 	a.backups = &backup.Runner{
@@ -236,7 +248,11 @@ func (a *App) CreateSession(in session.NewSession) (session.View, error) {
 }
 
 func (a *App) UpdateSession(id string, e session.Edit) error {
-	return a.sessions.Update(id, e)
+	if err := a.sessions.Update(id, e); err != nil {
+		return err
+	}
+	a.rec.Refresh() // recording on or off from now
+	return nil
 }
 
 func (a *App) SetSessionGroup(id, group string) error {
@@ -256,7 +272,11 @@ func (a *App) MoveGroup(name, beforeName string) error {
 }
 
 func (a *App) SaveUI(ui config.UI) error {
-	return a.sessions.SaveUI(ui)
+	if err := a.sessions.SaveUI(ui); err != nil {
+		return err
+	}
+	a.rec.Refresh() // recording on or off from now
+	return nil
 }
 
 func (a *App) DeleteSession(id string) error {
@@ -584,7 +604,64 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return a.terms.Start(terminal.Spec{Command: ssh, Args: args, Cols: cols, Rows: rows})
+	tid, err := a.terms.Start(terminal.Spec{Command: ssh, Args: args, Cols: cols, Rows: rows})
+	if err == nil {
+		a.rec.Attach(tid, reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath})
+	}
+	return tid, err
+}
+
+// --- Remote tab recordings ---
+
+// recordBase is where recordings go: record_dir, else <data dir>/logs.
+func (a *App) recordBase() string {
+	if d := a.sessions.Config().UI.RecordDir; d != "" {
+		return session.ExpandHome(d)
+	}
+	if a.dataDir == "" {
+		return ""
+	}
+	return filepath.Join(a.dataDir, "logs")
+}
+
+func (a *App) recordSettings(id string) (bool, string, time.Duration) {
+	cfg := a.sessions.Config()
+	every, err := config.RecordEvery(cfg.UI)
+	base := a.recordBase()
+	for _, s := range cfg.Sessions {
+		if s.ID == id {
+			return err == nil && base != "" && session.Records(s, cfg.UI), base, every
+		}
+	}
+	return false, base, every
+}
+
+// RecordInfo is for the frontend: the default recordings folder and the
+// sessions recording now.
+type RecordInfo struct {
+	DefaultDir string          `json:"default_dir"`
+	Recording  map[string]bool `json:"recording"`
+}
+
+func (a *App) RecordInfo() RecordInfo {
+	d := ""
+	if a.dataDir != "" {
+		d = filepath.Join(a.dataDir, "logs")
+	}
+	return RecordInfo{DefaultDir: d, Recording: a.rec.Recording()}
+}
+
+// OpenLogFolder opens the folder of a session's recordings.
+func (a *App) OpenLogFolder(id string) error {
+	r, err := a.sessions.Resolve(id)
+	if r.ID == "" {
+		return err
+	}
+	dir := reclog.Dir(a.recordBase(), r.Host.Name, r.LocalPath)
+	if _, err := os.Stat(dir); err != nil {
+		return fmt.Errorf("no recordings of %s yet (they go to %s)", r.Name, dir)
+	}
+	return opener.Open(dir)
 }
 
 // KillRemote ends the session's tmux session (and whatever runs in it).

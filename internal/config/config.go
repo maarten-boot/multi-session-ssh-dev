@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -49,6 +50,9 @@ type Session struct {
 	TrustedGit string `toml:"trusted_git,omitempty" json:"trusted_git"`
 	// Links are the session's own web links, shown in its Web tab.
 	Links []Link `toml:"links,omitempty" json:"links"`
+	// Record overrides UI.RecordRemote for this session: "on", "off", or
+	// "" to follow it.
+	Record string `toml:"record,omitempty" json:"record"`
 }
 
 // Link is a named web address.
@@ -97,6 +101,13 @@ type UI struct {
 	// session you are not looking at rings the bell (claude waiting).
 	Notifications     *bool  `toml:"notifications,omitempty" json:"notifications"`
 	ClaudeBackupEvery string `toml:"claude_backup_every,omitempty" json:"claude_backup_every"`
+	// RecordRemote records every session's Remote tab (input and output as
+	// readable text, see internal/reclog) unless the session says "off";
+	// RecordEvery (a Go duration, 5m to 24h) starts a new file per segment;
+	// RecordDir is where ("" = <data dir>/logs).
+	RecordRemote bool   `toml:"record_remote,omitempty" json:"record_remote"`
+	RecordEvery  string `toml:"record_every,omitempty" json:"record_every"`
+	RecordDir    string `toml:"record_dir,omitempty" json:"record_dir"`
 }
 
 // Tabs lists every session tab in the default order.
@@ -191,6 +202,9 @@ func (c *Config) applyDefaults() {
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"
 	}
+	if _, err := RecordEvery(c.UI); err != nil {
+		c.UI.RecordEvery = "1h"
+	}
 	normalizeTabs(&c.UI)
 }
 
@@ -201,6 +215,15 @@ func BackupEvery(u UI) (time.Duration, error) {
 	d, err := time.ParseDuration(u.ClaudeBackupEvery)
 	if err != nil || d < 5*time.Minute || d > 7*24*time.Hour {
 		return 0, fmt.Errorf("claude backup interval %q: use 5m to 168h, e.g. 1h", u.ClaudeBackupEvery)
+	}
+	return d, nil
+}
+
+// RecordEvery parses UI.RecordEvery: 5 minutes to 24 hours.
+func RecordEvery(u UI) (time.Duration, error) {
+	d, err := time.ParseDuration(u.RecordEvery)
+	if err != nil || d < 5*time.Minute || d > 24*time.Hour {
+		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
 	}
 	return d, nil
 }
@@ -223,6 +246,12 @@ func ValidateUI(u UI) error {
 	}
 	if _, err := BackupEvery(u); err != nil {
 		return err
+	}
+	if _, err := RecordEvery(u); err != nil {
+		return err
+	}
+	if d := u.RecordDir; d != "" && !filepath.IsAbs(d) && d != "~" && !strings.HasPrefix(d, "~/") && !strings.HasPrefix(d, `~\`) {
+		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", d)
 	}
 	for _, t := range append(append([]string{}, u.TabOrder...), u.HiddenTabs...) {
 		if !slices.Contains(Tabs, t) {

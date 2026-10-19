@@ -53,6 +53,9 @@ export namespace config {
 	    claude_backup?: boolean;
 	    notifications?: boolean;
 	    claude_backup_every: string;
+	    record_remote: boolean;
+	    record_every: string;
+	    record_dir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -76,6 +79,9 @@ export namespace config {
 	        this.claude_backup = source["claude_backup"];
 	        this.notifications = source["notifications"];
 	        this.claude_backup_every = source["claude_backup_every"];
+	        this.record_remote = source["record_remote"];
+	        this.record_every = source["record_every"];
+	        this.record_dir = source["record_dir"];
 	    }
 	}
 
@@ -315,6 +321,20 @@ export namespace main {
 	        this.remote = source["remote"];
 	    }
 	}
+	export class RecordInfo {
+	    default_dir: string;
+	    recording: Record<string, boolean>;
+	
+	    static createFrom(source: any = {}) {
+	        return new RecordInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.default_dir = source["default_dir"];
+	        this.recording = source["recording"];
+	    }
+	}
 	export class WebInfo {
 	    repo?: forge.Repo;
 	    links: forge.Link[];
@@ -418,6 +438,7 @@ export namespace session {
 	    start_mode: string;
 	    color_mode: string;
 	    group: string;
+	    record: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Edit(source);
@@ -429,6 +450,7 @@ export namespace session {
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
+	        this.record = source["record"];
 	    }
 	}
 	export class NewSession {
@@ -483,6 +505,7 @@ export namespace session {
 	    files: string;
 	    remote_path: string;
 	    tmux_name: string;
+	    record: string;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -502,6 +525,7 @@ export namespace session {
 	        this.files = source["files"];
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
+	        this.record = source["record"];
 	        this.error = source["error"];
 	    }
 	}

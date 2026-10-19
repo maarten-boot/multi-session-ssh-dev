@@ -250,3 +250,24 @@ func TestOutOfRangeUIReset(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordSettings(t *testing.T) {
+	c := Default()
+	if c.UI.RecordRemote || c.UI.RecordEvery != "1h" || c.UI.RecordDir != "" {
+		t.Errorf("defaults: record %v every %q dir %q", c.UI.RecordRemote, c.UI.RecordEvery, c.UI.RecordDir)
+	}
+	for every, ok := range map[string]bool{"5m": true, "1h": true, "24h": true, "1m": false, "25h": false, "soon": false} {
+		u := c.UI
+		u.RecordEvery = every
+		if err := ValidateUI(u); (err == nil) != ok {
+			t.Errorf("ValidateUI with record_every %q: %v", every, err)
+		}
+	}
+	for dir, ok := range map[string]bool{"": true, "/var/log/sw": true, "~": true, "~/logs": true, "logs": false, "./logs": false} {
+		u := c.UI
+		u.RecordDir = dir
+		if err := ValidateUI(u); (err == nil) != ok {
+			t.Errorf("ValidateUI with record_dir %q: %v", dir, err)
+		}
+	}
+}

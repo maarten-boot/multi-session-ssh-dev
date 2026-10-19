@@ -586,3 +586,22 @@ group = "nope"
 		t.Errorf("clean config: %v", p)
 	}
 }
+
+func TestRecords(t *testing.T) {
+	for _, c := range []struct {
+		record string
+		global bool
+		want   bool
+	}{
+		{"", false, false}, {"", true, true}, {"on", false, true}, {"off", true, false}, {"bogus", true, true},
+	} {
+		if got := Records(config.Session{Record: c.record}, config.UI{RecordRemote: c.global}); got != c.want {
+			t.Errorf("Records(%q, global %v) = %v", c.record, c.global, got)
+		}
+	}
+	c := &config.Config{Hosts: []config.Host{{Name: "h", SSHTarget: "h"}},
+		Sessions: []config.Session{{ID: "s-1", Name: "x", Host: "h", LocalPath: "/x", StartMode: "shell", Record: "always"}}}
+	if p := Problems(c); len(p) != 1 || !strings.Contains(p[0], `record must be "on", "off"`) {
+		t.Errorf("problems: %q", p)
+	}
+}

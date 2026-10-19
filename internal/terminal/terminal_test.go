@@ -165,3 +165,36 @@ func TestStartErrors(t *testing.T) {
 		t.Error("missing binary accepted")
 	}
 }
+
+type tap struct {
+	mu      sync.Mutex
+	out, in bytes.Buffer
+	exited  []string
+}
+
+func (t *tap) Output(id string, b []byte) { t.mu.Lock(); t.out.Write(b); t.mu.Unlock() }
+func (t *tap) Input(id string, b []byte)  { t.mu.Lock(); t.in.Write(b); t.mu.Unlock() }
+func (t *tap) Exit(id string)             { t.mu.Lock(); t.exited = append(t.exited, id); t.mu.Unlock() }
+
+// The tap sees the same output as the frontend, the input, and the end,
+// before the exit event.
+func TestTap(t *testing.T) {
+	r := newRecorder()
+	m := NewManager(r)
+	tp := &tap{}
+	m.SetTap(tp)
+	id, err := m.Start(Spec{Command: "/bin/sh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Write(id, []byte("echo tapped-$((6*7)); exit\n"))
+	r.waitExit(t)
+	tp.mu.Lock()
+	defer tp.mu.Unlock()
+	if tp.out.String() != r.output() || !strings.Contains(tp.out.String(), "tapped-42") {
+		t.Errorf("tap output %q, frontend %q", tp.out.String(), r.output())
+	}
+	if tp.in.String() != "echo tapped-$((6*7)); exit\n" || len(tp.exited) != 1 || tp.exited[0] != id {
+		t.Errorf("input %q, exited %v", tp.in.String(), tp.exited)
+	}
+}
