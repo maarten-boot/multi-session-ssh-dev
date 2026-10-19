@@ -304,7 +304,8 @@ func TestReadmeExample(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	text := string(b)
+	// Git on Windows checks files out with CRLF line endings.
+	text := strings.ReplaceAll(string(b), "\r\n", "\n")
 	i := strings.Index(text, "```toml\nworkspace_roots")
 	if i < 0 {
 		t.Fatal("the ```toml config example (starting with workspace_roots) is gone from README.md")
