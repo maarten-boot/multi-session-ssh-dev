@@ -85,6 +85,19 @@ func paneCommand(cmd string) (string, error) {
 	return `"$SHELL" -lic ` + Quote(cmd) + `; exec "$SHELL" -l`, nil
 }
 
+// HistoryDir is where the agent host keeps sessions' private shell
+// histories (see historyEnv).
+const HistoryDir = "$HOME/.local/state/session-workbench/history"
+
+// historyEnv gives the pane's shells the session's own history: HISTFILE
+// for bash and zsh, fish_history for fish (a name: letters, digits, _).
+// The pane command runs in the user's shell (tmux's default-shell), so
+// only commands bash, zsh, sh and fish all understand are used.
+func historyEnv(id string) string {
+	return `mkdir -p "` + HistoryDir + `"; export HISTFILE="` + HistoryDir + `/` + id + `"; ` +
+		`export fish_history=session_` + strings.ReplaceAll(id, "-", "_") + `; `
+}
+
 // ExitMissingDir is the exit status of an attach whose directory does not
 // exist on the agent host (for example a working copy not sent yet).
 const ExitMissingDir = 3
@@ -112,8 +125,9 @@ func ShellPath(p string) string {
 
 // AttachArgs returns the ssh arguments (without "ssh" itself) that attach to
 // the session's tmux session, creating it in remotePath running cmd (see
-// paneCommand) if it does not exist yet. Run it in a pty.
-func AttachArgs(target, id, remotePath, cmd string) ([]string, error) {
+// paneCommand) if it does not exist yet; with privateHistory its shells
+// keep their own history (historyEnv). Run it in a pty.
+func AttachArgs(target, id, remotePath, cmd string, privateHistory bool) ([]string, error) {
 	if err := checkTarget(target); err != nil {
 		return nil, err
 	}
@@ -126,6 +140,9 @@ func AttachArgs(target, id, remotePath, cmd string) ([]string, error) {
 	pane, err := paneCommand(cmd)
 	if err != nil {
 		return nil, err
+	}
+	if privateHistory {
+		pane = historyEnv(id) + pane
 	}
 	// The cd makes a missing directory a visible error (and exit status)
 	// instead of tmux silently starting in $HOME. -A attaches if the session

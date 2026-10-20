@@ -1361,6 +1361,9 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.record.value = s?.data.record ?? '';
     f.elements.record.options[0].textContent = `default (${app.state.ui.record_remote ? 'on' : 'off'}, from Settings)`;
     f.elements.record.closest('label').hidden = !editing;
+    f.elements.history.value = s?.data.history ?? '';
+    f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
+    f.elements.history.closest('label').hidden = !editing;
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
         ...app.state.groups.map(g => el('option', {value: g, textContent: g})));
     f.elements.group.value = s?.data.group ?? presetGroup ?? '';
@@ -1409,7 +1412,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
             await UpdateSession(s.id, {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
-                commands: cmdList.value,
+                history: f.elements.history.value, commands: cmdList.value,
             });
         } else {
             created = await CreateSession({
@@ -1489,7 +1492,7 @@ async function setSessionColors(s, mode) {
     const override = mode === app.state.ui.color_mode ? '' : mode;
     try {
         await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: override, group: s.data.group,
-            record: s.data.record});
+            record: s.data.record, history: s.data.history});
     } catch (err) {
         await confirmDialog({title: 'Could not change colors', text: String(err), ok: null});
     }
@@ -1506,7 +1509,7 @@ async function setSessionRecord(s, on) {
     const override = on === !!app.state.ui.record_remote ? '' : on ? 'on' : 'off';
     try {
         await UpdateSession(s.id, {name: s.data.name, start_mode: s.data.start_mode, color_mode: s.data.color_mode,
-            group: s.data.group, record: override});
+            group: s.data.group, record: override, history: s.data.history});
     } catch (err) {
         await confirmDialog({title: 'Could not change recording', text: String(err), ok: null});
     }
@@ -1548,6 +1551,7 @@ async function settingsDialog() {
     f.claude_backup.checked = ui.claude_backup !== false;
     f.notifications.checked = ui.notifications !== false;
     f.ctrl_copy_paste.checked = ui.ctrl_copy_paste !== false;
+    f.private_history.checked = ui.private_history !== false;
     f.ctrl_copy_paste.closest('label').hidden = isMac; // Cmd+C/V there
     const every = f.claude_backup_every;
     if (![...every.options].some(o => o.value === ui.claude_backup_every)) {
@@ -1613,6 +1617,7 @@ async function settingsDialog() {
         claude_backup: f.claude_backup.checked,
         notifications: f.notifications.checked,
         ctrl_copy_paste: f.ctrl_copy_paste.checked,
+        private_history: f.private_history.checked,
         claude_backup_every: f.claude_backup_every.value,
         record_remote: f.record_remote.checked,
         record_every: f.record_every.value,

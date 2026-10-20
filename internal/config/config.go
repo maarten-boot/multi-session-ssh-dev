@@ -58,6 +58,9 @@ type Session struct {
 	// Commands are the session's own entries of the command menu, listed
 	// before UI.Commands.
 	Commands []Command `toml:"commands,omitempty" json:"commands"`
+	// History overrides UI.PrivateHistory for this session: "on", "off",
+	// or "" to follow it.
+	History string `toml:"history,omitempty" json:"history"`
 }
 
 // Command is an entry of the command menu of the Local and Remote tabs:
@@ -149,6 +152,9 @@ type UI struct {
 	RecordRemote bool   `toml:"record_remote,omitempty" json:"record_remote"`
 	RecordEvery  string `toml:"record_every,omitempty" json:"record_every"`
 	RecordDir    string `toml:"record_dir,omitempty" json:"record_dir"`
+	// PrivateHistory gives each session's Local and Remote shells their own
+	// history file (HISTFILE; fish_history) instead of the user's shared one.
+	PrivateHistory *bool `toml:"private_history,omitempty" json:"private_history"`
 	// Commands is the command menu of every session (after its own);
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
@@ -243,6 +249,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.UI.CtrlCopyPaste == nil {
 		c.UI.CtrlCopyPaste = ptr(true)
+	}
+	if c.UI.PrivateHistory == nil {
+		c.UI.PrivateHistory = ptr(true)
 	}
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"

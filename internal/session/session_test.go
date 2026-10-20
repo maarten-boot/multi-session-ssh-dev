@@ -761,3 +761,30 @@ start_mode = "claude-continue"
 		t.Errorf("resolved %q %v", r.StartCommand, err)
 	}
 }
+
+// Private shell history: on by default, a session can opt out (or in).
+func TestPrivateHistory(t *testing.T) {
+	on, off := true, false
+	for _, c := range []struct {
+		history string
+		global  *bool
+		want    bool
+	}{
+		{"", nil, true}, {"", &off, false}, {"on", &off, true}, {"off", &on, false}, {"", &on, true},
+	} {
+		if got := PrivateHistory(config.Session{History: c.history}, config.UI{PrivateHistory: c.global}); got != c.want {
+			t.Errorf("PrivateHistory(%q, %v) = %v", c.history, c.global, got)
+		}
+	}
+	if d := config.Default(); d.UI.PrivateHistory == nil || !*d.UI.PrivateHistory {
+		t.Error("private_history is not on by default")
+	}
+	m, root, _ := setup(t)
+	v, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "p")})
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", History: "off"}); err != nil || m.State().Sessions[0].History != "off" {
+		t.Errorf("history off: %v", err)
+	}
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", History: "sometimes"}); err == nil {
+		t.Error("history = sometimes accepted")
+	}
+}

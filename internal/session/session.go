@@ -36,7 +36,8 @@ type View struct {
 	Files      string `json:"files"` // the host's file access mode
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
-	Record     string `json:"record"` // "on", "off", "" = follow the global setting
+	Record     string `json:"record"`  // "on", "off", "" = follow the global setting
+	History    string `json:"history"` // "on", "off", "" = follow private_history
 	// Commands is the session's own command menu (before the global one).
 	Commands []config.Command `json:"commands"`
 	Error    string           `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -84,6 +85,7 @@ type Edit struct {
 	ColorMode string `json:"color_mode"`
 	Group     string `json:"group"`
 	Record    string `json:"record"`
+	History   string `json:"history"` // "on", "off", "" = follow private_history
 	// Commands replaces the session's own command menu; null (left out)
 	// keeps it, [] empties it.
 	Commands []config.Command `json:"commands"`
@@ -155,7 +157,7 @@ func (m *Manager) State() State {
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
-			Commands: se.Commands}
+			History: se.History, Commands: se.Commands}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -306,6 +308,9 @@ func Problems(c *config.Config) []string {
 		if err := validRecord(s.Record); err != nil {
 			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
 		}
+		if err := validOnOff("history", s.History); err != nil {
+			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
+		}
 		if err := config.ValidateCommands(s.Commands); err != nil {
 			out = append(out, fmt.Sprintf("session %q: commands: %v", label, err))
 		}
@@ -450,6 +455,25 @@ func validRecord(r string) error {
 	return nil
 }
 
+func validOnOff(key, v string) error {
+	if v != "" && v != "on" && v != "off" {
+		return fmt.Errorf(`%s must be "on", "off" or left out, not %q`, key, v)
+	}
+	return nil
+}
+
+// PrivateHistory reports whether a session's shells keep their own history:
+// its own "on"/"off", else the global setting.
+func PrivateHistory(s config.Session, ui config.UI) bool {
+	switch s.History {
+	case "on":
+		return true
+	case "off":
+		return false
+	}
+	return ui.PrivateHistory == nil || *ui.PrivateHistory
+}
+
 // Records reports whether a session's Remote tab is to be recorded: its
 // own "on"/"off", else the global setting.
 func Records(s config.Session, ui config.UI) bool {
@@ -496,6 +520,9 @@ func (m *Manager) Update(id string, e Edit) error {
 	if err := validRecord(e.Record); err != nil {
 		return err
 	}
+	if err := validOnOff("history", e.History); err != nil {
+		return err
+	}
 	if err := config.ValidateCommands(e.Commands); err != nil {
 		return err
 	}
@@ -519,6 +546,7 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].ColorMode = e.ColorMode
 		c.Sessions[i].Group = e.Group
 		c.Sessions[i].Record = e.Record
+		c.Sessions[i].History = e.History
 		if e.Commands != nil { // left out: unchanged
 			c.Sessions[i].Commands = config.TidyCommands(e.Commands)
 		}
@@ -677,7 +705,8 @@ func (m *Manager) SaveUI(ui config.UI) error {
 	}
 	ui.TabOrder, ui.HiddenTabs = config.NormalizedTabs(ui)
 	ui.Commands = config.TidyCommands(ui.Commands)
-	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil {
+	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil ||
+		ui.PrivateHistory == nil {
 		return errors.New("incomplete UI settings")
 	}
 	return m.update(func(c *config.Config) error {

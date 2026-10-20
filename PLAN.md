@@ -89,6 +89,9 @@ implementation differs from the original plan.
 - v0.8.35: command menu in the Local and Remote tabs (T5: right-click section and Commands ▾; global
   list plus the session's own, run or only type), editable start commands for the Remote tab
   (R2), Settings in pages behind a tab bar.
+- Docs/code cross-check (v0.8.36): start command fallback outside the command's shell line,
+  removed start modes, Settings save with a hidden bad value.
+- Private shell history per session for the Local and Remote tabs (L4).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -111,13 +114,13 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 26
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 27
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies (Get: a fast-forward and a new branch), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu and start commands, badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu and start commands, private shell history, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

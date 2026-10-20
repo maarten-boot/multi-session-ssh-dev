@@ -590,7 +590,10 @@ func (a *App) StartLocal(id string, cols, rows int) (string, error) {
 		sh, args = cfg.Local.Shell, cfg.Local.Args
 	}
 	var env []string
-	for k, v := range r.Env {
+	if session.PrivateHistory(r.Session, cfg.UI) {
+		env = append(env, a.historyEnv(r.ID)...)
+	}
+	for k, v := range r.Env { // the session's own env wins
 		env = append(env, k+"="+v)
 	}
 	tid, err := a.terms.Start(terminal.Spec{Command: sh, Args: args, Dir: r.LocalPath, Env: env, Cols: cols, Rows: rows})
@@ -599,6 +602,20 @@ func (a *App) StartLocal(id string, cols, rows int) (string, error) {
 		a.terms.Write(tid, []byte(r.LocalInit+"\r"))
 	}
 	return tid, err
+}
+
+// historyEnv gives a session's Local shell its own history: HISTFILE in
+// <data dir>/history (bash, zsh), fish_history (fish). PowerShell and cmd
+// keep theirs (they take no history file from the environment).
+func (a *App) historyEnv(id string) []string {
+	if a.dataDir == "" || goruntime.GOOS == "windows" {
+		return nil
+	}
+	dir := filepath.Join(a.dataDir, "history")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil
+	}
+	return []string{"HISTFILE=" + filepath.Join(dir, id+".history"), "fish_history=session_" + strings.ReplaceAll(id, "-", "_")}
 }
 
 // ensureShare starts a live share and waits up to timeout for the mount.
@@ -635,7 +652,8 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ssh client not found: %w", err)
 	}
-	args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, r.StartCommand)
+	args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, r.StartCommand,
+		session.PrivateHistory(r.Session, a.sessions.Config().UI))
 	if err != nil {
 		return "", err
 	}

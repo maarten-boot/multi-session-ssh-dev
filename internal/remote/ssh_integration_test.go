@@ -41,7 +41,7 @@ func TestSSHTmuxRoundTrip(t *testing.T) {
 	r := &collector{exit: make(chan terminal.ExitInfo, 1)}
 	m := terminal.NewManager(r)
 	attach := func() string {
-		args, err := AttachArgs(target, id, dir, "")
+		args, err := AttachArgs(target, id, dir, "", false)
 		if err != nil {
 			t.Fatal(err)
 		}

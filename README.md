@@ -82,7 +82,8 @@ make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/u
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
-                     # Remote tab recordings, command menu and start commands, badges (~2 min)
+                     # Remote tab recordings, command menu and start commands, private
+                     # shell history, badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -271,6 +272,17 @@ one that a session still uses stops that session from starting (the sidebar says
 pick another in *Edit…*. A changed command applies to tmux sessions started afterwards (*End
 remote session…* restarts one). A start command is one line and cannot start with `-`; with
 zsh as the login shell, leave out `#` comments (zsh does not treat them as comments there).
+
+**Shell history per session.** Each session's Local and Remote shells keep their own command
+history, so ↑ and Ctrl+R show that project's commands, not everything from all your shells:
+the app sets `HISTFILE` (bash, zsh) to `history/<session id>.history` in its data folder
+(`~/.local/share/session-workbench/` on Linux) for the Local tab, and to
+`~/.local/state/session-workbench/history/<session id>` on the agent host for the Remote tab;
+fish gets `fish_history=session_<id>`. Off: Settings → Terminals (`private_history = false`), or
+per session in *Edit…* → Shell history (`history = "off"` / `"on"`). Notes: a `HISTFILE` set in
+your `~/.bashrc` wins; bash writes history when the shell exits (`PROMPT_COMMAND='history -a'`
+in `~/.bashrc` saves as you go); on the agent host it applies to tmux sessions started
+afterwards (*End remote session…* restarts one); PowerShell and cmd on Windows keep their own.
 
 **Settings** (Ctrl+Shift+, or *Settings…*) has five pages: Appearance (theme, colors, fonts,
 tab order), Terminals, Commands, Backups and recordings, and Keys (the current shortcuts).
@@ -500,6 +512,7 @@ activity_badges = true
 copy_on_select = false
 ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pastes (Linux/Windows)
 notifications = true                      # desktop notification when claude waits (bell)
+private_history = true                    # each session's shells keep their own history
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
 record_remote = false                     # record every session's Remote tab (as text)
@@ -567,6 +580,7 @@ start_mode = "claude-continue"            # the name of one of [[ui.start_comman
 group = "Work"                            # optional: sidebar folder (listed in groups)
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
+history = "off"                           # optional: "on" / "off" overrides [ui] private_history
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 commands = [{ name = "test", command = "make test" }]                 # optional: before [[ui.commands]] in the menu

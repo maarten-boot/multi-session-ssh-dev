@@ -94,6 +94,13 @@
             <div class="caption">Commands (this session's, before the ones in Settings)</div>
             <div class="command-list" data-list="session_commands"></div>
         </div>
+        <label>Shell history (Local and Remote tab)
+            <select name="history">
+                <option value="">default</option>
+                <option value="on">its own</option>
+                <option value="off">shared with your other shells</option>
+            </select>
+        </label>
         <label>Record the Remote tab (input and output, as text)
             <select name="record">
                 <option value="">default</option>
@@ -211,6 +218,7 @@
                     <label class="check"><input type="checkbox" name="copy_on_select"> Copy terminal selection to the clipboard automatically</label>
                     <label class="check"><input type="checkbox" name="ctrl_copy_paste"> Ctrl+C copies selected text (else interrupts), Ctrl+V pastes</label>
                     <label class="check"><input type="checkbox" name="notifications"> Desktop notification when claude waits (terminal bell)</label>
+                    <label class="check"><input type="checkbox" name="private_history"> Each session's shells keep their own command history (Local and Remote)</label>
                 </div>
             </div>
         </section>

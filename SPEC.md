@@ -258,6 +258,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - L1. Local login shell in a PTY with cwd = `local_path`. Shell from config (`[local] shell/args`),
   default: `$SHELL -l` (Linux/macOS), `pwsh.exe` → `powershell.exe` → `cmd.exe` (Windows, via ConPTY).
 - L2. Optional per-session env vars and an optional init command.
+- L4. Private shell history (`private_history`, default on; a session's `history` "on"/"off"
+  overrides it; Settings → Terminals, Edit… → Shell history): the Local shell gets
+  `HISTFILE=<data dir>/history/<id>.history` (folder created owner-only) and
+  `fish_history=session_<id with - as _>`; the session's own `env` wins; not on Windows
+  (PowerShell, cmd take no history file from the environment). The Remote pane command starts
+  with `mkdir -p "$HOME/.local/state/session-workbench/history"; export HISTFILE=…/<id>;
+  export fish_history=session_<id>;` (understood by sh, bash, zsh and fish), so it applies to
+  tmux sessions created afterwards. A `HISTFILE` set in the user's shell startup files wins.
 - L3. Local shells are not persistent across app restarts (it's the host; use tmux locally if wanted).
 
 ### 4.4 Files tab
@@ -404,7 +412,7 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 
 Settings is one dialog with pages behind a tab bar (the last one used opens again):
 Appearance (theme, colors, fonts, tab order), Terminals (scrollback, connecting, reconnecting,
-badges, copy/paste, notifications), Commands (command menu, start commands), Backups and
+badges, copy/paste, notifications, private shell history), Commands (command menu, start commands), Backups and
 recordings, Keys.
 
 ### 4.7 Configuration

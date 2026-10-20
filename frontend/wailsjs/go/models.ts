@@ -86,6 +86,7 @@ export namespace config {
 	    record_remote: boolean;
 	    record_every: string;
 	    record_dir: string;
+	    private_history?: boolean;
 	    commands: Command[];
 	    start_commands: StartCommand[];
 	
@@ -114,6 +115,7 @@ export namespace config {
 	        this.record_remote = source["record_remote"];
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
+	        this.private_history = source["private_history"];
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
 	    }
@@ -505,6 +507,7 @@ export namespace session {
 	    color_mode: string;
 	    group: string;
 	    record: string;
+	    history: string;
 	    commands: config.Command[];
 	
 	    static createFrom(source: any = {}) {
@@ -518,6 +521,7 @@ export namespace session {
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
 	        this.record = source["record"];
+	        this.history = source["history"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	    }
 	
@@ -592,6 +596,7 @@ export namespace session {
 	    remote_path: string;
 	    tmux_name: string;
 	    record: string;
+	    history: string;
 	    commands: config.Command[];
 	    error: string;
 	
@@ -613,6 +618,7 @@ export namespace session {
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.record = source["record"];
+	        this.history = source["history"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.error = source["error"];
 	    }

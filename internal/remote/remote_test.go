@@ -25,7 +25,7 @@ func TestValidID(t *testing.T) {
 }
 
 func TestArgsForceSafeOptions(t *testing.T) {
-	attach, err := AttachArgs("user@host", "s1", "/srv/x", "claude")
+	attach, err := AttachArgs("user@host", "s1", "/srv/x", "claude", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestArgsValidation(t *testing.T) {
 		{"host", "s1", "/x", "claude\nrm -rf ~"},
 	}
 	for _, b := range bad {
-		if _, err := AttachArgs(b.target, b.id, b.path, b.mode); err == nil {
+		if _, err := AttachArgs(b.target, b.id, b.path, b.mode, false); err == nil {
 			t.Errorf("AttachArgs(%q, %q, %q, %q) accepted", b.target, b.id, b.path, b.mode)
 		}
 	}
@@ -157,7 +157,7 @@ func TestAttachCommandExecutes(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.mode, func(t *testing.T) {
 			env, log := fakeRemote(t)
-			args, err := AttachArgs("host", "s-1", dir, c.mode)
+			args, err := AttachArgs("host", "s-1", dir, c.mode, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -187,7 +187,7 @@ func TestAttachContinueWithoutConversation(t *testing.T) {
 	env, log := fakeRemote(t)
 	env = append(env, "NO_CONVERSATION=1")
 	dir := t.TempDir()
-	args, err := AttachArgs("host", "s-1", dir, "claude --continue || claude")
+	args, err := AttachArgs("host", "s-1", dir, "claude --continue || claude", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestAttachContinueWithoutConversation(t *testing.T) {
 
 func TestAttachMissingDirFails(t *testing.T) {
 	env, log := fakeRemote(t)
-	args, err := AttachArgs("host", "s-1", filepath.Join(t.TempDir(), "missing"), "")
+	args, err := AttachArgs("host", "s-1", filepath.Join(t.TempDir(), "missing"), "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestAttachMissingDirNoInjection(t *testing.T) {
 	env, log := fakeRemote(t)
 	marker := filepath.Join(t.TempDir(), "ran")
 	dir := t.TempDir() + "/a$(touch " + marker + ")`touch " + marker + "`$HOME\"'b"
-	args, err := AttachArgs("host", "s-1", dir, "")
+	args, err := AttachArgs("host", "s-1", dir, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestAttachHomeRelativePath(t *testing.T) {
 	home := t.TempDir()
 	os.MkdirAll(filepath.Join(home, "sw", "proj-s-1"), 0o755)
 	env = append(env, "HOME="+home)
-	args, err := AttachArgs("host", "s-1", "~/sw/proj-s-1", "")
+	args, err := AttachArgs("host", "s-1", "~/sw/proj-s-1", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestAttachCustomCommand(t *testing.T) {
 	env, log := fakeRemote(t)
 	dir := t.TempDir()
 	cmd := `printf '%s|%s\n' "it's" '$HOME;x' >>"$LOG"`
-	args, err := AttachArgs("host", "s-1", dir, cmd)
+	args, err := AttachArgs("host", "s-1", dir, cmd, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestAttachCustomCommand(t *testing.T) {
 		t.Errorf("pane ran:\n got %q\nwant %q", ran, want)
 	}
 	for _, bad := range []string{"a\nb", "a\rb", "a\x00b"} {
-		if _, err := AttachArgs("host", "s-1", dir, bad); err == nil {
+		if _, err := AttachArgs("host", "s-1", dir, bad, false); err == nil {
 			t.Errorf("start command %q accepted", bad)
 		}
 	}
@@ -334,7 +334,7 @@ func TestStartCommandFallback(t *testing.T) {
 	for _, cmd := range []string{"echo x # a comment", `echo x \`, "echo 'x", "exit 0", "false"} {
 		t.Run(cmd, func(t *testing.T) {
 			env, log := fakeRemote(t)
-			args, err := AttachArgs("host", "s-1", t.TempDir(), cmd)
+			args, err := AttachArgs("host", "s-1", t.TempDir(), cmd, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -345,8 +345,31 @@ func TestStartCommandFallback(t *testing.T) {
 		})
 	}
 	for _, bad := range []string{"-echo x", " -i", "a\tb", "a\x1b[2J"} {
-		if _, err := AttachArgs("host", "s-1", "/x", bad); err == nil {
+		if _, err := AttachArgs("host", "s-1", "/x", bad, false); err == nil {
 			t.Errorf("start command %q accepted", bad)
 		}
+	}
+}
+
+// With private history the pane's shells get the session's own history
+// file (bash, zsh: HISTFILE, its folder created) and name (fish).
+func TestPrivateHistory(t *testing.T) {
+	env, log := fakeRemote(t)
+	home := t.TempDir()
+	env = append(env, "HOME="+home)
+	args, err := AttachArgs("host", "s-1a", t.TempDir(), `echo "h=$HISTFILE f=$fish_history" >>"$LOG"`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runRemote(t, env, args); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, ".local", "state", "session-workbench", "history")
+	want := "h=" + dir + "/s-1a f=session_s_1a"
+	if got := readLog(t, log); !slices.Contains(got, want) {
+		t.Errorf("log %q lacks %q", got, want)
+	}
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		t.Errorf("history folder: %v", err)
 	}
 }
