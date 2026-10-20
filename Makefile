@@ -50,8 +50,9 @@ test:
 	go test -race ./...
 	cd frontend && npm test --silent
 
-# Round trip against a real agent host (needs key auth and tmux there, and
-# the same /tmp path visible on both sides, e.g. localhost).
+# Round trip against a real agent host (needs key auth, tmux, sshfs, git and
+# tar there, rsync optional, and the same /tmp path visible on both sides,
+# e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
 	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer
@@ -69,7 +70,7 @@ clean:
 	rm -rf build/bin frontend/dist/assets dist build/pkgdocs
 
 # Headless GUI tests (Linux; need xvfb, xdotool, imagemagick, and for most of
-# them `ssh localhost` without prompts, tmux, rsync, sshfs, git, jq, dbus, python3-dbus,
+# them `ssh localhost` without prompts, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus,
 # python3-gi, gdbus). Screenshots
 # land in $(SMOKE_OUT)-*. They use throwaway configs, never yours. Each test
 # checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails

@@ -1,12 +1,14 @@
 # Session Workbench — Specification
 
-Status: v1.3 (2026-10-19, app v0.8.29) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.4 (2026-10-20, app v0.8.32) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
 (N2), terminal copy/paste (T2), live share and working copies (docs/CONNECTIVITY.md), Linux
 packages, Files tab date column and sort order (B1), window size and position remembered
-(§4.7), notes as page trees with a formatting editor (N1, N1a) and Remote tab recordings (F10).
+(§4.7), notes as page trees with a formatting editor (N1, N1a), Remote tab recordings (F10),
+Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
+and appending writes through the live share (§6).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -191,6 +193,21 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   what does not fit is left out with a `# N bytes not recorded` line, and the next input line
   is hidden. Terminals register with the recorder before they start (`terminal.Spec.OnStart`),
   so even a connection that ends at once is recorded and closed.
+
+- F11. Working copies (`files = "sync"`, docs/CONNECTIVITY.md mode C): Send mirrors the
+  directory to the agent copy (preview; refused while the agent copy has commits not fetched
+  yet; uncommitted agent changes only overwritten after confirming). Get fetches the agent's
+  branches into `refs/remotes/agent-<id>/` (`--prune`, `transfer.fsckObjects`) and lists each
+  (at most 200; more is said) next to the host's branch of the same name: new, ahead, up to
+  date, behind, diverged, or unsafe (a name outside `[A-Za-z0-9._/+@-]` or starting with `-`:
+  never taken over or put in a suggested command), with its commits (≤20) and changed files
+  (≤200, names and status only) and whether it is checked out here or on the agent. New and
+  ahead branches are ticked; Take over creates new ones (`git branch --no-track`) and
+  fast-forwards the others (`git branch --force` after an ancestry check, refusing a branch
+  checked out in another worktree; the checked-out branch with `git merge --ff-only`, so its
+  files follow and the host repository's own hooks run). Nothing ticked, or nothing taken
+  over, keeps the dialog open with the reason. For a diverged branch the shell-quoted
+  `git checkout … && git merge …` is shown.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
@@ -416,7 +433,8 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 │        │  calls:  TermWrite/Resize, StartLocal/Remote, ListDir,   │
 │        │          OpenPath, session/host/folder CRUD, Sync*, Backup*│
 │ Backend (Go)                                                      │
-│   config · session manager · pty manager · pathmap · fs · opener  │
+│   config · session manager · pty manager · pathmap · remote ·     │
+│   fsbrowse · opener                                               │
 │   gitstatus · notes · forge · syncer · xfer · share · backup ·    │
 │   instance · winstate · reclog · notify                           │
 └───────────┬───────────────────────────────┬───────────────────────┘
@@ -502,10 +520,13 @@ repository config and warns again whenever they change.
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
   inside the directory, never created through a symlinked parent (a rename re-checks moved
-  links); hard links refused; ownership changes ignored; opens with append write at the end
-  whatever offset the client sends (as OpenSSH's sftp-server; git's reflogs and lock files),
-  the mode asked for at open is read from the open request's own attributes; a panic in a
-  handler becomes an error for that request instead of ending the app. Working copies: the built-in transfer
+  links); hard links refused; ownership changes ignored; "append" is not passed to the file
+  system: writes go to the offset the client sends (sshfs sends the end of the file for
+  appending writes; writing at the end ourselves would reorder data, as pkg/sftp runs writes
+  on parallel workers); the mode asked for at open is used when it comes alone (4 bytes, as
+  sshfs and OpenSSH send it: pkg/sftp drops the attribute flags), else 0644; a panic in a
+  handler, or in a file or listing it returned, becomes an error for that request instead of
+  ending the app. Working copies: the built-in transfer
   refuses paths through linked parents; fetching back uses `transfer.fsckObjects`. Claude
   backups: rsync `--safe-links --no-devices --no-specials`, never `--delete`, nothing in a
   backup is run; scheduled ones time out after 30 minutes.

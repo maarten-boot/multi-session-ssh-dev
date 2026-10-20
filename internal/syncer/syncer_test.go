@@ -117,7 +117,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Branch != "main" || f.AgentRef != "agent-s-test/main" || len(f.New) != 1 || f.New[0].Subject != "agent work" || !f.CanFF {
+	if f.Branch != "main" || f.MoreBranches {
 		t.Fatalf("fetched %+v", f)
 	}
 	if len(f.Agent) != 1 || f.AgentBranch != "main" {
@@ -422,5 +422,104 @@ func TestSSHSendIgnoredOutsideTop(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// agentRepo makes a host repository with agent branches as Get leaves them
+// (refs/remotes/agent-<id>/…), without ssh: commits made on a side branch
+// and moved under the agent prefix.
+func agentRepo(t *testing.T) (Session, func(args ...string) string) {
+	t.Helper()
+	dir := t.TempDir()
+	git := func(args ...string) string { return gitIn(t, dir, args...) }
+	commit := func(file, msg string) {
+		os.WriteFile(filepath.Join(dir, file), []byte(msg+"\n"), 0o644)
+		git("add", file)
+		git("commit", "-q", "-m", msg)
+	}
+	git("init", "-q")
+	commit("a.txt", "base")
+	s := Session{ID: "s-t", LocalPath: dir}
+	agent := func(name string) { git("update-ref", RefPrefix(s.ID)+name, "HEAD") }
+	agent("main")                     // same
+	agent("x;touch${IFS}PWNED&&true") // a name a shell would act on (| is not allowed on Windows)
+	git("checkout", "-q", "-b", "tmp")
+	commit("f.txt", "on feature")
+	agent("feature/x") // new, 1 commit
+	git("checkout", "-q", "main")
+	git("branch", "ahead")
+	git("checkout", "-q", "tmp")
+	commit("b.txt", "agent work")
+	agent("ahead") // ahead by 2 (on feature, agent work)
+	git("checkout", "-q", "main")
+	git("branch", "split")
+	git("checkout", "-q", "split")
+	commit("h.txt", "host only")
+	git("checkout", "-q", "tmp")
+	agent("split") // diverged: 2 agent commits, 1 host commit
+	git("checkout", "-q", "main")
+	git("branch", "-D", "tmp")
+	return s, git
+}
+
+func TestCompareAgentBranches(t *testing.T) {
+	s, _ := agentRepo(t)
+	var f Fetched
+	compareAll(context.Background(), s, &f)
+	got := map[string]string{}
+	for _, b := range f.Agent {
+		got[b.Name] = fmt.Sprintf("%s %d/%d %d/%d", b.State, b.Ahead, b.Behind, len(b.Commits), len(b.Changes))
+	}
+	want := map[string]string{
+		"main":                     "same 0/0 0/0",
+		"feature/x":                "new 1/0 1/1",
+		"ahead":                    "ahead 2/0 2/2",
+		"split":                    "diverged 2/1 2/2",
+		"x;touch${IFS}PWNED&&true": "unsafe 0/0 0/0",
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) || f.Branch != "main" || f.MoreBranches {
+		t.Errorf("branches:\n got %v\nwant %v (on %q)", got, want, f.Branch)
+	}
+	for _, b := range f.Agent {
+		if b.Name == "split" && fmt.Sprint(b.Changes) != "[{new b.txt} {new f.txt}]" {
+			t.Errorf("split brings %v (since the branches split, not undoing the host's commit)", b.Changes)
+		}
+	}
+}
+
+func TestTakeAgentBranches(t *testing.T) {
+	s, git := agentRepo(t)
+	ctx := context.Background()
+	done, err := Take(ctx, s, []string{"feature/x", "ahead", "split", "x;touch${IFS}PWNED&&true", "-x", "main", "nope"})
+	if len(done) != 3 || err == nil {
+		t.Fatalf("done %q, err %v", done, err)
+	}
+	for _, want := range []string{"split: your branch has commits", "x;touch${IFS}PWNED&&true: not taken over", "-x: not taken over", "nope: not an agent branch"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
+	}
+	if got := strings.TrimSpace(git("log", "-1", "--format=%s", "feature/x")); got != "on feature" {
+		t.Errorf("feature/x: %q", got)
+	}
+	if got := strings.TrimSpace(git("log", "-1", "--format=%s", "ahead")); got != "agent work" {
+		t.Errorf("ahead: %q", got)
+	}
+	if got := strings.TrimSpace(git("log", "-1", "--format=%s", "split")); got != "host only" {
+		t.Errorf("split changed: %q", got)
+	}
+	if got := strings.TrimSpace(git("symbolic-ref", "--short", "HEAD")); got != "main" {
+		t.Errorf("switched to %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(s.LocalPath, "PWNED")); err == nil {
+		t.Error("a branch name ran a command")
+	}
+	// The checked-out branch is fast-forwarded with its files.
+	git("update-ref", RefPrefix(s.ID)+"main", "ahead")
+	if done, err := Take(ctx, s, []string{"main"}); err != nil || !strings.Contains(done[0], "fast-forwarded by 2") {
+		t.Fatalf("main: %q %v", done, err)
+	}
+	if _, err := os.Stat(filepath.Join(s.LocalPath, "b.txt")); err != nil {
+		t.Error("work tree not updated")
 	}
 }

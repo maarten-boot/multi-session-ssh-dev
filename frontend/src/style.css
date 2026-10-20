@@ -489,6 +489,10 @@ button.link:hover {
     cursor: default;
 }
 
+.menu:focus {
+    outline: none;
+}
+
 .menu .info {
     padding: 6px 14px;
     color: var(--text-strong);

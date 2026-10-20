@@ -43,6 +43,10 @@ alive
 expect "the agent's branches are in the host repository" "feature-x|main|side/y|" "$(git -C $L for-each-ref --format='%(refname:short)' refs/heads | tr '\n' '|')"
 expect "and its commit" "on feature" "$(git -C $L log -1 --format=%s feature-x 2>&1)"
 check "no lock files left" test -z "$(find $L/.git -name '*.lock')"
+expect "the reflog got the agent's entries in order (appending writes)" "3|commit: on feature" "$(wc -l <$L/.git/logs/HEAD | tr -d ' ')|$(tail -1 $L/.git/logs/HEAD | cut -f2)"
+check "the repository is sound" git -C $L fsck --no-progress
+t '(umask 077; echo s >secret.txt); echo made-secret' 2
+expect "a file created private on the agent is private here" "-rw-------" "$(stat -c %A $L/secret.txt 2>&1)"
 xdotool mousemove 284 137 click 1; sleep 0.3; xdotool mousemove 1000 700; sleep 2  # session ⋯ menu: "Files: live share (sshfs), mounted" on top
 shot 3-session-menu
 k Escape

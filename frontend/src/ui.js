@@ -52,7 +52,9 @@ export function showMenu(x, y, items) {
     m.style.left = Math.min(x, innerWidth - r.width - 4) + 'px';
     m.style.top = Math.min(y, innerHeight - r.height - 4) + 'px';
     m.onkeydown = menuKey;
-    enabledItems()[0]?.focus();
+    // Keys work in a menu of info lines only, too (Esc closes it).
+    m.tabIndex = -1;
+    (enabledItems()[0] ?? m).focus();
 }
 
 const enabledItems = () => [...$('#menu').querySelectorAll('button:not(:disabled)')];

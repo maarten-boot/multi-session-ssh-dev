@@ -1,6 +1,8 @@
 package share
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -15,7 +17,7 @@ import (
 )
 
 // client connects an sftp client to a Server on dir over in-memory pipes.
-func client(t *testing.T, dir string) *sftp.Client {
+func client(t *testing.T, dir string, opts ...sftp.ClientOption) *sftp.Client {
 	t.Helper()
 	srv, err := NewServer(dir)
 	if err != nil {
@@ -34,7 +36,7 @@ func client(t *testing.T, dir string) *sftp.Client {
 		sw.Close() // never leave the client waiting
 		srv.Close()
 	}()
-	c, err := sftp.NewClientPipe(cr, cw)
+	c, err := sftp.NewClientPipe(cr, cw, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,6 +261,8 @@ func TestInsideRoot(t *testing.T) {
 
 // Opens with "append" (git's lock files, logs) used to look like opens
 // carrying permissions to pkg/sftp's AttrFlags and crashed the server.
+// Writes go to the offset the client sends: sshfs sends the end of the
+// file for appending writes (here the client seeks there itself).
 func TestOpenAppendAndExclusive(t *testing.T) {
 	dir := t.TempDir()
 	c := client(t, dir)
@@ -266,6 +270,9 @@ func TestOpenAppendAndExclusive(t *testing.T) {
 		f, err := c.OpenFile("/log.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND)
 		if err != nil {
 			t.Fatalf("append open %d: %v", i, err)
+		}
+		if _, err := f.Seek(0, io.SeekEnd); err != nil {
+			t.Fatal(err)
 		}
 		f.Write([]byte(line))
 		f.Close()
@@ -292,14 +299,70 @@ func TestOpenAppendAndExclusive(t *testing.T) {
 	}
 }
 
-func TestOpenMode(t *testing.T) {
-	be := func(v ...uint32) []byte {
-		var b []byte
-		for _, x := range v {
-			b = append(b, byte(x>>24), byte(x>>16), byte(x>>8), byte(x))
+// Large writes in parallel (pkg/sftp runs WRITE requests on several
+// workers) land where the client says, also on an append handle.
+func TestConcurrentWrites(t *testing.T) {
+	dir := t.TempDir()
+	c := client(t, dir, sftp.UseConcurrentWrites(true))
+	want := bytes.Repeat([]byte("0123456789abcdef"), 128<<10) // 2 MiB
+	for _, flags := range []int{os.O_WRONLY | os.O_CREATE | os.O_TRUNC, os.O_WRONLY | os.O_CREATE | os.O_APPEND} {
+		os.Remove(filepath.Join(dir, "big"))
+		f, err := c.OpenFile("/big", flags)
+		if err != nil {
+			t.Fatal(err)
 		}
-		return b
+		if _, err := f.Write(want); err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+		if got, _ := os.ReadFile(filepath.Join(dir, "big")); !bytes.Equal(got, want) {
+			t.Errorf("flags %#x: %d bytes, content differs", flags, len(got))
+		}
 	}
+}
+
+// A mode sent with the open (as sshfs does: the permissions alone) is used.
+func TestOpenWithMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no Unix permissions")
+	}
+	dir := t.TempDir()
+	srv, err := NewServer(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	for _, c := range []struct {
+		name string
+		mode uint32
+		want fs.FileMode
+	}{{"script.sh", 0o100755, 0o755}, {"secret", 0o100600, 0o600}} {
+		attrs := []byte{byte(c.mode >> 24), byte(c.mode >> 16), byte(c.mode >> 8), byte(c.mode)}
+		r := sftp.NewRequest("Put", "/"+c.name)
+		r.Flags = 0x02 | 0x08 // write, create
+		r.Attrs = attrs
+		w, err := srv.Filewrite(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.(io.Closer).Close()
+		fi, _ := os.Stat(filepath.Join(dir, c.name))
+		if fi.Mode().Perm() != c.want&^umask() {
+			t.Errorf("%s: %v, want %v", c.name, fi.Mode().Perm(), c.want)
+		}
+	}
+}
+
+func umask() fs.FileMode {
+	f := filepath.Join(os.TempDir(), fmt.Sprintf("umask-%d", os.Getpid()))
+	os.WriteFile(f, nil, 0o777)
+	defer os.Remove(f)
+	fi, _ := os.Stat(f)
+	return 0o777 &^ fi.Mode().Perm()
+}
+
+func TestOpenMode(t *testing.T) {
+	be := func(x uint32) []byte { return []byte{byte(x >> 24), byte(x >> 16), byte(x >> 8), byte(x)} }
 	for _, c := range []struct {
 		name  string
 		attrs []byte
@@ -307,10 +370,11 @@ func TestOpenMode(t *testing.T) {
 		ok    bool
 	}{
 		{"none", nil, 0, false},
-		{"no flags", be(0), 0, false},
-		{"permissions", be(0x4, 0o100755), 0o755, true},
-		{"size and uid/gid first", be(0x1|0x2|0x4, 0, 42, 1000, 1000, 0o600), 0o600, true},
-		{"truncated", be(0x4), 0, false},
+		{"permissions (sshfs)", be(0o100755), 0o755, true},
+		{"permissions only, no type", be(0o600), 0o600, true},
+		{"setuid dropped", be(0o104755), 0o755, true},
+		{"not a mode", be(0x7fffffff), 0, false},
+		{"more than permissions", append(be(0), be(0o644)...), 0, false},
 	} {
 		if m, ok := openMode(c.attrs); m != c.mode || ok != c.ok {
 			t.Errorf("%s: %v %v, want %v %v", c.name, m, ok, c.mode, c.ok)

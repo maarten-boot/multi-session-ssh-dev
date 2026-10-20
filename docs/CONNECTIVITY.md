@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.29).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.32).
 
 Everything described here is implemented.
 
@@ -130,6 +130,10 @@ through its own ssh connection to `sshfs -o passive` on the agent host, which mo
   or through a chain of links); a link moved to another folder is checked again from there;
   hard links are refused. Files appear owned by the agent-side
   user; ownership changes are ignored.
+- Writes land where the agent's sshfs puts them: it sends the end of the file for appending
+  writes (git's logs and lock files), so the app does not reorder them. A file created with a
+  mode (an executable, or a private file under `umask 077`) gets that mode here; a bug in the
+  file server answers that one request with an error instead of stopping the app.
 - Needs `sshfs` and FUSE on the agent host; no root. The mount command runs under `/bin/sh`,
   not your login shell, because text printed by a shell profile would corrupt the file
   protocol (if mounting fails with a protocol error, check `~/.bashrc` on the agent host for
@@ -182,13 +186,36 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
   session for.
 - **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
   agent's copy into `agent-<session id>/<branch>` and lists every agent branch next to yours:
-  *new* (claude made it), *ahead* (you can fast-forward), *up to date*, *behind* (only you have
-  commits) or *diverged*, with the commits and the files each brings (file names only: no diff
+  new (claude made it), ahead (you can fast-forward), up to date, behind (only you have
+  commits) or diverged, with the commits and the files each brings (file names only: no diff
   driver of the repository runs). New and ahead branches are ticked; *Take over ticked
   branches* creates the new ones (without switching to them) and fast-forwards the others —
-  your checked-out branch with `git merge --ff-only`, so its files follow. For a diverged
-  branch it shows the `git merge` to run in the Local tab. Uncommitted changes on the agent host are counted but not
-  fetched: commit them there first.
+  your checked-out branch with `git merge --ff-only`, so its files follow (and your
+  repository's own hooks run, as for any merge). For a diverged branch it shows the
+  `git checkout … && git merge …` to run in the Local tab. A branch name with characters a
+  shell would act on (the agent host chooses the names) is shown as unsafe and never taken
+  over. Each branch lists at most 20 commits and 200 files; at most 200 branches are
+  compared. Fetching uses `--prune`: a branch deleted on the agent disappears from
+  `agent-<id>/`. Uncommitted changes on the agent host are counted but not fetched: commit
+  them there first. For example:
+
+  ```
+  Fetched 3 branch(es) as agent-s-7f3a/… (commits only: hooks and config of the agent copy are never copied here).
+  Agent branches:
+  [x] fix-login — new on the agent, 2 new commit(s) (the agent is on it)
+        a1b2c3d Fix the login timeout
+        9f8e7d6 Add a test
+
+        + internal/auth/timeout_test.go
+        ~ internal/auth/login.go
+  [x] main — the agent has 1 more commit(s) (checked out here)
+  [ ] docs — you have 2 more commit(s); not changed
+  Ticked branches are created here or fast-forwarded; you stay on the branch you are on.
+                                                             [Take over ticked branches]
+  ```
+
+  Afterwards a message says what was done, e.g. `fix-login: new branch (from the agent);
+  main: fast-forwarded by 1 commit(s)`.
 
 Why not `rsync` back? Copying the agent's `.git` directory onto your host has the problem
 described next. Fetching commits does not: hooks and configuration are never transferred.

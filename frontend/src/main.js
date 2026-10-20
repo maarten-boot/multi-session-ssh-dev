@@ -1663,7 +1663,6 @@ async function syncSendDialog(s) {
     return ok;
 }
 
-// syncGetDialog fetches the agent copy's commits and offers a fast-forward.
 // AGENT_STATES describes an agent branch next to the host's (syncer.AgentBranch).
 const AGENT_STATES = {
     new: b => `new on the agent${b.ahead > 0 ? `, ${b.ahead} new commit(s)` : ''}`,
@@ -1671,8 +1670,14 @@ const AGENT_STATES = {
     same: () => 'up to date',
     behind: b => `you have ${b.behind} more commit(s); not changed`,
     diverged: b => `both have commits (${b.ahead} / ${b.behind}): merge or rebase in the Local tab`,
+    unsafe: () => 'the name has characters a shell would act on: not taken over, check it on the agent host',
 };
 
+// shq quotes s for a POSIX shell (suggested commands are pasted there).
+const shq = s => /^[A-Za-z0-9._/+@-]+$/.test(s) ? s : `'${s.replaceAll("'", `'\\''`)}'`;
+
+// syncGetDialog fetches the agent copy's branches, lists each next to the
+// host's and takes the ticked ones over (SyncTake).
 async function syncGetDialog(s) {
     const dlg = $('#dlg-sync');
     if (dlg.open) return;
@@ -1684,8 +1689,10 @@ async function syncGetDialog(s) {
     let boxes = [];
     const done = runDialog(dlg, async () => {
         const names = boxes.filter(b => b.checked).map(b => b.value);
-        if (!names.length) return;
+        if (!names.length) throw new Error('Nothing is ticked.');
         const r = await SyncTake(s.id, names);
+        // Nothing done: the dialog stays open with the reason.
+        if (r.failed && !r.done?.length) throw new Error(r.failed);
         if (r.done?.length) toast(r.done.join('; '));
         if (r.failed) toast(`Not taken over: ${r.failed}`, true);
     });
@@ -1717,6 +1724,9 @@ async function syncGetDialog(s) {
         return [row, el('pre', {className: 'changes branch-changes', textContent: lines.join('\n') + (b.more ? '\n…' : '')})];
     });
     if (rows.length) parts.push(el('p', {textContent: 'Agent branches:'}), el('div', {className: 'agent-branches'}, ...rows));
+    else parts.push(el('p', {textContent: 'The agent copy has no branches.'}));
+    if (f.more_branches) parts.push(el('p', {className: 'hint', textContent:
+        `Only the first ${f.agent.length} branches are compared; the others are fetched as ${f.branches[0].replace(/\/[^/]*$/, '')}/… too.`}));
     if (boxes.length) {
         parts.push(el('p', {className: 'hint', textContent:
             'Ticked branches are created here or fast-forwarded; you stay on the branch you are on.'}));
@@ -1729,7 +1739,7 @@ async function syncGetDialog(s) {
     const diverged = (f.agent ?? []).filter(b => b.state === 'diverged');
     if (diverged.length) {
         parts.push(el('p', {textContent: 'For a branch where both sides have commits, for example:'}),
-            el('pre', {className: 'changes', textContent: diverged.map(b => `git checkout ${b.name} && git merge ${b.agent_ref}`).join('\n')}));
+            el('pre', {className: 'changes', textContent: diverged.map(b => `git checkout ${shq(b.name)} && git merge ${shq(b.agent_ref)}`).join('\n')}));
     }
     if (f.agent_dirty) parts.push(el('p', {className: 'bad', textContent:
         `${f.agent_dirty} file(s) on the agent host have uncommitted changes; they are not included. ` +

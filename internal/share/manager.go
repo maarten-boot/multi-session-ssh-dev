@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -345,20 +346,59 @@ func guard(err *error) {
 	}
 }
 
+// guarded wraps what the handlers return (files, listers): pkg/sftp calls
+// their methods later, on its own goroutines, so they recover too. Close
+// is passed on, as pkg/sftp closes what implements io.Closer.
+type guarded struct{ v any }
+
+func (g guarded) ReadAt(p []byte, off int64) (n int, err error) {
+	defer guard(&err)
+	return g.v.(io.ReaderAt).ReadAt(p, off)
+}
+
+func (g guarded) WriteAt(p []byte, off int64) (n int, err error) {
+	defer guard(&err)
+	return g.v.(io.WriterAt).WriteAt(p, off)
+}
+
+func (g guarded) ListAt(ls []os.FileInfo, off int64) (n int, err error) {
+	defer guard(&err)
+	return g.v.(sftp.ListerAt).ListAt(ls, off)
+}
+
+func (g guarded) Close() error {
+	if c, ok := g.v.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
 func (n notifying) Fileread(r *sftp.Request) (_ io.ReaderAt, err error) {
 	defer guard(&err)
 	n.on()
-	return n.s.Fileread(r)
+	f, err := n.s.Fileread(r)
+	if err != nil {
+		return nil, err
+	}
+	return guarded{f}, nil
 }
 func (n notifying) Filewrite(r *sftp.Request) (_ io.WriterAt, err error) {
 	defer guard(&err)
 	n.on()
-	return n.s.Filewrite(r)
+	f, err := n.s.Filewrite(r)
+	if err != nil {
+		return nil, err
+	}
+	return guarded{f}, nil
 }
 func (n notifying) OpenFile(r *sftp.Request) (_ sftp.WriterAtReaderAt, err error) {
 	defer guard(&err)
 	n.on()
-	return n.s.OpenFile(r)
+	f, err := n.s.OpenFile(r)
+	if err != nil {
+		return nil, err
+	}
+	return guarded{f}, nil
 }
 func (n notifying) Filecmd(r *sftp.Request) (err error) {
 	defer guard(&err)
@@ -373,12 +413,20 @@ func (n notifying) PosixRename(r *sftp.Request) (err error) {
 func (n notifying) Filelist(r *sftp.Request) (_ sftp.ListerAt, err error) {
 	defer guard(&err)
 	n.on()
-	return n.s.Filelist(r)
+	l, err := n.s.Filelist(r)
+	if err != nil {
+		return nil, err
+	}
+	return guarded{l}, nil
 }
 func (n notifying) Lstat(r *sftp.Request) (_ sftp.ListerAt, err error) {
 	defer guard(&err)
 	n.on()
-	return n.s.Lstat(r)
+	l, err := n.s.Lstat(r)
+	if err != nil {
+		return nil, err
+	}
+	return guarded{l}, nil
 }
 func (n notifying) Readlink(p string) (_ string, err error) {
 	defer guard(&err)

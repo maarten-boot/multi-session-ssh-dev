@@ -9,10 +9,11 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.29: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.32: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, activity badges, desktop notifications,
-auto-reconnect, live share and working copies for hosts without a shared file system,
+auto-reconnect, live share and working copies for hosts without a shared file system (Get
+lists and takes over every agent branch),
 Claude backups, remembered window size and position, settings; builds for Linux, Windows
 and macOS.
 
@@ -31,8 +32,8 @@ artifacts); tagged versions (`v*`) are published under **Releases**:
 
 On your computer the app uses `ssh`, and optionally `git` (Files tab markers, working
 copies), `rsync` (faster Claude backups and working copies; without it the app transfers
-files itself) and `gh` (Web tab runs). The agent host needs `tmux`, `claude`, and `rsync` or
-`tar` (standard); nothing is installed there by the app (requirements and how
+files itself) and `gh` (Web tab runs). The agent host needs `tmux`, `claude`, `rsync` or
+`tar` (standard), and `git` for working copies; nothing is installed there by the app (requirements and how
 to check them: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#requirements-on-the-agent-host)).
 `session-workbench -version` prints the version; it is also shown in Settings.
 
@@ -66,7 +67,7 @@ make dev     # live-reload dev mode
 make test    # Go unit tests (race detector) + frontend unit tests (node --test);
              # CI runs them on Linux, Windows and macOS (race detector on Linux)
 make test-ssh SSH_TARGET=localhost  # ssh/tmux, working-copy, live-share and Claude-backup
-             # round trips against a real host (key auth, tmux, sshfs, tar there; rsync optional;
+             # round trips against a real host (key auth, tmux, sshfs, git, tar there; rsync optional;
              # same paths on both sides), working copies and backups also with the built-in
              # transfer (SW_NO_RSYNC=1)
 make vet     # vet for linux and windows (all packages), darwin (internal packages)
@@ -89,10 +90,10 @@ make smoke-all       # all GUI tests; each checks its results and fails on a wro
 binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
-(`/tmp/sw-smoke-*`). They need `xvfb xdotool imagemagick tmux sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (gdbus)
-(rsync is optional: without it those runs use the built-in transfer; the working-copy and backup tests
-run once more with `SW_NO_RSYNC=1` anyway)
-(Debian/Ubuntu package names) and `ssh localhost` without a password; they use
+(`/tmp/sw-smoke-*`). They need (Debian/Ubuntu package names) `xvfb xdotool imagemagick tmux
+sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (for gdbus), and `ssh localhost`
+without a password. rsync is optional: without it those runs use the built-in transfer, and
+the working-copy and backup tests run once more with `SW_NO_RSYNC=1` anyway. They use
 throwaway configs, never yours. One test on its own:
 
 ```
@@ -319,9 +320,11 @@ folder…*, rename, move up/down or delete (deleting keeps its sessions). Sessio
 a folder are listed first.
 
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
-the files (*Files: shared folder*, *live share (sshfs), mounted* or *working copy (sync)*;
-hover it for a short explanation); then *Edit…* (name, folder, start mode, colors),
+the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
+*working copy (sync)*; hover it for a short explanation; not shown for a session that cannot
+work); then *Edit…* (name, folder, start mode, colors),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
+*Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
 session too; its notes are kept). Working-copy sessions also have *Send to agent…* and
 *Get commits from agent…*, live-share sessions *Stop sharing*. Drag sessions to reorder
@@ -352,10 +355,12 @@ session directory. The share runs while the app runs; the bar shows *● shared*
 **Working copies.** *File access: working copy*. Each session then gets a copy on the agent host;
 **⇡ Send** mirrors your directory there (with a preview, never destroying unfetched
 agent commits), and **⇣ Get** fetches the commits claude made there into
-`agent-<id>/<branch>` and lists every agent branch with the commits and files it brings: a
-branch the agent made is *new*, one you can fast-forward is *ahead*, and those two are ticked;
-*Take over ticked branches* creates the new ones here and fast-forwards the others (you stay on
-your branch). Where both sides have commits it shows the `git merge` to run. Until the first Send the Remote
+`agent-<id>/<branch>` and lists every agent branch (up to 200) with the commits and files it
+brings: one the agent made (*new on the agent*) and one you can fast-forward (*the agent has N
+more commits*) are ticked; *Take over ticked branches* creates the new ones here and
+fast-forwards the others (you stay on your branch). Where both sides have commits it shows the
+`git checkout … && git merge …` to run; a branch name with characters a shell would act on is
+never taken over (an example: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#c-working-copy--sync-implemented)). Until the first Send the Remote
 tab says there is no working copy yet and offers *Send to agent…*. Create the session for
 the repository's top folder: a subdirectory is sent without `.git`, so commits cannot come
 back (Send and Get say so). Uses rsync where it is installed; without it (Windows) a
@@ -400,7 +405,14 @@ On branch main
 nothing to commit, working tree clean
 2026-10-19 11:30:20 > [hidden]
 [sudo] password for me:
+# connection ended at 2026-10-19 11:41:07
+# workbench (vibe: /home/me/proj) — recording resumed 2026-10-19 11:42:10
+…
+# continued in 20261019-1200.log
 ```
+
+A reconnect within the segment writes the *resumed* line into the same file; at the segment's
+end the file says where it continues.
 
 Files start every hour by default (Settings: 15 minutes to a day; `record_every` in the
 config: 5m to 24h), at clock times counted from local midnight (6h gives 00:00, 06:00, 12:00

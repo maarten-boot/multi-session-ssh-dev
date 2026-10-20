@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -93,8 +94,9 @@ func run(ctx context.Context, dir string, env []string, name string, args ...str
 }
 
 // localGit runs git in the host repository with fsmonitor off. Note that
-// FastForward's merge updates the work tree, so checkout filters and
-// attributes of the host repository apply there.
+// Take's merge updates the work tree, so checkout filters, attributes and
+// hooks (post-merge) of the host repository apply there: the user's own,
+// never the agent copy's.
 func localGit(ctx context.Context, s Session, args ...string) (string, error) {
 	out, _, err := run(ctx, s.LocalPath, []string{"GIT_SSH_COMMAND=" + remote.SSHCommand(), "GIT_TERMINAL_PROMPT=0"},
 		"git", append([]string{"-c", "core.fsmonitor=false"}, args...)...)
@@ -283,16 +285,13 @@ type Commit struct {
 // Fetched is the result of Get.
 type Fetched struct {
 	Branch     string   `json:"branch"`      // the host's current branch
-	AgentRef   string   `json:"agent_ref"`   // agent-<id>/<branch>, if the agent has that branch
-	New        []Commit `json:"new"`         // agent commits not in the host branch
-	HostAhead  int      `json:"host_ahead"`  // host commits the agent branch lacks
-	CanFF      bool     `json:"can_ff"`      // the host branch can fast-forward
 	Branches   []string `json:"branches"`    // all fetched agent branches
 	AgentDirty int      `json:"agent_dirty"` // uncommitted changes left on the agent
-	// Agent is every agent branch compared with the host's branch of the
-	// same name.
-	Agent       []AgentBranch `json:"agent"`
-	AgentBranch string        `json:"agent_branch"` // checked out on the agent
+	// Agent is every agent branch (at most maxBranches; MoreBranches if
+	// there are more) compared with the host's branch of the same name.
+	Agent        []AgentBranch `json:"agent"`
+	MoreBranches bool          `json:"more_branches"`
+	AgentBranch  string        `json:"agent_branch"` // checked out on the agent
 }
 
 // AgentBranch is one agent branch next to the host's.
@@ -300,7 +299,9 @@ type AgentBranch struct {
 	Name     string `json:"name"`
 	AgentRef string `json:"agent_ref"` // agent-<id>/<name>
 	// State: "new" (no host branch), "ahead" (the host can fast-forward),
-	// "same", "behind" (only the host has commits) or "diverged".
+	// "same", "behind" (only the host has commits), "diverged", or
+	// "unsafe": a name with characters a shell would act on (the agent host
+	// chooses the names), never taken over or put in a suggested command.
 	State   string `json:"state"`
 	Ahead   int    `json:"ahead"`   // agent commits the host branch lacks (new: in no host branch)
 	Behind  int    `json:"behind"`  // host commits the agent branch lacks
@@ -326,7 +327,7 @@ const maxBranches = 200
 func RefPrefix(id string) string { return "refs/remotes/agent-" + id + "/" }
 
 // Get fetches the agent copy's branches into refs/remotes/agent-<id>/ and
-// compares the agent's version of the current branch with the host's.
+// compares every one with the host's branch of the same name (compareAll).
 // Hooks and config of the agent copy are never transferred.
 func Get(ctx context.Context, s Session) (Fetched, error) {
 	var f Fetched
@@ -354,37 +355,45 @@ func Get(ctx context.Context, s Session) (Fetched, error) {
 		"+refs/heads/*:"+RefPrefix(s.ID)+"*"); err != nil {
 		return f, fmt.Errorf("fetching from the agent copy: %w", err)
 	}
+	compareAll(ctx, s, &f)
+	return f, nil
+}
+
+// compareAll fills f's branches, current branch and comparisons from the
+// agent refs already fetched.
+func compareAll(ctx context.Context, s Session, f *Fetched) {
 	refs, _ := localGit(ctx, s, "for-each-ref", "--format=%(refname)", RefPrefix(s.ID))
 	for _, r := range strings.Fields(refs) {
 		f.Branches = append(f.Branches, strings.TrimPrefix(r, "refs/remotes/"))
 	}
-	if b, err := localGit(ctx, s, "symbolic-ref", "--short", "HEAD"); err == nil {
+	if b, err := localGit(ctx, s, "symbolic-ref", "--short", "-q", "HEAD"); err == nil {
 		f.Branch = strings.TrimSpace(b)
 	}
 	for _, r := range f.Branches {
 		if len(f.Agent) == maxBranches {
+			f.MoreBranches = true
 			break
 		}
 		f.Agent = append(f.Agent, compare(ctx, s, r, f.Branch))
 	}
-	if f.Branch == "" {
-		return f, nil // detached HEAD: branches fetched, nothing to compare
+}
+
+// safeName: a branch name made of characters no shell acts on, not looking
+// like an option. Agent branch names come from the agent host.
+var safeName = regexp.MustCompile(`^[A-Za-z0-9._+@][A-Za-z0-9._/+@-]*$`)
+
+// leftRight counts the commits only in a and only in b (git rev-list
+// --left-right --count a...b); -1, -1 if git fails.
+func leftRight(ctx context.Context, s Session, a, b string) (int, int) {
+	out, err := localGit(ctx, s, "rev-list", "--left-right", "--count", a+"..."+b)
+	if err != nil {
+		return -1, -1
 	}
-	ref := RefPrefix(s.ID) + f.Branch
-	if _, err := localGit(ctx, s, "rev-parse", "--verify", "--quiet", ref); err != nil {
-		return f, nil
+	var l, r int
+	if _, err := fmt.Sscan(out, &l, &r); err != nil {
+		return -1, -1
 	}
-	f.AgentRef = strings.TrimPrefix(ref, "refs/remotes/")
-	log, _ := localGit(ctx, s, "log", "--format=%h %s", "--max-count=50", "HEAD.."+ref)
-	for _, line := range strings.Split(strings.TrimSpace(log), "\n") {
-		if h, subj, ok := strings.Cut(line, " "); ok {
-			f.New = append(f.New, Commit{Hash: h, Subject: subj})
-		}
-	}
-	ahead, _ := localGit(ctx, s, "rev-list", "--count", ref+"..HEAD")
-	f.HostAhead, _ = strconv.Atoi(strings.TrimSpace(ahead))
-	f.CanFF = len(f.New) > 0 && f.HostAhead == 0
-	return f, nil
+	return l, r
 }
 
 // count runs git rev-list --count with args; -1 if git fails.
@@ -403,6 +412,10 @@ func compare(ctx context.Context, s Session, agentRef, current string) AgentBran
 	full := "refs/remotes/" + agentRef
 	b := AgentBranch{AgentRef: agentRef, Name: strings.TrimPrefix(full, RefPrefix(s.ID))}
 	b.Current = b.Name == current
+	if !safeName.MatchString(b.Name) {
+		b.State = "unsafe"
+		return b
+	}
 	local := "refs/heads/" + b.Name
 	if _, err := localGit(ctx, s, "rev-parse", "--verify", "--quiet", local); err != nil {
 		b.State = "new"
@@ -414,7 +427,7 @@ func compare(ctx context.Context, s Session, agentRef, current string) AgentBran
 		b.what(ctx, s, []string{full, "--not", "--branches"}, base, full)
 		return b
 	}
-	b.Ahead, b.Behind = count(ctx, s, local+".."+full), count(ctx, s, full+".."+local)
+	b.Behind, b.Ahead = leftRight(ctx, s, local, full)
 	switch {
 	case b.Ahead == 0 && b.Behind == 0:
 		b.State = "same"
@@ -496,8 +509,8 @@ func Take(ctx context.Context, s Session, names []string) ([]string, error) {
 
 func take(ctx context.Context, s Session, name, current string) (string, error) {
 	agent := RefPrefix(s.ID) + name
-	if strings.HasPrefix(name, "-") || strings.Contains(name, "..") {
-		return "", errors.New("not a branch name")
+	if !safeName.MatchString(name) || strings.Contains(name, "..") {
+		return "", errors.New("not taken over: the name has characters a shell would act on")
 	}
 	if _, err := localGit(ctx, s, "check-ref-format", "refs/heads/"+name); err != nil {
 		return "", errors.New("not a branch name")
@@ -506,8 +519,7 @@ func take(ctx context.Context, s Session, name, current string) (string, error) 
 		return "", errors.New("not an agent branch of this session (Get again?)")
 	}
 	local := "refs/heads/" + name
-	old, err := localGit(ctx, s, "rev-parse", "--verify", "--quiet", local)
-	if err != nil {
+	if _, err := localGit(ctx, s, "rev-parse", "--verify", "--quiet", local); err != nil {
 		if _, err := localGit(ctx, s, "branch", "--no-track", name, agent); err != nil {
 			return "", fmt.Errorf("creating the branch: %w", err)
 		}
@@ -524,7 +536,8 @@ func take(ctx context.Context, s Session, name, current string) (string, error) 
 		if _, err := localGit(ctx, s, "merge", "--ff-only", "--quiet", agent); err != nil {
 			return "", fmt.Errorf("fast-forward: %w", err)
 		}
-	} else if _, err := localGit(ctx, s, "update-ref", "-m", "session-workbench: take agent branch", local, agent, strings.TrimSpace(old)); err != nil {
+	} else if _, err := localGit(ctx, s, "branch", "--force", "--no-track", name, agent); err != nil {
+		// git branch refuses a branch checked out in another worktree.
 		return "", fmt.Errorf("fast-forward: %w", err)
 	}
 	return fmt.Sprintf("%s: fast-forwarded by %d commit(s)", name, n), nil

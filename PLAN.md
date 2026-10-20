@@ -79,6 +79,11 @@ implementation differs from the original plan.
   in a CodeMirror editor, B I U S toolbar and keys; prompts from the Prompts page.
 - Remote tab recordings (F10): global and per session, readable text, hidden passwords,
   files per time segment.
+- Docs/code cross-check (v0.8.30): recording, notes and window fixes; menus above the notes
+  page; docs in line.
+- v0.8.32: the live share no longer crashes on appending writes (git reflogs and lock files
+  through sshfs: new branches arrived only after this); Get lists every agent branch and takes
+  ticked ones over (F11); the session menu shows the file mode.
 
 ## Next (ideas, not started)
 - Command menu in the Local and Remote tabs: a popup with prepared commands (e.g.
@@ -103,7 +108,8 @@ implementation differs from the original plan.
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
-  check, working copies, live share, notes and tab order, Web tab, layout, desktop notifications
+  check, working copies (Get: a fast-forward and a new branch), live share (commits and
+  branches through the mount), notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot

@@ -711,13 +711,10 @@ export namespace syncer {
 	
 	export class Fetched {
 	    branch: string;
-	    agent_ref: string;
-	    new: Commit[];
-	    host_ahead: number;
-	    can_ff: boolean;
 	    branches: string[];
 	    agent_dirty: number;
 	    agent: AgentBranch[];
+	    more_branches: boolean;
 	    agent_branch: string;
 	
 	    static createFrom(source: any = {}) {
@@ -727,13 +724,10 @@ export namespace syncer {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.branch = source["branch"];
-	        this.agent_ref = source["agent_ref"];
-	        this.new = this.convertValues(source["new"], Commit);
-	        this.host_ahead = source["host_ahead"];
-	        this.can_ff = source["can_ff"];
 	        this.branches = source["branches"];
 	        this.agent_dirty = source["agent_dirty"];
 	        this.agent = this.convertValues(source["agent"], AgentBranch);
+	        this.more_branches = source["more_branches"];
 	        this.agent_branch = source["agent_branch"];
 	    }
 	
