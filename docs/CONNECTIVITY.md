@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.35).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.37).
 
 Everything described here is implemented.
 
@@ -41,7 +41,12 @@ reach that machine. Your ssh agent is not forwarded to it either.
   there instead, which every Linux and macOS system has.
 - Depending on the file access mode: an NFS client, or `sshfs` + FUSE for live share (see below).
 
-Nothing is installed on the agent host by the app. To check it the way the app sees it:
+Nothing is installed on the agent host by the app. It only keeps each session's Remote tab
+shell history there, in `~/.local/state/session-workbench/history/<session id>` (folder
+`chmod 700`; off with `private_history = false` or a session's `history = "off"`). That history
+holds what you typed at the Remote tab's shell prompt, so anything running as that user on the
+agent host — claude included — can read it, just as it can read `~/.bash_history`: don't give
+secrets on a command line there. To check the agent host the way the app sees it:
 
 ```sh
 ssh <target> 'exec "$SHELL" -lc "command -v tmux"'      # tmux

@@ -91,7 +91,10 @@ implementation differs from the original plan.
   (R2), Settings in pages behind a tab bar.
 - Docs/code cross-check (v0.8.36): start command fallback outside the command's shell line,
   removed start modes, Settings save with a hidden bad value.
-- Private shell history per session for the Local and Remote tabs (L4).
+- v0.8.37: private shell history per session for the Local and Remote tabs (L4).
+- Docs/code cross-check (v0.8.38): closing a tab hangs up the shell first (SIGHUP), so bash
+  saves its history; tmux session environment for new windows; owner-only history folders on
+  the agent host; docs in line.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -109,7 +112,7 @@ implementation differs from the original plan.
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, prompts
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, prompts, command menu entries
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
@@ -131,5 +134,5 @@ implementation differs from the original plan.
 - GUI verification there runs headless under Xvfb with screenshots; the "Local" tab then is a
   VM-local shell, which is fine for testing. Real use: copy the built binary to the host.
 - Linux build deps: npm, libgtk-3-dev, libwebkit2gtk-4.1-dev, build-essential, pkg-config;
-  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus, python3-gi, libglib2.0-bin (gdbus), and
-  `ssh localhost` without a password.
+  for the GUI tests: xvfb, xdotool, imagemagick, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus, python3-gi, libglib2.0-bin (gdbus),
+  `ssh localhost` without a password, and bash as the login shell (history test).

@@ -9,10 +9,10 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.35: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.37: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu in the Local and Remote tabs, editable
-start commands, activity badges, desktop notifications,
+start commands, private shell history per session, activity badges, desktop notifications,
 auto-reconnect, live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch),
 Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
@@ -34,7 +34,8 @@ artifacts); tagged versions (`v*`) are published under **Releases**:
 On your computer the app uses `ssh`, and optionally `git` (Files tab markers, working
 copies), `rsync` (faster Claude backups and working copies; without it the app transfers
 files itself) and `gh` (Web tab runs). The agent host needs `tmux`, `claude`, `rsync` or
-`tar` (standard), and `git` for working copies; nothing is installed there by the app (requirements and how
+`tar` (standard), and `git` for working copies; nothing is installed there by the app (it only keeps
+the sessions' shell history in `~/.local/state/session-workbench/history/`; requirements and how
 to check them: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#requirements-on-the-agent-host)).
 `session-workbench -version` prints the version; it is also shown in Settings.
 
@@ -93,8 +94,8 @@ binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
 (`/tmp/sw-smoke-*`). They need (Debian/Ubuntu package names) `xvfb xdotool imagemagick tmux
-sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (for gdbus), and `ssh localhost`
-without a password. rsync is optional: without it those runs use the built-in transfer, and
+sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (for gdbus), `ssh localhost`
+without a password, and bash as your login shell (the history test reads bash's history file). rsync is optional: without it those runs use the built-in transfer, and
 the working-copy and backup tests run once more with `SW_NO_RSYNC=1` anyway. They use
 throwaway configs, never yours. One test on its own:
 
@@ -276,13 +277,25 @@ zsh as the login shell, leave out `#` comments (zsh does not treat them as comme
 **Shell history per session.** Each session's Local and Remote shells keep their own command
 history, so ↑ and Ctrl+R show that project's commands, not everything from all your shells:
 the app sets `HISTFILE` (bash, zsh) to `history/<session id>.history` in its data folder
-(`~/.local/share/session-workbench/` on Linux) for the Local tab, and to
-`~/.local/state/session-workbench/history/<session id>` on the agent host for the Remote tab;
-fish gets `fish_history=session_<id>`. Off: Settings → Terminals (`private_history = false`), or
-per session in *Edit…* → Shell history (`history = "off"` / `"on"`). Notes: a `HISTFILE` set in
-your `~/.bashrc` wins; bash writes history when the shell exits (`PROMPT_COMMAND='history -a'`
-in `~/.bashrc` saves as you go); on the agent host it applies to tmux sessions started
-afterwards (*End remote session…* restarts one); PowerShell and cmd on Windows keep their own.
+(`~/.local/share/session-workbench/` on Linux, `~/Library/Application Support/session-workbench/`
+on macOS) for the Local tab, and to `~/.local/state/session-workbench/history/<session id>` on
+the agent host for the Remote tab (also for new tmux windows); both folders are owner-only.
+fish gets `fish_history=session_<id>` with `-` as `_` (so `~/.local/share/fish/session_s_1a2b_history`).
+Off: Settings → Terminals (`private_history = false`), or per session in *Edit…* → Shell history
+(`history = "off"` / `"on"`). Notes:
+
+- bash writes history when the shell exits; closing a tab, ending a session or quitting the
+  app hangs up the shell first (SIGHUP), so that counts. To save after every command, put
+  `PROMPT_COMMAND="history -a${PROMPT_COMMAND:+; $PROMPT_COMMAND}"` in `~/.bashrc`.
+- zsh saves only with `SAVEHIST` above 0 (set it in `~/.zshrc`).
+- A `HISTFILE` set in your startup files (`~/.bashrc`, `~/.zshrc`, macOS's `/etc/zshrc`) wins
+  over the app's. Check with `echo "$HISTFILE"` in the tab.
+- On the agent host it applies to tmux sessions started afterwards (*End remote session…*
+  restarts one).
+- On Windows the Local tab keeps each shell's own history (PowerShell and cmd take no history
+  file from the environment); the Remote tab still gets its own (the setting's tooltip says so).
+- History files may hold secrets you typed on a command line; they are as private as your
+  shell's usual history.
 
 **Settings** (Ctrl+Shift+, or *Settings…*) has five pages: Appearance (theme, colors, fonts,
 tab order), Terminals, Commands, Backups and recordings, and Keys (the current shortcuts).
@@ -359,7 +372,7 @@ a folder are listed first.
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
 the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
 *working copy (sync)*; hover it for a short explanation; not shown for a session that cannot
-work); then *Edit…* (name, folder, start mode, colors, own commands, recording),
+work); then *Edit…* (name, folder, start mode, colors, own commands, recording, shell history),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
@@ -483,7 +496,7 @@ in double quotes a backslash starts an escape. Hosts and sessions
 are checked with the dialogs' rules when the file is read, and problems are listed at the
 top of the sidebar; nothing in the file is changed. A session that cannot work (an invalid
 host, an unknown start mode, a relative `local_path`, an id used twice) gets a red dot and
-the reason above its tabs; for the rest (an unknown color mode or `record` value, a link that
+the reason above its tabs; for the rest (an unknown color mode, `record` or `history` value, a link that
 is not http(s), a host defined twice, a folder not listed in `groups`) the app uses the
 default, skips the value, ignores the second host or shows the folder as *(missing)*; an empty
 name, a directory with two sessions on one host and a folder listed twice or empty in `groups`
@@ -596,6 +609,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | Remote tab recordings (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
+| Local tab shell history (`history/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
@@ -608,7 +622,8 @@ opens there. A minimised or fullscreen window changes nothing. A position that i
 a screen (a monitor was unplugged) is not used, and on Wayland, where apps cannot see or place
 their windows, the position is neither saved nor set: the compositor decides. Delete the file to get the default (1280×800, placed by the
 window manager) back. Nothing is stored in
-your projects; on the agent hosts only the tmux sessions and, for working copies and live
+your projects; on the agent hosts only the tmux sessions, the Remote tab shell history
+(`~/.local/state/session-workbench/history/`) and, for working copies and live
 share, the directories under `remote_workdir` (deleting a session leaves them).
 
 ## Layout
@@ -638,8 +653,9 @@ frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, note
                        editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,
-                       format.js (Files tab size/date columns and sort order), commands.js (command menu, editors
-                       for the command and start-command lists), style.css; *.test.mjs are the node --test unit tests
+                       format.js (Files tab size/date columns and sort order), cmdmenu.js (command menu
+                       entries), commands.js (editors for the command and start-command
+                       lists), style.css; *.test.mjs are the node --test unit tests
 build/                 app icon, Windows/macOS resources for Wails
 packaging/             .desktop file, icons, man page, copyright, nfpm config for .deb/.rpm,
                        gen-docs.sh (changelog and man page per version)

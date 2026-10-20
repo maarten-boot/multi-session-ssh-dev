@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.5 (2026-10-20, app v0.8.35) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.6 (2026-10-20, app v0.8.37) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -9,7 +9,7 @@ packages, Files tab date column and sort order (B1), window size and position re
 (§4.7), notes as page trees with a formatting editor (N1, N1a), Remote tab recordings (F10),
 Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
 appending writes through the live share (§6), the command menu (T5), editable start commands
-(R2) and Settings in pages (§4.6).
+(R2), Settings in pages (§4.6) and private shell history per session (L4).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -88,6 +88,7 @@ group      = "Work"                    # optional, sidebar folder listed in `gro
 links      = [{ name = "Staging", url = "https://staging.example.com" }]   # optional, Web tab (W1)
 commands   = [{ name = "test", command = "make test" }]   # optional, command menu (T5)
 record     = "on"                      # optional, "on"/"off" overrides record_remote (F10)
+history    = "off"                     # optional, "on"/"off" overrides private_history (L4)
 ```
 Session ids are generated (`s-` + 4 hex digits) and restricted to `[a-z0-9-]`, starting with a
 letter or digit, at most 63 characters.
@@ -104,7 +105,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
-  (rename, folder, start mode, colors, own commands (T5), recording (F10)), disconnect, end remote session, delete (optionally ending
+  (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
   workspace root; any path under `local_prefix`) → name → folder → start mode (one of the start commands,
@@ -218,7 +219,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   -o RemoteCommand=none -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -- <target>
   'exec "$SHELL" -lc "cd <remote_path> || { printf '%s\n' 'session directory <remote_path> does
   not exist on this host' >&2; exit 3; }; exec tmux new-session -A -s cw-<id> -c \"\$PWD\" <pane cmd>"'`
-  (each part quoted as one shell word, so nothing in the path expands)
+  (with private history, L4, the pane command starts with the history exports and
+  `\; set-environment …` follows it) (each part quoted as one shell word, so nothing in the path expands)
   (a leading `~/` in the path is expanded through `"$HOME"`). Everything runs in the remote user's
   login shell so that PATH includes `~/.local/bin` (claude) or Homebrew (tmux). A missing remote
   directory exits 3 and the Remote tab says so (for a working copy it offers *Send to agent…*)
@@ -258,15 +260,19 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - L1. Local login shell in a PTY with cwd = `local_path`. Shell from config (`[local] shell/args`),
   default: `$SHELL -l` (Linux/macOS), `pwsh.exe` → `powershell.exe` → `cmd.exe` (Windows, via ConPTY).
 - L2. Optional per-session env vars and an optional init command.
-- L4. Private shell history (`private_history`, default on; a session's `history` "on"/"off"
-  overrides it; Settings → Terminals, Edit… → Shell history): the Local shell gets
-  `HISTFILE=<data dir>/history/<id>.history` (folder created owner-only) and
-  `fish_history=session_<id with - as _>`; the session's own `env` wins; not on Windows
-  (PowerShell, cmd take no history file from the environment). The Remote pane command starts
-  with `mkdir -p "$HOME/.local/state/session-workbench/history"; export HISTFILE=…/<id>;
-  export fish_history=session_<id>;` (understood by sh, bash, zsh and fish), so it applies to
-  tmux sessions created afterwards. A `HISTFILE` set in the user's shell startup files wins.
 - L3. Local shells are not persistent across app restarts (it's the host; use tmux locally if wanted).
+- L4. Private shell history (`private_history`, default on; a session's `history` "on"/"off"
+  overrides it; Settings → Terminals, Edit… → Shell history). Local tab: the shell gets
+  `HISTFILE=<data dir>/history/<id>.history` (folder owner-only) and
+  `fish_history=session_<id with - as _>`; the session's own `env` wins; not on Windows
+  (PowerShell, cmd take no history file from the environment). Remote tab: the pane command
+  starts with `mkdir -p "$HOME/.local/state/session-workbench/history"; chmod 700 "…/history";
+  export HISTFILE="…/history/<id>"; export fish_history=session_<id with - as _>;` (understood by
+  sh, bash, zsh and fish), and tmux's session environment gets the same two variables
+  (`set-environment`), so new windows and panes use them too; it applies to tmux sessions
+  created afterwards. A `HISTFILE` set in the user's shell startup files wins. Closing a Local
+  or Remote tab hangs up its process first (SIGHUP, then SIGKILL after 0.5 s; on Windows at
+  once), so shells write their history on the way out.
 
 ### 4.4 Files tab
 - B1. Lazy-loaded tree of `local_path` (expand to load children); directories first, sorted
@@ -428,7 +434,7 @@ recordings, Keys.
   dialogs' rules when the file is read (`session.Problems`), listed at the top of the sidebar,
   and the file is not changed. What keeps a session from working (invalid host, unknown start
   mode, relative `local_path`, duplicate id) is its error: red dot, reason above the tabs, no
-  Remote tab. Otherwise the app falls back: unknown color mode or `record` value → the global
+  Remote tab. Otherwise the app falls back: unknown color mode, `record` or `history` value → the global
   one, a non-http(s)
   link is not shown, the second of two hosts with one name is ignored; an empty name, a
   directory with two sessions on one host, a folder not in `groups`, a duplicate or empty folder
@@ -518,8 +524,8 @@ internal/winstate          window size and position across restarts
 internal/reclog            Remote tab recordings
 frontend/src               main.js, terminal.js, files.js, notes.js, editor.js, markup.js,
                            appnotes.js, prompts.js,
-                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, commands.js,
-                           style.css
+                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, cmdmenu.js,
+                           commands.js, style.css
 ```
 
 ## 6. Security considerations
@@ -551,6 +557,9 @@ repository config and warns again whenever they change.
 - Remote tab recordings (F10, off by default) contain what was typed and shown, owner-only;
   input after a recognised password prompt is hidden, but the remote echo state is not
   visible, so other secrets typed there are recorded.
+- Private shell history (L4, on by default) keeps what was typed at the shell prompt, as the
+  shell's usual history does, including secrets given on a command line: owner-only folders
+  `<data dir>/history/` and, on each agent host, `~/.local/state/session-workbench/history/`.
 - Fix commands the repository check suggests are shell-quoted: key names and paths come from a
   repository the agent host may have written.
 - Notes: the book is a validated session id or `_app`; page names are checked (no `..`,

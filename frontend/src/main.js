@@ -1553,6 +1553,8 @@ async function settingsDialog() {
     f.ctrl_copy_paste.checked = ui.ctrl_copy_paste !== false;
     f.private_history.checked = ui.private_history !== false;
     f.ctrl_copy_paste.closest('label').hidden = isMac; // Cmd+C/V there
+    f.private_history.closest('label').title = navigator.platform.startsWith('Win')
+        ? 'On Windows only the Remote tab: PowerShell and cmd keep their own history' : '';
     const every = f.claude_backup_every;
     if (![...every.options].some(o => o.value === ui.claude_backup_every)) {
         every.append(el('option', {value: ui.claude_backup_every, textContent: ui.claude_backup_every}));

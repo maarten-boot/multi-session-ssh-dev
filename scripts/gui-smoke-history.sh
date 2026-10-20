@@ -3,7 +3,7 @@
 # shells get their own history file (HISTFILE; on the agent host in
 # ~/.local/state/session-workbench/history) and write to it; a session with
 # history = "off" keeps the shared one. Needs `ssh localhost` without
-# prompts, tmux and bash.
+# prompts, tmux, and bash as the login shell here and on the agent host.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-history.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
@@ -37,7 +37,8 @@ wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 # Session 1, Local tab.
 k ctrl+alt+1; k ctrl+shift+1; sleep 1.5
-t 'echo "local-marker-$((40+2))"; history -a; echo "$HISTFILE" >$SW_OUT/local-histfile'
+# No `history -a`: bash writes it when the app hangs up on closing.
+t 'echo "local-marker-$((40+2))"; echo "$HISTFILE" >$SW_OUT/local-histfile'
 # Session 1, Remote tab.
 k ctrl+shift+3; sleep 4
 t 'echo "remote-marker-$((40+2))"; history -a; echo "$HISTFILE" >'"$OUT"'/remote-histfile' 1.5
@@ -48,7 +49,7 @@ alive
 kill $APP; wait $APP 2>/dev/null
 LOCAL_HIST=$XDG_DATA_HOME/session-workbench/history/s-hist.history
 expect "Local tab: the session's own history file" "$LOCAL_HIST" "$(cat $SW_OUT/local-histfile 2>&1)"
-check "Local tab: commands go into it" grep -q 'local-marker-$((40+2))' "$LOCAL_HIST"
+check "Local tab: closing the app saves them" grep -q 'local-marker-$((40+2))' "$LOCAL_HIST"
 expect "Remote tab: the session's own history file on the agent host" "$REMOTE_HIST" "$(cat $OUT/remote-histfile 2>&1)"
 check "Remote tab: commands go into it" grep -q 'remote-marker-$((40+2))' "$REMOTE_HIST"
 check "history off: the shared history" test "$(cat $SW_OUT/shared-histfile 2>&1)" != "$XDG_DATA_HOME/session-workbench/history/s-shared.history"

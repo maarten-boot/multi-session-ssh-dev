@@ -41,7 +41,7 @@ func TestSSHTmuxRoundTrip(t *testing.T) {
 	r := &collector{exit: make(chan terminal.ExitInfo, 1)}
 	m := terminal.NewManager(r)
 	attach := func() string {
-		args, err := AttachArgs(target, id, dir, "", false)
+		args, err := AttachArgs(target, id, dir, "", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,6 +58,16 @@ func TestSSHTmuxRoundTrip(t *testing.T) {
 	m.Write(tid, []byte("echo \"marker-$((6*7))\"; pwd; tmux display -p 'name=#S'\r"))
 	r.waitFor(t, "marker-42")
 	r.waitFor(t, "name="+TmuxName(id))
+	// Private history: in the first shell and in tmux's environment, for new
+	// windows; the folder is owner-only.
+	m.Write(tid, []byte("echo \"h=${HISTFILE##*/}\"; tmux show-environment HISTFILE | sed 's|.*/|e=|'; "+
+		"stat -c 'p=%a' ~/.local/state/session-workbench/history\r"))
+	r.waitFor(t, "h="+id)
+	r.waitFor(t, "e="+id)
+	r.waitFor(t, "p=700")
+	t.Cleanup(func() {
+		exec.Command("ssh", "-o", "BatchMode=yes", target, "rm -f ~/.local/state/session-workbench/history/"+id).Run()
+	})
 	if !strings.Contains(r.text(), dir) {
 		t.Errorf("pwd %q not in output", dir)
 	}

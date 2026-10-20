@@ -31,7 +31,8 @@ session that runs
 .B claude
 (or a shell, or a start command of your own) in that directory; it survives
 closing the application and lost connections. The Local and Remote tabs have
-a command menu of commands you type often;
+a command menu of commands you type often, and each session's shells keep
+their own command history;
 .TP
 .B Notes
 notes about the project as a tree of Markdown pages with simple formatting
@@ -106,9 +107,15 @@ Claude backups of the agent hosts
 the window size and position
 .RI ( window.json ),
 Remote tab recordings when switched on
-.RI ( logs/ <host>/ <session path>/ YYYYMMDD-HHMM.log )
+.RI ( logs/ <host>/ <session path>/ YYYYMMDD-HHMM.log ),
+the Local tab shell history per session
+.RI ( history/ <id>.history )
 and window state (honours
 .BR XDG_DATA_HOME ).
+.TP
+.I ~/.local/state/session-workbench/history/
+On each agent host: the Remote tab shell history per session
+.RI ( <id> ).
 .SH SEE ALSO
 .BR ssh (1),
 .BR tmux (1),

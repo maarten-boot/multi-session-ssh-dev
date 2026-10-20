@@ -323,6 +323,11 @@ func TestSaveUI(t *testing.T) {
 	if err := m.SaveUI(ui); err == nil {
 		t.Error("nil bool accepted")
 	}
+	ui = m.State().UI
+	ui.PrivateHistory = nil
+	if err := m.SaveUI(ui); err == nil {
+		t.Error("nil private_history accepted")
+	}
 }
 
 func TestGroups(t *testing.T) {
@@ -494,6 +499,7 @@ host = "ok"
 local_path = '@C@'
 start_mode = "claude"
 color_mode = "purple"
+history = "maybe"
 links = [{ name = "x", url = "javascript:alert(1)" }]
 
 [[sessions]]
@@ -559,6 +565,7 @@ group = "nope"
 		`host "bad": unknown file access mode "nfs"`,
 		`host "ok" is defined twice`,
 		`unknown color mode "purple"; the global setting is used`,
+		`session "odd values": history must be "on", "off" or left out, not "maybe"; the global setting is used`,
 		`link: "javascript:alert(1)" is not an http(s) address`,
 		`session "s-0005" has no name`,
 		dir("a") + ` already has a session on host "ok"`,

@@ -13,7 +13,7 @@
   "info": {
     "companyName": "Maarten Boot",
     "productName": "Session Workbench",
-    "productVersion": "0.8.35",
+    "productVersion": "0.8.37",
     "copyright": "Copyright \u00a9 2026 Maarten Boot, MIT License",
     "comments": "Many Claude Code sessions side by side: remote (ssh + tmux), local shell and files per directory."
   }

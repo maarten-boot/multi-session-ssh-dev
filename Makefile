@@ -71,7 +71,7 @@ clean:
 
 # Headless GUI tests (Linux; need xvfb, xdotool, imagemagick, and for most of
 # them `ssh localhost` without prompts, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus,
-# python3-gi, gdbus). Screenshots
+# python3-gi, gdbus; the history test needs bash as the login shell). Screenshots
 # land in $(SMOKE_OUT)-*. They use throwaway configs, never yours. Each test
 # checks its results (lines "ok:" / "FAIL:", scripts/smoke-lib.sh) and fails
 # on a wrong one; `make -k smoke-all` runs the rest after a failure.

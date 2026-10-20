@@ -615,6 +615,7 @@ func (a *App) historyEnv(id string) []string {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil
 	}
+	os.Chmod(dir, 0o700)
 	return []string{"HISTFILE=" + filepath.Join(dir, id+".history"), "fish_history=session_" + strings.ReplaceAll(id, "-", "_")}
 }
 

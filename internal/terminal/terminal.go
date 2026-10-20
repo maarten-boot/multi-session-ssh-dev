@@ -82,11 +82,12 @@ func NewManager(emit Emitter) *Manager {
 func (m *Manager) SetTap(tap Tap) { m.tap = tap }
 
 type term struct {
-	id   string
-	pty  pty.Pty
-	cmd  *pty.Cmd
-	out  chan []byte
-	once sync.Once
+	id     string
+	pty    pty.Pty
+	cmd    *pty.Cmd
+	out    chan []byte
+	once   sync.Once
+	exited chan struct{} // closed when the process has ended
 }
 
 // Start launches spec in a new pty and returns the terminal id.
@@ -126,7 +127,7 @@ func (m *Manager) Start(spec Spec) (string, error) {
 
 	m.mu.Lock()
 	m.next++
-	t := &term{id: fmt.Sprintf("t%d", m.next), pty: p, cmd: cmd, out: make(chan []byte, 64)}
+	t := &term{id: fmt.Sprintf("t%d", m.next), pty: p, cmd: cmd, out: make(chan []byte, 64), exited: make(chan struct{})}
 	m.terms[t.id] = t
 	m.mu.Unlock()
 	if spec.OnStart != nil {
@@ -195,6 +196,7 @@ func (t *term) pump(emit Emitter, tap Tap, done chan struct{}) {
 
 func (m *Manager) waitLoop(t *term, readDone, pumpDone chan struct{}) {
 	err := t.cmd.Wait()
+	close(t.exited)
 	info := ExitInfo{}
 	if t.cmd.ProcessState != nil {
 		info.Code = t.cmd.ProcessState.ExitCode()
@@ -260,20 +262,34 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 	return t.pty.Resize(cols, rows)
 }
 
-// Kill terminates the process; the exit event follows asynchronously.
+// hangupWait is how long a hung-up process gets to end by itself.
+const hangupWait = 500 * time.Millisecond
+
+// Kill ends the process; the exit event follows asynchronously. On Unix
+// it first hangs up (SIGHUP, as closing a terminal window does), so a
+// shell can save its history; whatever still runs after hangupWait is
+// killed.
 func (m *Manager) Kill(id string) error {
 	t, err := m.get(id)
 	if err != nil {
 		return err
 	}
-	if t.cmd.Process != nil {
-		t.cmd.Process.Kill()
+	if p := t.cmd.Process; p != nil {
+		if hangup(p) == nil {
+			select {
+			case <-t.exited:
+			case <-time.After(hangupWait):
+				p.Kill()
+			}
+		} else {
+			p.Kill()
+		}
 	}
 	t.close()
 	return nil
 }
 
-// KillAll terminates every terminal (app shutdown).
+// KillAll ends every terminal (app shutdown), all at once.
 func (m *Manager) KillAll() {
 	m.mu.Lock()
 	ids := make([]string, 0, len(m.terms))
@@ -281,7 +297,13 @@ func (m *Manager) KillAll() {
 		ids = append(ids, id)
 	}
 	m.mu.Unlock()
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		m.Kill(id)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			m.Kill(id)
+		}()
 	}
+	wg.Wait()
 }

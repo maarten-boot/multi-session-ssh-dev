@@ -93,10 +93,17 @@ const HistoryDir = "$HOME/.local/state/session-workbench/history"
 // for bash and zsh, fish_history for fish (a name: letters, digits, _).
 // The pane command runs in the user's shell (tmux's default-shell), so
 // only commands bash, zsh, sh and fish all understand are used.
+// The folder is made private (chmod, as mkdir -m would only cover its last
+// part): the files hold what was typed.
 func historyEnv(id string) string {
-	return `mkdir -p "` + HistoryDir + `"; export HISTFILE="` + HistoryDir + `/` + id + `"; ` +
-		`export fish_history=session_` + strings.ReplaceAll(id, "-", "_") + `; `
+	return `mkdir -p "` + HistoryDir + `"; chmod 700 "` + HistoryDir + `"; ` +
+		`export HISTFILE="` + historyFile(id) + `"; export fish_history=` + fishHistory(id) + `; `
 }
+
+func historyFile(id string) string { return HistoryDir + "/" + id }
+
+// fishHistory is fish's history name for a session: letters, digits, _.
+func fishHistory(id string) string { return "session_" + strings.ReplaceAll(id, "-", "_") }
 
 // ExitMissingDir is the exit status of an attach whose directory does not
 // exist on the agent host (for example a working copy not sent yet).
@@ -152,6 +159,14 @@ func AttachArgs(target, id, remotePath, cmd string, privateHistory bool) ([]stri
 		`exec tmux new-session -A -s %s -c "$PWD" %s`,
 		ShellPath(remotePath), Quote("session directory "+remotePath+" does not exist on this host"),
 		ExitMissingDir, TmuxName(id), Quote(pane))
+	if privateHistory {
+		// Also in the tmux session's environment, for new windows and panes
+		// (prefix c, splits); set on every attach, so it survives a restart
+		// of the setting too.
+		target := Quote("=" + TmuxName(id))
+		tmux += ` \; set-environment -t ` + target + ` HISTFILE "` + historyFile(id) + `"` +
+			` \; set-environment -t ` + target + ` fish_history ` + fishHistory(id)
+	}
 	args := append([]string{"-t"}, sshOptions...)
 	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(tmux)), nil
 }

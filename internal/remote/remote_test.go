@@ -95,11 +95,12 @@ case "$1" in
 -l) echo "login-shell" >>"$LOG"; exit 0 ;;
 esac
 echo "unexpected shell args: $*" >>"$LOG"; exit 9`,
-		// tmux logs cwd and args, then runs the pane command like tmux would.
+		// tmux logs cwd and args, then runs the pane command like tmux would:
+		// the last argument of the first command (commands end at ";").
 		"tmux": `
 echo "tmux cwd=$(pwd)" >>"$LOG"
 for a in "$@"; do echo "tmux arg=$a" >>"$LOG"; done
-for last in "$@"; do :; done
+for a in "$@"; do [ "$a" = ";" ] && break; last=$a; done
 case "$1" in new-session) exec /bin/sh -c "$last" ;; esac`,
 		// claude --continue fails like the real one when NO_CONVERSATION is set.
 		"claude": `echo "claude cwd=$(pwd) args=$*" >>"$LOG"
@@ -369,7 +370,15 @@ func TestPrivateHistory(t *testing.T) {
 	if got := readLog(t, log); !slices.Contains(got, want) {
 		t.Errorf("log %q lacks %q", got, want)
 	}
-	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		t.Errorf("history folder: %v", err)
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() || fi.Mode().Perm() != 0o700 {
+		t.Errorf("history folder: %v %v", fi.Mode(), err)
+	}
+	// tmux's session environment, for new windows and panes.
+	log2 := strings.Join(readLog(t, log), "\n")
+	for _, want := range []string{"tmux arg=;\ntmux arg=set-environment\ntmux arg=-t\ntmux arg==cw-s-1a\ntmux arg=HISTFILE\ntmux arg=" + dir + "/s-1a",
+		"tmux arg=fish_history\ntmux arg=session_s_1a"} {
+		if !strings.Contains(log2, want) {
+			t.Errorf("tmux args lack %q:\n%s", want, log2)
+		}
 	}
 }

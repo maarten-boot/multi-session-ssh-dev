@@ -19,7 +19,8 @@ description: |
   session is bound to one directory and has a local shell, a file tree with
   git status and a check for repository hooks and settings, a remote
   terminal (ssh to an agent host, in a persistent terminal multiplexer
-  session running Claude Code), a command menu, notes, and the repository's
+  session running Claude Code), a command menu, shell history per session,
+  notes, and the repository's
   build runs and web links. Claude Code's data on the agent hosts is backed up regularly.
 vendor: Maarten Boot
 homepage: https://github.com/maarten-boot/multi-session-ssh-dev

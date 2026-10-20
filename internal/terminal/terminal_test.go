@@ -226,3 +226,36 @@ func TestOnStart(t *testing.T) {
 		t.Errorf("OnStart got %q (id %q), tap output %q", started, id, tp.out.String())
 	}
 }
+
+// Kill hangs up first: a shell gets SIGHUP and can save its history (here
+// a trap writes a file), and the exit follows within hangupWait.
+func TestKillHangsUpFirst(t *testing.T) {
+	r := newRecorder()
+	m := NewManager(r)
+	f := filepath.Join(t.TempDir(), "hup")
+	id, err := m.Start(Spec{Command: "/bin/sh", Args: []string{"-c", "trap 'echo saved >" + f + "; exit 0' HUP; echo ready; while :; do sleep 0.1; done"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 50 && !strings.Contains(r.output(), "ready"); i++ {
+		time.Sleep(20 * time.Millisecond)
+	}
+	start := time.Now()
+	if err := m.Kill(id); err != nil {
+		t.Fatal(err)
+	}
+	r.waitExit(t)
+	if b, _ := os.ReadFile(f); string(b) != "saved\n" {
+		t.Errorf("no hangup handled: %q", b)
+	}
+	if d := time.Since(start); d > hangupWait+time.Second {
+		t.Errorf("Kill took %v", d)
+	}
+	// A process that ignores the hangup is killed after hangupWait.
+	id, _ = m.Start(Spec{Command: "/bin/sh", Args: []string{"-c", "trap '' HUP; echo ready; while :; do sleep 0.1; done"}})
+	for i := 0; i < 50 && strings.Count(r.output(), "ready") < 2; i++ {
+		time.Sleep(20 * time.Millisecond)
+	}
+	m.Kill(id)
+	r.waitExit(t)
+}
