@@ -318,7 +318,9 @@ folder…*, or by dragging a session onto the folder header; *Move to folder…*
 folder…*, rename, move up/down or delete (deleting keeps its sessions). Sessions without
 a folder are listed first.
 
-Right-click a session (or its ⋯) for *Edit…* (name, folder, start mode, colors),
+Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
+the files (*Files: shared folder*, *live share (sshfs), mounted* or *working copy (sync)*;
+hover it for a short explanation); then *Edit…* (name, folder, start mode, colors),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
 session too; its notes are kept). Working-copy sessions also have *Send to agent…* and
@@ -350,7 +352,10 @@ session directory. The share runs while the app runs; the bar shows *● shared*
 **Working copies.** *File access: working copy*. Each session then gets a copy on the agent host;
 **⇡ Send** mirrors your directory there (with a preview, never destroying unfetched
 agent commits), and **⇣ Get** fetches the commits claude made there into
-`agent-<id>/<branch>` and can fast-forward your branch. Until the first Send the Remote
+`agent-<id>/<branch>` and lists every agent branch with the commits and files it brings: a
+branch the agent made is *new*, one you can fast-forward is *ahead*, and those two are ticked;
+*Take over ticked branches* creates the new ones here and fast-forwards the others (you stay on
+your branch). Where both sides have commits it shows the `git merge` to run. Until the first Send the Remote
 tab says there is no working copy yet and offers *Send to agent…*. Create the session for
 the repository's top folder: a subdirectory is sent without `.git`, so commits cannot come
 back (Send and Get say so). Uses rsync where it is installed; without it (Windows) a

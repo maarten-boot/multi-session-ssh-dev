@@ -489,6 +489,13 @@ button.link:hover {
     cursor: default;
 }
 
+.menu .info {
+    padding: 6px 14px;
+    color: var(--text-strong);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .menu hr {
     border: none;
     border-top: 1px solid var(--border-strong);
@@ -1388,6 +1395,23 @@ dialog pre.changes {
 #dlg-settings .record-default {
     grid-column: 1 / -1;
     margin-top: 0;
+}
+
+.agent-branches {
+    margin: 4px 0 8px;
+    max-height: 14em;
+    overflow-y: auto;
+}
+
+.branch-changes {
+    margin: 2px 0 8px 1.6em;
+    max-height: 10em;
+    overflow-y: auto;
+}
+
+.agent-branch .name {
+    font-family: var(--mono-family, monospace);
+    font-weight: 600;
 }
 
 /* The Remote tab is being recorded. */

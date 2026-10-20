@@ -91,13 +91,13 @@ export function State():Promise<session.State>;
 
 export function StopShare(arg1:string):Promise<void>;
 
-export function SyncFastForward(arg1:string,arg2:string):Promise<void>;
-
 export function SyncGet(arg1:string):Promise<syncer.Fetched>;
 
 export function SyncPreview(arg1:string):Promise<syncer.Plan>;
 
 export function SyncSend(arg1:string,arg2:boolean):Promise<syncer.Plan>;
+
+export function SyncTake(arg1:string,arg2:Array<string>):Promise<main.TakeResult>;
 
 export function TermKill(arg1:string):Promise<void>;
 

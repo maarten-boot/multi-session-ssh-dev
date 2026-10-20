@@ -31,12 +31,14 @@ export function toast(text, bad = false) {
     setTimeout(() => t.remove(), bad ? 8000 : 4000);
 }
 
-// showMenu opens the context menu at (x, y). items: {label, action, danger, disabled} or '-'.
+// showMenu opens the context menu at (x, y). items: {label, action, danger, disabled},
+// {info} (a line of text, not clickable) or '-'.
 export function showMenu(x, y, items) {
     const m = $('#menu');
     const prevFocus = document.activeElement;
     m.replaceChildren(...items.map(it => {
         if (it === '-') return el('hr');
+        if (it.info) return el('div', {className: 'info', textContent: it.info, title: it.title ?? ''});
         const b = el('button', {textContent: it.label, className: it.danger ? 'danger' : '', disabled: !!it.disabled});
         b.onclick = () => {
             hideMenu(); // focus back first; dialogs opened by the action take it from there

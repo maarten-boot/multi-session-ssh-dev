@@ -162,10 +162,6 @@ export function StopShare(arg1) {
   return window['go']['main']['App']['StopShare'](arg1);
 }
 
-export function SyncFastForward(arg1, arg2) {
-  return window['go']['main']['App']['SyncFastForward'](arg1, arg2);
-}
-
 export function SyncGet(arg1) {
   return window['go']['main']['App']['SyncGet'](arg1);
 }
@@ -176,6 +172,10 @@ export function SyncPreview(arg1) {
 
 export function SyncSend(arg1, arg2) {
   return window['go']['main']['App']['SyncSend'](arg1, arg2);
+}
+
+export function SyncTake(arg1, arg2) {
+  return window['go']['main']['App']['SyncTake'](arg1, arg2);
 }
 
 export function TermKill(arg1) {

@@ -13,6 +13,7 @@
 package share
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"io/fs"
@@ -20,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/pkg/sftp"
@@ -73,7 +75,24 @@ func (s *Server) OpenFile(r *sftp.Request) (sftp.WriterAtReaderAt, error) {
 	return s.open(r)
 }
 
-func (s *Server) open(r *sftp.Request) (*os.File, error) {
+// appendFile is a file opened for appending: every write goes to the end,
+// whatever offset the client sends (as OpenSSH's sftp-server does). Go's
+// os.File refuses WriteAt with O_APPEND, so the file is opened without it.
+type appendFile struct {
+	*os.File
+	mu sync.Mutex
+}
+
+func (a *appendFile) WriteAt(p []byte, _ int64) (int, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, err := a.Seek(0, io.SeekEnd); err != nil {
+		return 0, err
+	}
+	return a.Write(p)
+}
+
+func (s *Server) open(r *sftp.Request) (sftp.WriterAtReaderAt, error) {
 	pf := r.Pflags()
 	flags := 0
 	switch {
@@ -83,9 +102,6 @@ func (s *Server) open(r *sftp.Request) (*os.File, error) {
 		flags = os.O_WRONLY
 	default:
 		flags = os.O_RDONLY
-	}
-	if pf.Append {
-		flags |= os.O_APPEND
 	}
 	if pf.Creat {
 		flags |= os.O_CREATE
@@ -97,10 +113,42 @@ func (s *Server) open(r *sftp.Request) (*os.File, error) {
 		flags |= os.O_EXCL
 	}
 	mode := fs.FileMode(0o644)
-	if r.AttrFlags().Permissions {
-		mode = fs.FileMode(r.Attributes().Mode) & fs.ModePerm
+	if m, ok := openMode(r.Attrs); ok {
+		mode = m
 	}
-	return s.root.OpenFile(name(r.Filepath), flags, mode)
+	f, err := s.root.OpenFile(name(r.Filepath), flags, mode)
+	if err != nil {
+		return nil, err
+	}
+	if pf.Append && pf.Write {
+		return &appendFile{File: f}, nil
+	}
+	return f, nil
+}
+
+// openMode reads the permissions an open request asks for, if any. For
+// opens pkg/sftp keeps the open flags in Request.Flags, so AttrFlags and
+// Attributes (which read Request.Flags as attribute flags) cannot be used:
+// an open with "append" looked like one carrying permissions and crashed
+// the server. The attributes start with their own flags (SFTP v3: size,
+// uid/gid, permissions, …, in that order).
+func openMode(attrs []byte) (fs.FileMode, bool) {
+	const fxSize, fxUIDGID, fxPermissions = 0x1, 0x2, 0x4
+	if len(attrs) < 4 {
+		return 0, false
+	}
+	flags := binary.BigEndian.Uint32(attrs)
+	off := 4
+	if flags&fxSize != 0 {
+		off += 8
+	}
+	if flags&fxUIDGID != 0 {
+		off += 8
+	}
+	if flags&fxPermissions == 0 || len(attrs) < off+4 {
+		return 0, false
+	}
+	return fs.FileMode(binary.BigEndian.Uint32(attrs[off:])) & fs.ModePerm, true
 }
 
 // --- commands ---

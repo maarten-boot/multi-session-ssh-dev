@@ -181,9 +181,13 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
   preview notes this, and Get says so and names the repository's top folder to create the
   session for.
 - **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
-  agent's copy into `agent-<session id>/<branch>`, shows the new commits on your current
-  branch, and offers to fast-forward it. If both sides have new commits, it tells you the
-  `git merge` to run in the Local tab. Uncommitted changes on the agent host are counted but not
+  agent's copy into `agent-<session id>/<branch>` and lists every agent branch next to yours:
+  *new* (claude made it), *ahead* (you can fast-forward), *up to date*, *behind* (only you have
+  commits) or *diverged*, with the commits and the files each brings (file names only: no diff
+  driver of the repository runs). New and ahead branches are ticked; *Take over ticked
+  branches* creates the new ones (without switching to them) and fast-forwards the others —
+  your checked-out branch with `git merge --ff-only`, so its files follow. For a diverged
+  branch it shows the `git merge` to run in the Local tab. Uncommitted changes on the agent host are counted but not
   fetched: commit them there first.
 
 Why not `rsync` back? Copying the agent's `.git` directory onto your host has the problem

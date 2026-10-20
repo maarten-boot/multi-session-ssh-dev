@@ -2,6 +2,7 @@ package share
 
 import (
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -253,5 +254,77 @@ func TestInsideRoot(t *testing.T) {
 		if got := insideRoot(c.link, c.target); got != c.ok {
 			t.Errorf("insideRoot(%q, %q) = %v", c.link, c.target, got)
 		}
+	}
+}
+
+// Opens with "append" (git's lock files, logs) used to look like opens
+// carrying permissions to pkg/sftp's AttrFlags and crashed the server.
+func TestOpenAppendAndExclusive(t *testing.T) {
+	dir := t.TempDir()
+	c := client(t, dir)
+	for i, line := range []string{"one\n", "two\n"} {
+		f, err := c.OpenFile("/log.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND)
+		if err != nil {
+			t.Fatalf("append open %d: %v", i, err)
+		}
+		f.Write([]byte(line))
+		f.Close()
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "log.txt")); string(b) != "one\ntwo\n" {
+		t.Errorf("appended: %q", b)
+	}
+	// git's ref update: create the .lock exclusively, then rename it.
+	os.MkdirAll(filepath.Join(dir, ".git", "refs", "heads"), 0o755)
+	f, err := c.OpenFile("/.git/refs/heads/feature.lock", os.O_RDWR|os.O_CREATE|os.O_EXCL|os.O_APPEND)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Write([]byte("0123abcd\n"))
+	f.Close()
+	if _, err := c.OpenFile("/.git/refs/heads/feature.lock", os.O_RDWR|os.O_CREATE|os.O_EXCL); err == nil {
+		t.Error("exclusive open of an existing file succeeded")
+	}
+	if err := c.PosixRename("/.git/refs/heads/feature.lock", "/.git/refs/heads/feature"); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, ".git", "refs", "heads", "feature")); string(b) != "0123abcd\n" {
+		t.Errorf("branch ref: %q", b)
+	}
+}
+
+func TestOpenMode(t *testing.T) {
+	be := func(v ...uint32) []byte {
+		var b []byte
+		for _, x := range v {
+			b = append(b, byte(x>>24), byte(x>>16), byte(x>>8), byte(x))
+		}
+		return b
+	}
+	for _, c := range []struct {
+		name  string
+		attrs []byte
+		mode  fs.FileMode
+		ok    bool
+	}{
+		{"none", nil, 0, false},
+		{"no flags", be(0), 0, false},
+		{"permissions", be(0x4, 0o100755), 0o755, true},
+		{"size and uid/gid first", be(0x1|0x2|0x4, 0, 42, 1000, 1000, 0o600), 0o600, true},
+		{"truncated", be(0x4), 0, false},
+	} {
+		if m, ok := openMode(c.attrs); m != c.mode || ok != c.ok {
+			t.Errorf("%s: %v %v, want %v %v", c.name, m, ok, c.mode, c.ok)
+		}
+	}
+}
+
+// A panic in a handler becomes an error for that request, not a crash.
+func TestHandlerPanicIsAnError(t *testing.T) {
+	n := notifying{s: nil, on: func() {}} // a nil server panics in every handler
+	if _, err := n.Fileread(&sftp.Request{Filepath: "/x"}); err == nil || !strings.Contains(err.Error(), "internal error") {
+		t.Errorf("Fileread: %v", err)
+	}
+	if err := n.Filecmd(&sftp.Request{Method: "Remove", Filepath: "/x"}); err == nil {
+		t.Error("Filecmd: no error")
 	}
 }

@@ -120,14 +120,60 @@ func TestRoundTrip(t *testing.T) {
 	if f.Branch != "main" || f.AgentRef != "agent-s-test/main" || len(f.New) != 1 || f.New[0].Subject != "agent work" || !f.CanFF {
 		t.Fatalf("fetched %+v", f)
 	}
-	if err := FastForward(ctx, s, f.AgentRef); err != nil {
-		t.Fatal(err)
+	if len(f.Agent) != 1 || f.AgentBranch != "main" {
+		t.Fatalf("agent branches %+v, agent on %q", f.Agent, f.AgentBranch)
+	}
+	if b := f.Agent[0]; b.Name != "main" || b.AgentRef != "agent-s-test/main" || b.State != "ahead" || b.Ahead != 1 || !b.Current ||
+		len(b.Commits) != 1 || b.Commits[0].Subject != "agent work" || fmt.Sprint(b.Changes) != "[{changed a.txt}]" {
+		t.Fatalf("main: %+v", b)
+	}
+	if done, err := Take(ctx, s, []string{"main"}); err != nil || len(done) != 1 || !strings.Contains(done[0], "fast-forwarded by 1") {
+		t.Fatalf("take main: %q %v", done, err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(host, "a.txt")); string(b) != "one\ntwo\n" {
 		t.Errorf("host a.txt = %q", b)
 	}
-	if err := FastForward(ctx, s, "origin/main"); err == nil {
-		t.Error("fast-forward to a non-agent ref accepted")
+	if _, err := Take(ctx, s, []string{"origin/main"}); err == nil {
+		t.Error("taking a non-agent branch accepted")
+	}
+
+	// New branches on the agent (the one checked out there, and another):
+	// listed as new, taken over without switching; a host branch with its
+	// own commits is not touched.
+	remoteSh(t, target, agent+"git checkout -q -b feature/x && echo f >f.txt && git add f.txt && "+
+		"git -c user.name=c -c user.email=c@example.com commit -qm 'on feature' && git branch side")
+	gitIn(t, host, "branch", "mine")
+	gitIn(t, host, "checkout", "-q", "mine")
+	os.WriteFile(filepath.Join(host, "m.txt"), []byte("host\n"), 0o644)
+	gitIn(t, host, "add", "m.txt")
+	gitIn(t, host, "commit", "-q", "-m", "host only")
+	gitIn(t, host, "checkout", "-q", "main")
+	remoteSh(t, target, agent+"git branch mine main")
+	if f, err = Get(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	states := map[string]string{}
+	for _, b := range f.Agent {
+		states[b.Name] = fmt.Sprintf("%s %d/%d", b.State, b.Ahead, b.Behind)
+	}
+	want := map[string]string{"feature/x": "new 1/0", "side": "new 1/0", "main": "same 0/0", "mine": "behind 0/1"} // side starts at the feature commit
+	if fmt.Sprint(states) != fmt.Sprint(want) || f.AgentBranch != "feature/x" {
+		t.Fatalf("states %v (want %v), agent on %q", states, want, f.AgentBranch)
+	}
+	for _, b := range f.Agent {
+		if b.Name == "feature/x" && (len(b.Commits) != 1 || fmt.Sprint(b.Changes) != "[{new f.txt}]") {
+			t.Errorf("feature/x brings %+v %+v", b.Commits, b.Changes)
+		}
+	}
+	done, err := Take(ctx, s, []string{"feature/x", "side", "mine"})
+	if err == nil || !strings.Contains(err.Error(), "mine: your branch has commits") || len(done) != 2 {
+		t.Fatalf("take: %q %v", done, err)
+	}
+	if out, _ := localGit(ctx, s, "log", "-1", "--format=%s", "feature/x"); strings.TrimSpace(out) != "on feature" {
+		t.Errorf("feature/x: %q", out)
+	}
+	if out, _ := localGit(ctx, s, "symbolic-ref", "--short", "HEAD"); strings.TrimSpace(out) != "main" {
+		t.Errorf("switched to %q", out)
 	}
 
 	// Uncommitted agent changes block a real send until overwriting is confirmed.

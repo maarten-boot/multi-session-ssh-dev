@@ -15,7 +15,7 @@ import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
-    SyncPreview, SyncSend, SyncGet, SyncFastForward, ShareStatus, StopShare, RecordInfo, OpenLogFolder,
+    SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -1125,13 +1125,24 @@ async function groupAction(fn, title) {
 
 // ---------------------------------------------------------------- menus
 
+// FILE_MODES names a host's file access mode (docs/CONNECTIVITY.md).
+const FILE_MODES = {
+    shared: ['shared folder', 'The agent host sees this directory through a shared file system (NFS, SMB, VM share).'],
+    sshfs: ['live share (sshfs)', 'The agent host mounts this directory over ssh while the app runs.'],
+    sync: ['working copy (sync)', 'The agent host has its own copy: Send to agent copies files there, Get commits fetches its commits.'],
+};
+
 function sessionMenu(s, x, y) {
+    const [mode, about] = FILE_MODES[s.data.files] ?? [s.data.files || 'unknown', ''];
+    const shareState = s.data.files === 'sshfs' ? (s.share?.state === 'mounted' ? ', mounted' : ', not mounted') : '';
+    const info = s.data.error ? [] : [{info: `Files: ${mode}${shareState}`, title: about}, '-'];
     const sync = s.data.files === 'sync' ? [
         {label: 'Send to agent…', action: () => syncSendDialog(s)},
         {label: 'Get commits from agent…', action: () => syncGetDialog(s)},
         '-',
     ] : [];
     showMenu(x, y, [
+        ...info,
         ...sync,
         ...(s.data.files === 'sshfs' ? [{label: 'Stop sharing', disabled: s.share?.state !== 'mounted',
             action: () => StopShare(s.id)}, '-'] : []),
@@ -1653,6 +1664,15 @@ async function syncSendDialog(s) {
 }
 
 // syncGetDialog fetches the agent copy's commits and offers a fast-forward.
+// AGENT_STATES describes an agent branch next to the host's (syncer.AgentBranch).
+const AGENT_STATES = {
+    new: b => `new on the agent${b.ahead > 0 ? `, ${b.ahead} new commit(s)` : ''}`,
+    ahead: b => `the agent has ${b.ahead} more commit(s)`,
+    same: () => 'up to date',
+    behind: b => `you have ${b.behind} more commit(s); not changed`,
+    diverged: b => `both have commits (${b.ahead} / ${b.behind}): merge or rebase in the Local tab`,
+};
+
 async function syncGetDialog(s) {
     const dlg = $('#dlg-sync');
     if (dlg.open) return;
@@ -1661,11 +1681,15 @@ async function syncGetDialog(s) {
     dlg.querySelector('h2').textContent = `Get commits: ${s.data.name}`;
     okBtn.hidden = true;
     body.replaceChildren(el('p', {textContent: `Fetching from ${s.data.host}:${s.data.remote_path} …`}));
-    let f = null;
+    let boxes = [];
     const done = runDialog(dlg, async () => {
-        await SyncFastForward(s.id, f.agent_ref);
-        toast(`${f.branch}: fast-forwarded by ${f.new.length} commit(s) from the agent`);
+        const names = boxes.filter(b => b.checked).map(b => b.value);
+        if (!names.length) return;
+        const r = await SyncTake(s.id, names);
+        if (r.done?.length) toast(r.done.join('; '));
+        if (r.failed) toast(`Not taken over: ${r.failed}`, true);
     });
+    let f;
     try {
         f = await SyncGet(s.id);
     } catch (err) {
@@ -1675,21 +1699,37 @@ async function syncGetDialog(s) {
     const parts = [el('p', {className: 'hint', textContent:
         `Fetched ${f.branches?.length ?? 0} branch(es) as ${f.branches?.[0]?.replace(/\/[^/]*$/, '') ?? 'agent-…'}/… ` +
         '(commits only: hooks and config of the agent copy are never copied here).'})];
-    if (!f.branch) parts.push(el('p', {textContent: 'This repository is on a detached HEAD; nothing to compare.'}));
-    else if (!f.agent_ref) parts.push(el('p', {textContent: `The agent copy has no branch “${f.branch}”.`}));
-    else if (!f.new?.length) parts.push(el('p', {textContent: `No new commits on ${f.branch} from the agent.`}));
-    else {
-        parts.push(el('p', {textContent: `${f.new.length} new commit(s) from the agent on ${f.branch}:`}),
-            el('pre', {className: 'changes', textContent: f.new.map(c => `${c.hash} ${c.subject}`).join('\n')}));
-        if (f.can_ff) {
-            okBtn.textContent = `Fast-forward ${f.branch}`;
-            okBtn.hidden = false;
-            okBtn.focus();
-        } else {
-            parts.push(el('p', {textContent: `Your ${f.branch} also has ${f.host_ahead} commit(s) the agent does not. ` +
-                'Merge or rebase in the Local tab, for example:'}),
-                el('pre', {className: 'changes', textContent: `git merge ${f.agent_ref}`}));
-        }
+    // Every agent branch: new ones and ones you can fast-forward are ticked;
+    // under each, the commits it brings and the files they change (as in
+    // the Send preview).
+    const sign = {new: '+', changed: '~', deleted: '−'};
+    const rows = (f.agent ?? []).flatMap(b => {
+        const takes = b.state === 'new' || b.state === 'ahead';
+        const box = el('input', {type: 'checkbox', value: b.name, checked: takes, disabled: !takes});
+        if (takes) boxes.push(box);
+        const where = [b.current ? 'checked out here' : '', b.name === f.agent_branch ? 'the agent is on it' : ''].filter(Boolean).join(', ');
+        const row = el('label', {className: 'check agent-branch'}, box,
+            el('span', {className: 'name', textContent: b.name}),
+            el('span', {textContent: ` — ${AGENT_STATES[b.state]?.(b) ?? b.state}${where ? ` (${where})` : ''}`}));
+        if (!b.commits?.length && !b.changes?.length) return [row];
+        const lines = [...(b.commits ?? []).map(c => `${c.hash} ${c.subject}`), '',
+            ...(b.changes ?? []).map(c => `${sign[c.op] ?? '~'} ${c.path}`)];
+        return [row, el('pre', {className: 'changes branch-changes', textContent: lines.join('\n') + (b.more ? '\n…' : '')})];
+    });
+    if (rows.length) parts.push(el('p', {textContent: 'Agent branches:'}), el('div', {className: 'agent-branches'}, ...rows));
+    if (boxes.length) {
+        parts.push(el('p', {className: 'hint', textContent:
+            'Ticked branches are created here or fast-forwarded; you stay on the branch you are on.'}));
+        okBtn.textContent = 'Take over ticked branches';
+        okBtn.hidden = false;
+        okBtn.focus();
+    } else if (rows.length) {
+        parts.push(el('p', {textContent: 'Nothing to take over.'}));
+    }
+    const diverged = (f.agent ?? []).filter(b => b.state === 'diverged');
+    if (diverged.length) {
+        parts.push(el('p', {textContent: 'For a branch where both sides have commits, for example:'}),
+            el('pre', {className: 'changes', textContent: diverged.map(b => `git checkout ${b.name} && git merge ${b.agent_ref}`).join('\n')}));
     }
     if (f.agent_dirty) parts.push(el('p', {className: 'bad', textContent:
         `${f.agent_dirty} file(s) on the agent host have uncommitted changes; they are not included. ` +

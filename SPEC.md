@@ -98,7 +98,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F0. Multiple agent hosts are a first-class use case: sidebar groups sessions by host profile
   (collapsible); a host profile can be added/edited from the UI; a session's host is fixed at creation.
 - F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
-  under their host. Drag (or menu Move up/down) to reorder within its folder and host. Edit
+  under their host. The session menu (right-click or ⋯) starts with the host's file mode
+  (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors), disconnect, end remote session, delete (optionally ending
   the tmux session).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
@@ -501,7 +502,10 @@ repository config and warns again whenever they change.
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
   inside the directory, never created through a symlinked parent (a rename re-checks moved
-  links); hard links refused; ownership changes ignored. Working copies: the built-in transfer
+  links); hard links refused; ownership changes ignored; opens with append write at the end
+  whatever offset the client sends (as OpenSSH's sftp-server; git's reflogs and lock files),
+  the mode asked for at open is read from the open request's own attributes; a panic in a
+  handler becomes an error for that request instead of ending the app. Working copies: the built-in transfer
   refuses paths through linked parents; fetching back uses `transfer.fsckObjects`. Claude
   backups: rsync `--safe-links --no-devices --no-specials`, never `--delete`, nothing in a
   backup is run; scheduled ones time out after 30 minutes.

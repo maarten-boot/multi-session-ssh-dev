@@ -335,6 +335,20 @@ export namespace main {
 	        this.recording = source["recording"];
 	    }
 	}
+	export class TakeResult {
+	    done: string[];
+	    failed: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TakeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.done = source["done"];
+	        this.failed = source["failed"];
+	    }
+	}
 	export class WebInfo {
 	    repo?: forge.Repo;
 	    links: forge.Link[];
@@ -599,24 +613,6 @@ export namespace share {
 
 export namespace syncer {
 	
-	export class AgentState {
-	    exists: boolean;
-	    repo: boolean;
-	    dirty: number;
-	    unfetched: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new AgentState(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.exists = source["exists"];
-	        this.repo = source["repo"];
-	        this.dirty = source["dirty"];
-	        this.unfetched = source["unfetched"];
-	    }
-	}
 	export class Change {
 	    op: string;
 	    path: string;
@@ -645,6 +641,74 @@ export namespace syncer {
 	        this.subject = source["subject"];
 	    }
 	}
+	export class AgentBranch {
+	    name: string;
+	    agent_ref: string;
+	    state: string;
+	    ahead: number;
+	    behind: number;
+	    current: boolean;
+	    commits: Commit[];
+	    changes: Change[];
+	    more: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentBranch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.agent_ref = source["agent_ref"];
+	        this.state = source["state"];
+	        this.ahead = source["ahead"];
+	        this.behind = source["behind"];
+	        this.current = source["current"];
+	        this.commits = this.convertValues(source["commits"], Commit);
+	        this.changes = this.convertValues(source["changes"], Change);
+	        this.more = source["more"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class AgentState {
+	    exists: boolean;
+	    repo: boolean;
+	    dirty: number;
+	    unfetched: number;
+	    branch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.exists = source["exists"];
+	        this.repo = source["repo"];
+	        this.dirty = source["dirty"];
+	        this.unfetched = source["unfetched"];
+	        this.branch = source["branch"];
+	    }
+	}
+	
+	
 	export class Fetched {
 	    branch: string;
 	    agent_ref: string;
@@ -653,6 +717,8 @@ export namespace syncer {
 	    can_ff: boolean;
 	    branches: string[];
 	    agent_dirty: number;
+	    agent: AgentBranch[];
+	    agent_branch: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Fetched(source);
@@ -667,6 +733,8 @@ export namespace syncer {
 	        this.can_ff = source["can_ff"];
 	        this.branches = source["branches"];
 	        this.agent_dirty = source["agent_dirty"];
+	        this.agent = this.convertValues(source["agent"], AgentBranch);
+	        this.agent_branch = source["agent_branch"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

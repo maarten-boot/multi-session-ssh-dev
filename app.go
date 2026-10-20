@@ -504,15 +504,27 @@ func (a *App) SyncGet(id string) (syncer.Fetched, error) {
 	return syncer.Get(ctx, s)
 }
 
-// SyncFastForward moves the current branch to the agent's version.
-func (a *App) SyncFastForward(id, agentRef string) error {
+// TakeResult is what SyncTake did, and what it could not do.
+type TakeResult struct {
+	Done   []string `json:"done"`
+	Failed string   `json:"failed"`
+}
+
+// SyncTake takes agent branches over (new branches, fast-forwards); see
+// syncer.Take. Branches that cannot be taken over do not hide the others.
+func (a *App) SyncTake(id string, names []string) (TakeResult, error) {
 	s, err := a.syncSession(id)
 	if err != nil {
-		return err
+		return TakeResult{}, err
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 2*time.Minute)
 	defer cancel()
-	return syncer.FastForward(ctx, s, agentRef)
+	done, err := syncer.Take(ctx, s, names)
+	r := TakeResult{Done: done}
+	if err != nil {
+		r.Failed = err.Error()
+	}
+	return r, nil
 }
 
 // OpenPath opens a file with its default application (a directory in the

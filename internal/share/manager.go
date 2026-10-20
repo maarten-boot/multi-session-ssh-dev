@@ -336,21 +336,57 @@ type notifying struct {
 	on func()
 }
 
-func (n notifying) Fileread(r *sftp.Request) (io.ReaderAt, error) { n.on(); return n.s.Fileread(r) }
-func (n notifying) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+// Every handler recovers: pkg/sftp runs them on its own goroutines, where
+// a panic (a bug here or in pkg/sftp) would end the whole app and every
+// terminal in it; the agent host gets an error for that request instead.
+func guard(err *error) {
+	if p := recover(); p != nil {
+		*err = fmt.Errorf("share: internal error: %v", p)
+	}
+}
+
+func (n notifying) Fileread(r *sftp.Request) (_ io.ReaderAt, err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.Fileread(r)
+}
+func (n notifying) Filewrite(r *sftp.Request) (_ io.WriterAt, err error) {
+	defer guard(&err)
 	n.on()
 	return n.s.Filewrite(r)
 }
-func (n notifying) OpenFile(r *sftp.Request) (sftp.WriterAtReaderAt, error) {
+func (n notifying) OpenFile(r *sftp.Request) (_ sftp.WriterAtReaderAt, err error) {
+	defer guard(&err)
 	n.on()
 	return n.s.OpenFile(r)
 }
-func (n notifying) Filecmd(r *sftp.Request) error     { n.on(); return n.s.Filecmd(r) }
-func (n notifying) PosixRename(r *sftp.Request) error { n.on(); return n.s.PosixRename(r) }
-func (n notifying) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
+func (n notifying) Filecmd(r *sftp.Request) (err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.Filecmd(r)
+}
+func (n notifying) PosixRename(r *sftp.Request) (err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.PosixRename(r)
+}
+func (n notifying) Filelist(r *sftp.Request) (_ sftp.ListerAt, err error) {
+	defer guard(&err)
 	n.on()
 	return n.s.Filelist(r)
 }
-func (n notifying) Lstat(r *sftp.Request) (sftp.ListerAt, error) { n.on(); return n.s.Lstat(r) }
-func (n notifying) Readlink(p string) (string, error)            { n.on(); return n.s.Readlink(p) }
-func (n notifying) RealPath(p string) (string, error)            { n.on(); return n.s.RealPath(p) }
+func (n notifying) Lstat(r *sftp.Request) (_ sftp.ListerAt, err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.Lstat(r)
+}
+func (n notifying) Readlink(p string) (_ string, err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.Readlink(p)
+}
+func (n notifying) RealPath(p string) (_ string, err error) {
+	defer guard(&err)
+	n.on()
+	return n.s.RealPath(p)
+}
