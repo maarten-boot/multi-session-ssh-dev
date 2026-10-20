@@ -80,6 +80,15 @@ implementation differs from the original plan.
 - Remote tab recordings (F10): global and per session, readable text, hidden passwords,
   files per time segment.
 
+## Next (ideas, not started)
+- Command menu in the Local and Remote tabs: a popup with prepared commands (e.g.
+  `git fetch --all`) that types the chosen one into the terminal. One global list in Settings,
+  plus each session's own additions (customizable per session).
+- Start commands of the Remote tab editable: today the choices are fixed (shell, `claude`,
+  `claude --continue`, R2); make the list editable globally in Settings, a session picking one.
+- Settings in sections: when the dialog grows too big, group it under a tab bar (notebook),
+  e.g. Appearance, Terminals, Commands, Backups and recordings, Keys.
+
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, forge, fsbrowse, opener, gitstatus incl. the repository
