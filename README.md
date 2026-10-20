@@ -113,13 +113,15 @@ Start `session-workbench`. The first time it shows **Add host…** to set up an 
 
 Then **New session** (Ctrl+Shift+N): pick a directory under the local prefix,
 a name (defaults to the directory name), and what a new remote tmux session starts
-with (`claude`, `claude --continue`, or a shell). The dialog shows where the directory
+with: one of the start commands of Settings → Commands (out of the box `claude`,
+`claude-continue` = `claude --continue || claude`, and `shell`; add your own, such as
+`claude --model opus`). The dialog shows where the directory
 appears on the agent host, or why it can't be used. Host and directory can't be changed
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
 
-Each session has these tabs. Change their order, or hide some, in Settings → Tabs;
+Each session has these tabs. Change their order, or hide some, in Settings → Appearance;
 Ctrl+Shift+1… always selects the 1st… visible tab, and hovering a tab shows its shortcut.
 Default order:
 
@@ -250,6 +252,24 @@ on macOS. Right-click a terminal for Copy, Paste, Select all, Find… and Clear 
 *Copy terminal selection to the clipboard automatically* (Settings, `copy_on_select`) a selection
 goes to the clipboard at once.
 
+**Command menu.** Commands you type often (`git fetch --all`, `make test`) are one click away
+in the Local and Remote tabs: at the bottom of the right-click menu, and under **Commands ▾**
+next to the tabs. Choosing one types it into the terminal and presses Enter (*run*), or only
+types it, for a command you want to check or finish first (shown with *…* instead of *⏎*).
+The list is in Settings → Commands; each session can add its own in *Edit…* → Commands, shown
+first. In the config: `[[ui.commands]]` with `name`, `command` and `run` (default true), and
+`commands = [{ name = …, command = …, run = false }]` on a session.
+
+**Start commands.** What a session's Remote tab starts in a new tmux session is a list too
+(Settings → Commands → Start commands; `[[ui.start_commands]]` with `name` and `command`):
+the command runs in the agent host's interactive login shell, a login shell takes over when it
+ends, and an empty command is just the login shell. A session names one as its `start_mode`;
+removing one that a session still uses stops that session from starting (the sidebar says
+why).
+
+**Settings** (Ctrl+Shift+, or *Settings…*) has five pages: Appearance (theme, colors, fonts,
+tab order), Terminals, Commands, Backups and recordings, and Keys (the current shortcuts).
+
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
 | Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session | `next_session`, `prev_session` |
@@ -264,8 +284,8 @@ goes to the clipboard at once.
 | Ctrl+Shift+M | ⇧⌘M | notes and prompts for all sessions | `app_notes` |
 | Ctrl+C (with a selection) / Ctrl+V, Ctrl+Shift+C / V | ⌘C / V | copy / paste | — (`ctrl_copy_paste`) |
 
-Rebind in the config's `[keys]` table (see the example below); Settings → Keyboard
-shortcuts lists the current bindings. A key is modifiers plus one key: `Ctrl`, `Shift`,
+Rebind in the config's `[keys]` table (see the example below); Settings → Keys lists the
+current bindings. A key is modifiers plus one key: `Ctrl`, `Shift`,
 `Alt` (`Option`), `Cmd` (`Meta`, `Super`) and `Mod` (Cmd on macOS, Ctrl elsewhere), then a
 letter, digit, `F1`–`F24`, `PageUp`/`PgUp`, `PageDown`/`PgDn`, `Home`, `End`, `Insert`,
 `Delete`, `Tab`, `Enter`, `Escape`, `Space`, `Backspace`, `Up`/`Down`/`Left`/`Right` or a
@@ -481,6 +501,27 @@ record_dir = "~/sw-logs"                  # optional: default <data dir>/logs
 tab_order = ["local", "files", "remote", "notes", "web"]
 hidden_tabs = []                          # e.g. ["web"]; at least one tab stays visible
 
+[[ui.commands]]                           # the command menu (Settings → Commands)
+name = "fetch all"
+command = "git fetch --all"               # typed into the terminal, then Enter
+[[ui.commands]]
+name = "rebase on main"
+command = "git rebase origin/main"
+run = false                               # only typed: check it, then press Enter yourself
+
+[[ui.start_commands]]                     # what start_mode can name; these three are the default
+name = "claude"
+command = "claude"
+[[ui.start_commands]]
+name = "claude-continue"
+command = "claude --continue || claude"   # a new conversation when there is none yet
+[[ui.start_commands]]
+name = "shell"
+command = ""                              # empty: just the login shell
+[[ui.start_commands]]
+name = "opus"
+command = "claude --model opus"
+
 [keys]
 next_session = "Ctrl+Tab"
 prev_session = "Ctrl+Shift+Tab"
@@ -514,12 +555,13 @@ id = "s-7f3a"                             # tmux session cw-s-7f3a; [a-z0-9-], n
 name = "workbench"
 host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
-start_mode = "claude-continue"            # or "claude" or "shell"
+start_mode = "claude-continue"            # the name of one of [[ui.start_commands]]
 group = "Work"                            # optional: sidebar folder (listed in groups)
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
+commands = [{ name = "test", command = "make test" }]                 # optional: before [[ui.commands]] in the menu
 env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 # trusted_git = "…"                       # written by "Mark as reviewed"; don't set by hand
 ```

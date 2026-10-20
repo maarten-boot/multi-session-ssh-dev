@@ -635,7 +635,7 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ssh client not found: %w", err)
 	}
-	args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, remote.Mode(r.StartMode))
+	args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, r.StartCommand)
 	if err != nil {
 		return "", err
 	}

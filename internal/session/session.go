@@ -37,7 +37,9 @@ type View struct {
 	RemotePath string `json:"remote_path"`
 	TmuxName   string `json:"tmux_name"`
 	Record     string `json:"record"` // "on", "off", "" = follow the global setting
-	Error      string `json:"error"`  // why the Remote tab cannot work, if it cannot
+	// Commands is the session's own command menu (before the global one).
+	Commands []config.Command `json:"commands"`
+	Error    string           `json:"error"` // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -61,6 +63,8 @@ type Resolved struct {
 	Host       config.Host
 	LocalPath  string // ~ expanded
 	RemotePath string
+	// StartCommand is what the start mode runs ("" is a login shell).
+	StartCommand string
 }
 
 // NewSession is the input for Create.
@@ -80,6 +84,9 @@ type Edit struct {
 	ColorMode string `json:"color_mode"`
 	Group     string `json:"group"`
 	Record    string `json:"record"`
+	// Commands replaces the session's own command menu; null (left out)
+	// keeps it, [] empties it.
+	Commands []config.Command `json:"commands"`
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -147,7 +154,8 @@ func (m *Manager) State() State {
 	s.Problems = Problems(m.cfg)
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
-			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record}
+			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
+			Commands: se.Commands}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
@@ -203,9 +211,11 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	if err := validHost(h); err != nil {
 		return r, invalidHostError{fmt.Errorf("host %q: %w", h.Name, err)}
 	}
-	if err := validMode(s.StartMode); err != nil {
-		return r, err
+	start, ok := config.FindStartCommand(c.UI, s.StartMode)
+	if !ok {
+		return r, fmt.Errorf("unknown start mode %q (not in [ui] start_commands)", s.StartMode)
 	}
+	r.StartCommand = start.Command
 	if !filepath.IsAbs(r.LocalPath) {
 		return r, fmt.Errorf("local_path %q is not an absolute path", s.LocalPath)
 	}
@@ -257,6 +267,12 @@ func Problems(c *config.Config) []string {
 			out = append(out, fmt.Sprintf("host %q: %v", h.Name, err))
 		}
 	}
+	if err := config.ValidateCommands(c.UI.Commands); err != nil {
+		out = append(out, fmt.Sprintf("[ui] commands: %v", err))
+	}
+	if err := config.ValidateStartCommands(c.UI.StartCommands); err != nil {
+		out = append(out, fmt.Sprintf("[ui] start_commands: %v", err))
+	}
 	seenGroup := map[string]bool{}
 	for _, g := range c.Groups {
 		switch {
@@ -289,6 +305,9 @@ func Problems(c *config.Config) []string {
 		}
 		if err := validRecord(s.Record); err != nil {
 			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
+		}
+		if err := config.ValidateCommands(s.Commands); err != nil {
+			out = append(out, fmt.Sprintf("session %q: commands: %v", label, err))
 		}
 		for _, l := range s.Links {
 			if err := forge.ValidLink(forge.Link{Name: l.Name, URL: l.URL}); err != nil {
@@ -381,7 +400,10 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	s := config.Session{Host: in.Host, Name: strings.TrimSpace(in.Name), StartMode: in.StartMode,
 		ColorMode: in.ColorMode, Group: in.Group}
 	if s.StartMode == "" {
-		s.StartMode = string(remote.ModeClaude)
+		s.StartMode = m.cfg.UI.StartCommands[0].Name
+		if _, ok := config.FindStartCommand(m.cfg.UI, "claude"); ok {
+			s.StartMode = "claude"
+		}
 	}
 	p := strings.TrimSpace(in.LocalPath)
 	if p == "" {
@@ -395,8 +417,8 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	if s.Name == "" {
 		s.Name = filepath.Base(s.LocalPath)
 	}
-	if err := validMode(s.StartMode); err != nil {
-		return s, err
+	if _, ok := config.FindStartCommand(m.cfg.UI, s.StartMode); !ok {
+		return s, fmt.Errorf("unknown start mode %q", s.StartMode)
 	}
 	if err := validColorMode(s.ColorMode); err != nil {
 		return s, err
@@ -447,14 +469,6 @@ func validColorMode(mode string) error {
 	return nil
 }
 
-func validMode(mode string) error {
-	switch remote.Mode(mode) {
-	case remote.ModeClaude, remote.ModeClaudeContinue, remote.ModeShell:
-		return nil
-	}
-	return fmt.Errorf("unknown start mode %q", mode)
-}
-
 func (m *Manager) newID() string {
 	for {
 		b := make([]byte, 2)
@@ -476,19 +490,22 @@ func (m *Manager) Update(id string, e Edit) error {
 	if name == "" {
 		return errors.New("name cannot be empty")
 	}
-	if err := validMode(e.StartMode); err != nil {
-		return err
-	}
 	if err := validColorMode(e.ColorMode); err != nil {
 		return err
 	}
 	if err := validRecord(e.Record); err != nil {
 		return err
 	}
+	if err := config.ValidateCommands(e.Commands); err != nil {
+		return err
+	}
 	return m.update(func(c *config.Config) error {
 		i := indexOf(c, id)
 		if i < 0 {
 			return fmt.Errorf("unknown session %q", id)
+		}
+		if _, ok := config.FindStartCommand(c.UI, e.StartMode); !ok {
+			return fmt.Errorf("unknown start mode %q", e.StartMode)
 		}
 		if e.Group != "" && !slices.Contains(c.Groups, e.Group) {
 			return fmt.Errorf("folder %q does not exist", e.Group)
@@ -498,6 +515,9 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].ColorMode = e.ColorMode
 		c.Sessions[i].Group = e.Group
 		c.Sessions[i].Record = e.Record
+		if e.Commands != nil { // left out: unchanged
+			c.Sessions[i].Commands = e.Commands
+		}
 		return nil
 	})
 }

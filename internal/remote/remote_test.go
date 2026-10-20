@@ -25,7 +25,7 @@ func TestValidID(t *testing.T) {
 }
 
 func TestArgsForceSafeOptions(t *testing.T) {
-	attach, err := AttachArgs("user@host", "s1", "/srv/x", ModeClaude)
+	attach, err := AttachArgs("user@host", "s1", "/srv/x", "claude")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,17 +54,17 @@ func TestArgsForceSafeOptions(t *testing.T) {
 func TestArgsValidation(t *testing.T) {
 	bad := []struct {
 		target, id, path string
-		mode             Mode
+		mode             string
 	}{
-		{"", "s1", "/x", ModeShell},
-		{"-oProxyCommand=evil", "s1", "/x", ModeShell},
-		{"host extra", "s1", "/x", ModeShell},
-		{"host", "S1", "/x", ModeShell},
-		{"host", "s1;rm", "/x", ModeShell},
-		{"host", "s1", "relative", ModeShell},
-		{"host", "s1", "~user/x", ModeShell},
-		{"host", "s1", "/a\nb", ModeShell},
-		{"host", "s1", "/x", Mode("bash")},
+		{"", "s1", "/x", ""},
+		{"-oProxyCommand=evil", "s1", "/x", ""},
+		{"host extra", "s1", "/x", ""},
+		{"host", "S1", "/x", ""},
+		{"host", "s1;rm", "/x", ""},
+		{"host", "s1", "relative", ""},
+		{"host", "s1", "~user/x", ""},
+		{"host", "s1", "/a\nb", ""},
+		{"host", "s1", "/x", "claude\nrm -rf ~"},
 	}
 	for _, b := range bad {
 		if _, err := AttachArgs(b.target, b.id, b.path, b.mode); err == nil {
@@ -147,15 +147,15 @@ func TestAttachCommandExecutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct {
-		mode Mode
+		mode string
 		pane []string
 	}{
-		{ModeClaude, []string{"interactive-login", "claude cwd=" + dir + " args=", "login-shell"}},
-		{ModeClaudeContinue, []string{"interactive-login", "claude cwd=" + dir + " args=--continue", "login-shell"}},
-		{ModeShell, []string{"login-shell"}},
+		{"claude", []string{"interactive-login", "claude cwd=" + dir + " args=", "login-shell"}},
+		{"claude --continue || claude", []string{"interactive-login", "claude cwd=" + dir + " args=--continue", "login-shell"}},
+		{"", []string{"login-shell"}},
 	}
 	for _, c := range cases {
-		t.Run(string(c.mode), func(t *testing.T) {
+		t.Run(c.mode, func(t *testing.T) {
 			env, log := fakeRemote(t)
 			args, err := AttachArgs("host", "s-1", dir, c.mode)
 			if err != nil {
@@ -187,7 +187,7 @@ func TestAttachContinueWithoutConversation(t *testing.T) {
 	env, log := fakeRemote(t)
 	env = append(env, "NO_CONVERSATION=1")
 	dir := t.TempDir()
-	args, err := AttachArgs("host", "s-1", dir, ModeClaudeContinue)
+	args, err := AttachArgs("host", "s-1", dir, "claude --continue || claude")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestAttachContinueWithoutConversation(t *testing.T) {
 
 func TestAttachMissingDirFails(t *testing.T) {
 	env, log := fakeRemote(t)
-	args, err := AttachArgs("host", "s-1", filepath.Join(t.TempDir(), "missing"), ModeShell)
+	args, err := AttachArgs("host", "s-1", filepath.Join(t.TempDir(), "missing"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestAttachMissingDirNoInjection(t *testing.T) {
 	env, log := fakeRemote(t)
 	marker := filepath.Join(t.TempDir(), "ran")
 	dir := t.TempDir() + "/a$(touch " + marker + ")`touch " + marker + "`$HOME\"'b"
-	args, err := AttachArgs("host", "s-1", dir, ModeShell)
+	args, err := AttachArgs("host", "s-1", dir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestAttachHomeRelativePath(t *testing.T) {
 	home := t.TempDir()
 	os.MkdirAll(filepath.Join(home, "sw", "proj-s-1"), 0o755)
 	env = append(env, "HOME="+home)
-	args, err := AttachArgs("host", "s-1", "~/sw/proj-s-1", ModeShell)
+	args, err := AttachArgs("host", "s-1", "~/sw/proj-s-1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,5 +293,36 @@ func TestAttachHomeRelativePath(t *testing.T) {
 	if got := readLog(t, log); len(got) < 7 || got[0] != "tmux cwd="+filepath.Join(home, "sw", "proj-s-1") ||
 		got[6] != "tmux arg="+filepath.Join(home, "sw", "proj-s-1") {
 		t.Errorf("log %q", got)
+	}
+}
+
+// A start command of your own reaches the agent's shell as written: quotes,
+// $ and ; are not touched on the way through ssh, the login shell and tmux.
+func TestAttachCustomCommand(t *testing.T) {
+	env, log := fakeRemote(t)
+	dir := t.TempDir()
+	cmd := `printf '%s|%s\n' "it's" '$HOME;x' >>"$LOG"`
+	args, err := AttachArgs("host", "s-1", dir, cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runRemote(t, env, args); err != nil {
+		t.Fatal(err)
+	}
+	var ran []string
+	for _, l := range readLog(t, log) {
+		if !strings.HasPrefix(l, "tmux ") {
+			ran = append(ran, l)
+		}
+	}
+	// The fake tmux echoes its arguments, which splits the pane command's
+	// \n over lines: compare what the pane ran, at the end.
+	if want := []string{"interactive-login", "it's|$HOME;x", "login-shell"}; len(ran) < 3 || !slices.Equal(ran[len(ran)-3:], want) {
+		t.Errorf("pane ran:\n got %q\nwant %q", ran, want)
+	}
+	for _, bad := range []string{"a\nb", "a\rb", "a\x00b"} {
+		if _, err := AttachArgs("host", "s-1", dir, bad); err == nil {
+			t.Errorf("start command %q accepted", bad)
+		}
 	}
 }

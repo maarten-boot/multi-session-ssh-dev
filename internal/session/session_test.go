@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -54,7 +55,7 @@ func TestCreateAndPersist(t *testing.T) {
 
 	// A fresh manager reads the same thing back.
 	st := Open(cfgPath).State()
-	if len(st.Sessions) != 1 || st.Sessions[0] != v {
+	if len(st.Sessions) != 1 || !reflect.DeepEqual(st.Sessions[0], v) {
 		t.Errorf("reloaded %+v, want %+v", st.Sessions, v)
 	}
 	r, err := Open(cfgPath).Resolve(v.ID)
@@ -600,9 +601,87 @@ func TestRecords(t *testing.T) {
 		}
 	}
 	root := t.TempDir() // prefixes: a Windows path needs them
-	c := &config.Config{Hosts: []config.Host{{Name: "h", SSHTarget: "h", LocalPrefix: root, RemotePrefix: "/remote"}},
+	c := &config.Config{UI: config.UI{StartCommands: config.DefaultStartCommands},
+		Hosts:    []config.Host{{Name: "h", SSHTarget: "h", LocalPrefix: root, RemotePrefix: "/remote"}},
 		Sessions: []config.Session{{ID: "s-1", Name: "x", Host: "h", LocalPath: filepath.Join(root, "x"), StartMode: "shell", Record: "always"}}}
 	if p := Problems(c); len(p) != 1 || !strings.Contains(p[0], `record must be "on", "off"`) {
 		t.Errorf("problems: %q", p)
+	}
+}
+
+// Start modes come from [ui] start_commands: a session can use one of
+// yours, Resolve gives its command, and one that is gone is an error.
+func TestStartCommands(t *testing.T) {
+	m, root, _ := setup(t)
+	ui := m.Config().UI
+	if len(ui.StartCommands) != 3 || ui.StartCommands[1].Command != "claude --continue || claude" {
+		t.Fatalf("defaults: %+v", ui.StartCommands)
+	}
+	ui.StartCommands = append(ui.StartCommands, config.StartCommand{Name: "opus", Command: "claude --model opus"})
+	if err := m.SaveUI(ui); err != nil {
+		t.Fatal(err)
+	}
+	v, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "proj"), StartMode: "opus"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, err := m.Resolve(v.ID); err != nil || r.StartCommand != "claude --model opus" {
+		t.Errorf("resolved %q %v", r.StartCommand, err)
+	}
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "nope"}); err == nil {
+		t.Error("unknown start mode accepted")
+	}
+	// The default for a new session is claude when it exists.
+	if v2, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "two")}); v2.StartMode != "claude" {
+		t.Errorf("default start mode %q", v2.StartMode)
+	}
+	ui.StartCommands = ui.StartCommands[:3] // "opus" removed: the session cannot start
+	if err := m.SaveUI(ui); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Resolve(v.ID); err == nil || !strings.Contains(err.Error(), "unknown start mode") {
+		t.Errorf("removed start command: %v", err)
+	}
+	for _, bad := range [][]config.StartCommand{nil, {{Name: "", Command: "x"}}, {{Name: "a", Command: "x"}, {Name: "A", Command: "y"}},
+		{{Name: "a", Command: "x\ny"}}} {
+		ui.StartCommands = bad
+		if err := m.SaveUI(ui); err == nil {
+			t.Errorf("start commands %+v accepted", bad)
+		}
+	}
+}
+
+// A session's own commands are kept unless an edit sends them; bad ones
+// are refused, and listed as problems when written by hand.
+func TestSessionCommands(t *testing.T) {
+	m, root, _ := setup(t)
+	v, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "proj")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	no := false
+	cmds := []config.Command{{Name: "fetch", Command: "git fetch --all"}, {Name: "log", Command: "git log --oneline -5", Run: &no}}
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", Commands: cmds}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Update(v.ID, Edit{Name: "q", StartMode: "claude"}); err != nil { // no commands sent
+		t.Fatal(err)
+	}
+	got := m.State().Sessions[0].Commands
+	if len(got) != 2 || !got[0].Runs() || got[1].Runs() {
+		t.Errorf("commands %+v", got)
+	}
+	if err := m.Update(v.ID, Edit{Name: "q", StartMode: "claude", Commands: []config.Command{}}); err != nil || len(m.State().Sessions[0].Commands) != 0 {
+		t.Errorf("emptying: %v", err)
+	}
+	for _, bad := range [][]config.Command{{{Name: "x", Command: ""}}, {{Name: "x", Command: "a\nb"}}, {{Name: "x", Command: "a"}, {Name: "X", Command: "b"}}} {
+		if err := m.Update(v.ID, Edit{Name: "q", StartMode: "claude", Commands: bad}); err == nil {
+			t.Errorf("commands %+v accepted", bad)
+		}
+	}
+	c := m.Config()
+	c.UI.Commands = []config.Command{{Name: "", Command: "x"}}
+	if p := Problems(&c); len(p) != 1 || !strings.Contains(p[0], "[ui] commands") {
+		t.Errorf("problems %q", p)
 	}
 }

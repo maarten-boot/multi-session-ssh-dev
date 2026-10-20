@@ -36,7 +36,7 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 | **Web**    | Build runs and web links of the repository (W1)                                 |
 
 A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
-which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Tabs); tabs added in a newer
+which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Appearance); tabs added in a newer
 version are appended to a saved order. The current tab is marked like the current session in
 the sidebar (tinted background, thick accent bar, bold label).
 
@@ -79,12 +79,13 @@ id         = "s-7f3a"                  # stable, used for tmux name
 name       = "terminal-app"            # display name (the dialog defaults it to the dir name)
 host       = "vibe"
 local_path = "/home/mboot/share-local/workspace/terminal-app"
-start_mode = "claude-continue"         # claude | claude-continue | shell
+start_mode = "claude-continue"         # a name from [[ui.start_commands]] (R2)
 color_mode = "mono"                    # optional, overrides the global color mode (T3)
 local_init = "git status"              # optional, typed into the Local tab (L2)
 env        = { FOO = "bar" }           # optional, Local tab environment (L2)
 group      = "Work"                    # optional, sidebar folder listed in `groups` (F5)
 links      = [{ name = "Staging", url = "https://staging.example.com" }]   # optional, Web tab (W1)
+commands   = [{ name = "test", command = "make test" }]   # optional, command menu (T5)
 record     = "on"                      # optional, "on"/"off" overrides record_remote (F10)
 ```
 Session ids are generated (`s-` + 4 hex digits) and restricted to `[a-z0-9-]`, starting with a
@@ -222,10 +223,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   instead of starting in `$HOME`.
 - R2. **tmux is mandatory on the agent host** — it makes sessions survive app restarts, closed
   windows and network drops (not agent-host reboots). Reopening the tab re-attaches (`-A`); the
-  start command only runs when the tmux session is first created. When claude exits, the pane
-  falls back to a shell: pane cmd = `exec "$SHELL" -lic '<cmd>; exec "$SHELL" -l'`
-  (`claude`, `claude --continue || claude`, or just a login shell: `--continue` exits 1 without a
-  conversation in the directory, quitting claude exits 0). Changing a session's start mode
+  start command only runs when the tmux session is first created. The start commands are a list
+  (`[[ui.start_commands]]`, Settings → Commands; name + one-line command, names unique
+  ignoring case, at least one); a session's `start_mode` names one, and an unknown name is the
+  session's error. The default list is `claude` (`claude`), `claude-continue`
+  (`claude --continue || claude`: `--continue` exits 1 without a conversation in the directory,
+  quitting claude exits 0) and `shell` (empty: just the login shell). When the command exits, the
+  pane falls back to a shell: pane cmd = `exec "$SHELL" -lic '<cmd>; exec "$SHELL" -l'`, or
+  `exec "$SHELL" -l` for an empty command. Changing a session's start mode
   offers to end a running tmux session and reconnects an open Remote tab, since a running
   session keeps its command. claude starts from an *interactive*
   login shell, so it gets the PATH of a manual login: a non-interactive shell skips most of
@@ -354,6 +359,13 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     in Edit… (Colors) or with the session menu (choosing the global value removes the override);
     switchable at runtime without restarting the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
+- T5. Command menu in the Local and Remote tabs: a *Commands* section at the end of the
+  right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
+  The session's own commands (`commands` on the session, Edit…) come first, then
+  `[[ui.commands]]` (Settings → Commands): name, one-line command, `run` (default true: typed,
+  then Enter; false: only typed). At most 100 per list, names unique ignoring case, up to 60
+  characters, commands up to 2000. Disabled while the terminal is not running. Invalid lists
+  in a hand-edited file are listed as problems; Settings refuses to save them.
 
 ### 4.6 Keyboard
 Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux, and claude:
@@ -377,7 +389,12 @@ needs Ctrl, Alt or Cmd, except F-keys. A bad binding is reported in the UI and t
 kept; when two actions use the same key, both are named: your binding beats a default (whose
 action becomes unbound), otherwise the first in this order keeps it (the other is disabled):
 next/prev session, the tabs by name, new session, quick switcher, settings, find, narrow sidebar, notes for all sessions, session 1–9, tab 1–9 (`ACTIONS` in frontend/src/keys.js). Binding the terminal's
-copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. Read at start (restart after editing); Settings lists the current bindings.
+copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. Read at start (restart after editing); Settings → Keys lists the current bindings.
+
+Settings is one dialog with pages behind a tab bar (the last one used opens again):
+Appearance (theme, colors, fonts, tab order), Terminals (scrollback, connecting, reconnecting,
+badges, copy/paste, notifications), Commands (command menu, start commands), Backups and
+recordings, Keys.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),

@@ -34,8 +34,9 @@ function decode(b64) {
 //   onActivity('data', nbytes) / onActivity('bell') reports output.
 //   ui.copy_on_select copies the selection to the clipboard as it is made.
 export class TermView {
-    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity}) {
+    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity, commands}) {
         this.start = start;
+        this.commands = commands ?? (() => []);
         this.exitHint = exitHint;
         this.isAppKey = isAppKey;
         this.onState = onState || (() => {});
@@ -319,7 +320,14 @@ export class TermView {
             '-',
             {label: 'Find…', action: () => this.openFind()},
             {label: 'Clear scrollback', action: () => this.term.clear()},
+            ...this.commandSection(),
         ]);
+    }
+
+    // commandSection is the command menu inside the right-click menu.
+    commandSection() {
+        const items = this.commands();
+        return items.length ? ['-', {info: 'Commands'}, ...items] : [];
     }
 
     setColorFilter(colorMode) {

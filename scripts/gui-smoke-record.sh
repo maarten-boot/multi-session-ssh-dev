@@ -69,9 +69,10 @@ check "off like the global setting: no override saved" test -z "$(grep '^record'
 
 # The global setting (Settings): records every session from that moment.
 k ctrl+shift+comma; sleep 1
-click 328 531                                    # "Record the Remote tabs of all sessions"
+click 691 109; sleep 0.5                          # the "Backups and recordings" page
+click 328 229                                    # "Record the Remote tabs of all sessions"
 shot 2-settings
-click 475 607; k Return; sleep 1.5               # Enter in the folder field saves
+click 475 303; k Return; sleep 1.5               # Enter in the folder field saves
 expect "global setting saved" 'record_remote = true' "$(grep -o 'record_remote = true' $CFG)"
 shot 3-global-on
 t 'echo global-rec-ok' 1.5

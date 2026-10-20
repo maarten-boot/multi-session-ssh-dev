@@ -81,11 +81,7 @@
             <select name="group"></select>
         </label>
         <label>Start in new remote session
-            <select name="mode">
-                <option value="claude">claude</option>
-                <option value="claude-continue">claude --continue</option>
-                <option value="shell">shell</option>
-            </select>
+            <select name="mode"></select><!-- the start commands (Settings → Commands), filled by main.js -->
         </label>
         <label>Colors (overrides Settings for this session)
             <select name="colors">
@@ -94,6 +90,10 @@
                 <option value="mono">mono (no colors)</option>
             </select>
         </label>
+        <div class="session-commands">
+            <div class="caption">Commands (this session's, before the ones in Settings)</div>
+            <div class="command-list" data-list="session_commands"></div>
+        </div>
         <label>Record the Remote tab (input and output, as text)
             <select name="record">
                 <option value="">default</option>
@@ -156,79 +156,103 @@
 <dialog id="dlg-settings" class="wide">
     <form method="dialog">
         <h2>Settings</h2>
-        <div class="grid">
-            <label>Theme
-                <select name="theme">
-                    <option value="light">light (black on white)</option>
-                    <option value="dark">dark</option>
-                </select>
-            </label>
-            <label>Colors
-                <select name="color_mode">
-                    <option value="full">full, with contrast correction</option>
-                    <option value="mono">mono (no colors)</option>
-                </select>
-            </label>
-            <label>Minimum contrast (full colors; 1 = off, 21 = black/white)
-                <input name="min_contrast" type="number" min="1" max="21" step="any">
-            </label>
-            <label>Scrollback (lines)
-                <input name="scrollback" type="number" min="1" max="1000000" step="1">
-            </label>
-            <label>Font family
-                <input name="font_family" autocomplete="off" spellcheck="false" placeholder="DejaVu Sans Mono">
-            </label>
-            <label>Font size
-                <input name="font_size" type="number" min="6" max="48">
-            </label>
-            <label>Connect Remote tabs
-                <select name="connect_on_start">
-                    <option value="lazy">when first viewed</option>
-                    <option value="eager">all at startup</option>
-                </select>
-            </label>
-            <div class="checks">
-                <label class="check"><input type="checkbox" name="auto_reconnect"> Reconnect dropped connections automatically</label>
-                <label class="check"><input type="checkbox" name="activity_badges"> Mark sessions with bell / new output</label>
-                <label class="check"><input type="checkbox" name="copy_on_select"> Copy terminal selection to the clipboard automatically</label>
-                <label class="check"><input type="checkbox" name="ctrl_copy_paste"> Ctrl+C copies selected text (else interrupts), Ctrl+V pastes</label>
-                <label class="check"><input type="checkbox" name="notifications"> Desktop notification when claude waits (terminal bell)</label>
+        <div class="settings-tabs" role="tablist">
+            <button type="button" data-page="appearance">Appearance</button>
+            <button type="button" data-page="terminals">Terminals</button>
+            <button type="button" data-page="commands">Commands</button>
+            <button type="button" data-page="backups">Backups and recordings</button>
+            <button type="button" data-page="keys">Keys</button>
+        </div>
+        <section class="settings-page" data-page="appearance">
+            <div class="grid">
+                <label>Theme
+                    <select name="theme">
+                        <option value="light">light (black on white)</option>
+                        <option value="dark">dark</option>
+                    </select>
+                </label>
+                <label>Colors
+                    <select name="color_mode">
+                        <option value="full">full, with contrast correction</option>
+                        <option value="mono">mono (no colors)</option>
+                    </select>
+                </label>
+                <label>Minimum contrast (full colors; 1 = off, 21 = black/white)
+                    <input name="min_contrast" type="number" min="1" max="21" step="any">
+                </label>
+                <label>Font family
+                    <input name="font_family" autocomplete="off" spellcheck="false" placeholder="DejaVu Sans Mono">
+                </label>
+                <label>Font size
+                    <input name="font_size" type="number" min="6" max="48">
+                </label>
             </div>
-            <label class="check"><input type="checkbox" name="claude_backup"> Back up the Claude data (~/.claude) of agent hosts</label>
-            <label>Back up every
-                <select name="claude_backup_every">
-                    <option value="15m">15 minutes</option>
-                    <option value="1h">hour</option>
-                    <option value="6h">6 hours</option>
-                    <option value="24h">day</option>
-                </select>
-            </label>
-            <label class="check"><input type="checkbox" name="record_remote"> Record the Remote tabs of all sessions (input and output, as text)</label>
-            <label>New recording file every
-                <select name="record_every">
-                    <option value="15m">15 minutes</option>
-                    <option value="30m">30 minutes</option>
-                    <option value="1h">hour</option>
-                    <option value="2h">2 hours</option>
-                    <option value="6h">6 hours</option>
-                    <option value="12h">12 hours</option>
-                    <option value="24h">day</option>
-                </select>
-            </label>
-            <label>Recordings folder (empty: the default)
-                <input name="record_dir" autocomplete="off" spellcheck="false">
-            </label>
-            <p class="hint record-default"></p>
-        </div>
-        <div class="tab-order">
-            <div class="caption">Tabs (order and which are shown)</div><!-- the key hint is filled in by main.js -->
-            <div class="tab-list"></div>
-        </div>
-        <details class="shortcuts">
-            <summary>Keyboard shortcuts</summary>
+            <div class="tab-order">
+                <div class="caption">Tabs (order and which are shown)</div><!-- the key hint is filled in by main.js -->
+                <div class="tab-list"></div>
+            </div>
+        </section>
+        <section class="settings-page" data-page="terminals">
+            <div class="grid">
+                <label>Scrollback (lines)
+                    <input name="scrollback" type="number" min="1" max="1000000" step="1">
+                </label>
+                <label>Connect Remote tabs
+                    <select name="connect_on_start">
+                        <option value="lazy">when first viewed</option>
+                        <option value="eager">all at startup</option>
+                    </select>
+                </label>
+                <div class="checks">
+                    <label class="check"><input type="checkbox" name="auto_reconnect"> Reconnect dropped connections automatically</label>
+                    <label class="check"><input type="checkbox" name="activity_badges"> Mark sessions with bell / new output</label>
+                    <label class="check"><input type="checkbox" name="copy_on_select"> Copy terminal selection to the clipboard automatically</label>
+                    <label class="check"><input type="checkbox" name="ctrl_copy_paste"> Ctrl+C copies selected text (else interrupts), Ctrl+V pastes</label>
+                    <label class="check"><input type="checkbox" name="notifications"> Desktop notification when claude waits (terminal bell)</label>
+                </div>
+            </div>
+        </section>
+        <section class="settings-page" data-page="commands">
+            <div class="caption">Command menu (Local and Remote tabs: right-click, or Commands ▾ in the bar)</div>
+            <p class="hint">For every session, after its own (Edit… → Commands). With “run” ticked the command is typed and Enter pressed; without, it is only typed.</p>
+            <div class="command-list" data-list="commands"></div>
+            <div class="caption">Start commands (what a session's Remote tab starts in a new tmux session)</div>
+            <p class="hint">Each session picks one in Edit… (Start in new remote session). The command runs in the agent host's interactive login shell; an empty command is just that shell. When it ends, a shell takes over.</p>
+            <div class="command-list" data-list="start_commands"></div>
+        </section>
+        <section class="settings-page" data-page="backups">
+            <div class="grid">
+                <label class="check"><input type="checkbox" name="claude_backup"> Back up the Claude data (~/.claude) of agent hosts</label>
+                <label>Back up every
+                    <select name="claude_backup_every">
+                        <option value="15m">15 minutes</option>
+                        <option value="1h">hour</option>
+                        <option value="6h">6 hours</option>
+                        <option value="24h">day</option>
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" name="record_remote"> Record the Remote tabs of all sessions (input and output, as text)</label>
+                <label>New recording file every
+                    <select name="record_every">
+                        <option value="15m">15 minutes</option>
+                        <option value="30m">30 minutes</option>
+                        <option value="1h">hour</option>
+                        <option value="2h">2 hours</option>
+                        <option value="6h">6 hours</option>
+                        <option value="12h">12 hours</option>
+                        <option value="24h">day</option>
+                    </select>
+                </label>
+                <label>Recordings folder (empty: the default)
+                    <input name="record_dir" autocomplete="off" spellcheck="false">
+                </label>
+                <p class="hint record-default"></p>
+            </div>
+        </section>
+        <section class="settings-page shortcuts" data-page="keys">
             <table></table>
             <p class="hint"></p>
-        </details>
+        </section>
         <div class="error"></div>
         <div class="buttons">
             <button value="ok" class="primary">Save</button>

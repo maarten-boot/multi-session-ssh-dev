@@ -8,6 +8,7 @@ import {FilesView} from './files';
 import {NotesView} from './notes';
 import {AppNotesPage} from './appnotes';
 import {WebView} from './web';
+import {CommandList, commandItems} from './commands';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, Quit, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
@@ -46,6 +47,15 @@ const BURST_MS = 2000;
 const BURST_MIN = 512;
 
 class Tab {
+    // commandItems is this tab's command menu (see commands.js); disabled
+    // while the terminal is not running.
+    commandItems() {
+        return commandItems(this.session, app.state.ui.commands, d => {
+            this.view?.send(d);
+            this.view?.term.focus();
+        }, this.view?.id ? null : 'not connected');
+    }
+
     constructor(session, label, start, exitHint, onState) {
         this.session = session;
         this.label = label;
@@ -67,6 +77,7 @@ class Tab {
                 colorMode: effectiveColorMode(app.state.ui, this.session.data),
                 isAppKey: e => appKey(e) !== null, onState: this.onState,
                 onActivity: (kind, n) => this.activity(kind, n),
+                commands: () => this.commandItems(),
             });
             this.view.spawn();
         }
@@ -880,6 +891,16 @@ const app = {
             get.onclick = () => syncGetDialog(s);
             sync.append(send, get);
         }
+        // The command menu, on the Local and Remote tabs.
+        const term = ['local', 'remote'].includes(active?.key) ? active : null;
+        if (term && ((d.commands?.length ?? 0) + (this.state.ui.commands?.length ?? 0)) > 0) {
+            const cmds = el('button', {textContent: 'Commands ▾', title: `Type a command into the ${term.label} tab`});
+            cmds.onclick = () => {
+                const r = cmds.getBoundingClientRect();
+                showMenu(r.left, r.bottom + 2, term.commandItems());
+            };
+            sync.append(cmds);
+        }
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
         const host = this.state.hosts.find(h => h.name === d.host);
@@ -1321,7 +1342,18 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.dir.value = s?.data.local_path ?? '';
     f.elements.name.value = s?.data.name ?? '';
     f.elements.name.placeholder = '';
-    f.elements.mode.value = s?.data.start_mode ?? store.get('lastMode', 'claude');
+    const starts = app.state.ui.start_commands ?? [];
+    f.elements.mode.replaceChildren(...starts.map(c => el('option', {value: c.name,
+        textContent: c.command.trim() && c.command !== c.name ? `${c.name}  (${c.command})` : c.command.trim() ? c.name : `${c.name}  (a login shell)`})));
+    if (s && !starts.some(c => c.name === s.data.start_mode)) {
+        f.elements.mode.append(el('option', {value: s.data.start_mode, textContent: `${s.data.start_mode}  (not in Settings → Commands)`}));
+    }
+    const lastMode = store.get('lastMode', 'claude');
+    f.elements.mode.value = s?.data.start_mode ?? (starts.some(c => c.name === lastMode) ? lastMode : starts[0]?.name ?? '');
+    // The session's own commands (Edit only).
+    const cmdBox = dlg.querySelector('.session-commands');
+    cmdBox.hidden = !editing;
+    const cmdList = new CommandList(cmdBox.querySelector('.command-list'), s?.data.commands ?? [], {run: true});
     f.elements.colors.value = s?.data.color_mode ?? '';
     // New sessions look as set in Settings; an override is for Edit only.
     f.elements.colors.closest('label').hidden = !editing;
@@ -1376,6 +1408,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
             await UpdateSession(s.id, {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
+                commands: cmdList.value,
             });
         } else {
             created = await CreateSession({
@@ -1392,7 +1425,12 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     if (editing && s.data.start_mode !== oldMode) await offerRestart(s, oldMode);
 }
 
-const MODE_LABELS = {claude: 'claude', 'claude-continue': 'claude --continue', shell: 'a shell'};
+// startLabel describes a start mode: its name and command.
+function startLabel(name) {
+    const c = app.state.ui.start_commands?.find(c => c.name === name);
+    if (!c) return `“${name}”`;
+    return c.command.trim() ? `“${c.name}” (${c.command})` : `“${c.name}” (a login shell)`;
+}
 
 // offerRestart: a new start mode only applies when the remote tmux session is
 // created; one that is already running keeps what it started with. Offer to
@@ -1400,9 +1438,9 @@ const MODE_LABELS = {claude: 'claude', 'claude-continue': 'claude --continue', s
 async function offerRestart(s, oldMode) {
     await confirmDialog({
         title: 'Restart the remote session?',
-        text: `New sessions on the agent host now start with ${MODE_LABELS[s.data.start_mode]}. ` +
+        text: `New sessions on the agent host now start with ${startLabel(s.data.start_mode)}. ` +
             `If tmux session ${s.data.tmux_name} on ${s.data.host} is already running, it keeps ` +
-            `running what it started with (${MODE_LABELS[oldMode]}) until it ends. Restarting ends it now, ` +
+            `running what it started with (${startLabel(oldMode)}) until it ends. Restarting ends it now, ` +
             'including claude or anything else running in it.',
         ok: 'Restart now',
         cancel: 'Later',
@@ -1485,6 +1523,23 @@ async function settingsDialog() {
     if (dlg.open) return;
     const f = dlg.querySelector('form').elements;
     const ui = app.state.ui;
+    // Pages behind a tab bar; the last one used opens again.
+    const pages = [...dlg.querySelectorAll('.settings-page')];
+    const tabs = [...dlg.querySelectorAll('.settings-tabs button')];
+    const showPage = name => {
+        if (!pages.some(p => p.dataset.page === name)) name = 'appearance';
+        pages.forEach(p => p.hidden = p.dataset.page !== name);
+        tabs.forEach(t => {
+            t.classList.toggle('active', t.dataset.page === name);
+            t.ariaSelected = String(t.dataset.page === name);
+        });
+        store.set('settingsPage', name);
+    };
+    tabs.forEach(t => t.onclick = () => showPage(t.dataset.page));
+    showPage(store.get('settingsPage', 'appearance'));
+    const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true});
+    const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
+        {emptyCommand: true, placeholder: {name: 'Name (start mode)'}});
     for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start']) f[k].value = ui[k] ?? '';
     f.auto_reconnect.checked = !!ui.auto_reconnect;
     f.activity_badges.checked = !!ui.activity_badges;
@@ -1561,9 +1616,11 @@ async function settingsDialog() {
         record_remote: f.record_remote.checked,
         record_every: f.record_every.value,
         record_dir: f.record_dir.value.trim(),
+        commands: commands.value,
+        start_commands: starts.value,
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),
-    }));
+    }), pages.find(p => !p.hidden)?.querySelector('input, select')); // the open page's first field
     if (ok) await app.reload();
 }
 

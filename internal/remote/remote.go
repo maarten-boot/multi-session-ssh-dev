@@ -17,15 +17,6 @@ import (
 	"strings"
 )
 
-// Mode selects what runs when the tmux session is first created.
-type Mode string
-
-const (
-	ModeClaude         Mode = "claude"
-	ModeClaudeContinue Mode = "claude-continue"
-	ModeShell          Mode = "shell"
-)
-
 var idRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 
 // ValidID reports whether id is safe to embed in a tmux session name.
@@ -58,28 +49,30 @@ func checkTarget(target string) error {
 	return nil
 }
 
-// paneCommand is what tmux runs in the session's first pane. When claude
-// exits the pane falls back to a login shell instead of closing the session.
+// CheckStartCommand accepts a start command: one line ("" is a login
+// shell).
+func CheckStartCommand(cmd string) error {
+	if strings.ContainsAny(cmd, "\x00\r\n") {
+		return fmt.Errorf("remote: a start command is one line: %q", cmd)
+	}
+	return nil
+}
+
+// paneCommand is what tmux runs in the session's first pane: the start
+// command, or a login shell for "". When the command exits the pane falls
+// back to a login shell instead of closing the session.
 //
-// claude starts from an interactive login shell (-lic), with the environment
-// of a manual login: a non-interactive one skips most of ~/.bashrc (Ubuntu's
-// returns early), where installers and users often add ~/.local/bin to PATH.
-// The pane has a terminal, so the interactive shell is quiet; commands
-// without one (the wrapper below, ScriptArgs) keep -lc.
-func paneCommand(mode Mode) (string, error) {
-	var cmd string
-	switch mode {
-	case ModeClaude:
-		cmd = "claude"
-	case ModeClaudeContinue:
-		// --continue exits 1 when the directory has no conversation yet
-		// (new host or project); start a new one then. Quitting claude
-		// (/exit, Ctrl+C twice) exits 0 and does not start another.
-		cmd = "claude --continue || claude"
-	case ModeShell:
+// The command runs in an interactive login shell (-lic), with the
+// environment of a manual login: a non-interactive one skips most of
+// ~/.bashrc (Ubuntu's returns early), where installers and users often add
+// ~/.local/bin to PATH. The pane has a terminal, so the interactive shell is
+// quiet; commands without one (the wrapper below, ScriptArgs) keep -lc.
+func paneCommand(cmd string) (string, error) {
+	if err := CheckStartCommand(cmd); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(cmd) == "" {
 		return `exec "$SHELL" -l`, nil
-	default:
-		return "", fmt.Errorf("remote: unknown start mode %q", mode)
 	}
 	return `exec "$SHELL" -lic ` + Quote(cmd+`; exec "$SHELL" -l`), nil
 }
@@ -110,9 +103,9 @@ func ShellPath(p string) string {
 }
 
 // AttachArgs returns the ssh arguments (without "ssh" itself) that attach to
-// the session's tmux session, creating it in remotePath running mode's
-// command if it does not exist yet. Run it in a pty.
-func AttachArgs(target, id, remotePath string, mode Mode) ([]string, error) {
+// the session's tmux session, creating it in remotePath running cmd (see
+// paneCommand) if it does not exist yet. Run it in a pty.
+func AttachArgs(target, id, remotePath, cmd string) ([]string, error) {
 	if err := checkTarget(target); err != nil {
 		return nil, err
 	}
@@ -122,7 +115,7 @@ func AttachArgs(target, id, remotePath string, mode Mode) ([]string, error) {
 	if err := CheckRemotePath(remotePath); err != nil {
 		return nil, err
 	}
-	pane, err := paneCommand(mode)
+	pane, err := paneCommand(cmd)
 	if err != nil {
 		return nil, err
 	}

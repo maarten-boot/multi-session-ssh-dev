@@ -84,15 +84,20 @@ implementation differs from the original plan.
 - v0.8.32: the live share no longer crashes on appending writes (git reflogs and lock files
   through sshfs: new branches arrived only after this); Get lists every agent branch and takes
   ticked ones over (F11); the session menu shows the file mode.
+- Command menu in the Local and Remote tabs (T5: right-click section and Commands ▾; global
+  list plus the session's own, run or only type), editable start commands for the Remote tab
+  (R2), Settings in pages behind a tab bar.
 
 ## Next (ideas, not started)
-- Command menu in the Local and Remote tabs: a popup with prepared commands (e.g.
-  `git fetch --all`) that types the chosen one into the terminal. One global list in Settings,
-  plus each session's own additions (customizable per session).
-- Start commands of the Remote tab editable: today the choices are fixed (shell, `claude`,
-  `claude --continue`, R2); make the list editable globally in Settings, a session picking one.
-- Settings in sections: when the dialog grows too big, group it under a tab bar (notebook),
-  e.g. Appearance, Terminals, Commands, Backups and recordings, Keys.
+- **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
+  between interactive prompts.
+  - Frontend: hook into `frontend/src/terminal.js`. Explore xterm.js markers
+    (`term.registerMarker`) or an overlay gutter that tracks the line numbers of Markdown
+    boundaries (```` ``` ```` blocks, `###` headings); toggle visibility or heights with CSS/DOM
+    without breaking the buffer's synchronisation.
+  - Alternative: a switchable "interactive view" that renders the session's text with the notes
+    Markdown parsing (`frontend/src/markup.js`, `editor.js`) into collapsible HTML
+    `<details>`/`<summary>` blocks.
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
@@ -104,13 +109,13 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 25
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 26
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies (Get: a fast-forward and a new branch), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu and start commands, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

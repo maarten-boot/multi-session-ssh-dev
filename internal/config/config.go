@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 )
@@ -53,7 +54,46 @@ type Session struct {
 	// Record overrides UI.RecordRemote for this session: "on", "off", or
 	// "" to follow it.
 	Record string `toml:"record,omitempty" json:"record"`
+	// Commands are the session's own entries of the command menu, listed
+	// before UI.Commands.
+	Commands []Command `toml:"commands,omitempty" json:"commands"`
 }
+
+// Command is an entry of the command menu of the Local and Remote tabs:
+// typed into the terminal, then Enter unless Run is false.
+type Command struct {
+	Name    string `toml:"name" json:"name"`
+	Command string `toml:"command" json:"command"`
+	Run     *bool  `toml:"run,omitempty" json:"run"` // nil: true
+}
+
+// Runs reports whether choosing c also presses Enter.
+func (c Command) Runs() bool { return c.Run == nil || *c.Run }
+
+// StartCommand is a choice for what a session's Remote tab starts in a new
+// tmux session: a command run in the agent's interactive login shell, or
+// a login shell for "". Session.StartMode names one.
+type StartCommand struct {
+	Name    string `toml:"name" json:"name"`
+	Command string `toml:"command" json:"command"`
+}
+
+// DefaultStartCommands are the start commands of a config that sets none:
+// the start modes from before they could be edited, under the same names.
+// --continue exits 1 when the directory has no conversation yet (new host
+// or project), which starts a new one; quitting claude exits 0.
+var DefaultStartCommands = []StartCommand{
+	{Name: "claude", Command: "claude"},
+	{Name: "claude-continue", Command: "claude --continue || claude"},
+	{Name: "shell", Command: ""},
+}
+
+// Limits on the command lists.
+const (
+	MaxCommands       = 100
+	MaxCommandNameLen = 60
+	MaxCommandLen     = 2000
+)
 
 // Link is a named web address.
 type Link struct {
@@ -108,6 +148,10 @@ type UI struct {
 	RecordRemote bool   `toml:"record_remote,omitempty" json:"record_remote"`
 	RecordEvery  string `toml:"record_every,omitempty" json:"record_every"`
 	RecordDir    string `toml:"record_dir,omitempty" json:"record_dir"`
+	// Commands is the command menu of every session (after its own);
+	// StartCommands the choices for a session's start mode.
+	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
+	StartCommands []StartCommand `toml:"start_commands,omitempty" json:"start_commands"`
 }
 
 // Tabs lists every session tab in the default order.
@@ -208,6 +252,9 @@ func (c *Config) applyDefaults() {
 	if !validRecordDir(c.UI.RecordDir) {
 		c.UI.RecordDir = "" // the default folder
 	}
+	if len(c.UI.StartCommands) == 0 {
+		c.UI.StartCommands = slices.Clone(DefaultStartCommands)
+	}
 	normalizeTabs(&c.UI)
 }
 
@@ -229,6 +276,72 @@ func RecordEvery(u UI) (time.Duration, error) {
 		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
 	}
 	return d, nil
+}
+
+// ValidateCommands checks a command menu list: named entries, one line
+// each, names unique.
+func ValidateCommands(cs []Command) error {
+	if len(cs) > MaxCommands {
+		return fmt.Errorf("at most %d commands", MaxCommands)
+	}
+	seen := map[string]bool{}
+	for _, c := range cs {
+		if err := checkCommand(c.Name, c.Command, seen); err != nil {
+			return err
+		}
+		if strings.TrimSpace(c.Command) == "" {
+			return fmt.Errorf("command %q is empty", c.Name)
+		}
+	}
+	return nil
+}
+
+// ValidateStartCommands checks the start commands: at least one, names
+// unique and usable as start_mode, one line each ("" is a login shell).
+func ValidateStartCommands(cs []StartCommand) error {
+	if len(cs) == 0 {
+		return errors.New("at least one start command is needed")
+	}
+	if len(cs) > MaxCommands {
+		return fmt.Errorf("at most %d start commands", MaxCommands)
+	}
+	seen := map[string]bool{}
+	for _, c := range cs {
+		if err := checkCommand(c.Name, c.Command, seen); err != nil {
+			return fmt.Errorf("start %v", err)
+		}
+	}
+	return nil
+}
+
+func checkCommand(name, cmd string, seen map[string]bool) error {
+	n := strings.TrimSpace(name)
+	switch {
+	case n == "":
+		return errors.New("command without a name")
+	case n != name:
+		return fmt.Errorf("command name %q starts or ends with a space", name)
+	case utf8.RuneCountInString(name) > MaxCommandNameLen:
+		return fmt.Errorf("command name %q is longer than %d characters", name, MaxCommandNameLen)
+	case seen[strings.ToLower(name)]:
+		return fmt.Errorf("command name %q is used twice", name)
+	case strings.ContainsAny(cmd, "\x00\r\n"):
+		return fmt.Errorf("command %q is more than one line", name)
+	case len(cmd) > MaxCommandLen:
+		return fmt.Errorf("command %q is longer than %d characters", name, MaxCommandLen)
+	}
+	seen[strings.ToLower(name)] = true
+	return nil
+}
+
+// FindStartCommand returns the start command named name.
+func FindStartCommand(u UI, name string) (StartCommand, bool) {
+	for _, c := range u.StartCommands {
+		if c.Name == name {
+			return c, true
+		}
+	}
+	return StartCommand{}, false
 }
 
 // validRecordDir: empty (the default), absolute, or under ~.
@@ -260,6 +373,12 @@ func ValidateUI(u UI) error {
 	}
 	if !validRecordDir(u.RecordDir) {
 		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", u.RecordDir)
+	}
+	if err := ValidateCommands(u.Commands); err != nil {
+		return err
+	}
+	if err := ValidateStartCommands(u.StartCommands); err != nil {
+		return err
 	}
 	for _, t := range append(append([]string{}, u.TabOrder...), u.HiddenTabs...) {
 		if !slices.Contains(Tabs, t) {

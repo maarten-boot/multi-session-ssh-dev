@@ -1,5 +1,21 @@
 export namespace config {
 	
+	export class Command {
+	    name: string;
+	    command: string;
+	    run?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Command(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.command = source["command"];
+	        this.run = source["run"];
+	    }
+	}
 	export class Host {
 	    name: string;
 	    ssh_target: string;
@@ -36,6 +52,20 @@ export namespace config {
 	        this.url = source["url"];
 	    }
 	}
+	export class StartCommand {
+	    name: string;
+	    command: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartCommand(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.command = source["command"];
+	    }
+	}
 	export class UI {
 	    font_family: string;
 	    font_size: number;
@@ -56,6 +86,8 @@ export namespace config {
 	    record_remote: boolean;
 	    record_every: string;
 	    record_dir: string;
+	    commands: Command[];
+	    start_commands: StartCommand[];
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -82,7 +114,27 @@ export namespace config {
 	        this.record_remote = source["record_remote"];
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
+	        this.commands = this.convertValues(source["commands"], Command);
+	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
@@ -453,6 +505,7 @@ export namespace session {
 	    color_mode: string;
 	    group: string;
 	    record: string;
+	    commands: config.Command[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Edit(source);
@@ -465,7 +518,26 @@ export namespace session {
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
 	        this.record = source["record"];
+	        this.commands = this.convertValues(source["commands"], config.Command);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class NewSession {
 	    host: string;
@@ -520,6 +592,7 @@ export namespace session {
 	    remote_path: string;
 	    tmux_name: string;
 	    record: string;
+	    commands: config.Command[];
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -540,8 +613,27 @@ export namespace session {
 	        this.remote_path = source["remote_path"];
 	        this.tmux_name = source["tmux_name"];
 	        this.record = source["record"];
+	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.error = source["error"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class State {
 	    hosts: config.Host[];

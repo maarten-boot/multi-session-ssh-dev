@@ -1029,6 +1029,98 @@ dialog .grid {
     column-gap: 16px;
 }
 
+/* Settings pages behind a tab bar. The dialog keeps its top edge where it
+   is when a page of another height is shown (dialogs are centred). */
+#dlg-settings {
+    margin-top: 5vh;
+    max-height: 90vh;
+}
+
+/* Settings pages behind a tab bar. */
+.settings-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: 0 0 12px;
+    border-bottom: 1px solid var(--border-strong);
+}
+
+.settings-tabs button {
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background: none;
+    color: var(--text-strong);
+    font: inherit;
+    cursor: pointer;
+}
+
+.settings-tabs button:hover {
+    background: var(--panel-2);
+}
+
+.settings-tabs button.active {
+    border-color: var(--border-strong);
+    background: var(--bg);
+    font-weight: 600;
+    margin-bottom: -1px;
+}
+
+.settings-page {
+    min-height: 20rem;
+}
+
+.settings-page .caption, .session-commands .caption {
+    font-weight: 600;
+    margin: 10px 0 4px;
+}
+
+/* A list of commands: name, command, run, ↑ ↓ ✕. */
+.command-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr auto auto auto auto;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.command-list[data-list=start_commands] .command-row {
+    grid-template-columns: 9rem 1fr auto auto auto;
+}
+
+dialog .command-row input:not([type]) {
+    margin-top: 0;
+    min-width: 0;
+}
+
+dialog .command-row .cmd-command {
+    font-family: var(--mono-family, monospace);
+}
+
+.command-row .cmd-run-label {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.command-add {
+    margin: 2px 0 8px;
+}
+
+.command-add button {
+    padding: 3px 10px;
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    background: var(--btn-bg);
+    color: var(--text-strong);
+    font: inherit;
+    cursor: pointer;
+}
+
+.session-commands {
+    margin: 6px 0;
+}
+
 dialog input[type=number] {
     display: block;
     box-sizing: border-box;
@@ -1322,7 +1414,9 @@ dialog .findings {
 
 #sync-actions {
     display: flex;
+    flex: none;
     gap: 4px;
+    white-space: nowrap;
 }
 
 #sync-actions button {
