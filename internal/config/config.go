@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
@@ -310,6 +311,9 @@ func ValidateStartCommands(cs []StartCommand) error {
 		if err := checkCommand(c.Name, c.Command, seen); err != nil {
 			return fmt.Errorf("start %v", err)
 		}
+		if strings.HasPrefix(strings.TrimSpace(c.Command), "-") {
+			return fmt.Errorf("start command %q cannot start with - (the shell would read it as options)", c.Name)
+		}
 	}
 	return nil
 }
@@ -325,23 +329,39 @@ func checkCommand(name, cmd string, seen map[string]bool) error {
 		return fmt.Errorf("command name %q is longer than %d characters", name, MaxCommandNameLen)
 	case seen[strings.ToLower(name)]:
 		return fmt.Errorf("command name %q is used twice", name)
-	case strings.ContainsAny(cmd, "\x00\r\n"):
-		return fmt.Errorf("command %q is more than one line", name)
-	case len(cmd) > MaxCommandLen:
+	case strings.IndexFunc(cmd, unicode.IsControl) >= 0:
+		return fmt.Errorf("command %q is more than one line or has control characters", name)
+	case utf8.RuneCountInString(cmd) > MaxCommandLen:
 		return fmt.Errorf("command %q is longer than %d characters", name, MaxCommandLen)
 	}
 	seen[strings.ToLower(name)] = true
 	return nil
 }
 
-// FindStartCommand returns the start command named name.
+// FindStartCommand returns the start command named name; names are unique
+// ignoring case, so "Claude" finds "claude" too.
 func FindStartCommand(u UI, name string) (StartCommand, bool) {
 	for _, c := range u.StartCommands {
 		if c.Name == name {
 			return c, true
 		}
 	}
+	for _, c := range u.StartCommands {
+		if strings.EqualFold(c.Name, name) {
+			return c, true
+		}
+	}
 	return StartCommand{}, false
+}
+
+// TidyCommands drops run = true (the default) so the file stays short.
+func TidyCommands(cs []Command) []Command {
+	for i := range cs {
+		if cs[i].Run != nil && *cs[i].Run {
+			cs[i].Run = nil
+		}
+	}
+	return cs
 }
 
 // validRecordDir: empty (the default), absolute, or under ~.

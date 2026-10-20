@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -683,5 +684,80 @@ func TestSessionCommands(t *testing.T) {
 	c.UI.Commands = []config.Command{{Name: "", Command: "x"}}
 	if p := Problems(&c); len(p) != 1 || !strings.Contains(p[0], "[ui] commands") {
 		t.Errorf("problems %q", p)
+	}
+}
+
+// A session whose start command was removed keeps working in its menus
+// (colors, recording, renaming): only a changed start mode is checked.
+// Lists from a hand-edited file that break the rules are problems.
+func TestStartModeRemovedAndListProblems(t *testing.T) {
+	m, root, _ := setup(t)
+	ui := m.Config().UI
+	ui.StartCommands = append(ui.StartCommands, config.StartCommand{Name: "opus", Command: "claude --model opus"})
+	m.SaveUI(ui)
+	v, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "p"), StartMode: "opus"})
+	ui.StartCommands = ui.StartCommands[:3]
+	m.SaveUI(ui)
+	if err := m.Update(v.ID, Edit{Name: "renamed", StartMode: "opus", ColorMode: "mono"}); err != nil {
+		t.Errorf("unchanged (removed) start mode: %v", err)
+	}
+	if err := m.Update(v.ID, Edit{Name: "renamed", StartMode: "gone"}); err == nil {
+		t.Error("a new unknown start mode accepted")
+	}
+	if err := m.Update(v.ID, Edit{Name: "renamed", StartMode: "Shell"}); err != nil {
+		t.Errorf("start mode differing in case: %v", err)
+	}
+	c := m.Config()
+	c.UI.StartCommands = []config.StartCommand{{Name: "a", Command: "-x"}}
+	c.Sessions[0].Commands = []config.Command{{Name: "esc", Command: "a\x1b[2J"}}
+	p := strings.Join(Problems(&c), "\n")
+	if !strings.Contains(p, "[ui] start_commands") || !strings.Contains(p, "commands: command \"esc\"") {
+		t.Errorf("problems:\n%s", p)
+	}
+}
+
+// Limits: count, name length and command length in characters.
+func TestCommandLimits(t *testing.T) {
+	many := make([]config.Command, config.MaxCommands+1)
+	for i := range many {
+		many[i] = config.Command{Name: fmt.Sprint("c", i), Command: "x"}
+	}
+	long := strings.Repeat("é", config.MaxCommandLen) // 2 bytes each: fits in characters
+	for _, c := range []struct {
+		cs []config.Command
+		ok bool
+	}{
+		{many, false},
+		{many[:config.MaxCommands], true},
+		{[]config.Command{{Name: strings.Repeat("n", config.MaxCommandNameLen+1), Command: "x"}}, false},
+		{[]config.Command{{Name: "long", Command: long}}, true},
+		{[]config.Command{{Name: "long", Command: long + "é"}}, false},
+		{[]config.Command{{Name: " x", Command: "y"}}, false},
+	} {
+		if err := config.ValidateCommands(c.cs); (err == nil) != c.ok {
+			t.Errorf("%d commands, first %q: %v", len(c.cs), c.cs[0].Name, err)
+		}
+	}
+}
+
+// A config from before start commands existed: its sessions resolve.
+func TestOldConfigStartModes(t *testing.T) {
+	root := t.TempDir()
+	cfg := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(cfg, []byte(fmt.Sprintf(`[[hosts]]
+name = "h"
+ssh_target = "u@h"
+local_prefix = '%s'
+remote_prefix = "/remote"
+[[sessions]]
+id = "s-old1"
+name = "old"
+host = "h"
+local_path = '%s'
+start_mode = "claude-continue"
+`, root, mkdir(t, root, "p"))), 0o600)
+	r, err := Open(cfg).Resolve("s-old1")
+	if err != nil || r.StartCommand != "claude --continue || claude" {
+		t.Errorf("resolved %q %v", r.StartCommand, err)
 	}
 }

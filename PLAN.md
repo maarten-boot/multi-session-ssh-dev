@@ -84,7 +84,9 @@ implementation differs from the original plan.
 - v0.8.32: the live share no longer crashes on appending writes (git reflogs and lock files
   through sshfs: new branches arrived only after this); Get lists every agent branch and takes
   ticked ones over (F11); the session menu shows the file mode.
-- Command menu in the Local and Remote tabs (T5: right-click section and Commands ▾; global
+- Docs/code cross-check (v0.8.34): live share file modes and write offsets, unsafe agent branch
+  names, docs in line.
+- v0.8.35: command menu in the Local and Remote tabs (T5: right-click section and Commands ▾; global
   list plus the session's own, run or only type), editable start commands for the Remote tab
   (R2), Settings in pages behind a tab bar.
 

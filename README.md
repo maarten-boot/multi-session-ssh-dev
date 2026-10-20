@@ -9,12 +9,13 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.32: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.35: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting) and Web tabs, Remote tab recordings, session folders,
-themes and color modes, quick switcher, activity badges, desktop notifications,
+themes and color modes, quick switcher, a command menu in the Local and Remote tabs, editable
+start commands, activity badges, desktop notifications,
 auto-reconnect, live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch),
-Claude backups, remembered window size and position, settings; builds for Linux, Windows
+Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
 and macOS.
 
 ## Download
@@ -81,7 +82,7 @@ make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/u
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
-                     # Remote tab recordings, badges (~2 min)
+                     # Remote tab recordings, command menu and start commands, badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -228,7 +229,7 @@ make clean all
 Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
 
 A session reopens on the tab you used last; new sessions start on Local. Sessions
-look the way Settings says (theme, font, colors); a session can override the colors
+look the way Settings → Appearance says (theme, font, colors); a session can override the colors
 in *Edit…* if needed. The font size applies to the whole app (sidebar, tab bar,
 dialogs), as does the font family when you set one. Text is black (light theme) or
 bright (dark theme), never grey; color only marks status (errors, warnings, git letters,
@@ -246,10 +247,10 @@ the Files tab refreshes, when Details… opens, and every two minutes. Backgroun
 Terminals: Ctrl+Shift+F (Cmd+F) opens a find bar (Enter / Shift+Enter for next /
 previous); links are clickable; emoji and CJK characters get their proper two-cell
 width. Copy and paste: Ctrl+C copies when text is selected and otherwise interrupts the program
-as usual, Ctrl+V pastes (*Ctrl+C copies selected text…* in Settings, `ctrl_copy_paste`; switch it
+as usual, Ctrl+V pastes (*Ctrl+C copies selected text…* in Settings → Terminals, `ctrl_copy_paste`; switch it
 off if you need Ctrl+V in vim — Ctrl+Q works there too); Ctrl+Shift+C / V always work, Cmd+C / V
 on macOS. Right-click a terminal for Copy, Paste, Select all, Find… and Clear scrollback. With
-*Copy terminal selection to the clipboard automatically* (Settings, `copy_on_select`) a selection
+*Copy terminal selection to the clipboard automatically* (Settings → Terminals, `copy_on_select`) a selection
 goes to the clipboard at once.
 
 **Command menu.** Commands you type often (`git fetch --all`, `make test`) are one click away
@@ -263,9 +264,13 @@ first. In the config: `[[ui.commands]]` with `name`, `command` and `run` (defaul
 **Start commands.** What a session's Remote tab starts in a new tmux session is a list too
 (Settings → Commands → Start commands; `[[ui.start_commands]]` with `name` and `command`):
 the command runs in the agent host's interactive login shell, a login shell takes over when it
-ends, and an empty command is just the login shell. A session names one as its `start_mode`;
-removing one that a session still uses stops that session from starting (the sidebar says
-why).
+ends — also after Ctrl+C or a typo in the command — and an empty command is just the login
+shell. A session names one as its `start_mode`. A list in the config replaces the default three
+(`claude`, `claude-continue`, `shell`), so keep the ones your sessions use; removing or renaming
+one that a session still uses stops that session from starting (the sidebar says why) until you
+pick another in *Edit…*. A changed command applies to tmux sessions started afterwards (*End
+remote session…* restarts one). A start command is one line and cannot start with `-`; with
+zsh as the login shell, leave out `#` comments (zsh does not treat them as comments there).
 
 **Settings** (Ctrl+Shift+, or *Settings…*) has five pages: Appearance (theme, colors, fonts,
 tab order), Terminals, Commands, Backups and recordings, and Keys (the current shortcuts).
@@ -303,7 +308,7 @@ app is not running, or restart it afterwards.
 backgrounds; `full` colors keeps them but enforces a minimum contrast (yellow and
 light green on white get darkened), `mono` removes all colors (16/256/truecolor,
 foreground and background) and keeps bold, underline and inverse. Set it in
-Settings (Ctrl+Shift+,), per session in *Edit…* (Colors), or with *Use mono colors
+Settings → Appearance (Ctrl+Shift+,), per session in *Edit…* (Colors), or with *Use mono colors
 (no colors)* / *Use full colors* in the session menu; it switches live. Choosing the
 Settings value there removes the session's override.
 
@@ -315,7 +320,7 @@ when you look at it, and the window title shows how many sessions want attention
 a session you are not looking at (or while the window is in the background) also shows a
 desktop notification — *Claude is waiting* for the Remote tab — at most once a minute per
 session (`<name> · <host>`; "Bell in Local" etc. for other tabs); clicking it opens that session
-on the tab that rang, and looking at the session withdraws it (Settings:
+on the tab that rang, and looking at the session withdraws it (Settings → Terminals:
 *Desktop notification when claude waits*; Linux uses the desktop's notification service,
 macOS may refuse notifications for the unsigned app). To have claude ring the bell when it
 waits for you, run `/config` inside claude on the agent host
@@ -328,7 +333,7 @@ grey not connected yet.
 
 **Connection drops.** A dropped or failed Remote connection reconnects automatically
 (after 1, 2, 4, 8, 16, then every 30 s; back to 1 s after a connection that lasted 30 s;
-Esc stops it; off with *Reconnect dropped connections automatically* in Settings).
+Esc stops it; off with *Reconnect dropped connections automatically* in Settings → Terminals).
 Detaching tmux, ending the remote session or *Disconnect* does not reconnect; press Enter
 when you want to.
 
@@ -342,7 +347,7 @@ a folder are listed first.
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
 the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
 *working copy (sync)*; hover it for a short explanation; not shown for a session that cannot
-work); then *Edit…* (name, folder, start mode, colors),
+work); then *Edit…* (name, folder, start mode, colors, own commands, recording),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
@@ -391,7 +396,7 @@ result. Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 (settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
 `~/.claude.json` — to this computer with rsync over ssh. It checks a minute after it
 starts and then every minute; a host is backed up when `claude_backup_every` (default an
-hour; Settings: on/off and how often) has passed since its last attempt, also across
+hour; Settings → Backups and recordings: on/off and how often) has passed since its last attempt, also across
 restarts, and at most every 15 minutes after a failure. Hover a host header to see the
 last backup; ⚠ means the last one failed. The host's menu has *Back up Claude data now*,
 *Restore Claude data to this host…* (for a new or reinstalled agent host: copies everything
@@ -403,7 +408,7 @@ it changes. Uses rsync where it is installed (only changes are copied); without 
 a built-in transfer over the same ssh connection copies everything each time. Restoring a crashed agent host, step by step:
 [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#claude-backups).
 
-**Recording the Remote tab.** Off by default. Settings → *Record the Remote tabs of all
+**Recording the Remote tab.** Off by default. Settings → Backups and recordings → *Record the Remote tabs of all
 sessions* records every session from that moment; a session's own setting (*Edit…* →
 *Record the Remote tab*: default / on / off, or the session menu's *Record the Remote tab* /
 *Stop recording the Remote tab*) overrides it. While a tab is recorded, the session bar
@@ -434,11 +439,11 @@ nothing to commit, working tree clean
 A reconnect within the segment writes the *resumed* line into the same file; at the segment's
 end the file says where it continues.
 
-Files start every hour by default (Settings: 15 minutes to a day; `record_every` in the
+Files start every hour by default (Settings → Backups and recordings: 15 minutes to a day; `record_every` in the
 config: 5m to 24h), at clock times counted from local midnight (6h gives 00:00, 06:00, 12:00
 and 18:00, also on a DST day). The first file is named after when recording starts, later ones
 after their segment: `logs/<host>/<session path>/20261019-1130.log`, then `…-1200.log`, in the
-data folder (`~/.local/share/session-workbench/` on Linux), or in the folder set in Settings.
+data folder (`~/.local/share/session-workbench/` on Linux), or in the folder set there.
 A new file only starts when something is recorded. A reconnect within the same segment
 continues its file (while the app runs); after a restart, or switching off and on, a new file
 starts. Switched on while the Remote tab is not connected, recording starts (and the marker
@@ -448,8 +453,8 @@ nothing removes old ones. The session menu's *Open recordings folder* opens a se
 folder.
 
 Agent and X11 forwarding are always forced off on every ssh connection. The
-agent host needs `tmux` on the PATH of a login shell; `claude` is started from an
-interactive login shell, so it is found on the same PATH as when you log in by hand
+agent host needs `tmux` on the PATH of a login shell; the start command (`claude` by default)
+runs in an interactive login shell, so it is found on the same PATH as when you log in by hand
 (`~/.profile` and `~/.bashrc`).
 
 ### Config file
@@ -470,7 +475,9 @@ the reason above its tabs; for the rest (an unknown color mode or `record` value
 is not http(s), a host defined twice, a folder not listed in `groups`) the app uses the
 default, skips the value, ignores the second host or shows the folder as *(missing)*; an empty
 name, a directory with two sessions on one host and a folder listed twice or empty in `groups`
-are only reported. A session that cannot work does not
+are only reported. An invalid `[[ui.commands]]` or `[[ui.start_commands]]` list (a name used
+twice, a command of more than one line…) is reported and kept; the menu leaves out bad entries
+and Settings won't save until they are fixed. A session that cannot work does not
 reconnect its Remote tab by itself; the tab shows the reason.
 
 Only one copy of the app runs per config file: starting it again brings the running
@@ -509,7 +516,8 @@ name = "rebase on main"
 command = "git rebase origin/main"
 run = false                               # only typed: check it, then press Enter yourself
 
-[[ui.start_commands]]                     # what start_mode can name; these three are the default
+[[ui.start_commands]]                     # what start_mode can name; a list here replaces the default
+                                          # three below, so keep the ones your sessions use
 name = "claude"
 command = "claude"
 [[ui.start_commands]]
@@ -520,7 +528,7 @@ name = "shell"
 command = ""                              # empty: just the login shell
 [[ui.start_commands]]
 name = "opus"
-command = "claude --model opus"
+command = "claude --model opus --continue || claude --model opus"
 
 [keys]
 next_session = "Ctrl+Tab"
@@ -616,7 +624,8 @@ frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, note
                        editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
                        appnotes.js and prompts.js (notes for all sessions), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,
-                       format.js (Files tab size/date columns and sort order), style.css; *.test.mjs are the node --test unit tests
+                       format.js (Files tab size/date columns and sort order), commands.js (command menu, editors
+                       for the command and start-command lists), style.css; *.test.mjs are the node --test unit tests
 build/                 app icon, Windows/macOS resources for Wails
 packaging/             .desktop file, icons, man page, copyright, nfpm config for .deb/.rpm,
                        gen-docs.sh (changelog and man page per version)

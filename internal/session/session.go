@@ -504,8 +504,12 @@ func (m *Manager) Update(id string, e Edit) error {
 		if i < 0 {
 			return fmt.Errorf("unknown session %q", id)
 		}
-		if _, ok := config.FindStartCommand(c.UI, e.StartMode); !ok {
-			return fmt.Errorf("unknown start mode %q", e.StartMode)
+		// Checked only when it changes: a session whose start command was
+		// removed can still get a new name, colors and so on.
+		if e.StartMode != c.Sessions[i].StartMode {
+			if _, ok := config.FindStartCommand(c.UI, e.StartMode); !ok {
+				return fmt.Errorf("unknown start mode %q", e.StartMode)
+			}
 		}
 		if e.Group != "" && !slices.Contains(c.Groups, e.Group) {
 			return fmt.Errorf("folder %q does not exist", e.Group)
@@ -516,7 +520,7 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].Group = e.Group
 		c.Sessions[i].Record = e.Record
 		if e.Commands != nil { // left out: unchanged
-			c.Sessions[i].Commands = e.Commands
+			c.Sessions[i].Commands = config.TidyCommands(e.Commands)
 		}
 		return nil
 	})
@@ -672,6 +676,7 @@ func (m *Manager) SaveUI(ui config.UI) error {
 		return err
 	}
 	ui.TabOrder, ui.HiddenTabs = config.NormalizedTabs(ui)
+	ui.Commands = config.TidyCommands(ui.Commands)
 	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil {
 		return errors.New("incomplete UI settings")
 	}

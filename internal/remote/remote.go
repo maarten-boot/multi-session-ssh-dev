@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var idRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -49,18 +50,25 @@ func checkTarget(target string) error {
 	return nil
 }
 
-// CheckStartCommand accepts a start command: one line ("" is a login
-// shell).
+// CheckStartCommand accepts a start command: one line without control
+// characters ("" is a login shell), not starting with "-" (the shell would
+// read it as options).
 func CheckStartCommand(cmd string) error {
-	if strings.ContainsAny(cmd, "\x00\r\n") {
-		return fmt.Errorf("remote: a start command is one line: %q", cmd)
+	if strings.IndexFunc(cmd, unicode.IsControl) >= 0 {
+		return fmt.Errorf("remote: a start command is one line without control characters: %q", cmd)
+	}
+	if strings.HasPrefix(strings.TrimSpace(cmd), "-") {
+		return fmt.Errorf("remote: a start command cannot start with -: %q", cmd)
 	}
 	return nil
 }
 
 // paneCommand is what tmux runs in the session's first pane: the start
-// command, or a login shell for "". When the command exits the pane falls
-// back to a login shell instead of closing the session.
+// command, or a login shell for "". When the command ends, however it ends
+// (exit, Ctrl+C, a syntax error), the pane falls back to a login shell
+// instead of closing the session: the fallback is not part of the
+// command's own shell line, so a trailing "# comment", a trailing "\" or
+// an unbalanced quote in the command cannot swallow it.
 //
 // The command runs in an interactive login shell (-lic), with the
 // environment of a manual login: a non-interactive one skips most of
@@ -74,7 +82,7 @@ func paneCommand(cmd string) (string, error) {
 	if strings.TrimSpace(cmd) == "" {
 		return `exec "$SHELL" -l`, nil
 	}
-	return `exec "$SHELL" -lic ` + Quote(cmd+`; exec "$SHELL" -l`), nil
+	return `"$SHELL" -lic ` + Quote(cmd) + `; exec "$SHELL" -l`, nil
 }
 
 // ExitMissingDir is the exit status of an attach whose directory does not

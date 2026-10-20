@@ -694,7 +694,7 @@ func (a *App) OpenLogFolder(id string) error {
 	}
 	base := a.recordBase()
 	if base == "" {
-		return fmt.Errorf("no folder for recordings: set one in Settings")
+		return fmt.Errorf("no folder for recordings: set one in Settings → Backups and recordings")
 	}
 	dir := reclog.Dir(base, r.Host.Name, r.LocalPath)
 	if _, err := os.Stat(dir); err != nil {

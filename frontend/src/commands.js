@@ -1,22 +1,7 @@
 import {el} from './ui';
 
-// The command menu of the Local and Remote tabs and the editors for its
-// lists (Settings, Edit…) and for the start commands (Settings).
-
-// commandItems returns the menu entries for a session's commands (its own
-// first, then the global ones); send(text) types into the terminal. Each
-// entry types the command, then Enter unless its run is false.
-export function commandItems(session, global, send, disabled = null) {
-    const own = session?.data?.commands ?? [];
-    const all = [...own, ...(global ?? [])];
-    return all.map(c => {
-        const run = c.run !== false;
-        return {
-            label: `${c.name}${run ? '  ⏎' : '  …'}`, disabled: !!disabled,
-            action: () => send(c.command + (run ? '\r' : '')),
-        };
-    });
-}
+// Editors for the command menu's lists (Settings, Edit…) and for the start
+// commands (Settings). The menu entries are in cmdmenu.js.
 
 // CommandList edits a list of {name, command, run?} in container: a row per
 // entry (name, command, optional "run" tick, ↑ ↓ ✕) and an Add button.
@@ -89,8 +74,11 @@ export class CommandList {
         this.container.replaceChildren(...empty, ...rows, el('div', {className: 'command-add'}, add));
     }
 
+    // move swaps two rows; the same arrow of the moved row keeps the focus.
     move(i, d) {
         [this.items[i], this.items[i + d]] = [this.items[i + d], this.items[i]];
         this.render();
+        const row = this.container.querySelectorAll('.command-row')[i + d];
+        (row?.querySelector(`button[title="${d < 0 ? 'Move up' : 'Move down'}"]:not(:disabled)`) ?? row?.querySelector('.cmd-name'))?.focus();
     }
 }

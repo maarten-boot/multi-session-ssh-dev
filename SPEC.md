@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.4 (2026-10-20, app v0.8.32) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.5 (2026-10-20, app v0.8.35) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -8,7 +8,8 @@ repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes f
 packages, Files tab date column and sort order (B1), window size and position remembered
 (§4.7), notes as page trees with a formatting editor (N1, N1a), Remote tab recordings (F10),
 Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
-and appending writes through the live share (§6).
+appending writes through the live share (§6), the command menu (T5), editable start commands
+(R2) and Settings in pages (§4.6).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -103,11 +104,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
-  (rename, folder, start mode, colors), disconnect, end remote session, delete (optionally ending
+  (rename, folder, start mode, colors, own commands (T5), recording (F10)), disconnect, end remote session, delete (optionally ending
   the tmux session).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
-  workspace root; any path under `local_prefix`) → name → folder → start mode (`claude`,
-  `claude --continue`, plain shell). It previews the remote path or why the directory can't be
+  workspace root; any path under `local_prefix`) → name → folder → start mode (one of the start commands,
+  R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
   used; one session per directory and host. Host and directory are fixed afterwards.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable).
@@ -163,7 +164,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   nothing is sent (an error, not a deleted agent copy); without git here and with a
   `.gitignore`, nothing is deleted and the preview says why. The preview counts the same changes.
 
-- F10. Remote tab recordings (off by default): `record_remote` (Settings) records every
+- F10. Remote tab recordings (off by default): `record_remote` (Settings → Backups and recordings) records every
   session's Remote tab from the moment it is switched on; a session's `record` ("on"/"off",
   Edit… or the session menu) overrides it; switching off stops at once. The terminal manager
   taps output and input (internal/reclog): output as readable text (escape sequences dropped;
@@ -215,8 +216,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   per §6):
   `ssh -t -o ForwardAgent=no -o ForwardX11=no -o ForwardX11Trusted=no -o ClearAllForwardings=yes
   -o RemoteCommand=none -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -- <target>
-  'exec "$SHELL" -lc "cd <remote_path> || { echo \"session directory <remote_path> does not exist
-  on this host\" >&2; exit 3; }; exec tmux new-session -A -s cw-<id> -c \"\$PWD\" <pane cmd>"'`
+  'exec "$SHELL" -lc "cd <remote_path> || { printf '%s\n' 'session directory <remote_path> does
+  not exist on this host' >&2; exit 3; }; exec tmux new-session -A -s cw-<id> -c \"\$PWD\" <pane cmd>"'`
+  (each part quoted as one shell word, so nothing in the path expands)
   (a leading `~/` in the path is expanded through `"$HOME"`). Everything runs in the remote user's
   login shell so that PATH includes `~/.local/bin` (claude) or Homebrew (tmux). A missing remote
   directory exits 3 and the Remote tab says so (for a working copy it offers *Send to agent…*)
@@ -228,9 +230,16 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   ignoring case, at least one); a session's `start_mode` names one, and an unknown name is the
   session's error. The default list is `claude` (`claude`), `claude-continue`
   (`claude --continue || claude`: `--continue` exits 1 without a conversation in the directory,
-  quitting claude exits 0) and `shell` (empty: just the login shell). When the command exits, the
-  pane falls back to a shell: pane cmd = `exec "$SHELL" -lic '<cmd>; exec "$SHELL" -l'`, or
-  `exec "$SHELL" -l` for an empty command. Changing a session's start mode
+  quitting claude exits 0) and `shell` (empty: just the login shell). When the command ends,
+  however it ends (exit, Ctrl+C, a syntax error), the pane falls back to a shell: pane cmd =
+  `"$SHELL" -lic '<cmd>'; exec "$SHELL" -l` (the fallback is outside the command's own shell
+  line, so a `#` comment, a trailing `\` or an unbalanced quote in it cannot swallow it), or
+  `exec "$SHELL" -l` for an empty command. A start command is one line without control
+  characters and cannot start with `-` (the shell would read options). Any
+  `[[ui.start_commands]]` list replaces the default three; a missing or empty one gets them,
+  and they are written to the file at the next save. Names match ignoring case. Only a changed
+  start mode is checked against the list, so a session whose start command was removed can still
+  be edited (it cannot start until it gets one that exists). Changing a session's start mode
   offers to end a running tmux session and reconnects an open Remote tab, since a running
   session keeps its command. claude starts from an *interactive*
   login shell, so it gets the PATH of a manual login: a non-interactive shell skips most of
@@ -306,7 +315,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - N1a. Editor: CodeMirror 6 with Markdown (GFM); the text keeps its markers, shown in
   italics, and is drawn formatted: headings bold (`#` 1.4×, `##` 1.2×), `**bold**`, `_italic_`,
   `~~strike~~`, `<u>underline</u>`, quotes in italics, links underlined; the page uses the
-  terminal font (Settings). Toolbar B I U S and
+  terminal font (Settings → Appearance). Toolbar B I U S and
   Mod+B / Mod+I / Mod+U / Mod+Shift+X toggle the markers around the selection: no selection
   inserts a pair (or removes an empty one around the cursor); one line keeps outer whitespace
   outside and removes markers inside or just outside the selection, else adds them; several
@@ -355,7 +364,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - `color_mode = "mono"` — no coloring at all: every foreground rendered in the theme's text
     color (contrast ratio 21), including 256-color and truecolor output; bold/underline/inverse
     still shown.
-  - Configurable globally (Settings: the default for every session), overridable per session
+  - Configurable globally (Settings → Appearance: the default for every session), overridable per session
     in Edit… (Colors) or with the session menu (choosing the global value removes the override);
     switchable at runtime without restarting the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
@@ -363,8 +372,10 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
   The session's own commands (`commands` on the session, Edit…) come first, then
   `[[ui.commands]]` (Settings → Commands): name, one-line command, `run` (default true: typed,
-  then Enter; false: only typed). At most 100 per list, names unique ignoring case, up to 60
-  characters, commands up to 2000. Disabled while the terminal is not running. Invalid lists
+  then Enter; false: only typed). At most 100 per list; names non-empty, without leading or
+  trailing spaces, unique ignoring case, up to 60 characters; commands non-empty, one line
+  without control characters, up to 2000 characters; `run = true` is not written to the file.
+  Entries a hand-edited file got wrong are left out of the menu. Disabled while the terminal is not running. Invalid lists
   in a hand-edited file are listed as problems; Settings refuses to save them.
 
 ### 4.6 Keyboard
@@ -417,7 +428,9 @@ recordings, Keys.
   automatically; it shows the reason. Every `[ui]` value out of range or unknown gets its
   default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
   `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),
-  `record_dir` (absolute or under `~`).
+  `record_dir` (absolute or under `~`). The command lists are not reset: invalid ones are
+  reported (T5, R2) and Settings refuses to save them until fixed; an empty `start_commands` gets
+  the default three.
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
   too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
@@ -497,7 +510,8 @@ internal/winstate          window size and position across restarts
 internal/reclog            Remote tab recordings
 frontend/src               main.js, terminal.js, files.js, notes.js, editor.js, markup.js,
                            appnotes.js, prompts.js,
-                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, style.css
+                           web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, commands.js,
+                           style.css
 ```
 
 ## 6. Security considerations

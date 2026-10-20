@@ -44,6 +44,15 @@ shot 4-settings
 k d; k Tab; k m; k Tab; k Tab; k Tab           # theme=dark, colors=mono, -> font family
 k Return; sleep 4
 shot 5-dark-mono-live                          # no false activity badge from the repaint
+# A bad value on a page that is not shown: Save says why (the form does not
+# try to focus the hidden field and silently do nothing).
+k ctrl+shift+comma; sleep 0.8
+k Tab; k Tab; k Tab; k Tab; k ctrl+a; xdotool type '99'   # font size 99 on Appearance
+xdotool mousemove $((60+551)) $((50+109)) click 1; sleep 0.5   # the Commands page
+xdotool mousemove $((60+931)) $((50+520)) click 1; sleep 1   # Save: the message names the problem
+shot 5b-error-on-hidden-page
+k Escape; sleep 0.5
+check "a bad value is not saved" test -z "$(grep 'font_size = 99' $CFG)"
 alive
 kill $APP; wait $APP 2>/dev/null
 expect "rebound Ctrl+Tab goes to the next session" /usr "$(cat $SW_OUT/after-ctrl-tab 2>&1)"

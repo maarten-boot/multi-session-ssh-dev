@@ -8,7 +8,8 @@ import {FilesView} from './files';
 import {NotesView} from './notes';
 import {AppNotesPage} from './appnotes';
 import {WebView} from './web';
-import {CommandList, commandItems} from './commands';
+import {CommandList} from './commands';
+import {commandItems} from './cmdmenu';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, Quit, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
@@ -482,7 +483,7 @@ const app = {
     pasteProblem() {
         const s = this.active;
         if (!s) return 'No session';
-        if ((this.state.ui.hidden_tabs ?? []).includes('remote')) return 'The Remote tab is hidden (Settings)';
+        if ((this.state.ui.hidden_tabs ?? []).includes('remote')) return 'The Remote tab is hidden (Settings → Appearance)';
         if (s.data.error) return `The session has a problem: ${s.data.error}`;
         return null;
     },
@@ -1235,7 +1236,7 @@ function backupText(st, on) {
     if (st?.error) return `Claude backup failed${when(st.last) ? ` (${when(st.last)})` : ''}: ${st.error}` +
         (when(st.last_ok) ? `\nLast good backup: ${when(st.last_ok)}` : '');
     if (when(st?.last_ok)) return `Claude data backed up ${when(st.last_ok)}` + (st.note ? ` (${st.note})` : '');
-    return on ? 'Claude data not backed up yet' : 'Claude backups are off (Settings)';
+    return on ? 'Claude data not backed up yet' : 'Claude backups are off (Settings → Backups and recordings)';
 }
 
 async function backupNow(name) {

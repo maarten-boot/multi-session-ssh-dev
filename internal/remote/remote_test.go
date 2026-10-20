@@ -326,3 +326,27 @@ func TestAttachCustomCommand(t *testing.T) {
 		}
 	}
 }
+
+// The fallback login shell starts however the start command ends: a
+// trailing comment, a trailing backslash or an unbalanced quote in it cannot
+// swallow the fallback, as they did when both were one shell line.
+func TestStartCommandFallback(t *testing.T) {
+	for _, cmd := range []string{"echo x # a comment", `echo x \`, "echo 'x", "exit 0", "false"} {
+		t.Run(cmd, func(t *testing.T) {
+			env, log := fakeRemote(t)
+			args, err := AttachArgs("host", "s-1", t.TempDir(), cmd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runRemote(t, env, args)
+			if got := readLog(t, log); got[len(got)-1] != "login-shell" {
+				t.Errorf("no fallback shell after %q: %q", cmd, got)
+			}
+		})
+	}
+	for _, bad := range []string{"-echo x", " -i", "a\tb", "a\x1b[2J"} {
+		if _, err := AttachArgs("host", "s-1", "/x", bad); err == nil {
+			t.Errorf("start command %q accepted", bad)
+		}
+	}
+}
