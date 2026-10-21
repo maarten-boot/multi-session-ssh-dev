@@ -1,6 +1,6 @@
 #!/bin/bash
 # Headless GUI test of check lists, bulleted lists and spelling in the notes:
-# Enter continues a check list, Ctrl+Enter and a click tick boxes,
+# Enter continues a check list (not in a code block), Ctrl+Enter and a click tick boxes,
 # Ctrl+Shift+8 makes a bullet, a right-click on a misspelled word offers
 # corrections and "Add to dictionary" (saved as spell_words), Settings → Notes.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-spell.sh <binary> <outdir>
@@ -45,6 +45,11 @@ sleep 1.5; shot 3-fixed
 expect "lists, ticks and corrections saved" $'The first word\n- [x] buy milk\n- [x] call Bob\nkubectl rocks \n- plain line' \
 	"$(cat $N/Home.md 2>&1)"
 expect "own word saved" 'spell_words = ["kubectl"]' "$(grep -E '^ *spell_words' $CFG | sed 's/^ *//')"
+# In a code block "- x" is no list: Enter is a plain new line.
+click 600 $(line 5); k ctrl+End; k Return; k Return   # a new bullet, then Enter again clears it
+type '```'; k Return; type "- in code"; k Return; type "next"; k Return; type '```'
+sleep 1.5
+expect "no list in a code block" $'- plain line\n```\n- in code\nnext\n```' "$(tail -5 $N/Home.md 2>&1)"
 k ctrl+shift+comma; sleep 0.8
 click 810 109; shot 4-settings-notes            # the Notes page: the word is listed
 alive

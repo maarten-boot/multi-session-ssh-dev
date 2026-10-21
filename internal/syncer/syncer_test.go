@@ -321,7 +321,7 @@ func TestLocalFilesOutsideRepositoryTop(t *testing.T) {
 	if ic.top {
 		t.Fatal("subdirectory taken for a repository top")
 	}
-	files, err := localFiles(ctx, s, ic)
+	files, err := localFiles(ctx, s, ic, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestLocalFilesOutsideRepositoryTop(t *testing.T) {
 	all := t.TempDir() // not a repository
 	os.WriteFile(filepath.Join(all, ".gitignore"), []byte("*\n"), 0o644)
 	os.WriteFile(filepath.Join(all, "x"), []byte("x\n"), 0o644)
-	if files, err := localFiles(ctx, Session{LocalPath: all}, ignoreChecker{s: Session{LocalPath: all}}); err == nil {
+	if files, err := localFiles(ctx, Session{LocalPath: all}, ignoreChecker{s: Session{LocalPath: all}}, false); err == nil {
 		t.Errorf("everything ignored: %v, want an error", files)
 	}
 }

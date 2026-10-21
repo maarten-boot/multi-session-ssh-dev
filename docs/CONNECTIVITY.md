@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.39).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.40).
 
 Everything described here is implemented.
 
@@ -225,6 +225,27 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
 
 Why not `rsync` back? Copying the agent's `.git` directory onto your host has the problem
 described next. Fetching commits does not: hooks and configuration are never transferred.
+
+**Full transfers** (*Full ▾* and the session menu) are for when commits are not enough:
+
+- *Save agent copy* copies the whole agent copy, `.git` and ignored files included, into
+  `working-copies/<session id>/files/` in the app's data folder, owner-only, replacing the
+  last one. It is never used by git here: the agent's hooks and config in it run only if you
+  run git in that folder yourself. Unsafe entries (symlinks leaving the copy, devices) are
+  left out.
+- *Take all files* copies the agent copy's files (never any `.git`) into your session
+  directory: this is the one way agent-written files reach your directory without being a
+  reviewed commit, like mode B. Check them before running anything there, and keep an eye on
+  the repository check (Files tab). Nothing is deleted unless you tick *Also delete files here
+  that the agent copy does not have*; files with uncommitted changes here need a tick too.
+- *Send all* sends your directory including ignored files (`.env` with secrets too — think
+  before using it) and even over unfetched agent commits, after a tick.
+- *Restore saved copy* sends the saved copy to the session's agent copy, e.g. on a new agent
+  host after the old one went away.
+
+A session directory that is not a git repository (an experiment) has no commits to fetch:
+*⇣ Get* is then *Take all files* with the delete box ticked, a full copy of the agent's side.
+Send works without git as before.
 
 Needs `git` on both machines, and `rsync` on both, or the built-in transfer: where this
 computer has no rsync (Windows) the app lists the files git does not ignore on both sides, compares

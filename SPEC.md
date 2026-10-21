@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.7 (2026-10-21, app v0.8.39) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-21, app v0.8.40) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -10,7 +10,7 @@ packages, Files tab date column and sort order (B1), window size and position re
 Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
 appending writes through the live share (§6), the command menu (T5), editable start commands
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
-spelling in the notes (N1a, N1b) and the prompts menu (T6).
+spelling in the notes (N1a, N1b), the prompts menu (T6) and full transfers for working copies (F12).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -212,6 +212,25 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   files follow and the host repository's own hooks run). Nothing ticked, or nothing taken
   over, keeps the dialog open with the reason. For a diverged branch the shell-quoted
   `git checkout … && git merge …` is shown.
+- F12. Full transfers for working copies (*Full ▾* next to the tabs and the session menu; each
+  in the sync dialog with a preview where one exists):
+  - Save agent copy: the whole agent copy (with `.git`, untracked and ignored files) to
+    `<data dir>/working-copies/<id>/files` (`rsync -a --delete --safe-links --no-devices
+    --no-specials`; built-in: one tar stream unpacked through `os.Root` into `files.new`, which
+    then replaces `files`); `saved.json` next to it records when and from where. Exit 24
+    (files vanished) is a success with a note. Refused while there is no agent copy.
+  - Take all files: agent copy → session directory, new and changed files, `--exclude=.git`
+    (any depth), optionally `--delete` (excluded paths stay); preview by dry run; the number of
+    changed files with uncommitted changes here (`git status --porcelain`, tracked only) needs a
+    confirmation. Built-in: `cksum` listing on the agent host without `.git`, compared here,
+    then a tar stream of which only the wanted files (and their folders) are unpacked through
+    `os.Root`; deletions through `os.Root`.
+  - Send all / Restore saved copy: `rsync -a --delete` without the `.gitignore` filter, from
+    the session directory or the saved copy; not blocked by unfetched commits or uncommitted
+    changes, which the preview reports and the dialog requires a tick for. An empty source is
+    refused (it would empty the agent copy). Built-in: as F9 with every file on both sides.
+  - Get on a session directory that is not a repository's top (no git, or a subdirectory)
+    opens Take all files with *delete* ticked: a full copy of the agent's side.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
@@ -342,7 +361,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   Mod+Enter ticks it (selected lines: all ticked when any is not, else all unticked). In a list
   item (`-`, `*`, `+`, `1.`, `1)` plus a space, after the cursor's marker) Enter starts the next
   item with the same indent and marker (numbers +1, check box empty) and carries the text after
-  the cursor; in an empty item it outdents by two spaces (or a tab), at the left edge it clears
+  the cursor (not inside a code block: there it is a plain new line); in an empty item it outdents by two spaces (or a tab), at the left edge it clears
   the marker (ends the list). Tab / Shift+Tab indent / outdent a list item by two; elsewhere
   Enter is a plain new line and Tab inserts two spaces (with a selection: indents its lines by
   two; Shift+Tab outdents them). Mod+C/X/V copy, cut and paste; a right-click menu
@@ -363,7 +382,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `<lang>.dic` in `dictionaries/` next to the config file, then (Linux) `~/.local/share/hunspell`,
   `/usr/share/hunspell`, `/usr/share/myspell(/dicts)`, `/usr/local/share/hunspell`, (macOS)
   `~/Library/Spelling`, `/Library/Spelling`; the first found wins. Files are converted to UTF-8
-  from their `SET` encoding (default ISO8859-1). A language name is letters, digits and
+  from their `SET` encoding (default ISO8859-1). A dictionary that cannot be loaded (removed,
+  unknown encoding) turns checking off with a message, once per language. A language name is letters, digits and
   `_ @ . -`, not starting with `.` or `-`; an invalid one in the file becomes `en_US`. A few
   tool names (`TOOL_WORDS` in frontend/src/spelling.js: claude, tmux, ssh, git…) are always known.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
@@ -483,7 +503,7 @@ recordings, Notes (spelling on/off, language, own words), Keys.
   `dictionaries/` (own spelling dictionaries, N1b) are there too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
-  `~/Library/Application Support/session-workbench` (macOS): Claude backups, the window size
+  `~/Library/Application Support/session-workbench` (macOS): Claude backups, saved agent copies (F12), the window size
   and position (`window.json`: width, height, pos (x, y known), x, y, maximised; written
   atomically when the window closes, also on SIGTERM/Ctrl+C, which close it the normal way (a
   second signal kills the app); a minimised or fullscreen window changes nothing (Windows
@@ -548,16 +568,17 @@ internal/fsbrowse          Files tab listing
 internal/opener            open / reveal, refusing executables
 internal/gitstatus         git markers and repository check for the Files tab
 internal/forge             Web tab: forge links, GitHub runs via gh
-internal/syncer            working copies (rsync or built-in out, git fetch back)
+internal/syncer            working copies (rsync or built-in out, git fetch back, full transfers)
 internal/xfer              built-in transfer without rsync (tar over ssh, cksum)
 internal/share             live share (confined SFTP server, sshfs mounts)
 internal/notes             notes pages (a Markdown tree per session and for the app)
+internal/spell             spelling dictionaries (built-in en_US, Hunspell files found, UTF-8)
 internal/backup            Claude backups (rsync or built-in copy of ~/.claude, restore)
 internal/instance          one instance per config file (lock)
 internal/winstate          window size and position across restarts
 internal/reclog            Remote tab recordings
 frontend/src               main.js, terminal.js, files.js, notes.js, editor.js, markup.js,
-                           appnotes.js, prompts.js,
+                           spelling.js, appnotes.js, prompts.js,
                            web.js, ui.js, appearance.js, keys.js, fuzzy.js, format.js, cmdmenu.js,
                            commands.js, style.css
 ```
@@ -588,6 +609,10 @@ repository config and warns again whenever they change.
   - macOS: `.app .command .tool .terminal .workflow .action .pkg .mpkg .jar .webloc .inetloc
     .fileloc` and files with an executable bit;
   - Linux and other Unix: `.desktop .appimage .run .jar`.
+- Full transfers (F12): a saved agent copy holds the agent's `.git` (hooks, config) owner-only
+  in the data dir and is never used by git here; Take all files brings agent-written files into
+  the session directory unreviewed (never `.git`), so the dialog warns to check them before
+  running anything; Send all sends ignored files such as `.env`.
 - Remote tab recordings (F10, off by default) contain what was typed and shown, owner-only;
   input after a recognised password prompt is hidden, but the remote echo state is not
   visible, so other secrets typed there are recorded.
@@ -600,6 +625,9 @@ repository config and warns again whenever they change.
   separators, reserved characters or Windows device names) and files are read and written
   through `os.Root` on the book's folder (no escape through `..` or symlinks out of it),
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
+- Spelling dictionaries: the language name is checked (letters, digits, `_ @ . -`; no
+  separators or leading dot), so only `<name>.aff` / `<name>.dic` in the listed folders are
+  read; their text goes to the checker only, never into the page.
 - Live share: the SFTP server is confined with `os.Root`; symlinks only with relative targets
   inside the directory, never created through a symlinked parent (a rename re-checks moved
   links); hard links refused; ownership changes ignored; "append" is not passed to the file

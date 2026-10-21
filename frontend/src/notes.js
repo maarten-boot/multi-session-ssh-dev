@@ -371,7 +371,9 @@ export class NotesView {
 
     dispose() {
         window.removeEventListener('blur', this.onWindowBlur);
-        return this.save();
+        const saved = this.save(); // takes the text now
+        this.editor.destroy();
+        return saved;
     }
 }
 

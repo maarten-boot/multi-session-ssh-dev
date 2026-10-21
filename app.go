@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -520,6 +522,125 @@ func (a *App) SyncGet(id string) (syncer.Fetched, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Minute)
 	defer cancel()
 	return syncer.Get(ctx, s)
+}
+
+// SyncInfo is what the working-copy buttons need to know.
+type SyncInfo struct {
+	Git   bool      `json:"git"` // the session directory is a repository's top: Get fetches commits
+	Saved SavedInfo `json:"saved"`
+}
+
+// SavedInfo describes a session's saved agent copy (SyncSave).
+type SavedInfo struct {
+	Dir    string `json:"dir"`
+	Exists bool   `json:"exists"`
+	When   string `json:"when"` // RFC 3339
+	From   string `json:"from"` // target:path it was saved from
+	Files  int    `json:"files"`
+	Note   string `json:"note"`
+}
+
+// savedDir is where a session's agent copy is saved: <data dir>/working-copies/<id>/files.
+func (a *App) savedDir(id string) (string, error) {
+	if a.dataDir == "" {
+		return "", errors.New("no data folder for saved copies")
+	}
+	return filepath.Join(a.dataDir, "working-copies", id, "files"), nil
+}
+
+func (a *App) savedInfo(id string) SavedInfo {
+	dir, err := a.savedDir(id)
+	if err != nil {
+		return SavedInfo{}
+	}
+	info := SavedInfo{Dir: dir}
+	if b, err := os.ReadFile(filepath.Join(filepath.Dir(dir), "saved.json")); err == nil {
+		json.Unmarshal(b, &info)
+		info.Dir = dir
+	}
+	if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
+		info.Exists = true
+		info.Files = syncer.SavedCount(dir)
+	}
+	return info
+}
+
+// SyncInfo tells the working-copy buttons whether Get fetches commits and
+// what was saved.
+func (a *App) SyncInfo(id string) (SyncInfo, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return SyncInfo{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	return SyncInfo{Git: syncer.IsRepo(ctx, s), Saved: a.savedInfo(id)}, nil
+}
+
+// SyncSave copies the agent copy in full (with .git and ignored files) to
+// the session's saved copy, replacing the last one.
+func (a *App) SyncSave(id string) (SavedInfo, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return SavedInfo{}, err
+	}
+	dir, err := a.savedDir(id)
+	if err != nil {
+		return SavedInfo{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
+	defer cancel()
+	note, err := syncer.Save(ctx, s, dir)
+	if err != nil {
+		return a.savedInfo(id), err
+	}
+	info := SavedInfo{When: time.Now().Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note}
+	if b, err := json.Marshal(info); err == nil {
+		os.WriteFile(filepath.Join(filepath.Dir(dir), "saved.json"), b, 0o600)
+	}
+	return a.savedInfo(id), nil
+}
+
+// SyncTakeFiles copies the agent copy's files (not .git) into the session
+// directory; deletes: also delete files here it does not have.
+func (a *App) SyncTakeFiles(id string, dryRun, deletes bool) (syncer.Plan, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return syncer.Plan{}, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
+	defer cancel()
+	return syncer.TakeFiles(ctx, s, dryRun, deletes)
+}
+
+// SyncSendAll sends the session directory in full (ignored files too, also
+// when Send would refuse); restore: the saved copy instead.
+func (a *App) SyncSendAll(id string, restore, dryRun bool) (syncer.Plan, error) {
+	s, err := a.syncSession(id)
+	if err != nil {
+		return syncer.Plan{}, err
+	}
+	src := s.LocalPath
+	if restore {
+		if src, err = a.savedDir(id); err != nil {
+			return syncer.Plan{}, err
+		}
+		if !a.savedInfo(id).Exists {
+			return syncer.Plan{}, errors.New("there is no saved copy of this session yet (Save agent copy first)")
+		}
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
+	defer cancel()
+	return syncer.SendAll(ctx, s, src, dryRun)
+}
+
+// OpenSaved opens the folder of a session's saved agent copy.
+func (a *App) OpenSaved(id string) error {
+	info := a.savedInfo(id)
+	if !info.Exists {
+		return errors.New("there is no saved copy of this session yet")
+	}
+	return opener.Open(info.Dir)
 }
 
 // TakeResult is what SyncTake did, and what it could not do.

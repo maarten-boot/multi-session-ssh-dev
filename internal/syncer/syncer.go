@@ -52,8 +52,10 @@ type Plan struct {
 	Deleted   int        `json:"deleted"`
 	Truncated bool       `json:"truncated"`
 	Blocked   string     `json:"blocked"` // why sending is not allowed now
-	Note      string     `json:"note"`    // a caveat that does not block sending
-	Done      bool       `json:"done"`    // false for a dry run
+	// Overwrites: changed files with uncommitted changes here (TakeFiles).
+	Overwrites int    `json:"overwrites"`
+	Note       string `json:"note"` // a caveat that does not block sending
+	Done       bool   `json:"done"` // false for a dry run
 }
 
 const maxListed = 500
@@ -220,14 +222,23 @@ func Send(ctx context.Context, s Session, dryRun, overwriteDirty bool) (Plan, er
 	if p.Blocked != "" && !dryRun {
 		return p, nil
 	}
+	return p, mirror(ctx, s, dryRun, false, &p)
+}
+
+// mirror makes the agent copy identical to s.LocalPath (dryRun: only
+// fills p's changes). all: files .gitignore ignores too, on both sides.
+func mirror(ctx context.Context, s Session, dryRun, all bool, p *Plan) error {
 	if !xfer.UseRsync() { // Windows: the built-in transfer
-		if err := sendBuiltin(ctx, s, dryRun, &p); err != nil {
-			return p, fmt.Errorf("sending: %w", err)
+		if err := sendBuiltin(ctx, s, dryRun, all, p); err != nil {
+			return fmt.Errorf("sending: %w", err)
 		}
 		p.Done = !dryRun
-		return p, nil
+		return nil
 	}
-	args := []string{"-a", "--delete", "--itemize-changes", "--filter=:- .gitignore", "-e", remote.SSHCommand()}
+	args := []string{"-a", "--delete", "--itemize-changes", "-e", remote.SSHCommand()}
+	if !all {
+		args = append(args, "--filter=:- .gitignore")
+	}
 	if dryRun {
 		args = append(args, "--dry-run")
 	}
@@ -235,11 +246,11 @@ func Send(ctx context.Context, s Session, dryRun, overwriteDirty bool) (Plan, er
 	args = append(args, "--", src, s.Target+":"+rsyncPath(s.RemotePath)+"/")
 	out, _, err := run(ctx, "", nil, "rsync", args...)
 	if err != nil {
-		return p, fmt.Errorf("sending: %w", err)
+		return fmt.Errorf("sending: %w", err)
 	}
-	parseItemize(&p, out)
+	parseItemize(p, out)
 	p.Done = !dryRun
-	return p, nil
+	return nil
 }
 
 // parseItemize reads rsync --itemize-changes output.

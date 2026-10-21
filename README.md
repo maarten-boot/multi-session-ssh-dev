@@ -9,12 +9,12 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.39: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.40: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
 auto-reconnect, live share and working copies for hosts without a shared file system (Get
-lists and takes over every agent branch),
+lists and takes over every agent branch; full save, take, send and restore, also without git),
 Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
 and macOS.
 
@@ -173,13 +173,14 @@ Default order:
   shows `<u>`). The **B I U S** buttons above the page, or Ctrl+B, Ctrl+I, Ctrl+U and
   Ctrl+Shift+X (⌘ on macOS), add or remove those markers around the selection (each line
   of a longer selection separately).
-  **Lists and check lists**: the **•** and **☐** buttons, or Ctrl+Shift+8 and Ctrl+Shift+9,
+  **Lists and check lists**: the **•** and **☐** buttons, or Ctrl+Shift+8 and Ctrl+Shift+9
+  (⌘⇧8 and ⌘⇧9 on macOS),
   make the selected lines (or the cursor's line) `- item` or `- [ ] item`, and plain lines again
   when they already are. A check list item shows a check box: click it, or press Ctrl+Enter
   on its line (⌘ on macOS; with several lines selected: all ticked, or all unticked when they
   were), and the file says `- [x] item`, as on GitHub. Enter in a list item starts the next one
-  (`-`, `*`, `+`, numbers counting up; a new check box is empty); Enter in an empty item
-  outdents it, then ends the list. Tab and Shift+Tab indent and outdent a list item; elsewhere
+  (`-`, `*`, `+`, numbers counting up; a new check box is empty; not inside a code block);
+  Enter in an empty item outdents it, then ends the list. Tab and Shift+Tab indent and outdent a list item; elsewhere
   Tab inserts two spaces (with a selection: indents its lines) and Enter starts a plain new line.
   **Spelling**: misspelled words are underlined in red (English by default); right-click one
   for corrections and *Add “word” to dictionary*. Not checked: code (`` `x` `` and code
@@ -190,7 +191,23 @@ Default order:
   `spell_words` in the config). English (en_US) is built in; for another language put a
   Hunspell dictionary (`nl.aff` and `nl.dic`, say; the LibreOffice and Firefox ones work) in
   `dictionaries/` next to `config.toml`; on Linux installed `hunspell-*` / `myspell-*`
-  packages are found too, and on macOS `~/Library/Spelling`.
+  packages are found too, and on macOS `~/Library/Spelling`. A page with lists, as the
+  file stores it (the boxes show as check boxes):
+
+  ```
+  ## Before the release
+  - [x] run the tests
+  - [ ] update the changelog
+    - [ ] mention the new Prompts menu
+  1. tag
+  2. push
+  ```
+
+  A Dutch dictionary, for example: copy `nl.aff` and `nl.dic` (from a LibreOffice
+  extension, or `/usr/share/hunspell` on a Linux machine) to
+  `~/.config/session-workbench/dictionaries/` (`%AppData%\session-workbench\dictionaries\`
+  on Windows, `~/Library/Application Support/session-workbench/dictionaries/` on macOS), then pick `nl` in Settings → Notes. If a chosen dictionary goes
+  missing, a message says spelling is off.
   Ctrl+C / Ctrl+X / Ctrl+V
   (⌘ on macOS) copy, cut and paste; right-click the page for *Cut*, *Copy*, *Paste*,
   *Select all*, the four formats, the two lists and *Tick / untick* (a right-click outside
@@ -251,6 +268,16 @@ make clean all
 ````
 
 Esc, ✕, Ctrl+Shift+M or picking a session closes the page.
+
+A session's own *Prompts* page (in its Notes tab; the first entries of its Prompts ▾), for example:
+
+```
+## Tests
+Run `make test` and fix what fails; do not change the tests.
+
+## Status
+Summarise what you changed in this session in five lines.
+```
 
 A session reopens on the tab you used last; new sessions start on Local. Sessions
 look the way Settings → Appearance says (theme, font, colors); a session can override the colors
@@ -398,8 +425,8 @@ work); then *Edit…* (name, folder, start mode, colors, own commands, recording
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
-session too; its notes are kept). Working-copy sessions also have *Send to agent…* and
-*Get commits from agent…*, live-share sessions *Stop sharing*. Drag sessions to reorder
+session too; its notes are kept). Working-copy sessions also have *Send to agent…*,
+*Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
 Claude data, or delete it (once no session uses it). Menus also work from the keyboard
@@ -438,6 +465,30 @@ the repository's top folder: a subdirectory is sent without `.git`, so commits c
 back (Send and Get say so). Uses rsync where it is installed; without it (Windows) a
 built-in transfer over the same ssh connection (tar on the agent host) gives the same
 result. Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
+
+**Full transfers** (working copies; **Full ▾** next to the tabs, and the session menu), for the
+end of a work cycle, for experiments without git, and for an agent host that goes away:
+
+- *Save agent copy (everything, with .git)…* copies the whole agent copy — committed or not,
+  untracked, the files `.gitignore` ignores, and `.git` — to
+  `working-copies/<session id>/files/` in the data folder (see *Where the app keeps things*),
+  replacing the last saved copy (files gone on the agent host go there too). Your session
+  directory is not touched. *Open saved copy folder* shows it.
+- *Take all files from the agent…* copies the agent copy's files into your session directory,
+  with a preview: new and changed files, never `.git` (at any depth). Tick *Also delete files
+  here that the agent copy does not have* for an exact copy. Files with uncommitted changes
+  here are only overwritten after you tick a box. Unlike Get these files arrive unreviewed:
+  check them before running anything (a `Makefile`, scripts, `.envrc`, editor settings).
+- *Send all (ignored files too)…* is Send including the files `.gitignore` ignores (build
+  output, `.env`…), also when Send would refuse; the agent copy becomes identical, ignored
+  files there are deleted too. Unfetched commits or uncommitted changes there need a tick.
+- *Restore saved copy to the agent…* sends the saved copy (with its `.git`) to the session's
+  agent copy: after the agent host went down, point the host at a new machine (*Edit host…*),
+  then restore and carry on where the agent was.
+
+**Without git.** For a session directory that is not a git repository (a quick experiment)
+there are no commits to fetch: **⇣ Get** then takes the agent copy's files, with *Also delete
+files here…* ticked, so you get a full copy of the other side. Send works as usual.
 
 **Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`
 (settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
@@ -633,6 +684,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
 | Remote tab recordings (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
 | Local tab shell history (`history/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
@@ -668,7 +720,8 @@ internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab
-internal/syncer        working copies: send (rsync or built-in), git fetch back
+internal/syncer        working copies: send (rsync or built-in), git fetch back, full transfers
+                       (save, take files, send all / restore)
 internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking

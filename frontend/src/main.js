@@ -20,6 +20,7 @@ import {
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
+    SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -903,10 +904,15 @@ const app = {
         }
         if (d.files === 'sync') {
             const send = el('button', {textContent: '⇡ Send', title: 'Send this directory to the agent copy'});
-            const get = el('button', {textContent: '⇣ Get', title: 'Get commits from the agent copy'});
+            const get = el('button', {textContent: '⇣ Get', title: 'Get commits from the agent copy (its files, when this folder has no git)'});
+            const full = el('button', {textContent: 'Full ▾', title: 'Everything at once: save the agent copy, take all its files, send all'});
             send.onclick = () => syncSendDialog(s);
-            get.onclick = () => syncGetDialog(s);
-            sync.append(send, get);
+            get.onclick = () => getFromAgent(s);
+            full.onclick = () => {
+                const r = full.getBoundingClientRect();
+                showMenu(r.left, r.bottom + 2, fullItems(s));
+            };
+            sync.append(send, get, full);
         }
         // The command menu, on the Local and Remote tabs.
         const term = ['local', 'remote'].includes(active?.key) ? active : null;
@@ -1176,7 +1182,8 @@ async function groupAction(fn, title) {
 const FILE_MODES = {
     shared: ['shared folder', 'The agent host sees this directory through a shared file system (NFS, SMB, VM share).'],
     sshfs: ['live share (sshfs)', 'The agent host mounts this directory over ssh while the app runs.'],
-    sync: ['working copy (sync)', 'The agent host has its own copy: Send to agent copies files there, Get commits fetches its commits.'],
+    sync: ['working copy (sync)', 'The agent host has its own copy: Send to agent copies files there, Get fetches its commits ' +
+        '(its files, without git here); Full ▾ saves, takes, sends or restores everything.'],
 };
 
 function sessionMenu(s, x, y) {
@@ -1185,7 +1192,8 @@ function sessionMenu(s, x, y) {
     const info = s.data.error ? [] : [{info: `Files: ${mode}${shareState}`, title: about}, '-'];
     const sync = s.data.files === 'sync' ? [
         {label: 'Send to agent…', action: () => syncSendDialog(s)},
-        {label: 'Get commits from agent…', action: () => syncGetDialog(s)},
+        {label: 'Get from agent…', action: () => getFromAgent(s)},
+        ...fullItems(s),
         '-',
     ] : [];
     showMenu(x, y, [
@@ -1749,21 +1757,167 @@ async function syncSendDialog(s) {
         parts.push(el('label', {className: 'check bad'}, overwrite,
             ` Overwrite uncommitted changes in ${p.agent.dirty} file(s) on the agent host`));
     }
-    if (p.changes.length) {
-        // git's own files are summarized: the working files are what matter here.
-        const sign = {new: '+', changed: '~', deleted: '−'};
-        const isGit = c => c.path === '.git' || c.path.startsWith('.git/');
-        const git = p.changes.filter(isGit).length;
-        const lines = p.changes.filter(c => !isGit(c)).map(c => `${sign[c.op]} ${c.path}`);
-        if (git) lines.push(`  .git/ (${git} file${git > 1 ? 's' : ''} of git's own data)`);
-        parts.push(el('pre', {className: 'changes', textContent: lines.join('\n') + (p.truncated ? '\n…' : '')}));
-    }
+    if (p.changes.length) parts.push(changeList(p)); // git's own files summarized
     body.replaceChildren(...parts);
     okBtn.disabled = !!p.blocked || (!total && p.agent.exists) || !!(p.agent.dirty && !overwrite?.checked);
     (okBtn.disabled ? overwrite : okBtn)?.focus();
     const ok = await done;
     if (ok) s.tab('remote').view?.exited && s.tab('remote').view.restart();
     return ok;
+}
+
+// getFromAgent is Get: commits when the session directory is a git
+// repository, else (no commits to fetch) the agent copy's files.
+async function getFromAgent(s) {
+    const info = await SyncInfo(s.id).catch(() => ({git: true}));
+    return info.git ? syncGetDialog(s) : takeFilesDialog(s, true);
+}
+
+// fullItems are the full transfers of a working copy (Full ▾, session menu).
+const fullItems = s => [
+    {label: 'Save agent copy (everything, with .git)…', action: () => saveCopyDialog(s)},
+    {label: 'Take all files from the agent…', action: () => takeFilesDialog(s, false)},
+    {label: 'Send all (ignored files too)…', action: () => sendAllDialog(s, false)},
+    {label: 'Restore saved copy to the agent…', action: () => sendAllDialog(s, true)},
+    {label: 'Open saved copy folder', action: () => OpenSaved(s.id).catch(err => toast(err?.message ?? String(err), true))},
+];
+
+// changeList shows a plan's changes, git's own files summarized.
+function changeList(p) {
+    const sign = {new: '+', changed: '~', deleted: '−'};
+    const isGit = c => /(^|\/)\.git(\/|$)/.test(c.path);
+    const git = p.changes.filter(isGit).length;
+    const lines = p.changes.filter(c => !isGit(c)).map(c => `${sign[c.op]} ${c.path}`);
+    if (git) lines.push(`  .git/ (${git} file${git > 1 ? 's' : ''} of git's own data)`);
+    return el('pre', {className: 'changes', textContent: lines.join('\n') + (p.truncated ? '\n…' : '')});
+}
+
+const counts = p => `${p.new} new, ${p.changed} changed, ${p.deleted} deleted`;
+const savedWhen = iso => iso ? new Date(iso).toLocaleString() : 'unknown';
+
+// fullDialog runs one of the full transfers in #dlg-sync: preview() fills
+// the body (returns false when there is nothing to do), run() does it.
+async function fullDialog(s, {title, ok, preview, run}) {
+    const dlg = $('#dlg-sync');
+    if (dlg.open) return false;
+    const body = dlg.querySelector('.body');
+    const okBtn = dlg.querySelector('button[value=ok]');
+    dlg.querySelector('h2').textContent = `${title}: ${s.data.name}`;
+    okBtn.textContent = ok;
+    okBtn.hidden = false;
+    okBtn.disabled = true;
+    body.replaceChildren(el('p', {textContent: `Looking at ${s.data.host}:${s.data.remote_path} …`}));
+    const done = runDialog(dlg, async () => {
+        body.append(el('p', {textContent: 'Working… (large copies take a while)'}));
+        await run();
+    });
+    try {
+        okBtn.disabled = !await preview(body, okBtn);
+    } catch (err) {
+        body.replaceChildren(el('p', {className: 'bad', textContent: err?.message ?? String(err)}));
+    }
+    if (!okBtn.disabled) okBtn.focus();
+    return done;
+}
+
+// saveCopyDialog saves the whole agent copy here (SyncSave).
+function saveCopyDialog(s) {
+    return fullDialog(s, {
+        title: 'Save agent copy', ok: 'Save',
+        preview: async body => {
+            const info = (await SyncInfo(s.id)).saved;
+            body.replaceChildren(
+                el('p', {textContent: `Copies everything in ${s.data.host}:${s.data.remote_path} — committed or not, ` +
+                    'files .gitignore ignores, and .git — to a folder here, so nothing is lost if the agent host goes away.'}),
+                el('p', {textContent: info.exists ? `Replaces the copy saved ${savedWhen(info.when)} (${info.files} files).` : 'No copy saved yet.'}),
+                el('p', {className: 'hint', textContent: `Folder: ${info.dir}. Your session directory is not changed; ` +
+                    'Full ▾ → Restore saved copy sends it to an agent host again.'}));
+            return true;
+        },
+        run: async () => {
+            const info = await SyncSave(s.id);
+            toast(`Saved the agent copy of ${s.data.name}: ${info.files} files${info.note ? ` (${info.note})` : ''}`, !!info.note);
+        },
+    });
+}
+
+// takeFilesDialog brings the agent copy's files into the session directory
+// (SyncTakeFiles); asGet: it is Get for a session without git.
+function takeFilesDialog(s, asGet) {
+    const deletes = el('input', {type: 'checkbox', checked: asGet}); // before the first preview
+    let overwrite = null, p = null;
+    return fullDialog(s, {
+        title: asGet ? 'Get from agent (no git here)' : 'Take all files from the agent', ok: 'Take files',
+        preview: async (body, okBtn) => {
+            const show = async () => {
+                p = await SyncTakeFiles(s.id, true, deletes.checked);
+                const total = p.new + p.changed + p.deleted;
+                const parts = [el('p', {textContent: total ? `Here: ${counts(p)}.` : 'Your files already match the agent copy.'})];
+                parts.push(el('p', {className: 'hint', textContent: (asGet ? 'This directory is not a git repository, so there are no commits to fetch: ' +
+                    'Get copies the agent copy\'s files here instead. ' : '') +
+                    'New and changed files come here as they are on the agent host, unreviewed (not as commits); .git is never copied. ' +
+                    'Check them before running anything here (Makefile, scripts, .envrc, editor settings).'}));
+                deletes.onchange = () => show().catch(err => body.replaceChildren(el('p', {className: 'bad', textContent: err?.message ?? String(err)})));
+                parts.push(el('label', {className: 'check'}, deletes, ' Also delete files here that the agent copy does not have (a full copy of the other side)'));
+                if (p.overwrites) {
+                    overwrite = el('input', {type: 'checkbox'});
+                    overwrite.onchange = () => okBtn.disabled = !overwrite.checked;
+                    parts.push(el('label', {className: 'check bad'}, overwrite,
+                        ` Overwrite ${p.overwrites} file(s) with uncommitted changes here`));
+                } else {
+                    overwrite = null;
+                }
+                if (p.changes.length) parts.push(changeList(p));
+                body.replaceChildren(...parts);
+                okBtn.disabled = !total || !!(overwrite && !overwrite.checked);
+                return !okBtn.disabled;
+            };
+            return show();
+        },
+        run: async () => {
+            const r = await SyncTakeFiles(s.id, false, deletes.checked);
+            toast(`Took the agent's files: ${counts(r)}`);
+        },
+    });
+}
+
+// sendAllDialog sends in full (SyncSendAll): the session directory with
+// the files .gitignore ignores, or (restore) the saved copy.
+function sendAllDialog(s, restore) {
+    let sure = null;
+    return fullDialog(s, {
+        title: restore ? 'Restore saved copy to the agent' : 'Send all to the agent', ok: restore ? 'Restore' : 'Send all',
+        preview: async (body, okBtn) => {
+            const info = restore ? (await SyncInfo(s.id)).saved : null;
+            const p = await SyncSendAll(s.id, restore, true);
+            const total = p.new + p.changed + p.deleted;
+            const parts = [];
+            if (restore) parts.push(el('p', {textContent: `The copy saved ${savedWhen(info.when)} from ${info.from || 'the agent host'} ` +
+                `(${info.files} files) goes to ${s.data.host}:${s.data.remote_path}.`}));
+            parts.push(el('p', {textContent: !p.agent.exists ? `New agent copy: ${p.new} file(s).` :
+                total ? `On the agent host: ${counts(p)}.` : 'The agent copy is already identical.'}));
+            parts.push(el('p', {className: 'hint', textContent: (restore ? 'Everything saved is sent, with .git and ignored files. ' :
+                'Everything here is sent, also the files .gitignore ignores (build output, .env…). ') +
+                'The agent copy becomes identical: what only it has is deleted there, ignored files too.'}));
+            const risks = [];
+            if (p.agent.unfetched) risks.push(`${p.agent.unfetched} branch(es) with commits you have not fetched`);
+            if (p.agent.dirty) risks.push(`uncommitted changes in ${p.agent.dirty} file(s)`);
+            if (risks.length) {
+                sure = el('input', {type: 'checkbox'});
+                sure.onchange = () => okBtn.disabled = !sure.checked;
+                parts.push(el('label', {className: 'check bad'}, sure, ` Overwrite the agent copy's ${risks.join(' and ')}`));
+            }
+            if (p.changes.length) parts.push(changeList(p));
+            body.replaceChildren(...parts);
+            return (total > 0 || !p.agent.exists) && !sure;
+        },
+        run: async () => {
+            const p = await SyncSendAll(s.id, restore, false);
+            toast(`${restore ? 'Restored' : 'Sent all'} to ${s.data.host}: ${counts(p)}`);
+            const v = s.tab('remote').view;
+            if (v?.exited) v.restart();
+        },
+    });
 }
 
 // AGENT_STATES describes an agent branch next to the host's (syncer.AgentBranch).

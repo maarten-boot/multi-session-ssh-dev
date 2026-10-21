@@ -8,7 +8,7 @@ import {AddSpellWord, SpellDictionary} from '../wailsjs/go/main/App';
 import {ClipboardGetText, ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {LISTS, MARKUP, continueList, listItem, toggleList, toggleMarkup, toggleTasks} from './markup';
 import {Speller, words} from './spelling';
-import {showMenu} from './ui';
+import {showMenu, toast} from './ui';
 
 const isMac = navigator.platform.startsWith('Mac');
 
@@ -51,6 +51,7 @@ const underline = ViewPlugin.define(view => ({
 let spellUI = null; // the UI settings: spell_check, spell_language, spell_words
 let speller = null; // the checker of the last language loaded
 let spellSeq = 0;
+let failedLang = null; // the language whose dictionary could not be loaded
 const editors = new Set();
 const refresh = StateEffect.define();
 const spellOn = () => spellUI && spellUI.spell_check !== false && speller?.lang === (spellUI.spell_language || 'en_US') ? speller : null;
@@ -70,8 +71,11 @@ async function loadSpelling() {
             const d = await SpellDictionary(lang);
             if (seq !== spellSeq) return;
             speller = new Speller(d.lang, d.aff, d.dic);
+            failedLang = null;
         } catch (err) {
-            console.warn('spelling:', err);
+            // Once per language (a dictionary removed after it was chosen).
+            if (seq === spellSeq && failedLang !== lang) toast(`Spelling is off: ${String(err?.message ?? err).replace(/^spelling: /, '')}`, true);
+            failedLang = lang;
         }
     }
     if (seq !== spellSeq) return;
@@ -261,6 +265,9 @@ export function tick(view) {
 function listEnter(view) {
     const sel = view.state.selection.main;
     if (view.state.selection.ranges.length > 1 || !sel.empty) return false;
+    for (let n = syntaxTree(view.state).resolveInner(sel.head, -1); n; n = n.parent) {
+        if (n.name === 'FencedCode' || n.name === 'CodeBlock') return false; // "- x" in code is no list
+    }
     const r = continueList(view.state.doc.toString(), sel.head);
     if (!r) return false;
     view.dispatch({changes: r.changes, selection: {anchor: r.anchor}, userEvent: 'input', scrollIntoView: true});
@@ -391,5 +398,10 @@ export class Editor {
 
     focus() {
         this.view.focus();
+    }
+
+    destroy() {
+        editors.delete(this.view);
+        this.view.destroy();
     }
 }

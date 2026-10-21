@@ -42,3 +42,6 @@ build/pkgdocs
 
 # Claude Code conversation history (symlinked from ~/.claude/projects)
 .claude-sessions/
+
+# go build . in the repository root
+/session-workbench

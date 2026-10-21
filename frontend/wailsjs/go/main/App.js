@@ -98,6 +98,10 @@ export function OpenPath(arg1, arg2) {
   return window['go']['main']['App']['OpenPath'](arg1, arg2);
 }
 
+export function OpenSaved(arg1) {
+  return window['go']['main']['App']['OpenSaved'](arg1);
+}
+
 export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
 }
@@ -178,16 +182,32 @@ export function SyncGet(arg1) {
   return window['go']['main']['App']['SyncGet'](arg1);
 }
 
+export function SyncInfo(arg1) {
+  return window['go']['main']['App']['SyncInfo'](arg1);
+}
+
 export function SyncPreview(arg1) {
   return window['go']['main']['App']['SyncPreview'](arg1);
+}
+
+export function SyncSave(arg1) {
+  return window['go']['main']['App']['SyncSave'](arg1);
 }
 
 export function SyncSend(arg1, arg2) {
   return window['go']['main']['App']['SyncSend'](arg1, arg2);
 }
 
+export function SyncSendAll(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SyncSendAll'](arg1, arg2, arg3);
+}
+
 export function SyncTake(arg1, arg2) {
   return window['go']['main']['App']['SyncTake'](arg1, arg2);
+}
+
+export function SyncTakeFiles(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SyncTakeFiles'](arg1, arg2, arg3);
 }
 
 export function TermKill(arg1) {

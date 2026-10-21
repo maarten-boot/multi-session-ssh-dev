@@ -94,8 +94,8 @@ func (ic ignoreChecker) ignored(ctx context.Context, paths []string) (map[string
 
 // localFiles lists what a send copies: at the top of a git repository the
 // files git does not ignore plus .git itself, else every file that no
-// .gitignore inside the session directory ignores.
-func localFiles(ctx context.Context, s Session, ic ignoreChecker) (map[string]localFile, error) {
+// .gitignore inside the session directory ignores; all: every file.
+func localFiles(ctx context.Context, s Session, ic ignoreChecker, all bool) (map[string]localFile, error) {
 	files := map[string]localFile{}
 	add := func(rel string) {
 		fi, err := os.Lstat(filepath.Join(s.LocalPath, filepath.FromSlash(rel)))
@@ -109,7 +109,18 @@ func localFiles(ctx context.Context, s Session, ic ignoreChecker) (map[string]lo
 			files[rel] = localFile{}
 		}
 	}
-	if ic.top {
+	if all {
+		err := filepath.WalkDir(s.LocalPath, func(p string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				rel, _ := filepath.Rel(s.LocalPath, p)
+				add(filepath.ToSlash(rel))
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else if ic.top {
 		out, err := localGit(ctx, s, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 		if err != nil {
 			return nil, err
@@ -178,15 +189,20 @@ type sum struct {
 }
 
 // remoteSums lists the agent copy's files the same way, with their cksum.
-func remoteSums(ctx context.Context, s Session) (map[string]sum, error) {
+// list is a shell command printing NUL-separated paths instead ("": what a
+// send would copy).
+func remoteSums(ctx context.Context, s Session, list string) (map[string]sum, error) {
 	dir := remote.ShellPath(s.RemotePath)
-	script := `cd ` + dir + ` 2>/dev/null || exit 0
-{ if git rev-parse --git-dir >/dev/null 2>&1; then
+	if list == "" {
+		list = `if git rev-parse --git-dir >/dev/null 2>&1; then
     git -c core.fsmonitor=false ls-files -z --cached --others --exclude-standard
     [ -d .git ] && find .git -type f -print0
   else
     find . -type f -print0
-  fi; } | xargs -0 cksum 2>/dev/null
+  fi`
+	}
+	script := `cd ` + dir + ` 2>/dev/null || exit 0
+{ ` + list + `; } | xargs -0 cksum 2>/dev/null
 exit 0`
 	out, code, stderr, err := xfer.Run(ctx, s.Target, script, nil)
 	if err != nil {
@@ -223,14 +239,19 @@ func localSum(path string) (sum, error) {
 	return sum{crc, n}, err
 }
 
-// sendBuiltin fills p's changes and, unless dryRun, applies them.
-func sendBuiltin(ctx context.Context, s Session, dryRun bool, p *Plan) error {
+// sendBuiltin fills p's changes and, unless dryRun, applies them. all:
+// files .gitignore ignores too, on both sides.
+func sendBuiltin(ctx context.Context, s Session, dryRun, all bool, p *Plan) error {
 	ic := ignoreChecker{s: s, top: repoTop(ctx, s)}
-	local, err := localFiles(ctx, s, ic)
+	local, err := localFiles(ctx, s, ic, all)
 	if err != nil {
 		return err
 	}
-	there, err := remoteSums(ctx, s)
+	list := ""
+	if all {
+		list = "find . -type f -print0"
+	}
+	there, err := remoteSums(ctx, s, list)
 	if err != nil {
 		return err
 	}
@@ -262,7 +283,10 @@ func sendBuiltin(ctx context.Context, s Session, dryRun bool, p *Plan) error {
 	// What is ignored here stays on the agent host (rsync's filter protects
 	// it too): the agent copy may lack the .git or .gitignore that hid it
 	// from the listing there.
-	ign, err := ic.ignored(ctx, gone)
+	ign, err := map[string]bool{}, error(nil)
+	if !all {
+		ign, err = ic.ignored(ctx, gone)
+	}
 	if errors.Is(err, errNoGit) && hasGitignore(s.LocalPath) {
 		gone = nil // cannot tell what is ignored: delete nothing
 		addNote(p, "git is not installed here, so files deleted here were not deleted on the agent host")

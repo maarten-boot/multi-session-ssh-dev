@@ -60,6 +60,8 @@ export function OpenLogFolder(arg1:string):Promise<void>;
 
 export function OpenPath(arg1:string,arg2:string):Promise<void>;
 
+export function OpenSaved(arg1:string):Promise<void>;
+
 export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>;
 
 export function RecordInfo():Promise<main.RecordInfo>;
@@ -100,11 +102,19 @@ export function StopShare(arg1:string):Promise<void>;
 
 export function SyncGet(arg1:string):Promise<syncer.Fetched>;
 
+export function SyncInfo(arg1:string):Promise<main.SyncInfo>;
+
 export function SyncPreview(arg1:string):Promise<syncer.Plan>;
+
+export function SyncSave(arg1:string):Promise<main.SavedInfo>;
 
 export function SyncSend(arg1:string,arg2:boolean):Promise<syncer.Plan>;
 
+export function SyncSendAll(arg1:string,arg2:boolean,arg3:boolean):Promise<syncer.Plan>;
+
 export function SyncTake(arg1:string,arg2:Array<string>):Promise<main.TakeResult>;
+
+export function SyncTakeFiles(arg1:string,arg2:boolean,arg3:boolean):Promise<syncer.Plan>;
 
 export function TermKill(arg1:string):Promise<void>;
 

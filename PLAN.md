@@ -100,6 +100,12 @@ implementation differs from the original plan.
   built in, Hunspell dictionaries for other languages, own words; Settings → Notes), and a
   *Prompts ▾* menu in the Local and Remote tabs with the session's own prompts and those for
   all sessions (N1a, N1b, T6).
+- Docs/code cross-check (v0.8.40): notes editors leave the spelling registry when a session is
+  deleted, Enter in a code block is a plain new line, a missing dictionary says spelling is off;
+  examples for lists, session prompts and a dictionary folder.
+- v0.8.40: full transfers for working copies (F12): save the whole agent copy here, take all
+  its files, send all (ignored files too), restore the saved copy to a (new) agent host; Get
+  takes the files for a session directory without git.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -126,7 +132,8 @@ implementation differs from the original plan.
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
-  check, working copies (Get: a fast-forward and a new branch), live share (commits and
+  check, working copies (Get: a fast-forward and a new branch; save, take all files, restore after
+  the agent copy is gone; Get without git), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu and start commands, private shell history, lists and spelling in the notes, badges; working copies and backups also with the built-in
   transfer.
