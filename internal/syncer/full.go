@@ -149,7 +149,8 @@ func inGit(rel string) bool {
 // never .git (at any depth); deletes: also delete files here the agent copy
 // does not have (outside .git). Unlike Get it brings what the agent wrote
 // unreviewed, and overwrites the host's own changes to the same files:
-// Plan.Overwrites counts those with uncommitted changes here (git only).
+// Plan.Overwrites counts the changed or deleted ones with uncommitted
+// changes here (git only).
 // It is Get for a session directory that is not a git repository.
 func TakeFiles(ctx context.Context, s Session, dryRun, deletes bool) (Plan, error) {
 	if err := remote.CheckTarget(s.Target); err != nil {
@@ -188,21 +189,30 @@ func TakeFiles(ctx context.Context, s Session, dryRun, deletes bool) (Plan, erro
 	return p, nil
 }
 
-// overwritten counts the changed files that have uncommitted changes here.
+// overwritten counts the files a take changes or deletes that have
+// uncommitted changes here (staged or not; tracked files only). The paths
+// are relative to the session directory, also in a repository's
+// subdirectory (--relative); without git it is 0.
 func overwritten(ctx context.Context, s Session, changes []Change) int {
-	out, err := localGit(ctx, s, "status", "--porcelain", "-z", "--untracked-files=no")
-	if err != nil {
-		return 0
-	}
 	dirty := map[string]bool{}
-	for _, rec := range strings.Split(out, "\x00") {
-		if len(rec) > 3 {
-			dirty[rec[3:]] = true
+	for _, staged := range []bool{false, true} {
+		args := []string{"diff", "--name-only", "-z", "--relative", "--no-renames"}
+		if staged {
+			args = append(args, "--cached")
+		}
+		out, err := localGit(ctx, s, args...)
+		if err != nil {
+			return 0
+		}
+		for _, rel := range strings.Split(out, "\x00") {
+			if rel != "" {
+				dirty[rel] = true
+			}
 		}
 	}
 	n := 0
 	for _, c := range changes {
-		if c.Op == "changed" && dirty[c.Path] {
+		if c.Op != "new" && dirty[c.Path] {
 			n++
 		}
 	}

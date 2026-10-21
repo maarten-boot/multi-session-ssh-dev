@@ -178,3 +178,29 @@ func TestSSHFullTransfers(t *testing.T) {
 		})
 	}
 }
+
+// The take's overwrite count: changed or deleted files with uncommitted
+// changes here, staged or not, with paths relative to the session
+// directory also when it is a repository's subdirectory.
+func TestOverwritten(t *testing.T) {
+	repo := t.TempDir()
+	sub := filepath.Join(repo, "sub")
+	os.MkdirAll(sub, 0o755)
+	for _, f := range []string{"sub/a.txt", "sub/b.txt", "sub/c.txt", "sub/d.txt", "top.txt"} {
+		os.WriteFile(filepath.Join(repo, filepath.FromSlash(f)), []byte("x\n"), 0o644)
+	}
+	gitIn(t, repo, "init", "-q")
+	gitIn(t, repo, "add", "-A")
+	gitIn(t, repo, "commit", "-q", "-m", "base")
+	os.WriteFile(filepath.Join(sub, "a.txt"), []byte("mine\n"), 0o644) // unstaged
+	os.WriteFile(filepath.Join(sub, "b.txt"), []byte("mine\n"), 0o644)
+	gitIn(t, repo, "add", "sub/b.txt") // staged
+	os.WriteFile(filepath.Join(sub, "d.txt"), []byte("mine\n"), 0o644)
+	changes := []Change{{"changed", "a.txt"}, {"changed", "b.txt"}, {"changed", "c.txt"}, {"deleted", "d.txt"}, {"new", "e.txt"}}
+	if n := overwritten(context.Background(), Session{LocalPath: sub}, changes); n != 3 {
+		t.Errorf("in a subdirectory: %d, want 3 (a, b staged, d deleted)", n)
+	}
+	if n := overwritten(context.Background(), Session{LocalPath: t.TempDir()}, changes); n != 0 {
+		t.Errorf("without git: %d", n)
+	}
+}

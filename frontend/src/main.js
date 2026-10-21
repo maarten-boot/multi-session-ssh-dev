@@ -971,6 +971,8 @@ const app = {
 
     onKey(e) {
         if (document.querySelector('dialog[open]')) return;
+        // A key the notes editor acted on (lists: Ctrl+Shift+8/9, also tab_8/9) is not also an app key.
+        if (e.defaultPrevented && e.target.closest?.('.cm-editor')) return;
         const a = appKey(e);
         if (!a) {
             if (e.key === 'Escape') hideMenu();
@@ -1863,7 +1865,7 @@ function takeFilesDialog(s, asGet) {
                     overwrite = el('input', {type: 'checkbox'});
                     overwrite.onchange = () => okBtn.disabled = !overwrite.checked;
                     parts.push(el('label', {className: 'check bad'}, overwrite,
-                        ` Overwrite ${p.overwrites} file(s) with uncommitted changes here`));
+                        ` Overwrite or delete ${p.overwrites} file(s) with uncommitted changes here`));
                 } else {
                     overwrite = null;
                 }

@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.40: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.41: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -477,7 +477,7 @@ end of a work cycle, for experiments without git, and for an agent host that goe
 - *Take all files from the agent…* copies the agent copy's files into your session directory,
   with a preview: new and changed files, never `.git` (at any depth). Tick *Also delete files
   here that the agent copy does not have* for an exact copy. Files with uncommitted changes
-  here are only overwritten after you tick a box. Unlike Get these files arrive unreviewed:
+  here are only overwritten or deleted after you tick a box. Unlike Get these files arrive unreviewed:
   check them before running anything (a `Makefile`, scripts, `.envrc`, editor settings).
 - *Send all (ignored files too)…* is Send including the files `.gitignore` ignores (build
   output, `.env`…), also when Send would refuse; the agent copy becomes identical, ignored
@@ -485,6 +485,8 @@ end of a work cycle, for experiments without git, and for an agent host that goe
 - *Restore saved copy to the agent…* sends the saved copy (with its `.git`) to the session's
   agent copy: after the agent host went down, point the host at a new machine (*Edit host…*),
   then restore and carry on where the agent was.
+
+Saved copies stay when a session is deleted (remove `working-copies/<session id>/` yourself).
 
 **Without git.** For a session directory that is not a git repository (a quick experiment)
 there are no commits to fetch: **⇣ Get** then takes the agent copy's files, with *Also delete

@@ -559,8 +559,7 @@ func (a *App) savedInfo(id string) SavedInfo {
 		info.Dir = dir
 	}
 	if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
-		info.Exists = true
-		info.Files = syncer.SavedCount(dir)
+		info.Exists = true // Files: counted when saved (counting here is slow for big copies)
 	}
 	return info
 }
@@ -594,7 +593,8 @@ func (a *App) SyncSave(id string) (SavedInfo, error) {
 	if err != nil {
 		return a.savedInfo(id), err
 	}
-	info := SavedInfo{When: time.Now().Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note}
+	info := SavedInfo{When: time.Now().Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note,
+		Files: syncer.SavedCount(dir)}
 	if b, err := json.Marshal(info); err == nil {
 		os.WriteFile(filepath.Join(filepath.Dir(dir), "saved.json"), b, 0o600)
 	}

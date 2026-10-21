@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-21, app v0.8.40) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-21, app v0.8.41) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -217,11 +217,13 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - Save agent copy: the whole agent copy (with `.git`, untracked and ignored files) to
     `<data dir>/working-copies/<id>/files` (`rsync -a --delete --safe-links --no-devices
     --no-specials`; built-in: one tar stream unpacked through `os.Root` into `files.new`, which
-    then replaces `files`); `saved.json` next to it records when and from where. Exit 24
+    then replaces `files`); `saved.json` next to it records when, from where and how many files (counted once, when
+    saved). Kept when the session is deleted. Exit 24
     (files vanished) is a success with a note. Refused while there is no agent copy.
   - Take all files: agent copy → session directory, new and changed files, `--exclude=.git`
     (any depth), optionally `--delete` (excluded paths stay); preview by dry run; the number of
-    changed files with uncommitted changes here (`git status --porcelain`, tracked only) needs a
+    changed or deleted files with uncommitted changes here (`git diff --name-only --relative`,
+    staged and not, tracked only; paths relative to the session directory) needs a
     confirmation. Built-in: `cksum` listing on the agent host without `.git`, compared here,
     then a tar stream of which only the wanted files (and their folders) are unpacked through
     `os.Root`; deletions through `os.Root`.
@@ -367,6 +369,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   two; Shift+Tab outdents them). Mod+C/X/V copy, cut and paste; a right-click menu
   offers Cut, Copy, Paste (system clipboard), Select all, the four formats, the two lists and
   Tick / untick; a right-click outside the selection moves the cursor there first.
+  A key the editor acts on is not also an app key there (Mod+Shift+8 / 9 are `tab_8` / `tab_9`
+  elsewhere).
 - N1b. Spelling (`spell_check`, default on): misspelled words on screen get a red wavy
   underline (the web view's own checker is off: it has no suggestions in our menu and is off in
   WebKitGTK). Words are runs of letters with inner apostrophes (' or ’); skipped: one letter,

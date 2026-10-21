@@ -52,7 +52,7 @@ type Plan struct {
 	Deleted   int        `json:"deleted"`
 	Truncated bool       `json:"truncated"`
 	Blocked   string     `json:"blocked"` // why sending is not allowed now
-	// Overwrites: changed files with uncommitted changes here (TakeFiles).
+	// Overwrites: changed or deleted files with uncommitted changes here (TakeFiles).
 	Overwrites int    `json:"overwrites"`
 	Note       string `json:"note"` // a caveat that does not block sending
 	Done       bool   `json:"done"` // false for a dry run

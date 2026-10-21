@@ -106,6 +106,11 @@ implementation differs from the original plan.
 - v0.8.40: full transfers for working copies (F12): save the whole agent copy here, take all
   its files, send all (ignored files too), restore the saved copy to a (new) agent host; Get
   takes the files for a session directory without git.
+- Docs/code cross-check (v0.8.41): Take all files counts uncommitted changes relative to the
+  session directory (also in a repository's subdirectory) and asks before deleting such files
+  too; the saved copy's file count is kept with it (Get no longer walks it); a key the notes
+  editor acts on (Ctrl+Shift+8/9) is not also an app key; a worked example of restoring to a
+  new agent host; saved copies are kept when a session is deleted.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

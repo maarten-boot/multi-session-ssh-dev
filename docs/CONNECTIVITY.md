@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.40).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.41).
 
 Everything described here is implemented.
 
@@ -176,7 +176,8 @@ remote_workdir = "~/sw"    # default; absolute or ~/…; no prefixes with this m
 
 Each session then has a copy on the agent host at `<remote_workdir>/<directory>-<session id>`,
 where its Remote tab runs (until the first Send the tab says there is no copy yet and offers
-*Send to agent…*), and two actions (buttons next to the tabs, and in the session menu):
+*Send to agent…*), and two actions (buttons next to the tabs, and in the session menu), plus
+the full transfers under **Full ▾** (below):
 
 - **⇡ Send** (host → agent host): `rsync` over the same locked-down ssh. A dry-run preview shows
   what will change before anything is written. Your copy is the source: the agent copy becomes
@@ -190,7 +191,8 @@ where its Remote tab runs (until the first Send the tab says there is no copy ye
   no `.git` is sent, so claude cannot commit there and Get has nothing to fetch. The Send
   preview notes this, and Get says so and names the repository's top folder to create the
   session for.
-- **⇣ Get** (agent host → host): **not a file copy back.** The host runs `git fetch` from the
+- **⇣ Get** (agent host → host): **not a file copy back** (except for a session directory
+  without git, see below). The host runs `git fetch` from the
   agent's copy into `agent-<session id>/<branch>` and lists every agent branch next to yours:
   new (claude made it), ahead (you can fast-forward), up to date, behind (only you have
   commits) or diverged, with the commits and the files each brings (file names only: no diff
@@ -242,6 +244,14 @@ described next. Fetching commits does not: hooks and configuration are never tra
   before using it) and even over unfetched agent commits, after a tick.
 - *Restore saved copy* sends the saved copy to the session's agent copy, e.g. on a new agent
   host after the old one went away.
+
+For example, at the end of a work cycle on `lab-box`: *Full ▾ → Save agent copy* (everything
+claude left there, committed or not, is now in the data folder). The next morning `lab-box`
+does not come back. *Edit host…* on the host in the sidebar, set `ssh_target` to the spare
+machine, then *Full ▾ → Restore saved copy to the agent…*: the preview says
+`New agent copy: 1234 file(s)`, Restore sends it, and the Remote tab starts claude in it, with
+the uncommitted work and the agent's branches as they were. (claude's own conversation history
+lives in `~/.claude`: restore that from the Claude backups, see below.)
 
 A session directory that is not a git repository (an experiment) has no commits to fetch:
 *⇣ Get* is then *Take all files* with the delete box ticked, a full copy of the agent's side.
