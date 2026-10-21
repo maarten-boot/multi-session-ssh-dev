@@ -1,11 +1,35 @@
-import {CreatePage, LoadPage} from '../wailsjs/go/main/App';
+import {CreatePage, LoadPage, NotesTree} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {NotesView, PAGE} from './notes';
 import {parsePrompts} from './prompts';
 import {el, toast} from './ui';
 
-const PROMPTS = 'Prompts';
+export const PROMPTS = 'Prompts';
 const isPrompts = page => page === PROMPTS || page?.startsWith(PROMPTS + '/');
+
+// promptPages reads the Prompts page of book and its subpages (tree order)
+// into a Map path → text. view is the book's NotesView, if any: its open
+// page's text is the editor's, which may not be saved yet.
+export async function promptPages(book, pages, view) {
+    const paths = [];
+    const walk = ps => ps.filter(p => isPrompts(p.path)).forEach(p => {
+        paths.push(p.path);
+        walk(p.children ?? []);
+    });
+    walk(pages ?? []);
+    const texts = new Map();
+    for (const p of paths) {
+        const known = view && p === view.page ? view.editor.text : null;
+        texts.set(p, known ?? (await LoadPage(book, p).catch(() => ({text: ''}))).text);
+    }
+    return texts;
+}
+
+// sessionPrompts returns the prompts of a session's own notes.
+export async function sessionPrompts(book, view) {
+    const pages = await NotesTree(book).catch(() => []);
+    return [...(await promptPages(book, pages, view)).values()].flatMap(parsePrompts);
+}
 
 const PLACEHOLDERS = {
     Home: 'Notes for all sessions: things that belong to no single project.\n\n' +
@@ -15,7 +39,8 @@ const PLACEHOLDERS = {
         'right with Copy and Paste into Remote. For example:\n\n' +
         '## Review\n' +
         'Review the changes since the last commit for bugs and missing tests. Be brief.\n\n' +
-        'Subpages of this page (right-click it) hold more prompts.',
+        'Subpages of this page (right-click it) hold more prompts. They are also in Prompts ▾\n' +
+        'in the Local and Remote tabs, after the prompts of the session\'s own Prompts page.',
 };
 
 // AppNotesPage is the notes page for the whole app: a book of notes pages
@@ -62,21 +87,10 @@ export class AppNotesPage {
 
     // loadPrompts reads the Prompts page and its subpages (tree order).
     async loadPrompts(pages) {
-        const paths = [];
-        const walk = ps => ps.filter(p => isPrompts(p.path)).forEach(p => {
-            paths.push(p.path);
-            walk(p.children);
-        });
-        walk(pages);
         const seq = ++this.promptsSeq;
-        const texts = new Map();
-        for (const p of paths) {
-            // The open page's text is the editor's, which may not be saved yet.
-            const known = p === this.view.page ? this.view.editor.text : null;
-            texts.set(p, known ?? (await LoadPage('_app', p).catch(() => ({text: ''}))).text);
-        }
+        const texts = await promptPages('_app', pages, this.view);
         if (seq !== this.promptsSeq) return;
-        this.hasPromptsPage = paths.length > 0;
+        this.hasPromptsPage = texts.size > 0;
         this.texts = texts;
         this.render();
     }

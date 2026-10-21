@@ -1676,6 +1676,7 @@ dialog pre.changes {
 .notes-tool-italic { font-style: italic; }
 .notes-tool-underline { text-decoration: underline; }
 .notes-tool-strike { text-decoration: line-through; }
+.notes-tool-gap { width: 8px; }
 
 .notes-editor {
     flex: 1;

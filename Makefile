@@ -86,8 +86,8 @@ clean:
 #   copies, live share, notes and tab order, Web tab and custom tab order, layout
 #   (font size, current tab, narrow sidebar), desktop notifications (fake
 #   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
-#   copy/paste, Remote tab recordings, command menu and start commands, private
-#   shell history,
+#   copy/paste, Remote tab recordings, command menu, prompts menu and start
+#   commands, private shell history, lists and spelling in the notes,
 #   activity badges (~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
@@ -126,6 +126,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-record.sh build/bin/session-workbench $(SMOKE_OUT)-record
 	$(XVFB) scripts/gui-smoke-commands.sh build/bin/session-workbench $(SMOKE_OUT)-commands
 	$(XVFB) scripts/gui-smoke-history.sh build/bin/session-workbench $(SMOKE_OUT)-history
+	$(XVFB) scripts/gui-smoke-spell.sh build/bin/session-workbench $(SMOKE_OUT)-spell
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui

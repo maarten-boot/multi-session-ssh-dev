@@ -8,8 +8,11 @@ import {main} from '../models';
 import {fsbrowse} from '../models';
 import {config} from '../models';
 import {share} from '../models';
+import {spell} from '../models';
 import {syncer} from '../models';
 import {forge} from '../models';
+
+export function AddSpellWord(arg1:string):Promise<void>;
 
 export function BackupNow(arg1:string):Promise<void>;
 
@@ -82,6 +85,10 @@ export function SetLinks(arg1:string,arg2:Array<config.Link>):Promise<void>;
 export function SetSessionGroup(arg1:string,arg2:string):Promise<void>;
 
 export function ShareStatus(arg1:string):Promise<share.Status>;
+
+export function SpellDictionary(arg1:string):Promise<spell.Dictionary>;
+
+export function SpellLanguages():Promise<Array<string>>;
 
 export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 

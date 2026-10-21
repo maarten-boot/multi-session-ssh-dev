@@ -1,7 +1,7 @@
 #!/bin/bash
 # Headless GUI test of the default tab order (Local, Files, Remote, Notes, Web) and the
 # Notes tab: pages in a tree (notes/<id>/Home.md, Design.md, Design/API.md…),
-# autosaved, formatting from keys and the toolbar, copy and paste from the
+# autosaved, lists continued by Enter, formatting from keys and the toolbar, copy and paste from the
 # right-click menu and Ctrl+C / Ctrl+V, new page / subpage,
 # rename (subpages move along) and delete from the tree, notes from before
 # pages existed becoming the Home page, the open page kept across restarts.
@@ -49,11 +49,12 @@ k ctrl+alt+2; sleep 1.5
 shot 1-opens-on-local                           # tabs: Local Files Remote Notes; Local active
 k ctrl+alt+1; k ctrl+shift+4; sleep 1
 type "# Project one"; k Return; k Return
-type "- ask claude about the parser"; k Return
-k Tab; type "indented with Tab"
+type "- ask claude about the parser"; k Return  # Enter continues the list
+k Tab; type "indented with Tab"; k Return       # Tab indents the item by two spaces
+k Return; k Return; type "after the list"       # Enter in an empty item: outdent, then end the list
 sleep 0.3; shot 2-typing
 k ctrl+alt+2; sleep 1                           # switching away saves
-NOTE=$'# Project one\n\n- ask claude about the parser\n  indented with Tab'   # Tab indents by two spaces
+NOTE=$'# Project one\n\n- ask claude about the parser\n  - indented with Tab\nafter the list'
 expect "Home page saved when switching away" "$NOTE" "$(cat $N/Home.md 2>&1)"
 expect "page file is private" "-rw-------" "$(stat -c %A $N/Home.md 2>&1)"
 expect "notes folder is private" "drwx------" "$(stat -c %A $N 2>&1)"
@@ -70,7 +71,7 @@ expect "bold, underline and italic markers" "**bold** and <u>plain</u> _it_" "$(
 # Copy and paste: the right-click menu, then Ctrl+C / Ctrl+V.
 k ctrl+alt+1; sleep 1; k ctrl+End; k Return
 type "menu-word"; k shift+Home
-click 460 216 3; shot 3a-menu; menu c            # on the selected line: Copy
+click 460 235 3; shot 3a-menu; menu c            # on the selected line: Copy
 k End; k Return
 click 700 600 3; menu p                         # below the text: Paste (at the end)
 k shift+Home; k ctrl+c; k End; k Return; k ctrl+v

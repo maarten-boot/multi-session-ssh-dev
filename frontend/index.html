@@ -170,6 +170,7 @@
             <button type="button" data-page="terminals">Terminals</button>
             <button type="button" data-page="commands">Commands</button>
             <button type="button" data-page="backups">Backups and recordings</button>
+            <button type="button" data-page="notes">Notes</button>
             <button type="button" data-page="keys">Keys</button>
         </div>
         <section class="settings-page" data-page="appearance">
@@ -257,6 +258,18 @@
                     <input name="record_dir" autocomplete="off" spellcheck="false">
                 </label>
                 <p class="hint record-default"></p>
+            </div>
+        </section>
+        <section class="settings-page" data-page="notes">
+            <div class="grid">
+                <label class="check"><input type="checkbox" name="spell_check"> Check spelling in the notes (misspelled words underlined; right-click one for corrections)</label>
+                <label>Spelling language
+                    <select name="spell_language"></select>
+                </label>
+                <label>Your words (“Add to dictionary”), one per line
+                    <textarea name="spell_words" rows="6" spellcheck="false"></textarea>
+                </label>
+                <p class="hint spell-hint"></p>
             </div>
         </section>
         <section class="settings-page shortcuts" data-page="keys">

@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.6 (2026-10-20, app v0.8.37) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.7 (2026-10-21, app v0.8.39) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -9,7 +9,8 @@ packages, Files tab date column and sort order (B1), window size and position re
 (§4.7), notes as page trees with a formatting editor (N1, N1a), Remote tab recordings (F10),
 Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
 appending writes through the live share (§6), the command menu (T5), editable start commands
-(R2), Settings in pages (§4.6) and private shell history per session (L4).
+(R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
+spelling in the notes (N1a, N1b) and the prompts menu (T6).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -333,10 +334,38 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   Mod+B / Mod+I / Mod+U / Mod+Shift+X toggle the markers around the selection: no selection
   inserts a pair (or removes an empty one around the cursor); one line keeps outer whitespace
   outside and removes markers inside or just outside the selection, else adds them; several
-  lines are toggled line by line (removed only if every non-blank line has them). Enter is a
-  plain new line, Tab inserts two spaces (with a selection: indents its lines by two). Mod+C/X/V copy, cut and paste; a right-click menu
-  offers Cut, Copy, Paste (system clipboard), Select all and the four formats; a right-click
-  outside the selection moves the cursor there first.
+  lines are toggled line by line (removed only if every non-blank line has them).
+  Lists: toolbar • ☐ and Mod+Shift+8 / Mod+Shift+9 make the selected lines (the cursor's
+  line without a selection; blank lines stay) `- ` or `- [ ] ` items after their indent
+  (other list markers and check boxes are replaced), or plain lines when all already are.
+  A task marker (`[ ]`, `[x]`, `[X]`) is drawn as a check box (black border); a click or
+  Mod+Enter ticks it (selected lines: all ticked when any is not, else all unticked). In a list
+  item (`-`, `*`, `+`, `1.`, `1)` plus a space, after the cursor's marker) Enter starts the next
+  item with the same indent and marker (numbers +1, check box empty) and carries the text after
+  the cursor; in an empty item it outdents by two spaces (or a tab), at the left edge it clears
+  the marker (ends the list). Tab / Shift+Tab indent / outdent a list item by two; elsewhere
+  Enter is a plain new line and Tab inserts two spaces (with a selection: indents its lines by
+  two; Shift+Tab outdents them). Mod+C/X/V copy, cut and paste; a right-click menu
+  offers Cut, Copy, Paste (system clipboard), Select all, the four formats, the two lists and
+  Tick / untick; a right-click outside the selection moves the cursor there first.
+- N1b. Spelling (`spell_check`, default on): misspelled words on screen get a red wavy
+  underline (the web view's own checker is off: it has no suggestions in our menu and is off in
+  WebKitGTK). Words are runs of letters with inner apostrophes (' or ’); skipped: one letter,
+  a capital after the first letter (CamelCase, ACRONYM), next to a digit, `_ / \ @ # $ % & = ~`
+  or a backtick, or followed by `.` and a letter (file names), and inside inline code, code
+  blocks, URLs, autolinks, HTML and link labels. The word being typed is checked once the
+  cursor leaves it. Right-click a misspelled word: up to 6 corrections (closest first:
+  Damerau–Levenshtein, same letters first among equals; the word's capital kept) and *Add
+  “word” to dictionary*, which adds it to `spell_words` (sorted, once each, without spaces, up
+  to 100 characters; Settings → Notes edits the list). The checker is nspell with a Hunspell
+  dictionary from the backend (`internal/spell`), loaded when the first notes editor opens:
+  `spell_language` (default `en_US`, built in from SCOWL); other languages are `<lang>.aff` +
+  `<lang>.dic` in `dictionaries/` next to the config file, then (Linux) `~/.local/share/hunspell`,
+  `/usr/share/hunspell`, `/usr/share/myspell(/dicts)`, `/usr/local/share/hunspell`, (macOS)
+  `~/Library/Spelling`, `/Library/Spelling`; the first found wins. Files are converted to UTF-8
+  from their `SET` encoding (default ISO8859-1). A language name is letters, digits and
+  `_ @ . -`, not starting with `.` or `-`; an invalid one in the file becomes `en_US`. A few
+  tool names (`TOOL_WORDS` in frontend/src/spelling.js: claude, tmux, ssh, git…) are always known.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
   page tree and editor for `notes/_app/` (`_` keeps it apart from session ids; the old
   `notes/_app.md` becomes the page *Prompts*). Prompts come from the page *Prompts* and its
@@ -382,6 +411,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     in Edit… (Colors) or with the session menu (choosing the global value removes the override);
     switchable at runtime without restarting the terminal.
 - T4. Resize propagates to the PTY (and thus through ssh to tmux).
+- T6. Prompts menu: a *Prompts ▾* button after *Commands ▾* in the Local and Remote tabs lists
+  the session's own prompts (the page *Prompts* of the session's notes and its subpages, read
+  when the menu opens; the open page's unsaved text counts) under *This session*, then those of
+  N2 under *All sessions* (hovering shows the text). Choosing one pastes it into that tab as N2
+  does for the Remote tab (bracketed paste once the program there turns it on; no Enter).
 - T5. Command menu in the Local and Remote tabs: a *Commands* section at the end of the
   right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
   The session's own commands (`commands` on the session, Edit…) come first, then
@@ -419,7 +453,7 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 Settings is one dialog with pages behind a tab bar (the last one used opens again):
 Appearance (theme, colors, fonts, tab order), Terminals (scrollback, connecting, reconnecting,
 badges, copy/paste, notifications, private shell history), Commands (command menu, start commands), Backups and
-recordings, Keys.
+recordings, Notes (spelling on/off, language, own words), Keys.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),
@@ -442,11 +476,11 @@ recordings, Keys.
   automatically; it shows the reason. Every `[ui]` value out of range or unknown gets its
   default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
   `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),
-  `record_dir` (absolute or under `~`). The command lists are not reset: invalid ones are
+  `record_dir` (absolute or under `~`), `spell_language`; `spell_words` are tidied (N1b). The command lists are not reset: invalid ones are
   reported (T5, R2) and Settings refuses to save them until fixed; an empty `start_commands` gets
   the default three.
-- `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` is there
-  too.
+- `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` and
+  `dictionaries/` (own spelling dictionaries, N1b) are there too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
   `~/Library/Application Support/session-workbench` (macOS): Claude backups, the window size

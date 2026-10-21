@@ -9,9 +9,9 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.37: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
-Notes (page trees with formatting) and Web tabs, Remote tab recordings, session folders,
-themes and color modes, quick switcher, a command menu in the Local and Remote tabs, editable
+Status: v0.8.39: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
+themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
 auto-reconnect, live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch),
@@ -83,8 +83,9 @@ make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/u
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
-                     # Remote tab recordings, command menu and start commands, private
-                     # shell history, badges (~2 min)
+                     # Remote tab recordings, command menu, prompts menu and start
+                     # commands, private shell history, lists and spelling in the notes,
+                     # badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -171,11 +172,29 @@ Default order:
   through and `<u>underlined</u>` underlined (Markdown has no underline of its own; GitHub
   shows `<u>`). The **B I U S** buttons above the page, or Ctrl+B, Ctrl+I, Ctrl+U and
   Ctrl+Shift+X (⌘ on macOS), add or remove those markers around the selection (each line
-  of a longer selection separately). Tab inserts two spaces (with a selection: indents its
-  lines); Enter starts a plain new line. Ctrl+C / Ctrl+X / Ctrl+V
+  of a longer selection separately).
+  **Lists and check lists**: the **•** and **☐** buttons, or Ctrl+Shift+8 and Ctrl+Shift+9,
+  make the selected lines (or the cursor's line) `- item` or `- [ ] item`, and plain lines again
+  when they already are. A check list item shows a check box: click it, or press Ctrl+Enter
+  on its line (⌘ on macOS; with several lines selected: all ticked, or all unticked when they
+  were), and the file says `- [x] item`, as on GitHub. Enter in a list item starts the next one
+  (`-`, `*`, `+`, numbers counting up; a new check box is empty); Enter in an empty item
+  outdents it, then ends the list. Tab and Shift+Tab indent and outdent a list item; elsewhere
+  Tab inserts two spaces (with a selection: indents its lines) and Enter starts a plain new line.
+  **Spelling**: misspelled words are underlined in red (English by default); right-click one
+  for corrections and *Add “word” to dictionary*. Not checked: code (`` `x` `` and code
+  blocks), links' addresses, HTML tags, CamelCase, ACRONYMS, file names, paths and words with
+  digits; the word you are typing waits until you leave it. The tools this app is about
+  (claude, tmux, ssh, sshfs, rsync, git, GitHub…) are known words in every language. Settings → Notes turns it off,
+  picks the language and lists your added words (`spell_check`, `spell_language`,
+  `spell_words` in the config). English (en_US) is built in; for another language put a
+  Hunspell dictionary (`nl.aff` and `nl.dic`, say; the LibreOffice and Firefox ones work) in
+  `dictionaries/` next to `config.toml`; on Linux installed `hunspell-*` / `myspell-*`
+  packages are found too, and on macOS `~/Library/Spelling`.
+  Ctrl+C / Ctrl+X / Ctrl+V
   (⌘ on macOS) copy, cut and paste; right-click the page for *Cut*, *Copy*, *Paste*,
-  *Select all* and the four formats (a right-click outside the selection moves the cursor
-  there first). Both note panels work the same.
+  *Select all*, the four formats, the two lists and *Tick / untick* (a right-click outside
+  the selection moves the cursor there first). Both note panels work the same.
   A page is saved shortly after you stop typing, when you open another page or leave the
   tab, and when the window loses focus. Pages are stored with the app's config, one file
   per page: `notes/<session id>/Home.md`, `notes/<session id>/Design.md`,
@@ -204,7 +223,10 @@ page named *Prompts* and its subpages (the notes from before pages existed, `not
 became that page; without one, the prompts list offers to create it). Every `## name`
 heading there starts a prompt: the page lists them on the right with *Copy* and *Paste into
 Remote*, which puts the prompt into the current
-session's Remote tab as pasted text — claude runs it when you press Enter. It waits until claude
+session's Remote tab as pasted text — claude runs it when you press Enter. **Prompts ▾** next to
+the tabs (Local and Remote) pastes one into the tab you are in: first the session's own prompts
+(a page named *Prompts* and its subpages in the session's Notes, same `## name` headings), then
+those for all sessions. It waits until claude
 (or the shell) accepts a *bracketed* paste; a multi-line prompt is not pasted before that, so
 its lines cannot run one by one. A prompt runs to the next `#` or `##` heading (`###` and deeper
 stay in it, and so do headings inside ```` ``` ```` or `~~~` code blocks); a heading starts at the
@@ -297,8 +319,8 @@ Off: Settings → Terminals (`private_history = false`), or per session in *Edit
 - History files may hold secrets you typed on a command line; they are as private as your
   shell's usual history.
 
-**Settings** (Ctrl+Shift+, or *Settings…*) has five pages: Appearance (theme, colors, fonts,
-tab order), Terminals, Commands, Backups and recordings, and Keys (the current shortcuts).
+**Settings** (Ctrl+Shift+, or *Settings…*) has six pages: Appearance (theme, colors, fonts,
+tab order), Terminals, Commands, Backups and recordings, Notes (spelling) and Keys (the current shortcuts).
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -523,6 +545,9 @@ connect_on_start = "lazy"                 # or "eager": connect all Remote tabs 
 auto_reconnect = true
 activity_badges = true
 copy_on_select = false
+spell_check = true                        # underline misspelled words in the notes
+spell_language = "en_US"                  # built in; others: Hunspell files in dictionaries/
+spell_words = ["kubectl", "Zim"]          # your words (Add to dictionary)
 ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pastes (Linux/Windows)
 notifications = true                      # desktop notification when claude waits (bell)
 private_history = true                    # each session's shells keep their own history
@@ -605,7 +630,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 
 | What | Linux | macOS | Windows |
 |---|---|---|---|
-| config (`config.toml`, its `.lock`, `notes/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
+| config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
 | Remote tab recordings (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
@@ -638,6 +663,7 @@ internal/remote        ssh/tmux command lines (quoting, forced options)
 internal/config        TOML config load / atomic save, data directory
 internal/session       hosts + sessions: validation, mapping, ordering
 internal/notes         notes pages: a tree of Markdown files per session and for the app
+internal/spell         spelling dictionaries: built-in en_US (dict/, SCOWL), Hunspell files found
 internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
@@ -650,8 +676,9 @@ internal/instance      one instance per config file (lock)
 internal/winstate      window size and position across restarts (window.json in the data dir)
 internal/reclog        Remote tab recordings: readable text, hidden passwords, time segments
 frontend/src           vanilla JS UI: main.js (app), terminal.js, files.js, notes.js (page tree),
-                       editor.js and markup.js (notes editor: CodeMirror, formatting), web.js,
-                       appnotes.js and prompts.js (notes for all sessions), ui.js,
+                       editor.js and markup.js (notes editor: CodeMirror, formatting, lists),
+                       spelling.js (word finder and checker: nspell), web.js,
+                       appnotes.js and prompts.js (notes for all sessions, prompts menu), ui.js,
                        appearance.js (themes, mono filter), keys.js, fuzzy.js,
                        format.js (Files tab size/date columns and sort order), cmdmenu.js (command menu
                        entries), commands.js (editors for the command and start-command

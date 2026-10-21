@@ -30,6 +30,7 @@ import (
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
 	"session-workbench/internal/share"
+	"session-workbench/internal/spell"
 	"session-workbench/internal/syncer"
 	"session-workbench/internal/terminal"
 	"session-workbench/internal/winstate"
@@ -44,6 +45,7 @@ type App struct {
 	sessions *session.Manager
 	shares   *share.Manager
 	notes    notes.Store
+	dictDir  string // own spelling dictionaries: "dictionaries" next to the config
 	backups  *backup.Runner
 	rec      *reclog.Recorder // Remote tab recordings
 	dataDir  string           // config.DataDir: Claude backups, window.json
@@ -57,7 +59,8 @@ type App struct {
 }
 
 func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
-	a := &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir}
+	a := &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir,
+		dictDir: filepath.Join(filepath.Dir(notesDir), "dictionaries")}
 	a.rec = &reclog.Recorder{Settings: a.recordSettings}
 	return a
 }
@@ -300,6 +303,21 @@ func (a *App) SaveUI(ui config.UI) error {
 	}
 	a.rec.Refresh() // recording on or off from now
 	return nil
+}
+
+// SpellLanguages lists the languages there are spelling dictionaries for.
+func (a *App) SpellLanguages() []string {
+	return spell.Languages(spell.Dirs(a.dictDir))
+}
+
+// SpellDictionary returns the dictionary for lang, for the notes editor.
+func (a *App) SpellDictionary(lang string) (spell.Dictionary, error) {
+	return spell.Load(lang, spell.Dirs(a.dictDir))
+}
+
+// AddSpellWord adds a word to the personal spelling dictionary.
+func (a *App) AddSpellWord(word string) error {
+	return a.sessions.AddSpellWord(word)
 }
 
 func (a *App) DeleteSession(id string) error {

@@ -328,6 +328,28 @@ func TestSaveUI(t *testing.T) {
 	if err := m.SaveUI(ui); err == nil {
 		t.Error("nil private_history accepted")
 	}
+	ui = m.State().UI
+	ui.SpellCheck = nil
+	if err := m.SaveUI(ui); err == nil {
+		t.Error("nil spell_check accepted")
+	}
+}
+
+func TestAddSpellWord(t *testing.T) {
+	m, _, cfgPath := setup(t)
+	for _, w := range []string{"tmux", " Wails ", "tmux"} {
+		if err := m.AddSpellWord(w); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, w := range []string{"", "two words"} {
+		if err := m.AddSpellWord(w); err == nil {
+			t.Errorf("AddSpellWord(%q) accepted", w)
+		}
+	}
+	if got := Open(cfgPath).State().UI.SpellWords; !slices.Equal(got, []string{"Wails", "tmux"}) {
+		t.Errorf("spell_words = %q", got)
+	}
 }
 
 func TestGroups(t *testing.T) {

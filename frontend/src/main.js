@@ -6,7 +6,9 @@ import {rank, score} from './fuzzy';
 import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {NotesView} from './notes';
-import {AppNotesPage} from './appnotes';
+import {configureSpelling} from './editor';
+import {AppNotesPage, sessionPrompts} from './appnotes';
+import {promptMenu} from './prompts';
 import {WebView} from './web';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
@@ -17,7 +19,7 @@ import {
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
-    SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder,
+    SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -55,6 +57,13 @@ class Tab {
             this.view?.send(d);
             this.view?.term.focus();
         }, this.view?.id ? null : 'not connected');
+    }
+
+    // promptItems is this tab's Prompts menu: the session's own prompts,
+    // then those for all sessions, pasted here without Enter.
+    async promptItems() {
+        const own = await sessionPrompts(this.session.id, this.session.tab('notes')?.view);
+        return promptMenu(own, app.appNotes?.prompts ?? [], text => app.pasteInto(this.key, text));
     }
 
     constructor(session, label, start, exitHint, onState) {
@@ -497,26 +506,32 @@ const app = {
     },
 
     // pasteToRemote puts text into the current session's Remote tab as a
-    // paste (claude sees pasted text; nothing runs until Enter). It waits
-    // until the tab is connected and the program in it has turned on
-    // bracketed paste (claude and modern shells do): without it every line
-    // would be submitted on its own. A single line can still go without it,
-    // since it has no newline.
+    // paste (claude sees pasted text; nothing runs until Enter).
     async pasteToRemote(text) {
+        if (!this.pasteProblem()) await this.pasteInto('remote', text);
+    },
+
+    // pasteInto pastes text into the current session's Local or Remote tab.
+    // It waits until the tab is connected and the program in it has turned
+    // on bracketed paste (claude and modern shells do): without it every
+    // line would be submitted on its own. A single line can still go without
+    // it, since it has no newline.
+    async pasteInto(key, text) {
         const s = this.active;
-        if (!s || this.pasteProblem()) return;
-        this.selectTab('remote');
-        const v = s.tab('remote').ensureView();
+        const tab = s?.tab(key);
+        if (!tab) return;
+        this.selectTab(key);
+        const v = tab.ensureView();
         if (v.exited && !v.reconnectTimer) v.restart();
         const wait = async (ok, ms) => {
             for (let t = 0; t < ms && !ok(); t += 100) await new Promise(r => setTimeout(r, 100));
             return ok();
         };
-        if (!await wait(() => v.id, 15000)) return toast('The Remote tab is not connected; the prompt was not pasted.', true);
+        if (!await wait(() => v.id, 15000)) return toast(`The ${tab.label} tab is not connected; the prompt was not pasted.`, true);
         if (!await wait(() => !v.id || v.term.modes.bracketedPasteMode, 20000) || !v.id) {
             const line = text.replace(/\r?\n+$/, '');
             if (!v.id || /[\r\n]/.test(line)) {
-                return toast('The Remote tab does not accept a safe paste yet; try again when claude is ready.', true);
+                return toast(`The ${tab.label} tab does not accept a safe paste yet; try again when claude is ready.`, true);
             }
             v.term.paste(line);
         } else {
@@ -593,6 +608,7 @@ const app = {
     // terminals of sessions that still exist.
     async reload() {
         this.state = await State();
+        configureSpelling(this.state.ui);
         applyTheme(this.state.ui.theme);
         applyFont(this.state.ui);
         this.fitSidebar?.();
@@ -901,6 +917,15 @@ const app = {
                 showMenu(r.left, r.bottom + 2, term.commandItems());
             };
             sync.append(cmds);
+        }
+        if (term) {
+            const prompts = el('button', {textContent: 'Prompts ▾', title: `Paste a prompt into the ${term.label} tab (without Enter)`});
+            prompts.onclick = async () => {
+                const items = await term.promptItems();
+                const r = prompts.getBoundingClientRect();
+                showMenu(r.left, r.bottom + 2, items);
+            };
+            sync.append(prompts);
         }
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
@@ -1567,6 +1592,16 @@ async function settingsDialog() {
     }
     recEvery.value = ui.record_every;
     f.record_dir.value = ui.record_dir ?? '';
+    f.spell_check.checked = ui.spell_check !== false;
+    const langs = await SpellLanguages().catch(() => ['en_US']);
+    const lang = ui.spell_language || 'en_US';
+    f.spell_language.replaceChildren(...[...new Set([...langs, lang])].map(l =>
+        el('option', {value: l, textContent: l === 'en_US' ? 'en_US (English, built in)' : langs.includes(l) ? l : `${l} (not found)`})));
+    f.spell_language.value = lang;
+    f.spell_words.value = (ui.spell_words ?? []).join('\n');
+    dlg.querySelector('.spell-hint').textContent = `More languages: Hunspell dictionaries (xx.aff and xx.dic) in ` +
+        `${app.state.config_path.replace(/[^/\\]*$/, '')}dictionaries` +
+        (navigator.platform.startsWith('Linux') ? ', or installed ones (hunspell-* packages)' : '') + '.';
     RecordInfo().then(r => dlg.querySelector('.record-default').textContent =
         `Default: ${r.default_dir || '(no data folder)'}. Files: <folder>/<host>/<session path>/YYYYMMDD-HHMM.log`).catch(() => {});
     // Tabs: order with ↑/↓, shown or not with the checkbox.
@@ -1624,6 +1659,9 @@ async function settingsDialog() {
         record_remote: f.record_remote.checked,
         record_every: f.record_every.value,
         record_dir: f.record_dir.value.trim(),
+        spell_check: f.spell_check.checked,
+        spell_language: f.spell_language.value,
+        spell_words: f.spell_words.value.split('\n'),
         commands: commands.value,
         start_commands: starts.value,
         tab_order: order,

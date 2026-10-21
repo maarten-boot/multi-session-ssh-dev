@@ -39,7 +39,7 @@ export function showMenu(x, y, items) {
     m.replaceChildren(...items.map(it => {
         if (it === '-') return el('hr');
         if (it.info) return el('div', {className: 'info', textContent: it.info, title: it.title ?? ''});
-        const b = el('button', {textContent: it.label, className: it.danger ? 'danger' : '', disabled: !!it.disabled});
+        const b = el('button', {textContent: it.label, className: it.danger ? 'danger' : '', disabled: !!it.disabled, title: it.title ?? ''});
         b.onclick = () => {
             hideMenu(); // focus back first; dialogs opened by the action take it from there
             it.action();

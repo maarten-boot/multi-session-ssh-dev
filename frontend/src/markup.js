@@ -67,3 +67,97 @@ export function apply(text, changes) {
     for (const ch of [...changes].reverse()) out = out.slice(0, ch.from) + ch.insert + out.slice(ch.to);
     return out;
 }
+
+// LISTS are the list formats of the toolbar and keys: Markdown "- item"
+// and the check list "- [ ] item" / "- [x] item" (GitHub's task lists).
+export const LISTS = {
+    bullet: {label: '•', title: 'Bulleted list', key: 'Mod-Shift-8'},
+    task: {label: '☐', title: 'Check list', key: 'Mod-Shift-9'},
+};
+
+// ITEM matches the start of a list line: indent, marker (- * + or 1. 1)),
+// and a check box.
+const ITEM = /^([ \t]*)([-*+]|\d{1,9}[.)]) (\[[ xX]\](?: |$))?/;
+
+// listItem parses a line: null, or {indent, marker, box (the "[ ]" text or
+// ""), end (where the item's text starts)}.
+export function listItem(line) {
+    const m = ITEM.exec(line);
+    return m && {indent: m[1], marker: m[2], box: (m[3] ?? '').trimEnd(), end: m[0].length};
+}
+
+// mapPos moves pos over ascending changes; inside a replaced range it goes
+// to the end of the new text. before: text inserted at pos goes after it
+// (the start of a selection takes in markers added there).
+const mapPos = (changes, pos, before = false) => changes.reduce((n, ch) =>
+    before && ch.from === pos ? n
+        : ch.to <= pos ? n + ch.insert.length - (ch.to - ch.from) : ch.from < pos ? n + ch.from + ch.insert.length - pos : n, pos);
+
+// toggleList makes the lines of [from, to) list items of kind (bullet or
+// task), or plain lines when they all are already; blank lines stay.
+// Returns {changes, anchor, head} like toggleMarkup.
+export function toggleList(text, from, to, kind) {
+    const start = text.lastIndexOf('\n', from - 1) + 1;
+    let end = text.indexOf('\n', to > from && text[to - 1] === '\n' ? to - 1 : to);
+    if (end < 0) end = text.length;
+    const lines = [];
+    for (let p = start; p <= end;) {
+        let e = text.indexOf('\n', p);
+        if (e < 0 || e > end) e = end;
+        const line = text.slice(p, e);
+        if (line.trim() || (from === to && p === start)) lines.push({at: p, line, item: listItem(line)});
+        p = e + 1;
+    }
+    const is = it => it && (kind === 'task' ? it.box !== '' : it.box === '' && /^[-*+]$/.test(it.marker));
+    const remove = lines.every(l => is(l.item));
+    const mark = kind === 'task' ? '- [ ] ' : '- ';
+    const changes = [];
+    for (const {at, line, item} of lines) {
+        const indent = item ? item.indent.length : line.length - line.trimStart().length;
+        const old = item ? item.end : indent;
+        if (remove) changes.push({from: at + indent, to: at + old, insert: ''});
+        else if (!is(item)) changes.push({from: at + indent, to: at + old, insert: mark});
+    }
+    return {changes, anchor: mapPos(changes, from, from !== to), head: mapPos(changes, to)};
+}
+
+// continueList is Enter at pos (no selection) in a list item: the next item
+// starts with the same marker (numbers count up, check boxes empty). In an
+// empty item Enter outdents it, or at the left edge ends the list. null:
+// not in a list item, Enter is a plain new line.
+export function continueList(text, pos) {
+    const start = text.lastIndexOf('\n', pos - 1) + 1;
+    let end = text.indexOf('\n', pos);
+    if (end < 0) end = text.length;
+    const line = text.slice(start, end);
+    const it = listItem(line);
+    if (!it || pos < start + it.end) return null;
+    if (!line.slice(it.end).trim()) {
+        if (it.indent) {
+            const cut = it.indent.startsWith('\t') ? 1 : Math.min(2, it.indent.length - it.indent.trimStart().length);
+            return {changes: [{from: start, to: start + cut, insert: ''}], anchor: pos - cut};
+        }
+        return {changes: [{from: start, to: end, insert: ''}], anchor: start};
+    }
+    const n = /^\d+/.exec(it.marker);
+    const marker = n ? String(Number(n[0]) + 1) + it.marker.slice(n[0].length) : it.marker;
+    const insert = '\n' + it.indent + marker + ' ' + (it.box ? '[ ] ' : '');
+    return {changes: [{from: pos, to: pos, insert}], anchor: pos + insert.length};
+}
+
+// toggleTasks ticks or unticks the check boxes of the lines of [from, to):
+// all ticked when any is not, else all unticked. null: no check boxes there.
+export function toggleTasks(text, from, to) {
+    const start = text.lastIndexOf('\n', from - 1) + 1;
+    const boxes = [];
+    for (let p = start; p <= to;) {
+        let e = text.indexOf('\n', p);
+        if (e < 0) e = text.length;
+        const it = listItem(text.slice(p, e));
+        if (it?.box) boxes.push({at: p + it.indent.length + it.marker.length + 1, box: it.box});
+        p = e + 1;
+    }
+    if (!boxes.length) return null;
+    const tick = boxes.some(b => b.box === '[ ]');
+    return {changes: boxes.map(b => ({from: b.at + 1, to: b.at + 2, insert: tick ? 'x' : ' '})), anchor: from, head: to};
+}

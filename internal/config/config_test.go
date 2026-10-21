@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -285,6 +286,8 @@ connect_on_start = "never"
 claude_backup_every = "1s"
 record_every = "7d"
 record_dir = "relative/logs"
+spell_language = "../../etc/passwd"
+spell_words = ["Wails", " tmux ", "tmux", "two words", ""]
 `), 0o644)
 	c, err := Load(p)
 	if err != nil {
@@ -295,6 +298,24 @@ record_dir = "relative/logs"
 	}
 	if c.UI.RecordDir != "" || c.UI.RecordEvery != "1h" {
 		t.Errorf("record_dir %q, record_every %q", c.UI.RecordDir, c.UI.RecordEvery)
+	}
+	if c.UI.SpellLanguage != "en_US" || !slices.Equal(c.UI.SpellWords, []string{"Wails", "tmux"}) {
+		t.Errorf("spell_language %q, spell_words %q", c.UI.SpellLanguage, c.UI.SpellWords)
+	}
+}
+
+func TestSpellSettings(t *testing.T) {
+	c := Default()
+	if c.UI.SpellCheck == nil || !*c.UI.SpellCheck || c.UI.SpellLanguage != "en_US" {
+		t.Errorf("defaults: spell_check %v, spell_language %q", c.UI.SpellCheck, c.UI.SpellLanguage)
+	}
+	for lang, ok := range map[string]bool{"en_US": true, "de_DE_frami": true, "nl": true, "sr@latin": true,
+		"": false, "../nl": false, "a/b": false, ".hidden": false, "-x": false, "en US": false} {
+		u := c.UI
+		u.SpellLanguage = lang
+		if err := ValidateUI(u); (err == nil) != ok {
+			t.Errorf("ValidateUI with spell_language %q: %v", lang, err)
+		}
 	}
 }
 

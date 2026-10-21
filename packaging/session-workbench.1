@@ -31,12 +31,13 @@ session that runs
 .B claude
 (or a shell, or a start command of your own) in that directory; it survives
 closing the application and lost connections. The Local and Remote tabs have
-a command menu of commands you type often, and each session's shells keep
-their own command history;
+a command menu of commands you type often and a prompts menu, and each
+session's shells keep their own command history;
 .TP
 .B Notes
 notes about the project as a tree of Markdown pages with simple formatting
-(bold, italic, underline, strikethrough), stored next to the configuration
+(bold, italic, underline, strikethrough), lists, check lists and spelling
+(English built in), stored next to the configuration
 file, not in the project. A separate notes page for all sessions holds
 prompts you use often (on its Prompts page) and can paste them into the
 current session's Remote tab;
@@ -100,6 +101,13 @@ The notes pages: a folder per session
 \&...) and
 .I _app/
 for the notes page of all sessions.
+.TP
+.I ~/.config/session-workbench/dictionaries/
+Hunspell dictionaries
+.RI ( <lang>.aff
+and
+.IR <lang>.dic )
+for spelling in languages other than English.
 .TP
 .I ~/.local/share/session-workbench/
 Claude backups of the agent hosts

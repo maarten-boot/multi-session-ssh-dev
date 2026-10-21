@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parsePrompts} from './prompts.js';
+import {parsePrompts, promptMenu} from './prompts.js';
 
 test('prompts come from ## headings', () => {
     const notes = [
@@ -64,4 +64,15 @@ test('indented, bare and unspaced ## are not headings', () => {
     const notes = ['## A', 'one', '  ## indented', '##', '##x', 'two'].join('\n');
     assert.deepEqual(parsePrompts(notes), [{name: 'A', text: 'one\n  ## indented\n##\n##x\ntwo'}]);
     assert.deepEqual(parsePrompts('  ## x\ntext'), []);
+});
+
+test('the Prompts menu: own prompts first, then those for all sessions', () => {
+    const pasted = [];
+    const items = promptMenu([{name: 'Tests', text: 'run them'}], [{name: 'Review', text: 'review it'}], t => pasted.push(t));
+    assert.deepEqual(items.map(i => i === '-' ? '-' : i.info ?? i.label), ['This session', 'Tests', '-', 'All sessions', 'Review']);
+    assert.equal(items[1].title, 'run them');
+    items[4].action();
+    assert.deepEqual(pasted, ['review it']);
+    assert.deepEqual(promptMenu([], [{name: 'R', text: 'x'}], () => {}).map(i => i.info ?? i.label), ['All sessions', 'R']);
+    assert.ok(promptMenu([], [], () => {}).every(i => i.info));   // only an explanation
 });

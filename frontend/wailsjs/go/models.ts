@@ -87,6 +87,9 @@ export namespace config {
 	    record_every: string;
 	    record_dir: string;
 	    private_history?: boolean;
+	    spell_check?: boolean;
+	    spell_language: string;
+	    spell_words: string[];
 	    commands: Command[];
 	    start_commands: StartCommand[];
 	
@@ -116,6 +119,9 @@ export namespace config {
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
 	        this.private_history = source["private_history"];
+	        this.spell_check = source["spell_check"];
+	        this.spell_language = source["spell_language"];
+	        this.spell_words = source["spell_words"];
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
 	    }
@@ -704,6 +710,27 @@ export namespace share {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.state = source["state"];
 	        this.error = source["error"];
+	    }
+	}
+
+}
+
+export namespace spell {
+	
+	export class Dictionary {
+	    lang: string;
+	    aff: string;
+	    dic: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Dictionary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lang = source["lang"];
+	        this.aff = source["aff"];
+	        this.dic = source["dic"];
 	    }
 	}
 

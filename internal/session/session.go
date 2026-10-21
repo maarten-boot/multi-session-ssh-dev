@@ -705,12 +705,27 @@ func (m *Manager) SaveUI(ui config.UI) error {
 	}
 	ui.TabOrder, ui.HiddenTabs = config.NormalizedTabs(ui)
 	ui.Commands = config.TidyCommands(ui.Commands)
+	ui.SpellWords = config.TidyWords(ui.SpellWords)
 	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil ||
-		ui.PrivateHistory == nil {
+		ui.PrivateHistory == nil || ui.SpellCheck == nil {
 		return errors.New("incomplete UI settings")
 	}
 	return m.update(func(c *config.Config) error {
 		c.UI = ui
+		return nil
+	})
+}
+
+// AddSpellWord adds a word to the personal spelling dictionary.
+func (m *Manager) AddSpellWord(word string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	w := config.TidyWords([]string{word})
+	if len(w) == 0 {
+		return fmt.Errorf("not a word: %q", word)
+	}
+	return m.update(func(c *config.Config) error {
+		c.UI.SpellWords = config.TidyWords(append(c.UI.SpellWords, w[0]))
 		return nil
 	})
 }

@@ -1,6 +1,6 @@
 import {CreatePage, DeletePage, LoadPage, NotesTree, RenamePage, SavePage} from '../wailsjs/go/main/App';
-import {Editor, format} from './editor';
-import {MARKUP} from './markup';
+import {Editor, format, listFormat} from './editor';
+import {LISTS, MARKUP} from './markup';
 import {el, showMenu, store} from './ui';
 
 const SAVE_DELAY = 600; // ms after the last keystroke
@@ -11,6 +11,11 @@ const SESSION_HOME = 'Notes about this project: plans, open questions, what clau
     'Saved automatically. Stored with the app settings, not in the project, so they are not in git ' +
     'and not visible on the agent host. Right-click a page on the left for new pages and subpages.';
 export const PAGE = 'An empty page. Type here; it is saved automatically.';
+const SESSION_PROMPTS = 'Prompts for this session. Every "## name" heading starts a prompt: Prompts ▾ in the\n' +
+    'Local and Remote tabs pastes it there (without Enter), before the prompts for all sessions. For example:\n\n' +
+    '## Tests\n' +
+    'Run the tests of this project and fix what fails.\n\n' +
+    'Subpages of this page (right-click it) hold more prompts.';
 
 const errText = err => (err?.message ?? String(err)).replace(/^notes: /, '');
 // tidy makes backend errors read well in a dialog.
@@ -36,7 +41,7 @@ export class NotesView {
     constructor(container, book, opts = {}) {
         this.book = book;
         this.opts = opts;
-        this.placeholder = opts.placeholder ?? (p => p === HOME ? SESSION_HOME : PAGE);
+        this.placeholder = opts.placeholder ?? (p => p === HOME ? SESSION_HOME : p === 'Prompts' ? SESSION_PROMPTS : PAGE);
         this.onChange = opts.onChange ?? (() => {});
         this.pages = []; // the tree from NotesTree
         this.expanded = new Set(store.get(`notesopen:${book}`, []));
@@ -52,13 +57,16 @@ export class NotesView {
         this.status = el('span', {className: 'notes-status'});
         this.path = el('span', {className: 'notes-path'});
         const key = k => k.replace('Mod', isMac ? 'Cmd' : 'Ctrl').replace(/-/g, '+').replace(/\+([a-z])$/, (_, c) => '+' + c.toUpperCase());
-        const tools = Object.entries(MARKUP).map(([name, m]) => {
+        const tool = (name, m, run) => {
             const b = el('button', {type: 'button', className: 'notes-tool notes-tool-' + name, textContent: m.label,
                 title: `${m.title} (${key(m.key)})`});
             b.onmousedown = e => e.preventDefault(); // keep the selection
-            b.onclick = () => format(this.editor.view, name);
+            b.onclick = () => run(this.editor.view, name);
             return b;
-        });
+        };
+        const tools = [...Object.entries(MARKUP).map(([name, m]) => tool(name, m, format)),
+            el('span', {className: 'notes-tool-gap'}),
+            ...Object.entries(LISTS).map(([name, m]) => tool(name, m, listFormat))];
         const editorEl = el('div', {className: 'notes-editor'});
         container.append(el('div', {className: 'notes'},
             el('div', {className: 'notes-bar'}, el('span', {className: 'notes-title', textContent: opts.title ?? 'Notes'}),

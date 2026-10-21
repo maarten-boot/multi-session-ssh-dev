@@ -155,6 +155,12 @@ type UI struct {
 	// PrivateHistory gives each session's Local and Remote shells their own
 	// history file (HISTFILE; fish_history) instead of the user's shared one.
 	PrivateHistory *bool `toml:"private_history,omitempty" json:"private_history"`
+	// SpellCheck marks misspelled words in the notes, in SpellLanguage (a
+	// Hunspell dictionary name, see internal/spell); SpellWords are the
+	// words added with "Add to dictionary".
+	SpellCheck    *bool    `toml:"spell_check,omitempty" json:"spell_check"`
+	SpellLanguage string   `toml:"spell_language,omitempty" json:"spell_language"`
+	SpellWords    []string `toml:"spell_words,omitempty" json:"spell_words"`
 	// Commands is the command menu of every session (after its own);
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
@@ -253,6 +259,13 @@ func (c *Config) applyDefaults() {
 	if c.UI.PrivateHistory == nil {
 		c.UI.PrivateHistory = ptr(true)
 	}
+	if c.UI.SpellCheck == nil {
+		c.UI.SpellCheck = ptr(true)
+	}
+	if !validSpellLanguage(c.UI.SpellLanguage) {
+		c.UI.SpellLanguage = "en_US"
+	}
+	c.UI.SpellWords = TidyWords(c.UI.SpellWords)
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"
 	}
@@ -379,6 +392,34 @@ func validRecordDir(d string) bool {
 }
 
 // ValidateUI checks UI settings coming from the settings dialog.
+// validSpellLanguage: a dictionary file name without extension, like
+// en_US or de_DE_frami (no paths).
+func validSpellLanguage(l string) bool {
+	if l == "" || len(l) > 64 || strings.HasPrefix(l, ".") || strings.HasPrefix(l, "-") {
+		return false
+	}
+	for _, r := range l {
+		if !(r < utf8.RuneSelf && (unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("_@.-", r))) {
+			return false
+		}
+	}
+	return true
+}
+
+// TidyWords returns the personal spelling words trimmed, sorted and once
+// each, without empty ones or ones with spaces (they never match a word).
+func TidyWords(words []string) []string {
+	var out []string
+	for _, w := range words {
+		w = strings.TrimSpace(w)
+		if w != "" && len(w) <= 100 && !strings.ContainsFunc(w, unicode.IsSpace) {
+			out = append(out, w)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
 func ValidateUI(u UI) error {
 	switch {
 	case u.Theme != "light" && u.Theme != "dark":
@@ -402,6 +443,9 @@ func ValidateUI(u UI) error {
 	}
 	if !validRecordDir(u.RecordDir) {
 		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", u.RecordDir)
+	}
+	if !validSpellLanguage(u.SpellLanguage) {
+		return fmt.Errorf("spelling language %q: use a dictionary name like en_US", u.SpellLanguage)
 	}
 	if err := ValidateCommands(u.Commands); err != nil {
 		return err

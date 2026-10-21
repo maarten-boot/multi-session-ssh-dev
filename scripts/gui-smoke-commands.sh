@@ -3,7 +3,8 @@
 # starts with a start command of its own ([[ui.start_commands]]); the
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
-# is only typed; Settings → Commands adds one.
+# is only typed; Settings → Commands adds one; Prompts ▾ pastes the
+# session's own prompts (its notes' Prompts page) and those for all sessions.
 # Needs `ssh localhost` without prompts and tmux.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-commands.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
@@ -36,6 +37,10 @@ local_path = "$OUT"
 start_mode = "custom"
 commands = [{ name = "own", command = "echo own-\$((3*3)) >>$RAN" }]
 TOML
+# Prompts: the session's own Prompts page, and the one for all sessions.
+rm -rf $OUT/notes; mkdir -p -m 700 $OUT/notes $OUT/notes/s-cmd $OUT/notes/_app
+printf '## own prompt\necho own-prompt-$((2*4)) >>%s\n' "$RAN" >$OUT/notes/s-cmd/Prompts.md
+printf '## global prompt\necho global-prompt-$((3*4)) >>%s\n' "$RAN" >$OUT/notes/_app/Prompts.md
 k() { xdotool key "$@"; sleep 0.5; }
 shot() { import -window root $OUT/$1.png; }
 click() { xdotool mousemove $((60+$1)) $((50+$2)) click ${3:-1}; sleep 0.8; }
@@ -61,6 +66,15 @@ check "typed only: not run" test -z "$(grep typed $RAN)"
 in_pane "typed only: on the command line" s-cmd 'echo typed-$((1+1))'
 k Return; sleep 1
 check "and run with Enter" grep -qx typed-2 $RAN
+
+# Prompts ▾: pasted without Enter, the session's own first.
+: >$RAN
+click ${PROMPTX:-800} 17; sleep 0.5; shot 3b-prompts-button; menu   # the first: "own prompt"
+check "a prompt is pasted, not run" test ! -s $RAN
+in_pane "the session's prompt is on the command line" s-cmd 'echo own-prompt-$((2*4))'
+k Return; sleep 1
+click ${PROMPTX:-800} 17; menu g; k Return; sleep 1                # "global prompt"
+expect "both prompts ran after Enter" "own-prompt-8|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
 
 # Settings → Commands: the lists, and a command added there.
 k ctrl+shift+comma; sleep 1
