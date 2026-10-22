@@ -156,7 +156,7 @@ git for-each-ref --format='HEAD %%(objectname)' refs/heads`, parent, dir)
 		if msg == "" {
 			msg = fmt.Sprintf("exit %d", code)
 		}
-		err = fmt.Errorf("ssh: %s", msg)
+		err = fmt.Errorf("ssh: %s", strings.TrimPrefix(msg, "ssh: ")) // ssh's own messages start with it
 	}
 	if err != nil {
 		return AgentState{}, nil, fmt.Errorf("checking the agent copy: %w", err)

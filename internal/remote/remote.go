@@ -41,6 +41,7 @@ var sshOptions = []string{
 	"-o", "RemoteCommand=none", // a configured RemoteCommand would clash with ours
 	"-o", "ServerAliveInterval=15", // notice dead connections within ~45 s
 	"-o", "ServerAliveCountMax=3",
+	"-o", "ConnectTimeout=20", // an agent host that is off fails in 20 s, not after TCP's ~2 minutes
 }
 
 func checkTarget(target string) error {

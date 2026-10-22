@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v0.8.42).
+at your files, and what each choice means for security. Status as of October 2026 (v0.8.43).
 
 Everything described here is implemented.
 
@@ -70,6 +70,7 @@ forced to:
 | `ClearAllForwardings=yes` | No port forwards configured in `~/.ssh/config` take effect. |
 | `RemoteCommand=none` | Your config's RemoteCommand cannot replace the tmux command. |
 | `ServerAliveInterval=15`, `ServerAliveCountMax=3` | A dead connection is noticed within about 45 s and reconnected. |
+| `ConnectTimeout=20` | An agent host that is off or unreachable fails within 20 s (a save at quit, a reconnect) instead of after the system's TCP timeout of about 2 minutes. |
 
 These options win over anything in `~/.ssh/config`. The remote side runs `tmux new-session -A`
 in your login shell, so a session survives closing the app and network drops (not a reboot of

@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.42: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.43: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -483,7 +483,8 @@ end of a work cycle, for experiments without git, and for an agent host that goe
   touched. *Open saved copy folder* shows the dated folders. **This also happens by itself**:
   every hour while the app runs, and when you quit — the window then shows *Saving agent
   copies before quitting…* with a progress bar and closes when they are saved (*Quit now*
-  stops it; a session whose save failed is listed first). Next to Full ▾ the bar shows *saved
+  stops it; if a save fails — the agent host is off, say — the window lists it and waits for
+  *Quit*; a session never sent has nothing to save and is skipped). Next to Full ▾ the bar shows *saved
   10:48* (or *⟳ saving 45%*, *⚠ not saved*). Settings → Backups and recordings turns either off
   or changes the interval (`save_agent_copies`, `save_agent_copies_every`,
   `save_agent_copies_at_quit`). The percentage needs rsync 3.1 or newer here; the built-in

@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-21, app v0.8.42) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-21, app v0.8.43) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -229,7 +229,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     first). Exit 24
     (files vanished) is a success with a note. Refused while there is no agent copy.
   - Automatic saves (`internal/autosave`): `save_agent_copies` (default on) saves every
-    working-copy session without an error every `save_agent_copies_every` (5m–24h, default 1h;
+    working-copy session without an error (one never sent has no agent copy: nothing to save,
+    no failure, tried again after the interval) every `save_agent_copies_every` (5m–24h, default 1h;
     first round 1 minute after start, then checked every minute; due when the interval has
     passed since the last save or attempt, after a failure every 15 minutes at most; at most 2 h
     a save), the last save of an earlier run read from `saved.json`. One save per session at a
@@ -264,7 +265,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting
   per §6):
   `ssh -t -o ForwardAgent=no -o ForwardX11=no -o ForwardX11Trusted=no -o ClearAllForwardings=yes
-  -o RemoteCommand=none -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -- <target>
+  -o RemoteCommand=none -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=20
+  -- <target>
   'exec "$SHELL" -lc "cd <remote_path> || { printf '%s\n' 'session directory <remote_path> does
   not exist on this host' >&2; exit 3; }; exec tmux new-session -A -s cw-<id> -c \"\$PWD\" <pane cmd>"'`
   (with private history, L4, the pane command starts with the history exports and
@@ -531,7 +533,8 @@ recordings, Notes (spelling on/off, language, own words), Keys.
   automatically; it shows the reason. Every `[ui]` value out of range or unknown gets its
   default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
   `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),
-  `record_dir` (absolute or under `~`), `spell_language`; `spell_words` are tidied (N1b). The command lists are not reset: invalid ones are
+  `record_dir` (absolute or under `~`), `spell_language`, `save_agent_copies_every` (5m–24h),
+  `saved_copies_hours` (1–720), `saved_copies_days` (0–365); `spell_words` are tidied (N1b). The command lists are not reset: invalid ones are
   reported (T5, R2) and Settings refuses to save them until fixed; an empty `start_commands` gets
   the default three.
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` and

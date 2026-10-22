@@ -653,6 +653,9 @@ func (a *App) saveCopy(ctx context.Context, id string, progress func(int)) (stri
 	now := time.Now()
 	tmp, final := savedcopy.Next(base, now)
 	note, err := syncer.Save(ctx, s, tmp, prev, progress)
+	if errors.Is(err, syncer.ErrNoAgentCopy) {
+		return "", fmt.Errorf("%w: %w", autosave.ErrNothingToSave, err) // never sent: no failure
+	}
 	if err != nil {
 		savedcopy.Discard(tmp)
 		return "", err

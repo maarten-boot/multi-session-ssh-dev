@@ -2,7 +2,8 @@
 # Headless GUI test of saving agent copies automatically (working copies,
 # F12): the scheduled save about a minute after start (status in the bar),
 # saving at quit (the window waits, with progress, until the copy is saved),
-# Quit now, which stops a save; every save a dated copy, unchanged files hard
+# Quit now, which stops a save; a failed save that waits for Quit (a session
+# never sent is no failure); every save a dated copy, unchanged files hard
 # links to the copy before (rsync).
 # Needs `ssh localhost` without prompts, git and rsync or tar.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-autosave.sh <binary> <outdir>
@@ -74,5 +75,34 @@ sleep 0.5; shot 3-quit-now
 k Return                                         # Quit now (stop saving) has the focus
 if quit 10; then ok "Quit now quits at once"; else fail "Quit now: still running"; kill -9 $APP; fi
 check "no half-finished copy left" test -z "$(ls -d $WC/*.new 2>/dev/null)"
+
+# A failed save at quit (an agent host that cannot be reached) keeps the
+# window with the failure until Quit; a session never sent is no failure.
+mkdir -p $OUT/never-sent
+cat >>$CFG <<TOML
+[[hosts]]
+name = "gone"
+ssh_target = "nobody@sw-gone.invalid"
+files = "sync"
+[[sessions]]
+id = "s-gone"
+name = "on a gone host"
+host = "gone"
+local_path = "$OUT/repo"
+start_mode = "shell"
+[[sessions]]
+id = "s-never"
+name = "never sent"
+host = "agent"
+local_path = "$OUT/never-sent"
+start_mode = "shell"
+TOML
+start
+quit 15 || true
+shot 4-save-failed
+check "a failed save keeps the window" kill -0 $APP
+k Return                                         # Quit has the focus
+if quit 10; then ok "Quit after a failed save"; else fail "still running after Quit"; kill -9 $APP; fi
+expect "the other session was still saved" 3 "$(ls -d $WC/2*[0-9] | wc -l)"
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-auto'; rm -rf ~/$WD" 2>/dev/null
 finish

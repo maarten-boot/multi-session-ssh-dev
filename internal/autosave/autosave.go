@@ -41,6 +41,7 @@ type Progress struct {
 	Current string   `json:"current"` // the session being saved
 	Percent int      `json:"percent"` // of Current; -1: not known
 	Failed  []string `json:"failed"`  // "name: error"
+	Skipped []string `json:"skipped"` // names with nothing to save (never sent)
 }
 
 // Runner saves the items' agent copies.
@@ -63,6 +64,11 @@ type Runner struct {
 	status map[string]Status
 	locks  map[string]*sync.Mutex
 }
+
+// ErrNothingToSave wraps a Save error that is no failure (a session never
+// sent has no agent copy yet): it is not reported as an error, does not
+// count as failed at quit, and is tried again after the interval.
+var ErrNothingToSave = errors.New("nothing to save")
 
 // ErrBusy: a save of this session is already running.
 var ErrBusy = errors.New("this session's agent copy is being saved already")
@@ -141,9 +147,12 @@ func (r *Runner) run(ctx context.Context, id string, progress func(int)) error {
 	})
 	s = r.get(id)
 	s.Busy, s.Percent, s.Last, s.Error, s.Note = false, 0, time.Now(), "", note
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrNothingToSave):
+		s.Note = err.Error()
+	case err != nil:
 		s.Error = err.Error()
-	} else {
+	default:
 		s.LastOK = s.Last
 	}
 	r.set(id, s)
@@ -231,7 +240,10 @@ func (r *Runner) All(ctx context.Context, report func(Progress)) Progress {
 			})
 		}
 		l.Unlock()
-		if err != nil {
+		switch {
+		case errors.Is(err, ErrNothingToSave):
+			p.Skipped = append(p.Skipped, it.Name)
+		case err != nil:
 			p.Failed = append(p.Failed, it.Name+": "+err.Error())
 		}
 		p.Done++

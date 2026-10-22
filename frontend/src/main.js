@@ -1822,10 +1822,12 @@ function showQuitSaving(p, done) {
     const box = $('#quit-saving');
     box.hidden = false;
     hideMenu();
-    const failed = p.failed ?? [];
+    const failed = p.failed ?? [], skipped = p.skipped ?? [];
     box.querySelector('h2').textContent = done ? 'Not every agent copy could be saved' : 'Saving agent copies before quitting…';
     box.querySelector('.quit-text').textContent = done
-        ? `${p.done - failed.length} of ${p.total} saved. For these the copy saved earlier (if any) is kept:`
+        ? `${p.done - failed.length - skipped.length} of ${p.total} saved` +
+            (skipped.length ? ` (${skipped.length} never sent, nothing to save)` : '') +
+            '. For these the copy saved earlier (if any) is kept:'
         : p.current ? `${p.done + 1} of ${p.total}: ${p.current}${p.percent >= 0 ? ` — ${p.percent}%` : ' …'}` : `${p.done} of ${p.total} saved`;
     const bar = box.querySelector('progress');
     const part = p.current && p.percent >= 0 ? p.percent / 100 : 0;

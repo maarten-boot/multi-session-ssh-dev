@@ -3,6 +3,7 @@ package autosave
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -149,5 +150,27 @@ func TestAllStopsWhenCancelled(t *testing.T) {
 	p := r.All(ctx, func(Progress) {})
 	if p.Done != 1 {
 		t.Errorf("done %d after cancelling in the first save, want 1", p.Done)
+	}
+}
+
+// A session never sent has nothing to save: no error in its status, not
+// failed at quit, due again after the interval (not the 15-minute retry).
+func TestNothingToSave(t *testing.T) {
+	r := runner(func(_ context.Context, id string, _ func(int)) (string, error) {
+		if id == "s-b" {
+			return "", fmt.Errorf("%w: no agent copy yet", ErrNothingToSave)
+		}
+		return "", nil
+	})
+	p := r.All(context.Background(), func(Progress) {})
+	if p.Done != 2 || len(p.Failed) != 0 || len(p.Skipped) != 1 || p.Skipped[0] != "beta" {
+		t.Errorf("all: %+v", p)
+	}
+	b := r.Status()["s-b"]
+	if b.Error != "" || b.Note == "" || !b.LastOK.IsZero() {
+		t.Errorf("s-b: %+v", b)
+	}
+	if r.due("s-b", time.Hour, time.Now().Add(20*time.Minute)) {
+		t.Error("nothing to save: due again after 20 minutes, every hour")
 	}
 }

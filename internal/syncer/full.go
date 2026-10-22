@@ -53,6 +53,10 @@ func SendAll(ctx context.Context, s Session, src string, dryRun bool) (Plan, err
 	return p, mirror(ctx, from, dryRun, true, &p)
 }
 
+// ErrNoAgentCopy: the session was never sent, so there is nothing to save
+// or take.
+var ErrNoAgentCopy = errors.New("there is no agent copy yet (Send first)")
+
 func empty(dir string) bool {
 	f, err := os.Open(dir)
 	if err != nil {
@@ -79,7 +83,7 @@ func Save(ctx context.Context, s Session, dest, prev string, progress func(int))
 		return "", err
 	}
 	if !agent.Exists {
-		return "", errors.New("there is no agent copy yet (Send first)")
+		return "", ErrNoAgentCopy
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 		return "", err
@@ -233,7 +237,7 @@ func TakeFiles(ctx context.Context, s Session, dryRun, deletes bool) (Plan, erro
 	}
 	p := Plan{Agent: agent, Changes: []Change{}}
 	if !agent.Exists {
-		return p, errors.New("there is no agent copy yet (Send first)")
+		return p, ErrNoAgentCopy
 	}
 	if !xfer.UseRsync() {
 		err = takeBuiltin(ctx, s, dryRun, deletes, &p)

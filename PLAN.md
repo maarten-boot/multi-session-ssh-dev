@@ -118,6 +118,11 @@ implementation differs from the original plan.
   saved also when one signal arrives twice (Wails' and the app's handler); dated saved copies
   (`internal/savedcopy`: every copy of the last 24 hours and one per day for 14 days, unchanged
   files hard-linked with rsync), Restore picks one.
+- Docs/code cross-check (v0.8.43): a working-copy session never sent has nothing to save (no
+  failure at quit, no error in the bar); ssh gets ConnectTimeout=20, so an agent host that is
+  off fails a save (or reconnect) in 20 s instead of ~2 minutes; the quit overlay counts
+  skipped sessions; no doubled "ssh:" in errors; GUI test of a failed save at quit; docs: the
+  config values reset to defaults, the ssh options, what happens when a save fails.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
