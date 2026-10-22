@@ -707,7 +707,7 @@ func (m *Manager) SaveUI(ui config.UI) error {
 	ui.Commands = config.TidyCommands(ui.Commands)
 	ui.SpellWords = config.TidyWords(ui.SpellWords)
 	if ui.AutoReconnect == nil || ui.ActivityBadges == nil || ui.ClaudeBackup == nil || ui.Notifications == nil || ui.CtrlCopyPaste == nil ||
-		ui.PrivateHistory == nil || ui.SpellCheck == nil {
+		ui.PrivateHistory == nil || ui.SpellCheck == nil || ui.SaveAgentCopies == nil || ui.SaveAgentCopiesAtQuit == nil {
 		return errors.New("incomplete UI settings")
 	}
 	return m.update(func(c *config.Config) error {

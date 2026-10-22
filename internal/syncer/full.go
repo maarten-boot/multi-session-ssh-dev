@@ -5,15 +5,20 @@ package syncer
 // files into the session directory, SendAll sends a directory in full.
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 
 	"session-workbench/internal/remote"
 	"session-workbench/internal/xfer"
@@ -61,8 +66,9 @@ func empty(dir string) bool {
 // Save copies the agent copy in full (with .git and the files .gitignore
 // ignores) to dest, which then holds exactly that: files gone there go
 // here too. Symlinks that leave the copy, devices and other special files
-// are left out; the note says so.
-func Save(ctx context.Context, s Session, dest string) (note string, err error) {
+// are left out; the note says so. progress (may be nil) gets the percentage
+// done when rsync can tell (3.1 or newer), else nothing.
+func Save(ctx context.Context, s Session, dest string, progress func(int)) (note string, err error) {
 	if err := remote.CheckTarget(s.Target); err != nil {
 		return "", err
 	}
@@ -79,14 +85,31 @@ func Save(ctx context.Context, s Session, dest string) (note string, err error) 
 	if !xfer.UseRsync() {
 		return saveBuiltin(ctx, s, dest)
 	}
-	args := []string{"-a", "--delete", "--safe-links", "--no-devices", "--no-specials", "--timeout=120",
-		"-e", remote.SSHCommand(), "--", s.Target + ":" + rsyncPath(s.RemotePath) + "/", filepath.ToSlash(dest) + "/"}
+	args := []string{"-a", "--delete", "--safe-links", "--no-devices", "--no-specials", "--timeout=120", "-e", remote.SSHCommand()}
+	if progress != nil && rsyncProgress() {
+		// The whole file list first, so the percentage is of everything.
+		args = append(args, "--info=progress2", "--no-inc-recursive")
+	} else {
+		progress = nil
+	}
+	args = append(args, "--", s.Target+":"+rsyncPath(s.RemotePath)+"/", filepath.ToSlash(dest)+"/")
 	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	var errb bytes.Buffer
 	cmd.Stderr = &errb
 	Configure(cmd)
-	err = cmd.Run()
+	if progress != nil {
+		out, perr := cmd.StdoutPipe()
+		if perr != nil {
+			return "", perr
+		}
+		if err = cmd.Start(); err == nil {
+			readProgress(out, progress)
+			err = cmd.Wait()
+		}
+	} else {
+		err = cmd.Run()
+	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) && ee.ExitCode() == 24 { // files vanished while copying (claude was writing)
 		return "some files changed while saving; save again when claude is idle", nil
@@ -99,6 +122,47 @@ func Save(ctx context.Context, s Session, dest string) (note string, err error) 
 		return "", fmt.Errorf("saving: rsync: %s", msg)
 	}
 	return "", nil
+}
+
+// rsyncProgress reports whether rsync here has --info=progress2 (3.1,
+// protocol 31; macOS ships 2.6.9 or openrsync without it).
+var rsyncProgress = sync.OnceValue(func() bool {
+	out, err := exec.Command("rsync", "--version").Output()
+	if err != nil {
+		return false
+	}
+	m := regexp.MustCompile(`protocol version (\d+)`).FindSubmatch(out)
+	n := 0
+	if m != nil {
+		n, _ = strconv.Atoi(string(m[1]))
+	}
+	return n >= 31 && !bytes.Contains(out, []byte("openrsync"))
+})
+
+var percent = regexp.MustCompile(`\s(\d{1,3})%\s`)
+
+// readProgress passes the percentages of rsync's --info=progress2 lines
+// (separated by \r) to progress, each new value once.
+func readProgress(r io.Reader, progress func(int)) {
+	sc := bufio.NewScanner(r)
+	sc.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
+			return i + 1, data[:i], nil
+		}
+		if atEOF && len(data) > 0 {
+			return len(data), data, nil
+		}
+		return 0, nil, nil
+	})
+	last := -1
+	for sc.Scan() {
+		if m := percent.FindSubmatch(append(sc.Bytes(), ' ')); m != nil {
+			if n, _ := strconv.Atoi(string(m[1])); n != last && n <= 100 {
+				last = n
+				progress(n)
+			}
+		}
+	}
 }
 
 func lastLine(s string) string {

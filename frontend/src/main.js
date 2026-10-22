@@ -13,7 +13,7 @@ import {WebView} from './web';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
 import {$, el, hideMenu, showMenu, store, toast} from './ui';
-import {EventsOn, Quit, WindowSetTitle} from '../wailsjs/runtime/runtime';
+import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -21,6 +21,7 @@ import {
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
+    AutosaveStatus, QuitSaving, QuitNow,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -427,7 +428,16 @@ const app = {
         EventsOn('app:closing', async () => {
             const views = [...this.sessions.values()].map(s => s.tab('notes')?.view);
             await Promise.allSettled([...views, this.appNotes?.view].filter(Boolean).map(v => v.save()));
-            Quit();
+            QuitSaving(); // quits, after saving the agent copies when that is on
+        });
+        EventsOn('autosave:quit', p => showQuitSaving(p, false));
+        EventsOn('autosave:quit-done', p => showQuitSaving(p, true));
+        $('#quit-saving .quit-now').onclick = () => QuitNow();
+        // Agent copy saves of working-copy sessions (session id → status).
+        this.autosave = await AutosaveStatus().catch(() => ({}));
+        EventsOn('autosave', (id, st) => {
+            this.autosave[id] = st;
+            if (this.active?.id === id) this.renderMain();
         });
         // Remote tabs being recorded (session id → true), kept up to date by
         // the backend's "record" events.
@@ -915,6 +925,8 @@ const app = {
                 showMenu(r.left, r.bottom + 2, fullItems(s));
             };
             sync.append(send, get, full);
+            const st = this.autosave?.[s.id];
+            if (st) sync.append(saveState(st));
         }
         // The command menu, on the Local and Remote tabs.
         const term = ['local', 'remote'].includes(active?.key) ? active : null;
@@ -1600,6 +1612,13 @@ async function settingsDialog() {
     }
     every.value = ui.claude_backup_every;
     f.record_remote.checked = !!ui.record_remote;
+    f.save_agent_copies.checked = ui.save_agent_copies !== false;
+    f.save_agent_copies_at_quit.checked = ui.save_agent_copies_at_quit !== false;
+    const saveEvery = f.save_agent_copies_every;
+    if (![...saveEvery.options].some(o => o.value === ui.save_agent_copies_every)) {
+        saveEvery.append(el('option', {value: ui.save_agent_copies_every, textContent: ui.save_agent_copies_every}));
+    }
+    saveEvery.value = ui.save_agent_copies_every;
     const recEvery = f.record_every;
     if (![...recEvery.options].some(o => o.value === ui.record_every)) {
         recEvery.append(el('option', {value: ui.record_every, textContent: ui.record_every}));
@@ -1671,6 +1690,9 @@ async function settingsDialog() {
         private_history: f.private_history.checked,
         claude_backup_every: f.claude_backup_every.value,
         record_remote: f.record_remote.checked,
+        save_agent_copies: f.save_agent_copies.checked,
+        save_agent_copies_every: f.save_agent_copies_every.value,
+        save_agent_copies_at_quit: f.save_agent_copies_at_quit.checked,
         record_every: f.record_every.value,
         record_dir: f.record_dir.value.trim(),
         spell_check: f.spell_check.checked,
@@ -1770,6 +1792,46 @@ async function syncSendDialog(s) {
     const ok = await done;
     if (ok) s.tab('remote').view?.exited && s.tab('remote').view.restart();
     return ok;
+}
+
+// saveState shows when a session's agent copy was last saved (autosave).
+function saveState(st) {
+    const known = t => t && !t.startsWith('0001-');
+    if (st.busy) {
+        return el('span', {className: 'save-state', textContent: `⟳ saving${st.percent >= 0 ? ` ${st.percent}%` : '…'}`,
+            title: 'The agent copy is being saved (Full ▾ → Save agent copy)'});
+    }
+    if (st.error) {
+        return el('span', {className: 'save-state failed', textContent: '⚠ not saved',
+            title: `Saving the agent copy failed: ${st.error}` + (known(st.last_ok) ? `\nLast saved ${new Date(st.last_ok).toLocaleString()}` : '')});
+    }
+    if (!known(st.last_ok)) return el('span');
+    const t = new Date(st.last_ok);
+    const today = t.toDateString() === new Date().toDateString();
+    return el('span', {className: 'save-state', textContent: `saved ${today ? t.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : t.toLocaleDateString()}`,
+        title: `Agent copy saved ${t.toLocaleString()}${st.note ? ` (${st.note})` : ''}`});
+}
+
+// showQuitSaving shows the progress of saving the agent copies at quit;
+// done: finished with failures (the app waits for Quit).
+function showQuitSaving(p, done) {
+    const box = $('#quit-saving');
+    box.hidden = false;
+    hideMenu();
+    const failed = p.failed ?? [];
+    box.querySelector('h2').textContent = done ? 'Not every agent copy could be saved' : 'Saving agent copies before quitting…';
+    box.querySelector('.quit-text').textContent = done
+        ? `${p.done - failed.length} of ${p.total} saved. For these the copy saved earlier (if any) is kept:`
+        : p.current ? `${p.done + 1} of ${p.total}: ${p.current}${p.percent >= 0 ? ` — ${p.percent}%` : ' …'}` : `${p.done} of ${p.total} saved`;
+    const bar = box.querySelector('progress');
+    const part = p.current && p.percent >= 0 ? p.percent / 100 : 0;
+    bar.value = p.total ? Math.round((p.done + part) / p.total * 100) : 0;
+    const list = box.querySelector('.quit-failed');
+    list.hidden = !failed.length;
+    list.textContent = failed.join('\n');
+    const btn = box.querySelector('.quit-now');
+    btn.textContent = done ? 'Quit' : 'Quit now (stop saving)';
+    btn.focus();
 }
 
 // getFromAgent is Get: commits when the session directory is a git

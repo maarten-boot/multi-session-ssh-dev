@@ -6,6 +6,10 @@ export function AddSpellWord(arg1) {
   return window['go']['main']['App']['AddSpellWord'](arg1);
 }
 
+export function AutosaveStatus() {
+  return window['go']['main']['App']['AutosaveStatus']();
+}
+
 export function BackupNow(arg1) {
   return window['go']['main']['App']['BackupNow'](arg1);
 }
@@ -104,6 +108,14 @@ export function OpenSaved(arg1) {
 
 export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
+}
+
+export function QuitNow() {
+  return window['go']['main']['App']['QuitNow']();
+}
+
+export function QuitSaving() {
+  return window['go']['main']['App']['QuitSaving']();
 }
 
 export function RecordInfo() {

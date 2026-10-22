@@ -113,7 +113,9 @@ implementation differs from the original plan.
   new agent host; saved copies are kept when a session is deleted.
 - v0.8.42: prompts in the terminal's right-click menu, after the commands (T6); "Remove from
   dictionary" on an added word in the notes (N1b); deleting a session can delete its saved
-  agent copy too (F1, F12).
+  agent copy too (F1, F12); agent copies saved automatically every hour and at quit, with a
+  progress overlay and Quit now (F12, `internal/autosave`); quitting waits for the notes to be
+  saved also when one signal arrives twice (Wails' and the app's handler).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -125,16 +127,14 @@ implementation differs from the original plan.
   - Alternative: a switchable "interactive view" that renders the session's text with the notes
     Markdown parsing (`frontend/src/markup.js`, `editor.js`) into collapsible HTML
     `<details>`/`<summary>` blocks.
-- **Save the agent copy automatically** (working copies, F12): on a schedule and/or when the app
-  closes, like the Claude backups (`internal/backup` Runner: interval, status per host, a
-  setting to turn it on), so the end of a work cycle needs no click.
 - **Several dated saved copies** instead of only the last one: `working-copies/<id>/<date>/`,
   keep the last N (setting), Restore offers which one; rsync `--link-dest` against the
   previous copy keeps unchanged files as hard links (the built-in transfer copies in full).
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
-  real shell, config, session, notes, spell (dictionaries, encodings), forge, fsbrowse, opener, gitstatus incl. the repository
+  real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
+  one save at a time, saving all at quit), forge, fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries
@@ -142,12 +142,13 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 28
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 29
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
   check, working copies (Get: a fast-forward and a new branch; save, take all files, restore after
-  the agent copy is gone; Get without git; delete with the saved copy), live share (commits and
+  the agent copy is gone; Get without git; delete with the saved copy; saved automatically, at
+  quit with progress, Quit now), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges; working copies and backups also with the built-in
   transfer.

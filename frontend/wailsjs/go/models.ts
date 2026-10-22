@@ -87,6 +87,9 @@ export namespace config {
 	    record_every: string;
 	    record_dir: string;
 	    private_history?: boolean;
+	    save_agent_copies?: boolean;
+	    save_agent_copies_every: string;
+	    save_agent_copies_at_quit?: boolean;
 	    spell_check?: boolean;
 	    spell_language: string;
 	    spell_words: string[];
@@ -119,6 +122,9 @@ export namespace config {
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
 	        this.private_history = source["private_history"];
+	        this.save_agent_copies = source["save_agent_copies"];
+	        this.save_agent_copies_every = source["save_agent_copies_every"];
+	        this.save_agent_copies_at_quit = source["save_agent_copies_at_quit"];
 	        this.spell_check = source["spell_check"];
 	        this.spell_language = source["spell_language"];
 	        this.spell_words = source["spell_words"];

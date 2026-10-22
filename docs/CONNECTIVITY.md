@@ -232,7 +232,8 @@ described next. Fetching commits does not: hooks and configuration are never tra
 
 - *Save agent copy* copies the whole agent copy, `.git` and ignored files included, into
   `working-copies/<session id>/files/` in the app's data folder, owner-only, replacing the
-  last one. It is never used by git here: the agent's hooks and config in it run only if you
+  last one. By default this also happens every hour and when you quit (the app waits, with a
+  progress bar; Settings → Backups and recordings). It is never used by git here: the agent's hooks and config in it run only if you
   run git in that folder yourself. Unsafe entries (symlinks leaving the copy, devices) are
   left out.
 - *Take all files* copies the agent copy's files (never any `.git`) into your session

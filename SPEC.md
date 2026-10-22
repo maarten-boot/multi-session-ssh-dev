@@ -221,6 +221,23 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     saved). Kept when the session is deleted unless the delete dialog's box for it is ticked
     (`RemoveSaved`: `working-copies/<id>/`, the id checked first). Exit 24
     (files vanished) is a success with a note. Refused while there is no agent copy.
+  - Automatic saves (`internal/autosave`): `save_agent_copies` (default on) saves every
+    working-copy session without an error every `save_agent_copies_every` (5m–24h, default 1h;
+    first round 1 minute after start, then checked every minute; due when the interval has
+    passed since the last save or attempt, after a failure every 15 minutes at most; at most 2 h
+    a save), the last save of an earlier run read from `saved.json`. One save per session at a
+    time: a manual Save while one runs says so, a scheduled one is skipped. Progress: rsync 3.1+
+    (`--info=progress2 --no-inc-recursive`, not openrsync) reports a percentage; else none. The
+    bar shows *⟳ saving N%*, *saved HH:MM* (date when not today; the note in the tooltip) or
+    *⚠ not saved* (the error in the tooltip).
+  - At quit (`save_agent_copies_at_quit`, default on): after the notes are saved the page calls
+    `QuitSaving`, which saves every working-copy session one after another (a save already
+    running is waited for and counts) while an overlay over the window shows *n of N: name —
+    pct%* with a progress bar; the app quits when all worked, without a time limit. When one
+    failed the overlay lists it and waits for *Quit*. *Quit now (stop saving)* cancels the
+    saves and quits. Until then a close request (window ✕, SIGTERM, Ctrl+C: one signal reaches
+    Wails' handler and the app's, so two come at once) is refused; a page that does not call
+    `QuitSaving` within 3 s does not keep the app open; a second Ctrl+C kills it.
   - Take all files: agent copy → session directory, new and changed files, `--exclude=.git`
     (any depth), optionally `--delete` (excluded paths stay); preview by dry run; the number of
     changed or deleted files with uncommitted changes here (`git diff --name-only --relative`,
@@ -579,6 +596,7 @@ internal/opener            open / reveal, refusing executables
 internal/gitstatus         git markers and repository check for the Files tab
 internal/forge             Web tab: forge links, GitHub runs via gh
 internal/syncer            working copies (rsync or built-in out, git fetch back, full transfers)
+internal/autosave          agent copies saved regularly and at quit
 internal/xfer              built-in transfer without rsync (tar over ssh, cksum)
 internal/share             live share (confined SFTP server, sshfs mounts)
 internal/notes             notes pages (a Markdown tree per session and for the app)

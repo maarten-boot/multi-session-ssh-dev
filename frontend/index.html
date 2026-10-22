@@ -242,6 +242,18 @@
                         <option value="24h">day</option>
                     </select>
                 </label>
+                <label class="check"><input type="checkbox" name="save_agent_copies"> Save the agent copies of working-copy sessions (everything, with .git)</label>
+                <label>Save every
+                    <select name="save_agent_copies_every">
+                        <option value="15m">15 minutes</option>
+                        <option value="30m">30 minutes</option>
+                        <option value="1h">hour</option>
+                        <option value="2h">2 hours</option>
+                        <option value="6h">6 hours</option>
+                        <option value="24h">day</option>
+                    </select>
+                </label>
+                <label class="check wide-check"><input type="checkbox" name="save_agent_copies_at_quit"> Also save them when quitting (the app waits until they are saved, showing the progress)</label>
                 <label class="check"><input type="checkbox" name="record_remote"> Record the Remote tabs of all sessions (input and output, as text)</label>
                 <label>New recording file every
                     <select name="record_every">
@@ -336,6 +348,17 @@
         </div>
     </form>
 </dialog>
+
+<div id="quit-saving" hidden>
+    <div class="quit-box" role="alertdialog" aria-labelledby="quit-saving-title">
+        <h2 id="quit-saving-title">Saving agent copies before quitting…</h2>
+        <p class="quit-text"></p>
+        <progress max="100"></progress>
+        <pre class="quit-failed" hidden></pre>
+        <p class="hint">Everything in each working copy on its agent host is copied here (Full ▾ → Save agent copy); the app quits when that is done. Settings → Backups and recordings turns it off.</p>
+        <div class="buttons"><button type="button" class="danger quit-now">Quit now (stop saving)</button></div>
+    </div>
+</div>
 
 <script src="./src/main.js" type="module"></script>
 </body>

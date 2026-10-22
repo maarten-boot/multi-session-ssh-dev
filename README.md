@@ -79,7 +79,8 @@ make smoke-sessions  # sessions/dialogs/switching/restart, add host, start-mode 
                      # one instance per config, remembered window size and position, Claude backups
 make smoke-files     # Files tab
 make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/unicode/copy,
-                     # folders, git markers, repository check, working copies, live share,
+                     # folders, git markers, repository check, working copies (also saved
+                     # automatically and at quit), live share,
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
@@ -475,7 +476,14 @@ end of a work cycle, for experiments without git, and for an agent host that goe
   untracked, the files `.gitignore` ignores, and `.git` — to
   `working-copies/<session id>/files/` in the data folder (see *Where the app keeps things*),
   replacing the last saved copy (files gone on the agent host go there too). Your session
-  directory is not touched. *Open saved copy folder* shows it.
+  directory is not touched. *Open saved copy folder* shows it. **This also happens by itself**:
+  every hour while the app runs, and when you quit — the window then shows *Saving agent
+  copies before quitting…* with a progress bar and closes when they are saved (*Quit now*
+  stops it; a session whose save failed is listed first). Next to Full ▾ the bar shows *saved
+  10:48* (or *⟳ saving 45%*, *⚠ not saved*). Settings → Backups and recordings turns either off
+  or changes the interval (`save_agent_copies`, `save_agent_copies_every`,
+  `save_agent_copies_at_quit`). The percentage needs rsync 3.1 or newer here; the built-in
+  transfer and macOS's own rsync show only which session is being saved.
 - *Take all files from the agent…* copies the agent copy's files into your session directory,
   with a preview: new and changed files, never `.git` (at any depth). Tick *Also delete files
   here that the agent copy does not have* for an exact copy. Files with uncommitted changes
@@ -609,6 +617,9 @@ notifications = true                      # desktop notification when claude wai
 private_history = true                    # each session's shells keep their own history
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
+save_agent_copies = true                  # save working copies' agent copies here (Full ▾ → Save)
+save_agent_copies_every = "1h"            # 5m … 24h
+save_agent_copies_at_quit = true          # and when quitting (the app waits, showing progress)
 record_remote = false                     # record every session's Remote tab (as text)
 record_every = "1h"                       # a new recording file every 5m … 24h
 record_dir = "~/sw-logs"                  # optional: default <data dir>/logs
@@ -727,6 +738,7 @@ internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab
 internal/syncer        working copies: send (rsync or built-in), git fetch back, full transfers
                        (save, take files, send all / restore)
+internal/autosave      saving the agent copies regularly and at quit (one save per session)
 internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking

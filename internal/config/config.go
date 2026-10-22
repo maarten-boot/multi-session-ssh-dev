@@ -158,9 +158,15 @@ type UI struct {
 	// SpellCheck marks misspelled words in the notes, in SpellLanguage (a
 	// Hunspell dictionary name, see internal/spell); SpellWords are the
 	// words added with "Add to dictionary".
-	SpellCheck    *bool    `toml:"spell_check,omitempty" json:"spell_check"`
-	SpellLanguage string   `toml:"spell_language,omitempty" json:"spell_language"`
-	SpellWords    []string `toml:"spell_words,omitempty" json:"spell_words"`
+	// SaveAgentCopies saves the agent copy of every working-copy session
+	// (internal/syncer Save) every SaveAgentCopiesEvery (5m to 24h) while the
+	// app runs, and, with SaveAgentCopiesAtQuit, when it quits (the app waits).
+	SaveAgentCopies       *bool    `toml:"save_agent_copies,omitempty" json:"save_agent_copies"`
+	SaveAgentCopiesEvery  string   `toml:"save_agent_copies_every,omitempty" json:"save_agent_copies_every"`
+	SaveAgentCopiesAtQuit *bool    `toml:"save_agent_copies_at_quit,omitempty" json:"save_agent_copies_at_quit"`
+	SpellCheck            *bool    `toml:"spell_check,omitempty" json:"spell_check"`
+	SpellLanguage         string   `toml:"spell_language,omitempty" json:"spell_language"`
+	SpellWords            []string `toml:"spell_words,omitempty" json:"spell_words"`
 	// Commands is the command menu of every session (after its own);
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
@@ -262,6 +268,15 @@ func (c *Config) applyDefaults() {
 	if c.UI.SpellCheck == nil {
 		c.UI.SpellCheck = ptr(true)
 	}
+	if c.UI.SaveAgentCopies == nil {
+		c.UI.SaveAgentCopies = ptr(true)
+	}
+	if c.UI.SaveAgentCopiesAtQuit == nil {
+		c.UI.SaveAgentCopiesAtQuit = ptr(true)
+	}
+	if _, err := SaveAgentCopiesEvery(c.UI); err != nil {
+		c.UI.SaveAgentCopiesEvery = "1h"
+	}
 	if !validSpellLanguage(c.UI.SpellLanguage) {
 		c.UI.SpellLanguage = "en_US"
 	}
@@ -297,6 +312,15 @@ func RecordEvery(u UI) (time.Duration, error) {
 	d, err := time.ParseDuration(u.RecordEvery)
 	if err != nil || d < 5*time.Minute || d > 24*time.Hour {
 		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
+	}
+	return d, nil
+}
+
+// SaveAgentCopiesEvery is the interval of the agent copy saves.
+func SaveAgentCopiesEvery(u UI) (time.Duration, error) {
+	d, err := time.ParseDuration(u.SaveAgentCopiesEvery)
+	if err != nil || d < 5*time.Minute || d > 24*time.Hour {
+		return 0, fmt.Errorf("saving agent copies every %q: use 5m to 24h, e.g. 1h", u.SaveAgentCopiesEvery)
 	}
 	return d, nil
 }
@@ -439,6 +463,9 @@ func ValidateUI(u UI) error {
 		return err
 	}
 	if _, err := RecordEvery(u); err != nil {
+		return err
+	}
+	if _, err := SaveAgentCopiesEvery(u); err != nil {
 		return err
 	}
 	if !validRecordDir(u.RecordDir) {

@@ -68,7 +68,7 @@ func TestSSHFullTransfers(t *testing.T) {
 			if _, err := TakeFiles(ctx, s, true, false); err == nil {
 				t.Error("TakeFiles before any send: no error")
 			}
-			if _, err := Save(ctx, s, filepath.Join(t.TempDir(), "files")); err == nil {
+			if _, err := Save(ctx, s, filepath.Join(t.TempDir(), "files"), nil); err == nil {
 				t.Error("Save before any send: no error")
 			}
 			// Send all: the ignored .env goes too.
@@ -92,7 +92,7 @@ func TestSSHFullTransfers(t *testing.T) {
 
 			// Save: everything, with .git and the ignored build output.
 			saved := filepath.Join(t.TempDir(), "copy", "files")
-			if note, err := Save(ctx, s, saved); err != nil {
+			if note, err := Save(ctx, s, saved, nil); err != nil {
 				t.Fatalf("save: %v (%s)", err, note)
 			}
 			for _, f := range []string{"a.txt", "new.txt", "build/bin", ".env", "sub/deep.txt", ".git/HEAD"} {
@@ -101,8 +101,13 @@ func TestSSHFullTransfers(t *testing.T) {
 				}
 			}
 			remoteSh(t, target, agent+"rm new.txt")
-			if _, err := Save(ctx, s, saved); err != nil {
+			var pcts []int
+			if _, err := Save(ctx, s, saved, func(p int) { pcts = append(pcts, p) }); err != nil {
 				t.Fatal(err)
+			}
+			// Only a deletion: rsync reports 0% and is done (the caller counts it as 100).
+			if mode == "rsync" && rsyncProgress() && len(pcts) == 0 {
+				t.Error("no progress from rsync")
 			}
 			if _, err := os.Stat(filepath.Join(saved, "new.txt")); err == nil {
 				t.Error("a second save kept a file deleted on the agent host")
@@ -202,5 +207,18 @@ func TestOverwritten(t *testing.T) {
 	}
 	if n := overwritten(context.Background(), Session{LocalPath: t.TempDir()}, changes); n != 0 {
 		t.Errorf("without git: %d", n)
+	}
+}
+
+func TestReadProgress(t *testing.T) {
+	out := "\r          0   0%    0.00kB/s    0:00:00 (xfr#0, to-chk=0/5)" +
+		"\r     32,768  45%   31.25MB/s    0:00:00 (xfr#1, to-chk=3/5)" +
+		"\r     32,768  45%   31.25MB/s    0:00:00 (xfr#1, to-chk=3/5)" +
+		"\r     65,536 100%   62.50MB/s    0:00:00 (xfr#2, to-chk=0/5)\n" +
+		"some other line with 50% in the text\n"
+	var got []int
+	readProgress(strings.NewReader(out), func(p int) { got = append(got, p) })
+	if fmt.Sprint(got) != "[0 45 100 50]" {
+		t.Errorf("progress %v", got)
 	}
 }

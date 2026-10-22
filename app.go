@@ -20,6 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"session-workbench/internal/autosave"
 	"session-workbench/internal/backup"
 	"session-workbench/internal/config"
 	"session-workbench/internal/forge"
@@ -49,6 +50,7 @@ type App struct {
 	notes    notes.Store
 	dictDir  string // own spelling dictionaries: "dictionaries" next to the config
 	backups  *backup.Runner
+	saves    *autosave.Runner // agent copies of working-copy sessions
 	rec      *reclog.Recorder // Remote tab recordings
 	dataDir  string           // config.DataDir: Claude backups, window.json
 	win      winstate.State   // as the window was last closed
@@ -58,7 +60,19 @@ type App struct {
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
 	running error
+
+	// Quitting while agent copies are saved (QuitSaving).
+	quitMu     sync.Mutex
+	quitState  int // quitIdle, quitSaving, quitDone
+	quitCancel context.CancelFunc
+	quitReady  atomic.Bool // the window may close now (beforeClose)
 }
+
+const (
+	quitIdle = iota
+	quitSaving
+	quitDone
+)
 
 func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
 	a := &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir,
@@ -126,6 +140,21 @@ func (a *App) startup(ctx context.Context) {
 	}
 	if a.dataDir != "" {
 		a.backups.Start(ctx)
+		a.saves = &autosave.Runner{
+			Items: a.syncItems,
+			Every: func() (time.Duration, bool) {
+				ui := a.sessions.Config().UI
+				d, err := config.SaveAgentCopiesEvery(ui)
+				return d, err == nil && ui.SaveAgentCopies != nil && *ui.SaveAgentCopies
+			},
+			Save: a.saveCopy,
+			LastOK: func(id string) time.Time {
+				t, _ := time.Parse(time.RFC3339, a.savedInfo(id).When)
+				return t
+			},
+			Changed: func(id string, s autosave.Status) { runtime.EventsEmit(ctx, "autosave", id, s) },
+		}
+		a.saves.Start(ctx)
 	}
 	a.notify.start(ctx)
 }
@@ -188,7 +217,22 @@ func (a *App) beforeClose(ctx context.Context) bool {
 	}
 	if a.closing.CompareAndSwap(false, true) {
 		runtime.EventsEmit(ctx, "app:closing")
-		time.AfterFunc(3*time.Second, func() { runtime.Quit(ctx) })
+		// A page that does not answer (QuitSaving) does not keep the app open.
+		time.AfterFunc(3*time.Second, func() {
+			a.quitMu.Lock()
+			idle := a.quitState == quitIdle
+			a.quitMu.Unlock()
+			if idle {
+				a.quitReady.Store(true)
+				runtime.Quit(ctx)
+			}
+		})
+		return true
+	}
+	// Until the page saved the notes and the agent copies are saved (or Quit
+	// now): one signal reaches both Wails' handler and ours, so a second
+	// close request comes at once.
+	if !a.quitReady.Load() {
 		return true
 	}
 	if a.dataDir == "" {
@@ -584,26 +628,102 @@ func (a *App) SyncInfo(id string) (SyncInfo, error) {
 // SyncSave copies the agent copy in full (with .git and ignored files) to
 // the session's saved copy, replacing the last one.
 func (a *App) SyncSave(id string) (SavedInfo, error) {
-	s, err := a.syncSession(id)
-	if err != nil {
-		return SavedInfo{}, err
-	}
-	dir, err := a.savedDir(id)
-	if err != nil {
-		return SavedInfo{}, err
+	if a.saves == nil {
+		return SavedInfo{}, errors.New("no data folder for saved copies")
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
 	defer cancel()
-	note, err := syncer.Save(ctx, s, dir)
+	err := a.saves.Now(ctx, id) // one save per session at a time, also with the scheduled ones
+	return a.savedInfo(id), err
+}
+
+// saveCopy saves a session's agent copy and records it in saved.json (the
+// autosave Runner's Save).
+func (a *App) saveCopy(ctx context.Context, id string, progress func(int)) (string, error) {
+	s, err := a.syncSession(id)
 	if err != nil {
-		return a.savedInfo(id), err
+		return "", err
+	}
+	dir, err := a.savedDir(id)
+	if err != nil {
+		return "", err
+	}
+	note, err := syncer.Save(ctx, s, dir, progress)
+	if err != nil {
+		return "", err
 	}
 	info := SavedInfo{When: time.Now().Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note,
 		Files: syncer.SavedCount(dir)}
 	if b, err := json.Marshal(info); err == nil {
 		os.WriteFile(filepath.Join(filepath.Dir(dir), "saved.json"), b, 0o600)
 	}
-	return a.savedInfo(id), nil
+	return note, nil
+}
+
+// syncItems are the working-copy sessions that can be saved.
+func (a *App) syncItems() []autosave.Item {
+	var items []autosave.Item
+	for _, v := range a.sessions.State().Sessions {
+		if v.Files == session.FilesSync && v.Error == "" {
+			items = append(items, autosave.Item{ID: v.ID, Name: v.Name})
+		}
+	}
+	return items
+}
+
+// AutosaveStatus is the state of every working-copy session's saves.
+func (a *App) AutosaveStatus() map[string]autosave.Status {
+	if a.saves == nil {
+		return map[string]autosave.Status{}
+	}
+	return a.saves.Status()
+}
+
+// QuitSaving quits, after saving every agent copy when that is on
+// (save_agent_copies_at_quit): the window stays while the copies are saved,
+// reporting "autosave:quit" progress, and closes when all worked. When one
+// failed it stays open ("autosave:quit-done") until QuitNow.
+func (a *App) QuitSaving() {
+	ui := a.sessions.Config().UI
+	on := a.saves != nil && ui.SaveAgentCopiesAtQuit != nil && *ui.SaveAgentCopiesAtQuit
+	a.quitMu.Lock()
+	defer a.quitMu.Unlock()
+	if a.quitState != quitIdle {
+		return
+	}
+	if !on || len(a.syncItems()) == 0 {
+		a.quitState = quitDone
+		a.quitReady.Store(true)
+		runtime.Quit(a.ctx)
+		return
+	}
+	a.quitState = quitSaving
+	ctx, cancel := context.WithCancel(context.Background())
+	a.quitCancel = cancel
+	go func() {
+		p := a.saves.All(ctx, func(p autosave.Progress) { runtime.EventsEmit(a.ctx, "autosave:quit", p) })
+		a.quitMu.Lock()
+		a.quitState = quitDone
+		a.quitMu.Unlock()
+		if len(p.Failed) == 0 || ctx.Err() != nil {
+			a.quitReady.Store(true)
+			runtime.Quit(a.ctx)
+			return
+		}
+		runtime.EventsEmit(a.ctx, "autosave:quit-done", p)
+	}()
+}
+
+// QuitNow quits at once, stopping saves still running.
+func (a *App) QuitNow() {
+	a.quitMu.Lock()
+	a.quitState = quitDone
+	if a.quitCancel != nil {
+		a.quitCancel()
+	}
+	a.quitMu.Unlock()
+	a.quitReady.Store(true)
+	runtime.Quit(a.ctx)
 }
 
 // SyncTakeFiles copies the agent copy's files (not .git) into the session
