@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-21, app v0.8.43) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-21, app v0.8.44) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -108,6 +108,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
+  A right-click on the empty space of the list: the + menu (new session, new folder, add host)
+  and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
+  the Prompts page is made if missing).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
   workspace root; any path under `local_prefix`) → name → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be

@@ -121,6 +121,22 @@ export class AppNotesPage {
         this.visible ? this.hide() : this.show();
     }
 
+    // showPage shows this page with page open (Home, or the Prompts page,
+    // made first when there is none).
+    async showPage(page) {
+        if (!this.visible) this.show();
+        await this.openPage(page);
+    }
+
+    async openPage(page) {
+        await this.view.loaded;
+        if (page === PROMPTS && !this.view.find(PROMPTS)) {
+            await CreatePage('_app', PROMPTS).catch(err => toast(err?.message ?? String(err), true));
+            await this.view.loadTree();
+        }
+        await this.view.open(page);
+    }
+
     render() {
         const target = this.label();
         const problem = target ? this.canPaste() : 'No session';
@@ -145,11 +161,7 @@ export class AppNotesPage {
             return;
         }
         const make = el('button', {type: 'button', textContent: 'Create the Prompts page'});
-        make.onclick = async () => {
-            await CreatePage('_app', PROMPTS).catch(err => toast(err?.message ?? String(err), true));
-            await this.view.loadTree();
-            await this.view.open(PROMPTS);
-        };
+        make.onclick = () => this.openPage(PROMPTS);
         this.list.append(el('p', {className: 'prompt-empty', textContent: 'Prompts come from a page named “Prompts” and its subpages.'}),
             el('div', {className: 'prompt-actions'}, make));
     }

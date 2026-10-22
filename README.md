@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.43: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.44: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -432,7 +432,10 @@ session too, and for a working copy deleting its saved agent copy; its notes are
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
-Claude data, or delete it (once no session uses it). Menus also work from the keyboard
+Claude data, or delete it (once no session uses it). Right-click the empty space below the
+list for the "+" menu (*New session…*, *New folder…*, *Add host…*) and *Notes for all
+sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes; the Prompts page is
+made when there is none). Menus also work from the keyboard
 (arrows, Home/End, Enter, Esc, first letter).
 
 **Sidebar width.** Drag the sidebar's right edge to make it wider or narrower (or focus the

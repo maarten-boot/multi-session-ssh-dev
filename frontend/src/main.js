@@ -7,7 +7,7 @@ import {ACTIONS, actionFor, buildKeymap, format} from './keys';
 import {FilesView} from './files';
 import {NotesView} from './notes';
 import {configureSpelling} from './editor';
-import {AppNotesPage, sessionPrompts} from './appnotes';
+import {AppNotesPage, PROMPTS, sessionPrompts} from './appnotes';
 import {promptMenu} from './prompts';
 import {WebView} from './web';
 import {CommandList} from './commands';
@@ -482,6 +482,12 @@ const app = {
         $('#btn-new').onclick = e => {
             const r = e.currentTarget.getBoundingClientRect();
             newMenu(r.left, r.bottom + 2);
+        };
+        // Right-click the empty space below (or between) the hosts and folders.
+        $('#session-list').oncontextmenu = e => {
+            if (e.target !== e.currentTarget) return;
+            e.preventDefault();
+            listMenu(e.clientX, e.clientY);
         };
         $('#btn-add-host').onclick = () => hostDialog();
         $('#btn-settings').onclick = () => settingsDialog();
@@ -1263,11 +1269,22 @@ function folderMenu(sec, x, y) {
     ]);
 }
 
+const newItems = () => [
+    {label: `New session…   ${keyHint('new_session')}`, action: () => sessionDialog()},
+    {label: 'New folder…', action: () => folderDialog()},
+    {label: 'Add host…', action: () => hostDialog()},
+];
+
 function newMenu(x, y) {
-    showMenu(x, y, [
-        {label: `New session…   ${keyHint('new_session')}`, action: () => sessionDialog()},
-        {label: 'New folder…', action: () => folderDialog()},
-        {label: 'Add host…', action: () => hostDialog()},
+    showMenu(x, y, newItems());
+}
+
+// listMenu is the menu of the empty space in the session list: the + menu,
+// and the notes and prompts for all sessions.
+function listMenu(x, y) {
+    showMenu(x, y, [...newItems(), '-',
+        {label: `Notes for all sessions…   ${keyHint('app_notes')}`, action: () => app.appNotes.showPage('Home')},
+        {label: 'Prompts for all sessions…', action: () => app.appNotes.showPage(PROMPTS)},
     ]);
 }
 
