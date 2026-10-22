@@ -350,6 +350,14 @@ func TestAddSpellWord(t *testing.T) {
 	if got := Open(cfgPath).State().UI.SpellWords; !slices.Equal(got, []string{"Wails", "tmux"}) {
 		t.Errorf("spell_words = %q", got)
 	}
+	for _, w := range []string{"tmux", "unknown"} {
+		if err := m.RemoveSpellWord(w); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := Open(cfgPath).State().UI.SpellWords; !slices.Equal(got, []string{"Wails"}) {
+		t.Errorf("after removing: spell_words = %q", got)
+	}
 }
 
 func TestGroups(t *testing.T) {

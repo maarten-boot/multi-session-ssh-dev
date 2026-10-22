@@ -31,6 +31,12 @@ test('own words', () => {
     assert.ok(!sp.correct('kubectl'));
     sp.addWords(['kubectl', 'Zim']);
     assert.ok(sp.correct('kubectl') && sp.correct('Zim') && sp.correct('Kubectl')); // at the start of a sentence
+    assert.equal(sp.ownWord('Kubectl'), 'kubectl');
+    assert.equal(sp.ownWord('parser'), null);                       // in the dictionary, not added
+    sp.removeWord('kubectl');
+    assert.ok(!sp.correct('kubectl') && sp.ownWord('kubectl') === null);
+    sp.removeWord('tmux');                                          // a tool word: never added, stays
+    assert.ok(sp.correct('tmux'));
 });
 
 test('rank: closest first', () => {

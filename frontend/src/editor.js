@@ -4,7 +4,7 @@ import {defaultKeymap, history, historyKeymap, indentLess, indentMore, insertNew
 import {HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree} from '@codemirror/language';
 import {markdown, markdownLanguage} from '@codemirror/lang-markdown';
 import {tags as t} from '@lezer/highlight';
-import {AddSpellWord, SpellDictionary} from '../wailsjs/go/main/App';
+import {AddSpellWord, RemoveSpellWord, SpellDictionary} from '../wailsjs/go/main/App';
 import {ClipboardGetText, ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {LISTS, MARKUP, continueList, listItem, toggleList, toggleMarkup, toggleTasks} from './markup';
 import {Speller, words} from './spelling';
@@ -90,21 +90,41 @@ function addWord(word) {
     for (const v of editors) v.dispatch({effects: refresh.of(null)});
 }
 
+function removeWord(word) {
+    RemoveSpellWord(word).catch(err => console.warn('spelling:', err));
+    if (spellUI) spellUI.spell_words = (spellUI.spell_words ?? []).filter(w => w !== word);
+    speller?.removeWord(word);
+    for (const v of editors) v.dispatch({effects: refresh.of(null)});
+}
+
 // Not checked: code, links' addresses, HTML.
 const NO_SPELLING = new Set(['InlineCode', 'FencedCode', 'CodeBlock', 'CodeText', 'URL', 'Autolink', 'HTMLTag', 'HTMLBlock',
     'CommentBlock', 'Comment', 'LinkLabel']);
 const misspelledMark = Decoration.mark({class: 'cm-misspelled'});
 
-// misspelled is the misspelled word at pos (in a checked place), or null.
-function misspelled(state, pos) {
-    const sp = spellOn();
-    if (!sp) return null;
+// checkedWord is the word at pos that spelling looks at ({from, to, word}),
+// or null (no word, or in code, a link's address…).
+function checkedWord(state, pos) {
     const line = state.doc.lineAt(pos);
     for (const w of words(line.text)) {
         const from = line.from + w.from, to = line.from + w.to;
-        if (pos >= from && pos <= to) return sp.correct(w.word) || unchecked(state, from) ? null : {from, to, word: w.word};
+        if (pos >= from && pos <= to) return unchecked(state, from) ? null : {from, to, word: w.word};
     }
     return null;
+}
+
+// misspelled is the misspelled word at pos, or null.
+function misspelled(state, pos) {
+    const sp = spellOn();
+    const w = sp && checkedWord(state, pos);
+    return w && !sp.correct(w.word) ? w : null;
+}
+
+// ownWordAt is the added word at pos ("Remove from dictionary"), or null.
+function ownWordAt(state, pos) {
+    const sp = spellOn();
+    const w = sp && checkedWord(state, pos);
+    return w ? sp.ownWord(w.word) : null;
 }
 
 function unchecked(state, pos) {
@@ -319,6 +339,13 @@ export class Editor {
             }},
             '-',
         ];
+        const own = at !== null && range.empty && !bad ? ownWordAt(v.state, at) : null;
+        if (own) {
+            spellItems.push({label: `Remove “${own}” from dictionary`, action: () => {
+                removeWord(own);
+                v.focus();
+            }}, '-');
+        }
         const hasBox = !!toggleTasks(v.state.doc.toString(), range.from, range.to);
         showMenu(x, y, [
             ...spellItems,

@@ -730,6 +730,17 @@ func (m *Manager) AddSpellWord(word string) error {
 	})
 }
 
+// RemoveSpellWord takes a word out of the personal spelling dictionary
+// (exactly as added); a word not in it is no error.
+func (m *Manager) RemoveSpellWord(word string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		c.UI.SpellWords = slices.DeleteFunc(c.UI.SpellWords, func(w string) bool { return w == strings.TrimSpace(word) })
+		return nil
+	})
+}
+
 func (m *Manager) Delete(id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

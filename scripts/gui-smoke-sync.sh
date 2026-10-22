@@ -4,7 +4,8 @@
 # branch, Get: main fast-forwarded and the new branch created here; the full
 # transfers: Save agent copy (everything, with .git and ignored files), Take
 # all files (uncommitted work), Restore saved copy after the agent copy is
-# gone; a session without git, where Get takes the files.
+# gone; a session without git, where Get takes the files; deleting the session
+# with its saved copy.
 # Needs `ssh localhost` without prompts and git; rsync is used when installed
 # (SW_NO_RSYNC=1 tests the built-in transfer).
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-sync.sh <binary> <outdir>
@@ -82,6 +83,13 @@ ssh -o BatchMode=yes localhost "cd ~/$WD/plain-s-plain && echo result >result.tx
 click 120 ${PLAINY:-134} 3; menu g; sleep 3; shot 9-get-without-git; k Return; sleep 3
 check "no git: Get brought the new file" test -f $P/result.txt
 check "no git: and the deletion (ticked by default)" test ! -e $P/notes.txt
+
+# Deleting the working-copy session can take its saved agent copy along (ticked here).
+k ctrl+alt+1; sleep 1
+click 120 90 3; menu d d; sleep 1               # Delete session… (after Disconnect)
+shot 10-delete-dialog; k Tab; k space; k shift+Tab; k Return; sleep 2   # tick the second box
+check "the saved copy went with the session" test ! -e $XDG_DATA_HOME/session-workbench/working-copies/s-sync
+check "the session is gone" test -z "$(grep 's-sync' $CFG)"
 alive
 kill $APP; wait $APP 2>/dev/null
 expect "host file after Get + fast-forward, then Take" "one agent more" "$(cat $R/a.txt | xargs)"

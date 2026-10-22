@@ -66,6 +66,10 @@ export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>
 
 export function RecordInfo():Promise<main.RecordInfo>;
 
+export function RemoveSaved(arg1:string):Promise<void>;
+
+export function RemoveSpellWord(arg1:string):Promise<void>;
+
 export function RenamePage(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RepoCheck(arg1:string):Promise<gitstatus.Audit>;
@@ -81,6 +85,8 @@ export function SaveHost(arg1:string,arg2:config.Host):Promise<void>;
 export function SavePage(arg1:string,arg2:string,arg3:string):Promise<notes.Note>;
 
 export function SaveUI(arg1:config.UI):Promise<void>;
+
+export function SavedCopy(arg1:string):Promise<main.SavedInfo>;
 
 export function SetLinks(arg1:string,arg2:Array<config.Link>):Promise<void>;
 

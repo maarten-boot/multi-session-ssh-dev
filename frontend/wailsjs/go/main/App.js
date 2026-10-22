@@ -110,6 +110,14 @@ export function RecordInfo() {
   return window['go']['main']['App']['RecordInfo']();
 }
 
+export function RemoveSaved(arg1) {
+  return window['go']['main']['App']['RemoveSaved'](arg1);
+}
+
+export function RemoveSpellWord(arg1) {
+  return window['go']['main']['App']['RemoveSpellWord'](arg1);
+}
+
 export function RenamePage(arg1, arg2, arg3) {
   return window['go']['main']['App']['RenamePage'](arg1, arg2, arg3);
 }
@@ -140,6 +148,10 @@ export function SavePage(arg1, arg2, arg3) {
 
 export function SaveUI(arg1) {
   return window['go']['main']['App']['SaveUI'](arg1);
+}
+
+export function SavedCopy(arg1) {
+  return window['go']['main']['App']['SavedCopy'](arg1);
 }
 
 export function SetLinks(arg1, arg2) {

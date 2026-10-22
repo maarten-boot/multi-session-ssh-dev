@@ -107,7 +107,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
-  the tmux session).
+  the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
   workspace root; any path under `local_prefix`) → name → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
@@ -218,7 +218,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     `<data dir>/working-copies/<id>/files` (`rsync -a --delete --safe-links --no-devices
     --no-specials`; built-in: one tar stream unpacked through `os.Root` into `files.new`, which
     then replaces `files`); `saved.json` next to it records when, from where and how many files (counted once, when
-    saved). Kept when the session is deleted. Exit 24
+    saved). Kept when the session is deleted unless the delete dialog's box for it is ticked
+    (`RemoveSaved`: `working-copies/<id>/`, the id checked first). Exit 24
     (files vanished) is a success with a note. Refused while there is no agent copy.
   - Take all files: agent copy → session directory, new and changed files, `--exclude=.git`
     (any depth), optionally `--delete` (excluded paths stay); preview by dry run; the number of
@@ -380,7 +381,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   cursor leaves it. Right-click a misspelled word: up to 6 corrections (closest first:
   Damerau–Levenshtein, same letters first among equals; the word's capital kept) and *Add
   “word” to dictionary*, which adds it to `spell_words` (sorted, once each, without spaces, up
-  to 100 characters; Settings → Notes edits the list). The checker is nspell with a Hunspell
+  to 100 characters; Settings → Notes edits the list). Right-click an added word (also
+  capitalized at the start of a sentence): *Remove “word” from dictionary* takes it out again
+  (`RemoveSpellWord`; the built-in tool words cannot be removed). The checker is nspell with a Hunspell
   dictionary from the backend (`internal/spell`), loaded when the first notes editor opens:
   `spell_language` (default `en_US`, built in from SCOWL); other languages are `<lang>.aff` +
   `<lang>.dic` in `dictionaries/` next to the config file, then (Linux) `~/.local/share/hunspell`,

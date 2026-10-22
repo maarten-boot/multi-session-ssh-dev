@@ -2,7 +2,8 @@
 # Headless GUI test of check lists, bulleted lists and spelling in the notes:
 # Enter continues a check list (not in a code block), Ctrl+Enter and a click tick boxes,
 # Ctrl+Shift+8 makes a bullet, a right-click on a misspelled word offers
-# corrections and "Add to dictionary" (saved as spell_words), Settings → Notes.
+# corrections and "Add to dictionary" (saved as spell_words), "Remove from
+# dictionary" on an added word, Settings → Notes.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-spell.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes
 . "$(dirname "$0")/smoke-lib.sh"
@@ -45,6 +46,9 @@ sleep 1.5; shot 3-fixed
 expect "lists, ticks and corrections saved" $'The first word\n- [x] buy milk\n- [x] call Bob\nkubectl rocks \n- plain line' \
 	"$(cat $N/Home.md 2>&1)"
 expect "own word saved" 'spell_words = ["kubectl"]' "$(grep -E '^ *spell_words' $CFG | sed 's/^ *//')"
+click 450 $(line 4) 3; sleep 0.5; shot 3b-remove-word; menu   # an added word: Remove “kubectl” from dictionary (first)
+sleep 1
+check "own word removed" test -z "$(grep -E '^ *spell_words' $CFG)"
 # In a code block "- x" is no list: Enter is a plain new line.
 click 600 $(line 5); k ctrl+End; k Return; k Return   # a new bullet, then Enter again clears it
 type '```'; k Return; type "- in code"; k Return; type "next"; k Return; type '```'

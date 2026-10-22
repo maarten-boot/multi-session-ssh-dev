@@ -20,7 +20,7 @@ import {
     PreviewSession, SaveHost, SaveUI, StartLocal, StartRemote, State, UpdateSession, Version,
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
-    SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved,
+    SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -1349,6 +1349,9 @@ function runDialog(dlg, submit, focus = null) {
     });
 }
 
+// confirmDialog asks before action. check: a checkbox label (action gets
+// whether it is ticked) or a list of them (action gets a list of booleans);
+// they start unticked.
 async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, action}) {
     const dlg = $('#dlg-confirm');
     dlg.querySelector('h2').textContent = title;
@@ -1357,12 +1360,11 @@ async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, 
     okBtn.hidden = !ok;
     okBtn.textContent = ok || '';
     dlg.querySelector('button[value=cancel]').textContent = ok ? cancel : 'Close';
-    const checkLabel = dlg.querySelector('label.check');
-    const box = dlg.querySelector('input[name=check]');
-    checkLabel.hidden = !check;
-    box.checked = false;
-    if (check) checkLabel.querySelector('span').textContent = check;
-    return runDialog(dlg, async () => action && action(box.checked));
+    const labels = check === undefined || check === null ? [] : Array.isArray(check) ? check : [check];
+    const boxes = labels.map(() => el('input', {type: 'checkbox'}));
+    dlg.querySelector('.checks').replaceChildren(...labels.map((l, i) => el('label', {className: 'check'}, boxes[i], ' ' + l)));
+    const ticked = () => Array.isArray(check) ? boxes.map(b => b.checked) : !!boxes[0]?.checked;
+    return runDialog(dlg, async () => action && action(ticked()));
 }
 
 async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
@@ -2063,14 +2065,20 @@ async function endRemote(s) {
 }
 
 async function deleteSession(s) {
+    // A working copy's saved agent copy (Full ▾) can go with it; it is kept unless ticked.
+    const saved = await SavedCopy(s.id).catch(() => ({exists: false}));
+    const check = [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`];
+    if (saved.exists) check.push(`Also delete its saved agent copy (${saved.files} files, saved ${savedWhen(saved.when)})`);
     const ok = await confirmDialog({
         title: `Delete session “${s.data.name}”?`,
-        text: 'Removes it from the list. Its files are not touched, and its notes are kept.',
+        text: 'Removes it from the list. Its files are not touched, and its notes are kept' +
+            (saved.exists ? '; so is its saved agent copy unless you tick it below.' : '.'),
         ok: 'Delete',
-        check: `Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`,
-        action: async kill => {
+        check,
+        action: async ([kill, dropSaved]) => {
             if (kill) await KillRemote(s.id);
             await DeleteSession(s.id);
+            if (dropSaved) await RemoveSaved(s.id);
         },
     });
     if (!ok) return;

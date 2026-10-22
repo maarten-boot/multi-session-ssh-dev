@@ -322,6 +322,11 @@ func (a *App) AddSpellWord(word string) error {
 	return a.sessions.AddSpellWord(word)
 }
 
+// RemoveSpellWord takes a word out of the personal spelling dictionary.
+func (a *App) RemoveSpellWord(word string) error {
+	return a.sessions.RemoveSpellWord(word)
+}
+
 func (a *App) DeleteSession(id string) error {
 	a.shares.Stop(id)
 	return a.sessions.Delete(id)
@@ -632,6 +637,28 @@ func (a *App) SyncSendAll(id string, restore, dryRun bool) (syncer.Plan, error) 
 	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
 	defer cancel()
 	return syncer.SendAll(ctx, s, src, dryRun)
+}
+
+// SavedCopy describes a session's saved agent copy (for the delete dialog;
+// works for any session id, also after the session is deleted).
+func (a *App) SavedCopy(id string) SavedInfo {
+	if !remote.ValidID(id) {
+		return SavedInfo{}
+	}
+	return a.savedInfo(id)
+}
+
+// RemoveSaved deletes a session's saved agent copy (working-copies/<id>/),
+// e.g. with the session.
+func (a *App) RemoveSaved(id string) error {
+	if !remote.ValidID(id) {
+		return fmt.Errorf("bad session id %q", id)
+	}
+	dir, err := a.savedDir(id)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Dir(dir))
 }
 
 // OpenSaved opens the folder of a session's saved agent copy.

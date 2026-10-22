@@ -74,6 +74,20 @@ export class Speller {
         }
     }
 
+    // ownWord is the added word that word is (as added: "kubectl" for
+    // "Kubectl" at the start of a sentence), or null.
+    ownWord(word) {
+        const w = word.replace(/’/g, "'");
+        return this.own.has(w) ? w : this.own.has(w.toLowerCase()) ? w.toLowerCase() : null;
+    }
+
+    // removeWord takes an added word out again.
+    removeWord(word) {
+        if (!this.own.delete(word)) return;
+        this.ns.remove(word);
+        this.cache.clear();
+    }
+
     correct(word) {
         let ok = this.cache.get(word);
         if (ok === undefined) {

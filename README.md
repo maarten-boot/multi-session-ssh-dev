@@ -183,7 +183,8 @@ Default order:
   Enter in an empty item outdents it, then ends the list. Tab and Shift+Tab indent and outdent a list item; elsewhere
   Tab inserts two spaces (with a selection: indents its lines) and Enter starts a plain new line.
   **Spelling**: misspelled words are underlined in red (English by default); right-click one
-  for corrections and *Add “word” to dictionary*. Not checked: code (`` `x` `` and code
+  for corrections and *Add “word” to dictionary*; right-click a word you added for *Remove
+  “word” from dictionary*. Not checked: code (`` `x` `` and code
   blocks), links' addresses, HTML tags, CamelCase, ACRONYMS, file names, paths and words with
   digits; the word you are typing waits until you leave it. The tools this app is about
   (claude, tmux, ssh, sshfs, rsync, git, GitHub…) are known words in every language. Settings → Notes turns it off,
@@ -426,7 +427,7 @@ work); then *Edit…* (name, folder, start mode, colors, own commands, recording
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
-session too; its notes are kept). Working-copy sessions also have *Send to agent…*,
+session too, and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
@@ -487,7 +488,8 @@ end of a work cycle, for experiments without git, and for an agent host that goe
   agent copy: after the agent host went down, point the host at a new machine (*Edit host…*),
   then restore and carry on where the agent was.
 
-Saved copies stay when a session is deleted (remove `working-copies/<session id>/` yourself).
+A saved copy stays when its session is deleted, unless you tick *Also delete its saved agent
+copy* in the delete dialog.
 
 **Without git.** For a session directory that is not a git repository (a quick experiment)
 there are no commits to fetch: **⇣ Get** then takes the agent copy's files, with *Also delete
