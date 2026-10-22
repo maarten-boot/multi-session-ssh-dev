@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"session-workbench/internal/opener"
 	"session-workbench/internal/reclog"
 	"session-workbench/internal/remote"
+	"session-workbench/internal/savedcopy"
 	"session-workbench/internal/session"
 	"session-workbench/internal/share"
 	"session-workbench/internal/spell"
@@ -65,7 +65,8 @@ type App struct {
 	quitMu     sync.Mutex
 	quitState  int // quitIdle, quitSaving, quitDone
 	quitCancel context.CancelFunc
-	quitReady  atomic.Bool // the window may close now (beforeClose)
+	quitSaved  chan struct{} // closed when the saves at quit have ended
+	quitReady  atomic.Bool   // the window may close now (beforeClose)
 }
 
 const (
@@ -149,7 +150,7 @@ func (a *App) startup(ctx context.Context) {
 			},
 			Save: a.saveCopy,
 			LastOK: func(id string) time.Time {
-				t, _ := time.Parse(time.RFC3339, a.savedInfo(id).When)
+				t, _ := time.Parse(time.RFC3339, a.savedInfo(id).Latest.When)
 				return t
 			},
 			Changed: func(id string, s autosave.Status) { runtime.EventsEmit(ctx, "autosave", id, s) },
@@ -579,36 +580,32 @@ type SyncInfo struct {
 	Saved SavedInfo `json:"saved"`
 }
 
-// SavedInfo describes a session's saved agent copy (SyncSave).
+// SavedInfo describes a session's saved agent copies (SyncSave): the
+// newest, and all of them, newest first.
 type SavedInfo struct {
-	Dir    string `json:"dir"`
-	Exists bool   `json:"exists"`
-	When   string `json:"when"` // RFC 3339
-	From   string `json:"from"` // target:path it was saved from
-	Files  int    `json:"files"`
-	Note   string `json:"note"`
+	Base   string           `json:"base"` // working-copies/<id>: the dated copies
+	Exists bool             `json:"exists"`
+	Latest savedcopy.Copy   `json:"latest"`
+	Copies []savedcopy.Copy `json:"copies"`
 }
 
-// savedDir is where a session's agent copy is saved: <data dir>/working-copies/<id>/files.
-func (a *App) savedDir(id string) (string, error) {
+// savedBase is where a session's agent copies are saved:
+// <data dir>/working-copies/<id>/<YYYYMMDD-HHMMSS>/ (internal/savedcopy).
+func (a *App) savedBase(id string) (string, error) {
 	if a.dataDir == "" {
 		return "", errors.New("no data folder for saved copies")
 	}
-	return filepath.Join(a.dataDir, "working-copies", id, "files"), nil
+	return filepath.Join(a.dataDir, "working-copies", id), nil
 }
 
 func (a *App) savedInfo(id string) SavedInfo {
-	dir, err := a.savedDir(id)
+	base, err := a.savedBase(id)
 	if err != nil {
 		return SavedInfo{}
 	}
-	info := SavedInfo{Dir: dir}
-	if b, err := os.ReadFile(filepath.Join(filepath.Dir(dir), "saved.json")); err == nil {
-		json.Unmarshal(b, &info)
-		info.Dir = dir
-	}
-	if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
-		info.Exists = true // Files: counted when saved (counting here is slow for big copies)
+	info := SavedInfo{Base: base, Copies: savedcopy.List(base)}
+	if len(info.Copies) > 0 {
+		info.Exists, info.Latest = true, info.Copies[0]
 	}
 	return info
 }
@@ -637,26 +634,41 @@ func (a *App) SyncSave(id string) (SavedInfo, error) {
 	return a.savedInfo(id), err
 }
 
-// saveCopy saves a session's agent copy and records it in saved.json (the
+// saveCopy saves a session's agent copy as a new dated copy, unchanged
+// files hard-linked to the last one (rsync), then prunes the old ones (the
 // autosave Runner's Save).
 func (a *App) saveCopy(ctx context.Context, id string, progress func(int)) (string, error) {
 	s, err := a.syncSession(id)
 	if err != nil {
 		return "", err
 	}
-	dir, err := a.savedDir(id)
+	base, err := a.savedBase(id)
 	if err != nil {
 		return "", err
 	}
-	note, err := syncer.Save(ctx, s, dir, progress)
+	prev := ""
+	if cs := savedcopy.List(base); len(cs) > 0 {
+		prev = cs[0].Dir
+	}
+	now := time.Now()
+	tmp, final := savedcopy.Next(base, now)
+	note, err := syncer.Save(ctx, s, tmp, prev, progress)
 	if err != nil {
+		savedcopy.Discard(tmp)
 		return "", err
 	}
-	info := SavedInfo{When: time.Now().Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note,
-		Files: syncer.SavedCount(dir)}
-	if b, err := json.Marshal(info); err == nil {
-		os.WriteFile(filepath.Join(filepath.Dir(dir), "saved.json"), b, 0o600)
+	info := savedcopy.Info{When: now.Format(time.RFC3339), From: s.Target + ":" + s.RemotePath, Note: note,
+		Files: syncer.SavedCount(tmp)}
+	if err := savedcopy.Commit(tmp, final, info); err != nil {
+		savedcopy.Discard(tmp)
+		return "", err
 	}
+	ui := a.sessions.Config().UI
+	days := 14
+	if ui.SavedCopiesDays != nil {
+		days = *ui.SavedCopiesDays
+	}
+	savedcopy.Prune(base, now, ui.SavedCopiesHours, days)
 	return note, nil
 }
 
@@ -700,8 +712,10 @@ func (a *App) QuitSaving() {
 	a.quitState = quitSaving
 	ctx, cancel := context.WithCancel(context.Background())
 	a.quitCancel = cancel
+	a.quitSaved = make(chan struct{})
 	go func() {
 		p := a.saves.All(ctx, func(p autosave.Progress) { runtime.EventsEmit(a.ctx, "autosave:quit", p) })
+		close(a.quitSaved)
 		a.quitMu.Lock()
 		a.quitState = quitDone
 		a.quitMu.Unlock()
@@ -714,14 +728,22 @@ func (a *App) QuitSaving() {
 	}()
 }
 
-// QuitNow quits at once, stopping saves still running.
+// QuitNow quits at once, stopping saves still running (waiting up to 5 s
+// for the stopped save to remove its unfinished copy).
 func (a *App) QuitNow() {
 	a.quitMu.Lock()
 	a.quitState = quitDone
+	saved := a.quitSaved
 	if a.quitCancel != nil {
 		a.quitCancel()
 	}
 	a.quitMu.Unlock()
+	if saved != nil {
+		select {
+		case <-saved:
+		case <-time.After(5 * time.Second):
+		}
+	}
 	a.quitReady.Store(true)
 	runtime.Quit(a.ctx)
 }
@@ -739,20 +761,24 @@ func (a *App) SyncTakeFiles(id string, dryRun, deletes bool) (syncer.Plan, error
 }
 
 // SyncSendAll sends the session directory in full (ignored files too, also
-// when Send would refuse); restore: the saved copy instead.
-func (a *App) SyncSendAll(id string, restore, dryRun bool) (syncer.Plan, error) {
+// when Send would refuse); copy: the saved copy with that stamp instead
+// (Restore).
+func (a *App) SyncSendAll(id, copy string, dryRun bool) (syncer.Plan, error) {
 	s, err := a.syncSession(id)
 	if err != nil {
 		return syncer.Plan{}, err
 	}
 	src := s.LocalPath
-	if restore {
-		if src, err = a.savedDir(id); err != nil {
+	if copy != "" {
+		base, err := a.savedBase(id)
+		if err != nil {
 			return syncer.Plan{}, err
 		}
-		if !a.savedInfo(id).Exists {
-			return syncer.Plan{}, errors.New("there is no saved copy of this session yet (Save agent copy first)")
+		c, ok := savedcopy.Find(base, copy)
+		if !ok {
+			return syncer.Plan{}, fmt.Errorf("there is no saved copy %q of this session", copy)
 		}
+		src = c.Dir
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 60*time.Minute)
 	defer cancel()
@@ -774,11 +800,11 @@ func (a *App) RemoveSaved(id string) error {
 	if !remote.ValidID(id) {
 		return fmt.Errorf("bad session id %q", id)
 	}
-	dir, err := a.savedDir(id)
+	base, err := a.savedBase(id)
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(filepath.Dir(dir))
+	return os.RemoveAll(base)
 }
 
 // OpenSaved opens the folder of a session's saved agent copy.
@@ -787,7 +813,7 @@ func (a *App) OpenSaved(id string) error {
 	if !info.Exists {
 		return errors.New("there is no saved copy of this session yet")
 	}
-	return opener.Open(info.Dir)
+	return opener.Open(info.Base)
 }
 
 // TakeResult is what SyncTake did, and what it could not do.

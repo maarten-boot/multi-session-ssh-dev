@@ -473,10 +473,14 @@ result. Details: [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).
 end of a work cycle, for experiments without git, and for an agent host that goes away:
 
 - *Save agent copy (everything, with .git)…* copies the whole agent copy — committed or not,
-  untracked, the files `.gitignore` ignores, and `.git` — to
-  `working-copies/<session id>/files/` in the data folder (see *Where the app keeps things*),
-  replacing the last saved copy (files gone on the agent host go there too). Your session
-  directory is not touched. *Open saved copy folder* shows it. **This also happens by itself**:
+  untracked, the files `.gitignore` ignores, and `.git` — to a new dated folder,
+  `working-copies/<session id>/20261022-1504…/` in the data folder (see *Where the app keeps
+  things*). Every copy of the last 24 hours is kept, and the last copy of each day for 14
+  days (Settings → Backups and recordings: `saved_copies_hours`, `saved_copies_days`; the
+  newest copy always stays). With rsync, files unchanged since the copy before are hard links
+  to it, so a copy costs only what changed (the built-in transfer copies everything) — so
+  don't edit files inside a saved copy: copy them out. Your session directory is not
+  touched. *Open saved copy folder* shows the dated folders. **This also happens by itself**:
   every hour while the app runs, and when you quit — the window then shows *Saving agent
   copies before quitting…* with a progress bar and closes when they are saved (*Quit now*
   stops it; a session whose save failed is listed first). Next to Full ▾ the bar shows *saved
@@ -492,12 +496,13 @@ end of a work cycle, for experiments without git, and for an agent host that goe
 - *Send all (ignored files too)…* is Send including the files `.gitignore` ignores (build
   output, `.env`…), also when Send would refuse; the agent copy becomes identical, ignored
   files there are deleted too. Unfetched commits or uncommitted changes there need a tick.
-- *Restore saved copy to the agent…* sends the saved copy (with its `.git`) to the session's
-  agent copy: after the agent host went down, point the host at a new machine (*Edit host…*),
-  then restore and carry on where the agent was.
+- *Restore saved copy to the agent…* sends a saved copy (with its `.git`) to the session's
+  agent copy; pick which one (newest first, with its date and file count): after the agent
+  host went down, point the host at a new machine (*Edit host…*), then restore and carry on
+  where the agent was — or go back to how it was yesterday.
 
-A saved copy stays when its session is deleted, unless you tick *Also delete its saved agent
-copy* in the delete dialog.
+Saved copies stay when their session is deleted, unless you tick *Also delete its saved agent
+copies* in the delete dialog.
 
 **Without git.** For a session directory that is not a git repository (a quick experiment)
 there are no commits to fetch: **⇣ Get** then takes the agent copy's files, with *Also delete
@@ -620,6 +625,8 @@ claude_backup_every = "1h"                # 5m … 168h
 save_agent_copies = true                  # save working copies' agent copies here (Full ▾ → Save)
 save_agent_copies_every = "1h"            # 5m … 24h
 save_agent_copies_at_quit = true          # and when quitting (the app waits, showing progress)
+saved_copies_hours = 24                   # keep every saved copy of the last 24 hours (1 … 720)
+saved_copies_days = 14                    # and the last one of each day for 14 days (0 … 365)
 record_remote = false                     # record every session's Remote tab (as text)
 record_every = "1h"                       # a new recording file every 5m … 24h
 record_dir = "~/sw-logs"                  # optional: default <data dir>/logs

@@ -123,7 +123,7 @@ export function SyncSave(arg1:string):Promise<main.SavedInfo>;
 
 export function SyncSend(arg1:string,arg2:boolean):Promise<syncer.Plan>;
 
-export function SyncSendAll(arg1:string,arg2:boolean,arg3:boolean):Promise<syncer.Plan>;
+export function SyncSendAll(arg1:string,arg2:string,arg3:boolean):Promise<syncer.Plan>;
 
 export function SyncTake(arg1:string,arg2:Array<string>):Promise<main.TakeResult>;
 

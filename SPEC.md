@@ -214,12 +214,19 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `git checkout … && git merge …` is shown.
 - F12. Full transfers for working copies (*Full ▾* next to the tabs and the session menu; each
   in the sync dialog with a preview where one exists):
-  - Save agent copy: the whole agent copy (with `.git`, untracked and ignored files) to
-    `<data dir>/working-copies/<id>/files` (`rsync -a --delete --safe-links --no-devices
-    --no-specials`; built-in: one tar stream unpacked through `os.Root` into `files.new`, which
-    then replaces `files`); `saved.json` next to it records when, from where and how many files (counted once, when
-    saved). Kept when the session is deleted unless the delete dialog's box for it is ticked
-    (`RemoveSaved`: `working-copies/<id>/`, the id checked first). Exit 24
+  - Save agent copy: the whole agent copy (with `.git`, untracked and ignored files) to a new
+    dated copy `<data dir>/working-copies/<id>/<YYYYMMDD-HHMMSS>` (local time;
+    `internal/savedcopy`), written as `<stamp>.new` and renamed when complete (a failed or
+    stopped save removes it; leftovers go at the next prune) (`rsync -a --delete --safe-links
+    --no-devices --no-specials --link-dest=<the newest copy>`: unchanged files are hard links;
+    built-in: one tar stream unpacked through `os.Root`, everything copied); `<stamp>.json` next
+    to it records when, from where and how many files (counted once, when saved). After each
+    save the copies are pruned: kept are all of the last `saved_copies_hours` (1–720, default
+    24), the newest of each earlier day for `saved_copies_days` days back from today (0–365,
+    default 14) and always the newest copy. A copy from before dated copies (`files` +
+    `saved.json`) is renamed to its date. Kept when the session is deleted unless the delete
+    dialog's box for them is ticked (`RemoveSaved`: `working-copies/<id>/`, the id checked
+    first). Exit 24
     (files vanished) is a success with a note. Refused while there is no agent copy.
   - Automatic saves (`internal/autosave`): `save_agent_copies` (default on) saves every
     working-copy session without an error every `save_agent_copies_every` (5m–24h, default 1h;
@@ -246,7 +253,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     then a tar stream of which only the wanted files (and their folders) are unpacked through
     `os.Root`; deletions through `os.Root`.
   - Send all / Restore saved copy: `rsync -a --delete` without the `.gitignore` filter, from
-    the session directory or the saved copy; not blocked by unfetched commits or uncommitted
+    the session directory or a saved copy picked in the dialog (newest first; the preview
+    follows the pick); not blocked by unfetched commits or uncommitted
     changes, which the preview reports and the dialog requires a tick for. An empty source is
     refused (it would empty the agent copy). Built-in: as F9 with every file on both sides.
   - Get on a session directory that is not a repository's top (no git, or a subdirectory)

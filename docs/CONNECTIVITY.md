@@ -230,9 +230,10 @@ described next. Fetching commits does not: hooks and configuration are never tra
 
 **Full transfers** (*Full ▾* and the session menu) are for when commits are not enough:
 
-- *Save agent copy* copies the whole agent copy, `.git` and ignored files included, into
-  `working-copies/<session id>/files/` in the app's data folder, owner-only, replacing the
-  last one. By default this also happens every hour and when you quit (the app waits, with a
+- *Save agent copy* copies the whole agent copy, `.git` and ignored files included, into a
+  dated folder `working-copies/<session id>/<YYYYMMDD-HHMMSS>/` in the app's data folder,
+  owner-only; the copies of the last 24 hours and one per day for 14 days are kept (unchanged
+  files are hard links between them, with rsync). By default this also happens every hour and when you quit (the app waits, with a
   progress bar; Settings → Backups and recordings). It is never used by git here: the agent's hooks and config in it run only if you
   run git in that folder yourself. Unsafe entries (symlinks leaving the copy, devices) are
   left out.
@@ -243,13 +244,14 @@ described next. Fetching commits does not: hooks and configuration are never tra
   that the agent copy does not have*; files with uncommitted changes here need a tick too.
 - *Send all* sends your directory including ignored files (`.env` with secrets too — think
   before using it) and even over unfetched agent commits, after a tick.
-- *Restore saved copy* sends the saved copy to the session's agent copy, e.g. on a new agent
-  host after the old one went away.
+- *Restore saved copy* sends a saved copy (you pick which) to the session's agent copy, e.g. on
+  a new agent host after the old one went away.
 
 For example, at the end of a work cycle on `lab-box`: *Full ▾ → Save agent copy* (everything
 claude left there, committed or not, is now in the data folder). The next morning `lab-box`
 does not come back. *Edit host…* on the host in the sidebar, set `ssh_target` to the spare
-machine, then *Full ▾ → Restore saved copy to the agent…*: the preview says
+machine, then *Full ▾ → Restore saved copy to the agent…*: the newest copy is picked (the list
+also has the earlier ones of today and one per earlier day), the preview says
 `New agent copy: 1234 file(s)`, Restore sends it, and the Remote tab starts claude in it, with
 the uncommitted work and the agent's branches as they were. (claude's own conversation history
 lives in `~/.claude`: restore that from the Claude backups, see below.)

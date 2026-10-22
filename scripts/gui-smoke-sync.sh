@@ -35,7 +35,8 @@ host = "agent"
 local_path = "$P"
 start_mode = "shell"
 TOML
-SAVED=$XDG_DATA_HOME/session-workbench/working-copies/s-sync/files
+# The newest dated saved copy (working-copies/<id>/YYYYMMDD-HHMMSS).
+saved() { ls -d $XDG_DATA_HOME/session-workbench/working-copies/s-sync/2*[0-9] 2>/dev/null | tail -1; }
 k() { xdotool key "$@"; sleep 0.5; }
 t() { xdotool type --delay 8 "$1"; xdotool key Return; sleep ${2:-1}; }
 shot() { import -window root $OUT/$1.png; }
@@ -62,9 +63,9 @@ shot 5-fast-forwarded
 t 'echo draft >notes-draft.txt && echo more >>a.txt && mkdir -p build && echo bin >build/agent-out && echo WORK' 1.5
 click 120 90 3; menu s                          # Save agent copy… (the next s after Send)
 sleep 2; shot 6-save-dialog; k Return; sleep 4
-check "saved: uncommitted file" test -f $SAVED/notes-draft.txt
-check "saved: ignored build output" test -f $SAVED/build/agent-out
-check "saved: .git" test -f $SAVED/.git/HEAD
+check "saved: uncommitted file" test -f $(saved)/notes-draft.txt
+check "saved: ignored build output" test -f $(saved)/build/agent-out
+check "saved: .git" test -f $(saved)/.git/HEAD
 click 120 90 3; menu t                          # Take all files from the agent…
 sleep 3; shot 7-take-preview
 k Return; sleep 3

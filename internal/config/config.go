@@ -161,12 +161,16 @@ type UI struct {
 	// SaveAgentCopies saves the agent copy of every working-copy session
 	// (internal/syncer Save) every SaveAgentCopiesEvery (5m to 24h) while the
 	// app runs, and, with SaveAgentCopiesAtQuit, when it quits (the app waits).
-	SaveAgentCopies       *bool    `toml:"save_agent_copies,omitempty" json:"save_agent_copies"`
-	SaveAgentCopiesEvery  string   `toml:"save_agent_copies_every,omitempty" json:"save_agent_copies_every"`
-	SaveAgentCopiesAtQuit *bool    `toml:"save_agent_copies_at_quit,omitempty" json:"save_agent_copies_at_quit"`
-	SpellCheck            *bool    `toml:"spell_check,omitempty" json:"spell_check"`
-	SpellLanguage         string   `toml:"spell_language,omitempty" json:"spell_language"`
-	SpellWords            []string `toml:"spell_words,omitempty" json:"spell_words"`
+	SaveAgentCopies       *bool  `toml:"save_agent_copies,omitempty" json:"save_agent_copies"`
+	SaveAgentCopiesEvery  string `toml:"save_agent_copies_every,omitempty" json:"save_agent_copies_every"`
+	SaveAgentCopiesAtQuit *bool  `toml:"save_agent_copies_at_quit,omitempty" json:"save_agent_copies_at_quit"`
+	// Every save is a dated copy; kept are all of the last SavedCopiesHours
+	// (1 to 720) and the last of each day for SavedCopiesDays (0 to 365).
+	SavedCopiesHours int      `toml:"saved_copies_hours,omitempty" json:"saved_copies_hours"`
+	SavedCopiesDays  *int     `toml:"saved_copies_days,omitempty" json:"saved_copies_days"`
+	SpellCheck       *bool    `toml:"spell_check,omitempty" json:"spell_check"`
+	SpellLanguage    string   `toml:"spell_language,omitempty" json:"spell_language"`
+	SpellWords       []string `toml:"spell_words,omitempty" json:"spell_words"`
 	// Commands is the command menu of every session (after its own);
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
@@ -276,6 +280,12 @@ func (c *Config) applyDefaults() {
 	}
 	if _, err := SaveAgentCopiesEvery(c.UI); err != nil {
 		c.UI.SaveAgentCopiesEvery = "1h"
+	}
+	if c.UI.SavedCopiesHours < 1 || c.UI.SavedCopiesHours > 720 {
+		c.UI.SavedCopiesHours = 24
+	}
+	if c.UI.SavedCopiesDays == nil || *c.UI.SavedCopiesDays < 0 || *c.UI.SavedCopiesDays > 365 {
+		c.UI.SavedCopiesDays = ptr(14)
 	}
 	if !validSpellLanguage(c.UI.SpellLanguage) {
 		c.UI.SpellLanguage = "en_US"
@@ -467,6 +477,12 @@ func ValidateUI(u UI) error {
 	}
 	if _, err := SaveAgentCopiesEvery(u); err != nil {
 		return err
+	}
+	if u.SavedCopiesHours < 1 || u.SavedCopiesHours > 720 {
+		return fmt.Errorf("keep every saved copy of the last %d hours: use 1 to 720", u.SavedCopiesHours)
+	}
+	if u.SavedCopiesDays == nil || *u.SavedCopiesDays < 0 || *u.SavedCopiesDays > 365 {
+		return errors.New("keep a saved copy per day: use 0 to 365 days")
 	}
 	if !validRecordDir(u.RecordDir) {
 		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", u.RecordDir)

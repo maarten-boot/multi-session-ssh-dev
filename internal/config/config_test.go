@@ -287,6 +287,8 @@ claude_backup_every = "1s"
 record_every = "7d"
 record_dir = "relative/logs"
 save_agent_copies_every = "1m"
+saved_copies_hours = 0
+saved_copies_days = 999
 spell_language = "../../etc/passwd"
 spell_words = ["Wails", " tmux ", "tmux", "two words", ""]
 `), 0o644)
@@ -300,8 +302,9 @@ spell_words = ["Wails", " tmux ", "tmux", "two words", ""]
 	if c.UI.RecordDir != "" || c.UI.RecordEvery != "1h" {
 		t.Errorf("record_dir %q, record_every %q", c.UI.RecordDir, c.UI.RecordEvery)
 	}
-	if c.UI.SaveAgentCopiesEvery != "1h" {
-		t.Errorf("save_agent_copies_every %q", c.UI.SaveAgentCopiesEvery)
+	if c.UI.SaveAgentCopiesEvery != "1h" || c.UI.SavedCopiesHours != 24 || *c.UI.SavedCopiesDays != 14 {
+		t.Errorf("save_agent_copies_every %q, saved_copies_hours %d, saved_copies_days %d",
+			c.UI.SaveAgentCopiesEvery, c.UI.SavedCopiesHours, *c.UI.SavedCopiesDays)
 	}
 	if c.UI.SpellLanguage != "en_US" || !slices.Equal(c.UI.SpellWords, []string{"Wails", "tmux"}) {
 		t.Errorf("spell_language %q, spell_words %q", c.UI.SpellLanguage, c.UI.SpellWords)
@@ -318,6 +321,16 @@ func TestSaveAgentCopiesSettings(t *testing.T) {
 		u.SaveAgentCopiesEvery = every
 		if err := ValidateUI(u); (err == nil) != ok {
 			t.Errorf("ValidateUI with save_agent_copies_every %q: %v", every, err)
+		}
+	}
+	for _, c := range []struct {
+		hours, days int
+		ok          bool
+	}{{24, 14, true}, {1, 0, true}, {720, 365, true}, {0, 14, false}, {721, 14, false}, {24, -1, false}, {24, 366, false}} {
+		u := Default().UI
+		u.SavedCopiesHours, u.SavedCopiesDays = c.hours, &c.days
+		if err := ValidateUI(u); (err == nil) != c.ok {
+			t.Errorf("ValidateUI with saved copies %d hours, %d days: %v", c.hours, c.days, err)
 		}
 	}
 }

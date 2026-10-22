@@ -67,8 +67,10 @@ func empty(dir string) bool {
 // ignores) to dest, which then holds exactly that: files gone there go
 // here too. Symlinks that leave the copy, devices and other special files
 // are left out; the note says so. progress (may be nil) gets the percentage
-// done when rsync can tell (3.1 or newer), else nothing.
-func Save(ctx context.Context, s Session, dest string, progress func(int)) (note string, err error) {
+// done when rsync can tell (3.1 or newer), else nothing. prev (may be "")
+// is an earlier copy: with rsync, files unchanged since then become hard
+// links to it instead of copies (--link-dest).
+func Save(ctx context.Context, s Session, dest, prev string, progress func(int)) (note string, err error) {
 	if err := remote.CheckTarget(s.Target); err != nil {
 		return "", err
 	}
@@ -86,6 +88,11 @@ func Save(ctx context.Context, s Session, dest string, progress func(int)) (note
 		return saveBuiltin(ctx, s, dest)
 	}
 	args := []string{"-a", "--delete", "--safe-links", "--no-devices", "--no-specials", "--timeout=120", "-e", remote.SSHCommand()}
+	if prev != "" {
+		if abs, err := filepath.Abs(prev); err == nil {
+			args = append(args, "--link-dest="+filepath.ToSlash(abs))
+		}
+	}
 	if progress != nil && rsyncProgress() {
 		// The whole file list first, so the percentage is of everything.
 		args = append(args, "--info=progress2", "--no-inc-recursive")

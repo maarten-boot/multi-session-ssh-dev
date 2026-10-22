@@ -1619,6 +1619,8 @@ async function settingsDialog() {
         saveEvery.append(el('option', {value: ui.save_agent_copies_every, textContent: ui.save_agent_copies_every}));
     }
     saveEvery.value = ui.save_agent_copies_every;
+    f.saved_copies_hours.value = ui.saved_copies_hours ?? 24;
+    f.saved_copies_days.value = ui.saved_copies_days ?? 14;
     const recEvery = f.record_every;
     if (![...recEvery.options].some(o => o.value === ui.record_every)) {
         recEvery.append(el('option', {value: ui.record_every, textContent: ui.record_every}));
@@ -1693,6 +1695,8 @@ async function settingsDialog() {
         save_agent_copies: f.save_agent_copies.checked,
         save_agent_copies_every: f.save_agent_copies_every.value,
         save_agent_copies_at_quit: f.save_agent_copies_at_quit.checked,
+        saved_copies_hours: Number(f.saved_copies_hours.value),
+        saved_copies_days: Number(f.saved_copies_days.value),
         record_every: f.record_every.value,
         record_dir: f.record_dir.value.trim(),
         spell_check: f.spell_check.checked,
@@ -1894,17 +1898,21 @@ function saveCopyDialog(s) {
         title: 'Save agent copy', ok: 'Save',
         preview: async body => {
             const info = (await SyncInfo(s.id)).saved;
+            const ui = app.state.ui;
             body.replaceChildren(
                 el('p', {textContent: `Copies everything in ${s.data.host}:${s.data.remote_path} — committed or not, ` +
-                    'files .gitignore ignores, and .git — to a folder here, so nothing is lost if the agent host goes away.'}),
-                el('p', {textContent: info.exists ? `Replaces the copy saved ${savedWhen(info.when)} (${info.files} files).` : 'No copy saved yet.'}),
-                el('p', {className: 'hint', textContent: `Folder: ${info.dir}. Your session directory is not changed; ` +
-                    'Full ▾ → Restore saved copy sends it to an agent host again.'}));
+                    'files .gitignore ignores, and .git — to a dated folder here, so nothing is lost if the agent host goes away.'}),
+                el('p', {textContent: info.exists ? `${info.copies.length} saved cop${info.copies.length > 1 ? 'ies' : 'y'}; ` +
+                    `the newest from ${savedWhen(info.latest.when)} (${info.latest.files} files).` : 'No copy saved yet.'}),
+                el('p', {className: 'hint', textContent: `Kept: every copy of the last ${ui.saved_copies_hours} hours and the last of each day ` +
+                    `for ${ui.saved_copies_days} days (Settings → Backups and recordings). Folder: ${info.base}. Your session ` +
+                    'directory is not changed; Full ▾ → Restore saved copy sends one to an agent host again.'}));
             return true;
         },
         run: async () => {
             const info = await SyncSave(s.id);
-            toast(`Saved the agent copy of ${s.data.name}: ${info.files} files${info.note ? ` (${info.note})` : ''}`, !!info.note);
+            const c = info.latest;
+            toast(`Saved the agent copy of ${s.data.name}: ${c.files} files${c.note ? ` (${c.note})` : ''}`, !!c.note);
         },
     });
 }
@@ -1950,37 +1958,50 @@ function takeFilesDialog(s, asGet) {
 }
 
 // sendAllDialog sends in full (SyncSendAll): the session directory with
-// the files .gitignore ignores, or (restore) the saved copy.
+// the files .gitignore ignores, or (restore) a saved copy, picked from a list.
 function sendAllDialog(s, restore) {
-    let sure = null;
+    let sure = null, pick = null;
+    const from = () => restore ? pick?.value ?? '' : '';
     return fullDialog(s, {
         title: restore ? 'Restore saved copy to the agent' : 'Send all to the agent', ok: restore ? 'Restore' : 'Send all',
         preview: async (body, okBtn) => {
-            const info = restore ? (await SyncInfo(s.id)).saved : null;
-            const p = await SyncSendAll(s.id, restore, true);
-            const total = p.new + p.changed + p.deleted;
-            const parts = [];
-            if (restore) parts.push(el('p', {textContent: `The copy saved ${savedWhen(info.when)} from ${info.from || 'the agent host'} ` +
-                `(${info.files} files) goes to ${s.data.host}:${s.data.remote_path}.`}));
-            parts.push(el('p', {textContent: !p.agent.exists ? `New agent copy: ${p.new} file(s).` :
-                total ? `On the agent host: ${counts(p)}.` : 'The agent copy is already identical.'}));
-            parts.push(el('p', {className: 'hint', textContent: (restore ? 'Everything saved is sent, with .git and ignored files. ' :
-                'Everything here is sent, also the files .gitignore ignores (build output, .env…). ') +
-                'The agent copy becomes identical: what only it has is deleted there, ignored files too.'}));
-            const risks = [];
-            if (p.agent.unfetched) risks.push(`${p.agent.unfetched} branch(es) with commits you have not fetched`);
-            if (p.agent.dirty) risks.push(`uncommitted changes in ${p.agent.dirty} file(s)`);
-            if (risks.length) {
-                sure = el('input', {type: 'checkbox'});
-                sure.onchange = () => okBtn.disabled = !sure.checked;
-                parts.push(el('label', {className: 'check bad'}, sure, ` Overwrite the agent copy's ${risks.join(' and ')}`));
+            const head = [];
+            if (restore) {
+                const info = (await SyncInfo(s.id)).saved;
+                if (!info.exists) throw new Error('There is no saved copy of this session yet (Full ▾ → Save agent copy).');
+                pick = el('select', {}, ...info.copies.map(c => el('option', {value: c.stamp,
+                    textContent: `${savedWhen(c.when)} — ${c.files} files${c.from ? `, from ${c.from}` : ''}`})));
+                head.push(el('label', {className: 'restore-pick'}, 'Saved copy ', pick),
+                    el('p', {textContent: `It goes to ${s.data.host}:${s.data.remote_path}.`}));
             }
-            if (p.changes.length) parts.push(changeList(p));
-            body.replaceChildren(...parts);
-            return (total > 0 || !p.agent.exists) && !sure;
+            const show = async () => {
+                const p = await SyncSendAll(s.id, from(), true);
+                const total = p.new + p.changed + p.deleted;
+                const parts = [...head];
+                parts.push(el('p', {textContent: !p.agent.exists ? `New agent copy: ${p.new} file(s).` :
+                    total ? `On the agent host: ${counts(p)}.` : 'The agent copy is already identical.'}));
+                parts.push(el('p', {className: 'hint', textContent: (restore ? 'Everything in that copy is sent, with .git and ignored files. ' :
+                    'Everything here is sent, also the files .gitignore ignores (build output, .env…). ') +
+                    'The agent copy becomes identical: what only it has is deleted there, ignored files too.'}));
+                const risks = [];
+                if (p.agent.unfetched) risks.push(`${p.agent.unfetched} branch(es) with commits you have not fetched`);
+                if (p.agent.dirty) risks.push(`uncommitted changes in ${p.agent.dirty} file(s)`);
+                sure = null;
+                if (risks.length) {
+                    sure = el('input', {type: 'checkbox'});
+                    sure.onchange = () => okBtn.disabled = !sure.checked;
+                    parts.push(el('label', {className: 'check bad'}, sure, ` Overwrite the agent copy's ${risks.join(' and ')}`));
+                }
+                if (p.changes.length) parts.push(changeList(p));
+                body.replaceChildren(...parts);
+                okBtn.disabled = !(total > 0 || !p.agent.exists) || !!sure;
+                return !okBtn.disabled;
+            };
+            if (pick) pick.onchange = () => show().catch(err => body.replaceChildren(el('p', {className: 'bad', textContent: err?.message ?? String(err)})));
+            return show();
         },
         run: async () => {
-            const p = await SyncSendAll(s.id, restore, false);
+            const p = await SyncSendAll(s.id, from(), false);
             toast(`${restore ? 'Restored' : 'Sent all'} to ${s.data.host}: ${counts(p)}`);
             const v = s.tab('remote').view;
             if (v?.exited) v.restart();
@@ -2130,11 +2151,14 @@ async function deleteSession(s) {
     // A working copy's saved agent copy (Full ▾) can go with it; it is kept unless ticked.
     const saved = await SavedCopy(s.id).catch(() => ({exists: false}));
     const check = [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`];
-    if (saved.exists) check.push(`Also delete its saved agent copy (${saved.files} files, saved ${savedWhen(saved.when)})`);
+    if (saved.exists) {
+        const n = saved.copies.length;
+        check.push(`Also delete its ${n > 1 ? `${n} saved agent copies` : 'saved agent copy'} (the newest from ${savedWhen(saved.latest.when)})`);
+    }
     const ok = await confirmDialog({
         title: `Delete session “${s.data.name}”?`,
         text: 'Removes it from the list. Its files are not touched, and its notes are kept' +
-            (saved.exists ? '; so is its saved agent copy unless you tick it below.' : '.'),
+            (saved.exists ? '; so are its saved agent copies unless you tick it below.' : '.'),
         ok: 'Delete',
         check,
         action: async ([kill, dropSaved]) => {

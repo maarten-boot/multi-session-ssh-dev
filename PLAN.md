@@ -115,7 +115,9 @@ implementation differs from the original plan.
   dictionary" on an added word in the notes (N1b); deleting a session can delete its saved
   agent copy too (F1, F12); agent copies saved automatically every hour and at quit, with a
   progress overlay and Quit now (F12, `internal/autosave`); quitting waits for the notes to be
-  saved also when one signal arrives twice (Wails' and the app's handler).
+  saved also when one signal arrives twice (Wails' and the app's handler); dated saved copies
+  (`internal/savedcopy`: every copy of the last 24 hours and one per day for 14 days, unchanged
+  files hard-linked with rsync), Restore picks one.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -127,14 +129,11 @@ implementation differs from the original plan.
   - Alternative: a switchable "interactive view" that renders the session's text with the notes
     Markdown parsing (`frontend/src/markup.js`, `editor.js`) into collapsible HTML
     `<details>`/`<summary>` blocks.
-- **Several dated saved copies** instead of only the last one: `working-copies/<id>/<date>/`,
-  keep the last N (setting), Restore offers which one; rsync `--link-dest` against the
-  previous copy keeps unchanged files as hard links (the built-in transfer copies in full).
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
-  one save at a time, saving all at quit), forge, fsbrowse, opener, gitstatus incl. the repository
+  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries

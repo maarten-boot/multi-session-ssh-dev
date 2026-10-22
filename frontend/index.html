@@ -254,6 +254,12 @@
                     </select>
                 </label>
                 <label class="check wide-check"><input type="checkbox" name="save_agent_copies_at_quit"> Also save them when quitting (the app waits until they are saved, showing the progress)</label>
+                <label>Keep every saved copy of the last … hours
+                    <input name="saved_copies_hours" type="number" min="1" max="720" step="1">
+                </label>
+                <label>… and the last copy of each day for … days
+                    <input name="saved_copies_days" type="number" min="0" max="365" step="1">
+                </label>
                 <label class="check"><input type="checkbox" name="record_remote"> Record the Remote tabs of all sessions (input and output, as text)</label>
                 <label>New recording file every
                     <select name="record_every">
