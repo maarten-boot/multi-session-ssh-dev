@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.41: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.42: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -241,7 +241,8 @@ became that page; without one, the prompts list offers to create it). Every `## 
 heading there starts a prompt: the page lists them on the right with *Copy* and *Paste into
 Remote*, which puts the prompt into the current
 session's Remote tab as pasted text — claude runs it when you press Enter. **Prompts ▾** next to
-the tabs (Local and Remote) pastes one into the tab you are in: first the session's own prompts
+the tabs (Local and Remote), and the terminal's right-click menu after its commands, paste one
+into the tab you are in: first the session's own prompts
 (a page named *Prompts* and its subpages in the session's Notes, same `## name` headings), then
 those for all sessions. It waits until claude
 (or the shell) accepts a *bracketed* paste; a multi-line prompt is not pasted before that, so

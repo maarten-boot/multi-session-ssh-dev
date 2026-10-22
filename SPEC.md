@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-21, app v0.8.41) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-21, app v0.8.42) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -440,6 +440,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   when the menu opens; the open page's unsaved text counts) under *This session*, then those of
   N2 under *All sessions* (hovering shows the text). Choosing one pastes it into that tab as N2
   does for the Remote tab (bracketed paste once the program there turns it on; no Enter).
+  The terminal's right-click menu has the same entries after its *Commands* section, under
+  *Prompts (this session)* / *Prompts (all sessions)* (no section without prompts); the menu
+  opens once the session's prompts are read.
 - T5. Command menu in the Local and Remote tabs: a *Commands* section at the end of the
   right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
   The session's own commands (`commands` on the session, Edit…) come first, then

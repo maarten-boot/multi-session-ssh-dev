@@ -4,7 +4,8 @@
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
 # is only typed; Settings → Commands adds one; Prompts ▾ pastes the
-# session's own prompts (its notes' Prompts page) and those for all sessions.
+# session's own prompts (its notes' Prompts page) and those for all sessions,
+# as does a section of the terminal's right-click menu.
 # Needs `ssh localhost` without prompts and tmux.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-commands.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
@@ -75,6 +76,9 @@ in_pane "the session's prompt is on the command line" s-cmd 'echo own-prompt-$((
 k Return; sleep 1
 click ${PROMPTX:-800} 17; menu g; k Return; sleep 1                # "global prompt"
 expect "both prompts ran after Enter" "own-prompt-8|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
+# The terminal's right-click menu has them too, after the commands.
+click 700 500 3; sleep 0.5; shot 3c-context-prompts; menu g; k Return; sleep 1   # "global prompt"
+expect "a prompt from the right-click menu ran" "own-prompt-8|global-prompt-12|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
 
 # Settings → Commands: the lists, and a command added there.
 k ctrl+shift+comma; sleep 1

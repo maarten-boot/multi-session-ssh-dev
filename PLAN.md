@@ -111,6 +111,7 @@ implementation differs from the original plan.
   too; the saved copy's file count is kept with it (Get no longer walks it); a key the notes
   editor acts on (Ctrl+Shift+8/9) is not also an app key; a worked example of restoring to a
   new agent host; saved copies are kept when a session is deleted.
+- v0.8.42: prompts in the terminal's right-click menu, after the commands (T6).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -130,8 +131,6 @@ implementation differs from the original plan.
   previous copy keeps unchanged files as hard links (the built-in transfer copies in full).
 - **Remove the saved copy with the session**: the delete dialog offers to remove
   `working-copies/<id>/` too (unticked by default; today it is kept).
-- **Prompts in the terminal's right-click menu** too, as a section after Commands (T5, T6),
-  using the same entries as *Prompts ▾* (`promptMenu` in `frontend/src/prompts.js`).
 - **"Remove from dictionary"** in the notes right-click menu on a word you added
   (`spell_words`; nspell's `remove`), next to the corrections (N1b).
 
@@ -152,7 +151,7 @@ implementation differs from the original plan.
   check, working copies (Get: a fast-forward and a new branch; save, take all files, restore after
   the agent copy is gone; Get without git), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu and start commands, private shell history, lists and spelling in the notes, badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

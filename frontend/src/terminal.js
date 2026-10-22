@@ -34,9 +34,10 @@ function decode(b64) {
 //   onActivity('data', nbytes) / onActivity('bell') reports output.
 //   ui.copy_on_select copies the selection to the clipboard as it is made.
 export class TermView {
-    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity, commands}) {
+    constructor(container, {start, exitHint, ui, colorMode, isAppKey, onState, onActivity, commands, prompts}) {
         this.start = start;
         this.commands = commands ?? (() => []);
+        this.prompts = prompts ?? (async () => []);
         this.exitHint = exitHint;
         this.isAppKey = isAppKey;
         this.onState = onState || (() => {});
@@ -310,9 +311,11 @@ export class TermView {
         ClipboardGetText().then(t => t && this.term.paste(t));
     }
 
-    // contextMenu is the terminal's right-click menu.
-    contextMenu(x, y) {
+    // contextMenu is the terminal's right-click menu. The prompts are read
+    // first (the session's own come from its notes pages).
+    async contextMenu(x, y) {
         const k = isMac ? '⌘' : (this.ctrlCopyPaste ? 'Ctrl+' : 'Ctrl+Shift+');
+        const prompts = await this.prompts().catch(() => []);
         showMenu(x, y, [
             {label: `Copy   ${k}C`, disabled: !this.term.hasSelection(), action: () => this.copy()},
             {label: `Paste   ${k}V`, action: () => this.pasteClipboard()},
@@ -321,6 +324,7 @@ export class TermView {
             {label: 'Find…', action: () => this.openFind()},
             {label: 'Clear scrollback', action: () => this.term.clear()},
             ...this.commandSection(),
+            ...(prompts.length ? ['-', ...prompts] : []),
         ]);
     }
 

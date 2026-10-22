@@ -36,14 +36,17 @@ export function parsePrompts(notes) {
 
 // promptMenu returns the entries of the Prompts menu (Local and Remote
 // tabs): the session's own prompts, then those for all sessions; paste(text)
-// puts one into the terminal (no Enter).
-export function promptMenu(own, global, paste) {
+// puts one into the terminal (no Enter). section: for the terminal's
+// right-click menu, with "Prompts" in the headings and nothing when there
+// are no prompts.
+export function promptMenu(own, global, paste, section = false) {
     const item = p => ({label: p.name, title: p.text, action: () => paste(p.text)});
+    const head = section ? ['Prompts (this session)', 'Prompts (all sessions)'] : ['This session', 'All sessions'];
     const items = [];
-    if (own.length) items.push({info: 'This session'}, ...own.map(item));
+    if (own.length) items.push({info: head[0]}, ...own.map(item));
     if (own.length && global.length) items.push('-');
-    if (global.length) items.push({info: 'All sessions'}, ...global.map(item));
-    if (!items.length) {
+    if (global.length) items.push({info: head[1]}, ...global.map(item));
+    if (!items.length && !section) {
         items.push({info: 'No prompts yet: "## name" headings on a page named Prompts,',
             title: 'Prompts come from the Prompts page (and its subpages) of this session\'s notes and of the notes for all sessions'},
         {info: 'in this session\'s notes or the notes for all sessions'});

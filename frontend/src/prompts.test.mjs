@@ -76,3 +76,10 @@ test('the Prompts menu: own prompts first, then those for all sessions', () => {
     assert.deepEqual(promptMenu([], [{name: 'R', text: 'x'}], () => {}).map(i => i.info ?? i.label), ['All sessions', 'R']);
     assert.ok(promptMenu([], [], () => {}).every(i => i.info));   // only an explanation
 });
+
+test('the Prompts section of the right-click menu', () => {
+    const items = promptMenu([{name: 'Tests', text: 'run them'}], [{name: 'Review', text: 'review it'}], () => {}, true);
+    assert.deepEqual(items.map(i => i === '-' ? '-' : i.info ?? i.label),
+        ['Prompts (this session)', 'Tests', '-', 'Prompts (all sessions)', 'Review']);
+    assert.deepEqual(promptMenu([], [], () => {}, true), []);   // no prompts: no section
+});

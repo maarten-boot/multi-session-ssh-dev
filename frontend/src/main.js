@@ -62,9 +62,10 @@ class Tab {
 
     // promptItems is this tab's Prompts menu: the session's own prompts,
     // then those for all sessions, pasted here without Enter.
-    async promptItems() {
+    // section: for the right-click menu (see promptMenu).
+    async promptItems(section = false) {
         const own = await sessionPrompts(this.session.id, this.session.tab('notes')?.view);
-        return promptMenu(own, app.appNotes?.prompts ?? [], text => app.pasteInto(this.key, text));
+        return promptMenu(own, app.appNotes?.prompts ?? [], text => app.pasteInto(this.key, text), section);
     }
 
     constructor(session, label, start, exitHint, onState) {
@@ -89,6 +90,7 @@ class Tab {
                 isAppKey: e => appKey(e) !== null, onState: this.onState,
                 onActivity: (kind, n) => this.activity(kind, n),
                 commands: () => this.commandItems(),
+                prompts: () => this.promptItems(true),
             });
             this.view.spawn();
         }
