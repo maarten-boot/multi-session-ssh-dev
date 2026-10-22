@@ -235,7 +235,8 @@ Default order:
   logged in (`gh auth login`) on your computer; the app stores no tokens. Pages open in
   your normal browser: GitHub cannot be shown inside the app.
 
-**Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M) opens a notes page
+**Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M, or a right-click on the
+empty space of the session list → *Notes for all sessions…* / *Prompts for all sessions…*) opens a notes page
 for the whole app, for prompts you use often and notes that belong to no session: the same
 page tree and editor, stored under `notes/_app/` next to `config.toml`. Prompts live on the
 page named *Prompts* and its subpages (the notes from before pages existed, `notes/_app.md`,
@@ -432,11 +433,11 @@ session too, and for a working copy deleting its saved agent copy; its notes are
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
-Claude data, or delete it (once no session uses it). Right-click the empty space below the
-list for the "+" menu (*New session…*, *New folder…*, *Add host…*) and *Notes for all
-sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes; the Prompts page is
-made when there is none). Menus also work from the keyboard
-(arrows, Home/End, Enter, Esc, first letter).
+Claude data, or delete it (once no session uses it). Right-click the empty space below (or
+between) the hosts and folders for the "+" menu (*New session…*, *New folder…*, *Add host…*)
+and *Notes for all sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes;
+the Prompts page is made when there is none). Menus also work from the keyboard (arrows,
+Home/End, Enter, Esc, first letter).
 
 **Sidebar width.** Drag the sidebar's right edge to make it wider or narrower (or focus the
 edge with Tab and use ← / →); double-click the edge for the default width. The width is

@@ -483,9 +483,10 @@ const app = {
             const r = e.currentTarget.getBoundingClientRect();
             newMenu(r.left, r.bottom + 2);
         };
-        // Right-click the empty space below (or between) the hosts and folders.
+        // Right-click the empty space below or between the hosts and folders
+        // (sessions and headers have their own menus).
         $('#session-list').oncontextmenu = e => {
-            if (e.target !== e.currentTarget) return;
+            if (e.target.closest('.session, .host-head, .folder-head')) return;
             e.preventDefault();
             listMenu(e.clientX, e.clientY);
         };

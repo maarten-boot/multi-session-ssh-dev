@@ -108,7 +108,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
-  A right-click on the empty space of the list: the + menu (new session, new folder, add host)
+  A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host)
   and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
   the Prompts page is made if missing).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
@@ -423,7 +423,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   unknown encoding) turns checking off with a message, once per language. A language name is letters, digits and
   `_ @ . -`, not starting with `.` or `-`; an invalid one in the file becomes `en_US`. A few
   tool names (`TOOL_WORDS` in frontend/src/spelling.js: claude, tmux, ssh, git…) are always known.
-- N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key) with the same
+- N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key, the session
+  list's menu of F1) with the same
   page tree and editor for `notes/_app/` (`_` keeps it apart from session ids; the old
   `notes/_app.md` becomes the page *Prompts*). Prompts come from the page *Prompts* and its
   subpages (tree order; without that page the list offers to create it). Every `## name`

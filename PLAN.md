@@ -125,6 +125,8 @@ implementation differs from the original plan.
   config values reset to defaults, the ssh options, what happens when a save fails.
 - v0.8.44: a right-click on the empty space of the session list: the + menu (new session,
   folder, host) and Notes / Prompts for all sessions (F1, N2; the Prompts page made if missing).
+- Docs/code cross-check (v0.8.44): the list menu also on the space between hosts and folders
+  (and an empty folder's line), not only below the list; the notes docs name it as a way in.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
