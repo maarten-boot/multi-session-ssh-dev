@@ -122,6 +122,18 @@ implementation differs from the original plan.
   - Alternative: a switchable "interactive view" that renders the session's text with the notes
     Markdown parsing (`frontend/src/markup.js`, `editor.js`) into collapsible HTML
     `<details>`/`<summary>` blocks.
+- **Save the agent copy automatically** (working copies, F12): on a schedule and/or when the app
+  closes, like the Claude backups (`internal/backup` Runner: interval, status per host, a
+  setting to turn it on), so the end of a work cycle needs no click.
+- **Several dated saved copies** instead of only the last one: `working-copies/<id>/<date>/`,
+  keep the last N (setting), Restore offers which one; rsync `--link-dest` against the
+  previous copy keeps unchanged files as hard links (the built-in transfer copies in full).
+- **Remove the saved copy with the session**: the delete dialog offers to remove
+  `working-copies/<id>/` too (unticked by default; today it is kept).
+- **Prompts in the terminal's right-click menu** too, as a section after Commands (T5, T6),
+  using the same entries as *Prompts ▾* (`promptMenu` in `frontend/src/prompts.js`).
+- **"Remove from dictionary"** in the notes right-click menu on a word you added
+  (`spell_words`; nspell's `remove`), next to the corrections (N1b).
 
 ## Testing
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
