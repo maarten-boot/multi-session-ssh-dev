@@ -130,6 +130,9 @@ implementation differs from the original plan.
 - v0.8.45: a session description (New session / Edit dialog, `description` in config.toml),
   shown with name and path in a balloon on the session in the list after `description_delay`
   seconds (Settings → Appearance, default 1); it replaces the plain tooltip (F1).
+- Docs/code cross-check (v0.8.45): an empty delay field saves the default (not 0); the balloon
+  also goes when the list is scrolled with its scrollbar; a hand-edited description over 2000
+  characters is reported; the Settings page summaries name the delay.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

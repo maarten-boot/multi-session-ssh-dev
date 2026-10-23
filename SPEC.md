@@ -111,7 +111,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
   Resting the mouse on a session shows a balloon with its name, local path and description
   (optional, set in the New session / Edit dialog; at most 2000 characters, line ends kept,
-  trimmed) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
+  trimmed; a longer hand-edited one is shown and reported) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
   when the mouse leaves, a button is pressed, the list scrolls or changes, or a menu opens.
   A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host)
   and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
@@ -517,7 +517,7 @@ next/prev session, the tabs by name, new session, quick switcher, settings, find
 copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. Read at start (restart after editing); Settings → Keys lists the current bindings.
 
 Settings is one dialog with pages behind a tab bar (the last one used opens again):
-Appearance (theme, colors, fonts, tab order), Terminals (scrollback, connecting, reconnecting,
+Appearance (theme, colors, fonts, description delay, tab order), Terminals (scrollback, connecting, reconnecting,
 badges, copy/paste, notifications, private shell history), Commands (command menu, start commands), Backups and
 recordings, Notes (spelling on/off, language, own words), Keys.
 

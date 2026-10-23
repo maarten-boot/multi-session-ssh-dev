@@ -855,4 +855,9 @@ func TestDescription(t *testing.T) {
 	if _, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "q"), Description: long}); err == nil {
 		t.Error("a new session with a description that is too long accepted")
 	}
+	c := config.Default()
+	c.Sessions = []config.Session{{ID: "s-x", Name: "x", Description: long}}
+	if p := strings.Join(Problems(c), "\n"); !strings.Contains(p, "the description has 2001 characters") {
+		t.Errorf("a hand-edited description that is too long not reported: %q", p)
+	}
 }

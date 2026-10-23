@@ -354,7 +354,7 @@ Off: Settings → Terminals (`private_history = false`), or per session in *Edit
   shell's usual history.
 
 **Settings** (Ctrl+Shift+, or *Settings…*) has six pages: Appearance (theme, colors, fonts,
-tab order), Terminals, Commands, Backups and recordings, Notes (spelling) and Keys (the current shortcuts).
+the delay before a session's description shows, tab order), Terminals, Commands, Backups and recordings, Notes (spelling) and Keys (the current shortcuts).
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|

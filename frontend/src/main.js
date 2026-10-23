@@ -483,6 +483,7 @@ const app = {
             const r = e.currentTarget.getBoundingClientRect();
             newMenu(r.left, r.bottom + 2);
         };
+        $('#session-list').addEventListener('scroll', hideBalloon); // also with the scrollbar
         // Right-click the empty space below or between the hosts and folders
         // (sessions and headers have their own menus).
         $('#session-list').oncontextmenu = e => {
@@ -1708,7 +1709,7 @@ async function settingsDialog() {
         scrollback: Number(f.scrollback.value),
         font_family: f.font_family.value.trim(),
         font_size: Number(f.font_size.value),
-        description_delay: Number(f.description_delay.value),
+        description_delay: f.description_delay.value === '' ? 1 : Number(f.description_delay.value), // empty: the default
         connect_on_start: f.connect_on_start.value,
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,

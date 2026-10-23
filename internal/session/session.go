@@ -320,6 +320,9 @@ func Problems(c *config.Config) []string {
 		if err := config.ValidateCommands(s.Commands); err != nil {
 			out = append(out, fmt.Sprintf("session %q: commands: %v", label, err))
 		}
+		if _, err := tidyDescription(s.Description); err != nil {
+			out = append(out, fmt.Sprintf("session %q: %v; Edit… cannot save it until it is shorter", label, err))
+		}
 		for _, l := range s.Links {
 			if err := forge.ValidLink(forge.Link{Name: l.Name, URL: l.URL}); err != nil {
 				out = append(out, fmt.Sprintf("session %q: link: %v; it is not shown", label, err))
