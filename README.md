@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.45: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.46: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -125,6 +125,13 @@ appears on the agent host, or why it can't be used. Host and directory can't be 
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
+The **quick switcher** (Ctrl+Shift+P, or *Quick switcher…* in the right-click menu of the
+session list's empty space) lists the sessions, most recent first: type to filter on name,
+folder, host and path (letters in order, e.g. `wb` finds *workbench*) or on text in a
+description (as typed, e.g. `mail server`); Enter goes there. A description's first line
+shows under its session, and hovering a row shows its full path. Drag its bottom-right
+corner to make it larger; it keeps that size.
+
 Rest the mouse on a session in the list for a balloon with its name, path and description
 (what you are working on there, at most 2000 characters); it shows after 1 second
 (Settings → Appearance, `description_delay`, 0 to 10) and goes when the mouse moves away.
@@ -362,7 +369,7 @@ the delay before a session's description shows, tab order), Terminals, Commands,
 | Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) | `session_1` … `session_9` |
 | Ctrl+Shift+1…9 | ⇧⌘1…9 | 1st…9th visible tab | `tab_1` … `tab_9` |
 | — | — | one tab wherever it is in the order (unbound) | `tab_local`, `tab_files`, `tab_remote`, `tab_notes`, `tab_web` |
-| Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first) | `quick_switcher` |
+| Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first; also in the session list's right-click menu) | `quick_switcher` |
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
 | Ctrl+Shift+F | ⌘F | find in terminal | `find` |
@@ -439,7 +446,7 @@ right-click a host (or its ⋯) to add a session on it, edit it, back up or rest
 Claude data, or delete it (once no session uses it). Right-click the empty space below (or
 between) the hosts and folders for the "+" menu (*New session…*, *New folder…*, *Add host…*)
 and *Notes for all sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes;
-the Prompts page is made when there is none). Menus also work from the keyboard (arrows,
+the Prompts page is made when there is none), and *Quick switcher…*. Menus also work from the keyboard (arrows,
 Home/End, Enter, Esc, first letter).
 
 **Sidebar width.** Drag the sidebar's right edge to make it wider or narrower (or focus the
@@ -725,7 +732,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
 `-config`. Window state is what this computer remembers outside `config.toml`: the active
 session, the last tab per session, *Hidden files* and the sort order per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
-recent order and the last host and start mode used for a new session. The window's size,
+recent order and size and the last host and start mode used for a new session. The window's size,
 position and whether it was maximised are saved in `window.json` when the window closes — also
 on SIGTERM (e.g. at logout) or Ctrl+C in the terminal that started it — and the next start
 opens there. A minimised or fullscreen window changes nothing. A position that is no longer on

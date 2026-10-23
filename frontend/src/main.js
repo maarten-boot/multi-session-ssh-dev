@@ -1053,14 +1053,20 @@ function quickSwitcher() {
     };
     const render = () => {
         const q = input.value.trim();
-        shown = rank(items, q, s => [[s.data.name, 2], [s.data.group, 1], [s.data.host, 1], [s.data.local_path, 1]]);
+        // The description counts only when it contains the text as typed: a
+        // fuzzy match in a long text would match nearly anything.
+        shown = rank(items, q, s => [[s.data.name, 2], [s.data.group, 1], [s.data.host, 1], [s.data.local_path, 1],
+            ...(q && s.data.description.toLowerCase().includes(q.toLowerCase()) ? [[q, 1]] : [])]);
         sel = Math.min(sel, Math.max(0, shown.length - 1));
         list.replaceChildren(...shown.map((s, i) => {
-            const row = el('div', {className: 'switch-item' + (i === sel ? ' selected' : '')},
+            const where = `${s.data.group ? s.data.group + ' · ' : ''}${s.data.host} · ${s.data.local_path}`;
+            const row = el('div', {className: 'switch-item' + (i === sel ? ' selected' : ''),
+                    title: [s.data.name, where, s.data.description].filter(Boolean).join('\n')},
                 el('span', {className: 'dot ' + s.dotClass()}),
                 highlight(s.data.name, q),
-                el('span', {className: 'where', textContent: `${s.data.group ? s.data.group + ' · ' : ''}${s.data.host} · ${s.data.local_path}`}),
-                s === app.active ? el('span', {className: 'current', textContent: 'current'}) : '');
+                el('span', {className: 'where', textContent: where}),
+                s === app.active ? el('span', {className: 'current', textContent: 'current'}) : '',
+                s.data.description ? el('span', {className: 'desc', textContent: s.data.description.split('\n')[0]}) : '');
             row.onmousedown = e => {
                 e.preventDefault();
                 choose(i);
@@ -1075,6 +1081,10 @@ function quickSwitcher() {
         dlg.close();
         if (s) app.select(s);
     };
+    // Resizable (drag its corner); the size is kept for next time.
+    const size = store.get('switcherSize', null);
+    dlg.style.width = size ? size.w + 'px' : '';
+    dlg.style.height = size ? size.h + 'px' : '';
     input.value = '';
     input.oninput = () => {
         sel = 0;
@@ -1088,7 +1098,11 @@ function quickSwitcher() {
         e.preventDefault();
         render();
     };
-    dlg.addEventListener('close', () => app.focusActive(), {once: true});
+    dlg.addEventListener('close', () => {
+        // Resizing sets the inline size (closed, it measures 0).
+        if (dlg.style.height) store.set('switcherSize', {w: parseFloat(dlg.style.width), h: parseFloat(dlg.style.height)});
+        app.focusActive();
+    }, {once: true});
     render();
     dlg.showModal();
     input.focus();
@@ -1293,6 +1307,8 @@ function listMenu(x, y) {
     showMenu(x, y, [...newItems(), '-',
         {label: `Notes for all sessions…   ${keyHint('app_notes')}`, action: () => app.appNotes.showPage('Home')},
         {label: 'Prompts for all sessions…', action: () => app.appNotes.showPage(PROMPTS)},
+        '-',
+        {label: `Quick switcher…   ${keyHint('quick_switcher')}`, disabled: !app.order.length, action: () => quickSwitcher()},
     ]);
 }
 

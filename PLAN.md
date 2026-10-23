@@ -133,6 +133,8 @@ implementation differs from the original plan.
 - Docs/code cross-check (v0.8.45): an empty delay field saves the default (not 0); the balloon
   also goes when the list is scrolled with its scrollbar; a hand-edited description over 2000
   characters is reported; the Settings page summaries name the delay.
+- v0.8.46: the quick switcher can be resized (the size is kept), finds sessions by text in
+  their description and shows its first line; *Quick switcher…* in the session list's menu.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

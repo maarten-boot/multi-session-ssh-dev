@@ -2,8 +2,8 @@
 # Headless GUI test of the right-click menu on the empty space of the
 # session list: Prompts for all sessions makes the Prompts page and opens
 # it, Notes for all sessions opens the Home page, New folder… works as in
-# the "+" menu, also from between the folders; a right-click on a session
-# still opens the session's menu.
+# the "+" menu, also from between the folders; Quick switcher… opens it; a
+# right-click on a session still opens the session's menu.
 # Needs `ssh localhost` without prompts and tmux.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-listmenu.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes
@@ -58,6 +58,15 @@ check "New folder… from the list menu" grep -q '"Work"' $CFG
 click 100 161 3; shot 4-folder-line; menu n
 xdotool type --delay 10 'Private'; k Return; sleep 1
 check "the list menu on an empty folder's line" grep -q '"Private"' $CFG
+
+# "q": Quick switcher… opens the switcher (its box where the terminal was).
+area() { convert $OUT/$1.png -crop 400x30+500+135 +repage $OUT/$1-area.png; }
+differs() { [ "$(compare -metric AE $OUT/$1-area.png $OUT/$2-area.png null: 2>&1 | cut -d' ' -f1)" != 0 ]; }
+shot 5a-no-switcher; area 5a-no-switcher
+click 100 500 3; menu q
+shot 5b-switcher; area 5b-switcher
+check "Quick switcher… from the list menu" differs 5a-no-switcher 5b-switcher
+k Escape
 
 # A right-click on the session is its own menu, not the list's.
 click 100 74 3; shot 5-session-menu

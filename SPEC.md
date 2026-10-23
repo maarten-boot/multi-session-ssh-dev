@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-23, app v0.8.45) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-23, app v0.8.46) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -115,7 +115,12 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   when the mouse leaves, a button is pressed, the list scrolls or changes, or a menu opens.
   A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host)
   and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
-  the Prompts page is made if missing).
+  the Prompts page is made if missing), *Quick switcher…*.
+  The quick switcher (`quick_switcher` key or that menu) ranks sessions by a fuzzy match on name
+  (weight 2), folder, host and local path, plus a description that contains the query as typed
+  (case-insensitive; no fuzzy match in long text); empty query: most recent first, the current
+  session last. Rows show the description's first line and a tooltip with the full path and
+  description. It can be resized from its corner; the size is kept (web view storage).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
   workspace root; any path under `local_prefix`) → name → description (optional) → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
@@ -564,7 +569,7 @@ recordings, Notes (spelling on/off, language, own words), Keys.
   not x11) the position is neither saved nor set: the compositor places windows.
   On Linux the data dir also holds WebKit's storage. Window state (active session, last tab
   per session, Hidden files and sort order per session, collapsed headers, sidebar width,
-  narrow sidebar, switcher order, last host and start mode for a new session) is in the web view's
+  narrow sidebar, switcher order and size, last host and start mode for a new session) is in the web view's
   storage: there on Linux, `%AppData%\session-workbench.exe\` on Windows (WebView2 default),
   WebKit's default store on macOS. Notes stay next to the config file.
 

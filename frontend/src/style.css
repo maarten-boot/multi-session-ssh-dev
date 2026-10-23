@@ -844,8 +844,20 @@ button.danger {
 
 dialog.switcher {
     margin-top: 70px;
-    padding: 6px;
+    padding: 6px 6px 14px; /* room for the resize corner */
     width: 560px;
+    box-sizing: border-box;
+    min-width: 320px;
+    min-height: 140px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 90px);
+    resize: both;
+    overflow: hidden;
+}
+
+dialog.switcher[open] {
+    display: flex;
+    flex-direction: column;
 }
 
 dialog.switcher input {
@@ -862,13 +874,21 @@ dialog.switcher input {
 }
 
 .switch-list {
+    flex: 1 1 auto; /* its rows' height, or what is left of a resized dialog */
+    min-height: 0;
     max-height: 360px;
     overflow-y: auto;
     margin-top: 6px;
 }
 
+/* Resized: the list fills the dialog. */
+dialog.switcher[style*="height"] .switch-list {
+    max-height: none;
+}
+
 .switch-item {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     padding: 6px 10px;
@@ -910,7 +930,7 @@ dialog.switcher input {
 }
 
 .switch-item .where {
-    flex: 1;
+    flex: 1 1 0; /* shrinks (ellipsis) instead of wrapping to its own line */
     min-width: 0;
     color: var(--muted);
     font-size: 0.923rem;
@@ -919,6 +939,16 @@ dialog.switcher input {
     white-space: nowrap;
     direction: rtl;
     text-align: left;
+}
+
+.switch-item .desc {
+    flex-basis: 100%;
+    margin: -4px 0 0 18px;
+    color: var(--muted);
+    font-size: 0.923rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .switch-item .current, .switch-empty {
