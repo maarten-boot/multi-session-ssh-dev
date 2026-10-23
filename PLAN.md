@@ -135,6 +135,9 @@ implementation differs from the original plan.
   characters is reported; the Settings page summaries name the delay.
 - v0.8.46: the quick switcher can be resized (the size is kept), finds sessions by text in
   their description and shows its first line; *Quick switcher…* in the session list's menu.
+- Docs/code cross-check (v0.8.46): the as-typed description match moved into `rank`
+  (frontend/src/fuzzy.js) with a unit test; the GUI test list in the README names the session
+  list's menu, descriptions and switcher resizing.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

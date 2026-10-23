@@ -1053,10 +1053,8 @@ function quickSwitcher() {
     };
     const render = () => {
         const q = input.value.trim();
-        // The description counts only when it contains the text as typed: a
-        // fuzzy match in a long text would match nearly anything.
         shown = rank(items, q, s => [[s.data.name, 2], [s.data.group, 1], [s.data.host, 1], [s.data.local_path, 1],
-            ...(q && s.data.description.toLowerCase().includes(q.toLowerCase()) ? [[q, 1]] : [])]);
+            [s.data.description, 1, true]]); // the description: as typed
         sel = Math.min(sel, Math.max(0, shown.length - 1));
         list.replaceChildren(...shown.map((s, i) => {
             const where = `${s.data.group ? s.data.group + ' · ' : ''}${s.data.host} · ${s.data.local_path}`;

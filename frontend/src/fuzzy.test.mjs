@@ -37,3 +37,16 @@ test('rank: best weighted field first, unmatched dropped, stable', () => {
     assert.deepEqual(rank(items, '', fields).map(i => i.name), items.map(i => i.name));
     assert.deepEqual(rank(items, 'zzz', fields), []);
 });
+
+test('rank: an as-typed field matches only text it contains', () => {
+    const items = [
+        {name: 'etc', desc: 'Mail server settings.\nSecond line.'},
+        {name: 'opt', desc: 'Many apples in late summer'}, // m…a…i…l scattered
+        {name: 'mail', desc: ''},
+    ];
+    const fields = it => [[it.name, 2], [it.desc, 1, true]];
+    assert.deepEqual(rank(items, 'MAIL server', fields).map(i => i.name), ['etc']);
+    assert.deepEqual(rank(items, 'mail', fields).map(i => i.name), ['mail', 'etc']); // the name weighs more
+    assert.deepEqual(rank(items, 'second', fields).map(i => i.name), ['etc']);
+    assert.deepEqual(rank([{name: 'x'}], 'x', it => [[it.name, 1], [undefined, 1, true]]).length, 1);
+});

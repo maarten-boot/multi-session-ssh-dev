@@ -78,8 +78,9 @@ make smoke   # headless GUI test of terminal fidelity
 make smoke-sessions  # sessions/dialogs/switching/restart, add host, start-mode restart,
                      # one instance per config, remembered window size and position, Claude backups
 make smoke-files     # Files tab
-make smoke-ui        # themes/colors, switcher, settings/keys, reconnect, find/unicode/copy,
-                     # folders, git markers, repository check, working copies (also saved
+make smoke-ui        # themes/colors, switcher (descriptions, resizing), settings/keys,
+                     # reconnect, find/unicode/copy, folders, the session list's menu,
+                     # session descriptions (the balloon), git markers, repository check, working copies (also saved
                      # automatically and at quit), live share,
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),

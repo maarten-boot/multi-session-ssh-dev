@@ -44,15 +44,19 @@ export function score(query, text, positions = null) {
 }
 
 // rank orders items by match quality for query. fields(item) returns
-// [text, weight] pairs; an item's score is its best weighted field score.
-// With an empty query the input order is kept.
+// [text, weight, asTyped] entries; an item's score is its best weighted
+// field score. An asTyped field matches only when it contains the query
+// (case-insensitive), scoring as a whole-query match: for long text, where a
+// subsequence would match nearly anything. With an empty query the input
+// order is kept.
 export function rank(items, query, fields) {
     if (!query.trim()) return items.slice();
     const out = [];
     items.forEach((item, i) => {
         let best = -1;
-        for (const [text, weight] of fields(item)) {
-            const s = score(query.trim(), text || '');
+        const q = query.trim();
+        for (const [text, weight, asTyped] of fields(item)) {
+            const s = !asTyped ? score(q, text || '') : (text || '').toLowerCase().includes(q.toLowerCase()) ? score(q, q) : -1;
             if (s >= 0) best = Math.max(best, s * weight);
         }
         if (best >= 0) out.push({item, best, i});
