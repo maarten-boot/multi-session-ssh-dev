@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/forge"
@@ -25,19 +26,20 @@ import (
 
 // View is a session as shown to the frontend, with derived fields.
 type View struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Host       string `json:"host"`
-	LocalPath  string `json:"local_path"`
-	StartMode  string `json:"start_mode"`
-	ColorMode  string `json:"color_mode"` // "" = follow the global setting
-	Group      string `json:"group"`
-	TrustedGit string `json:"trusted_git"`
-	Files      string `json:"files"` // the host's file access mode
-	RemotePath string `json:"remote_path"`
-	TmuxName   string `json:"tmux_name"`
-	Record     string `json:"record"`  // "on", "off", "" = follow the global setting
-	History    string `json:"history"` // "on", "off", "" = follow private_history
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Host        string `json:"host"`
+	LocalPath   string `json:"local_path"`
+	StartMode   string `json:"start_mode"`
+	ColorMode   string `json:"color_mode"` // "" = follow the global setting
+	Group       string `json:"group"`
+	TrustedGit  string `json:"trusted_git"`
+	Files       string `json:"files"` // the host's file access mode
+	RemotePath  string `json:"remote_path"`
+	TmuxName    string `json:"tmux_name"`
+	Record      string `json:"record"`  // "on", "off", "" = follow the global setting
+	History     string `json:"history"` // "on", "off", "" = follow private_history
 	// Commands is the session's own command menu (before the global one).
 	Commands []config.Command `json:"commands"`
 	Error    string           `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -70,22 +72,26 @@ type Resolved struct {
 
 // NewSession is the input for Create.
 type NewSession struct {
-	Host      string `json:"host"`
-	LocalPath string `json:"local_path"`
-	Name      string `json:"name"`
-	StartMode string `json:"start_mode"`
-	ColorMode string `json:"color_mode"` // "" = follow the global setting
-	Group     string `json:"group"`
+	Host        string `json:"host"`
+	LocalPath   string `json:"local_path"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	StartMode   string `json:"start_mode"`
+	ColorMode   string `json:"color_mode"` // "" = follow the global setting
+	Group       string `json:"group"`
 }
 
 // Edit is the input for Update.
 type Edit struct {
-	Name      string `json:"name"`
-	StartMode string `json:"start_mode"`
-	ColorMode string `json:"color_mode"`
-	Group     string `json:"group"`
-	Record    string `json:"record"`
-	History   string `json:"history"` // "on", "off", "" = follow private_history
+	Name string `json:"name"`
+	// Description replaces the session's description; null (left out)
+	// keeps it.
+	Description *string `json:"description"`
+	StartMode   string  `json:"start_mode"`
+	ColorMode   string  `json:"color_mode"`
+	Group       string  `json:"group"`
+	Record      string  `json:"record"`
+	History     string  `json:"history"` // "on", "off", "" = follow private_history
 	// Commands replaces the session's own command menu; null (left out)
 	// keeps it, [] empties it.
 	Commands []config.Command `json:"commands"`
@@ -155,7 +161,7 @@ func (m *Manager) State() State {
 	}
 	s.Problems = Problems(m.cfg)
 	for _, se := range m.cfg.Sessions {
-		v := View{ID: se.ID, Name: se.Name, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
+		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
 			History: se.History, Commands: se.Commands}
 		if r, err := resolve(m.cfg, se); err != nil {
@@ -396,7 +402,7 @@ func (m *Manager) Create(in NewSession) (View, error) {
 	}); err != nil {
 		return View{}, err
 	}
-	return View{ID: s.ID, Name: s.Name, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
+	return View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
 		ColorMode: s.ColorMode, Group: s.Group, Files: FilesMode(r.Host), RemotePath: r.RemotePath,
 		TmuxName: remote.TmuxName(s.ID)}, nil
 }
@@ -422,6 +428,11 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	if s.Name == "" {
 		s.Name = filepath.Base(s.LocalPath)
 	}
+	d, err := tidyDescription(in.Description)
+	if err != nil {
+		return s, err
+	}
+	s.Description = d
 	if _, ok := config.FindStartCommand(m.cfg.UI, s.StartMode); !ok {
 		return s, fmt.Errorf("unknown start mode %q", s.StartMode)
 	}
@@ -486,6 +497,22 @@ func Records(s config.Session, ui config.UI) bool {
 	return ui.RecordRemote
 }
 
+// MaxDescription is the longest description, in characters.
+const MaxDescription = 2000
+
+// tidyDescription trims d and its line ends (CRLF becomes LF).
+func tidyDescription(d string) (string, error) {
+	lines := strings.Split(strings.ReplaceAll(d, "\r\n", "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " \t\r")
+	}
+	d = strings.TrimSpace(strings.Join(lines, "\n"))
+	if n := utf8.RuneCountInString(d); n > MaxDescription {
+		return "", fmt.Errorf("the description has %d characters: at most %d", n, MaxDescription)
+	}
+	return d, nil
+}
+
 func validColorMode(mode string) error {
 	if mode != "" && mode != "full" && mode != "mono" {
 		return fmt.Errorf("unknown color mode %q", mode)
@@ -526,6 +553,13 @@ func (m *Manager) Update(id string, e Edit) error {
 	if err := config.ValidateCommands(e.Commands); err != nil {
 		return err
 	}
+	var desc string
+	if e.Description != nil {
+		var err error
+		if desc, err = tidyDescription(*e.Description); err != nil {
+			return err
+		}
+	}
 	return m.update(func(c *config.Config) error {
 		i := indexOf(c, id)
 		if i < 0 {
@@ -542,6 +576,9 @@ func (m *Manager) Update(id string, e Edit) error {
 			return fmt.Errorf("folder %q does not exist", e.Group)
 		}
 		c.Sessions[i].Name = name
+		if e.Description != nil { // left out: unchanged
+			c.Sessions[i].Description = desc
+		}
 		c.Sessions[i].StartMode = e.StartMode
 		c.Sessions[i].ColorMode = e.ColorMode
 		c.Sessions[i].Group = e.Group

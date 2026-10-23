@@ -60,7 +60,7 @@ t 'echo "in $(tmux display -p "#S")"; export MARK=one'
 k ctrl+shift+n
 typ "$SL/DEV/github.com/maarten-boot/multi-session-ssh-dev"; sleep 1
 shot 02-dialog
-k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab   # Browse, Name, Folder, Start: shell; back to Name
+k Tab; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k shift+Tab   # Browse, Name, Description, Folder, Start: shell; back to Name
 typ "workbench"; k Return; sleep 1
 WB=$(field $CFG workbench 1)
 k ctrl+shift+3; sleep 2                       # new sessions open on Local
@@ -74,7 +74,7 @@ shot 04-rejected
 k Escape
 # Second dialog session, default name.
 k ctrl+shift+n
-typ "$SL/RL"; sleep 0.5; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k Return; sleep 3
+typ "$SL/RL"; sleep 0.5; k Tab; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k shift+Tab; k Return; sleep 3
 shot 05-five
 # Switching.
 k ctrl+alt+1; k ctrl+shift+3; t 'echo "back: $MARK"'

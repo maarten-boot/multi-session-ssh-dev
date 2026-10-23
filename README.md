@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.44: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.45: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -117,7 +117,7 @@ Start `session-workbench`. The first time it shows **Add host…** to set up an 
   see [Without a shared file system](#without-a-shared-file-system).
 
 Then **New session** (Ctrl+Shift+N): pick a directory under the local prefix,
-a name (defaults to the directory name), and what a new remote tmux session starts
+a name (defaults to the directory name), an optional description, and what a new remote tmux session starts
 with: one of the start commands of Settings → Commands (out of the box `claude`,
 `claude-continue` = `claude --continue || claude`, and `shell`; add your own, such as
 `claude --model opus`). The dialog shows where the directory
@@ -125,6 +125,9 @@ appears on the agent host, or why it can't be used. Host and directory can't be 
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
+Rest the mouse on a session in the list for a balloon with its name, path and description
+(what you are working on there, at most 2000 characters); it shows after 1 second
+(Settings → Appearance, `description_delay`, 0 to 10) and goes when the mouse moves away.
 
 Each session has these tabs. Change their order, or hide some, in Settings → Appearance;
 Ctrl+Shift+1… always selects the 1st… visible tab, and hovering a tab shows its shortcut.
@@ -425,7 +428,7 @@ a folder are listed first.
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
 the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
 *working copy (sync)*; hover it for a short explanation; not shown for a session that cannot
-work); then *Edit…* (name, folder, start mode, colors, own commands, recording, shell history),
+work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
@@ -444,8 +447,8 @@ edge with Tab and use ← / →); double-click the edge for the default width. T
 remembered and scales with the font size.
 
 **Narrow sidebar.** « in the sidebar header (or Ctrl+Shift+B) shrinks the sidebar to a
-rail of session markers: initials, number, status dot and badges; hover for the name
-and path. » widens it again (to the width you dragged it to); the choice is remembered. While narrow, *Add host…* and
+rail of session markers: initials, number, status dot and badges; hover for the name,
+path and description. » widens it again (to the width you dragged it to); the choice is remembered. While narrow, *Add host…* and
 *Settings…* are hidden: use "+" and Ctrl+Shift+, instead.
 
 ### Without a shared file system
@@ -614,6 +617,7 @@ color_mode = "full"                       # or "mono"
 min_contrast = 4.5                        # 1 (off) .. 21
 font_family = "JetBrains Mono"            # default: DejaVu Sans Mono / Cascadia Mono / Menlo
 font_size = 13                            # 6 .. 48, the whole app follows it
+description_delay = 1                     # seconds before a session's description balloon (0 .. 10)
 scrollback = 10000                        # lines, 1 .. 1000000
 connect_on_start = "lazy"                 # or "eager": connect all Remote tabs at startup
 auto_reconnect = true
@@ -691,6 +695,7 @@ files = "sshfs"                           # mounted at ~/sw/<dir>-<session id> w
 [[sessions]]                              # sidebar order = order in this file
 id = "s-7f3a"                             # tmux session cw-s-7f3a; [a-z0-9-], not starting with -, at most 63 characters
 name = "workbench"
+description = "Session Workbench itself.\nRelease: make smoke-all first."   # optional: the sidebar balloon
 host = "vibe"
 local_path = "~/share-local/DEV/github.com/maarten-boot/multi-session-ssh-dev"
 start_mode = "claude-continue"            # the name of one of [[ui.start_commands]]

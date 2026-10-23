@@ -31,9 +31,45 @@ export function toast(text, bad = false) {
     setTimeout(() => t.remove(), bad ? 8000 : 4000);
 }
 
+// balloon shows a balloon next to target once the mouse has rested on it
+// for delay() milliseconds: fill() returns its contents. It goes when the
+// mouse leaves, a button is pressed, the list scrolls or a menu opens.
+let balloonTimer = 0;
+
+export function balloon(target, fill, delay) {
+    target.addEventListener('mouseenter', () => {
+        hideBalloon();
+        balloonTimer = setTimeout(() => showBalloon(target, fill()), delay());
+    });
+    for (const ev of ['mouseleave', 'mousedown', 'contextmenu', 'dragstart', 'wheel']) target.addEventListener(ev, hideBalloon);
+}
+
+function showBalloon(target, children) {
+    if (!target.isConnected) return;
+    let b = $('#balloon');
+    if (!b) {
+        b = el('div', {id: 'balloon', role: 'tooltip'});
+        document.body.append(b);
+    }
+    b.replaceChildren(...children);
+    b.hidden = false;
+    const r = target.getBoundingClientRect(), w = b.offsetWidth, h = b.offsetHeight;
+    b.style.left = Math.max(4, Math.min(r.right + 8, innerWidth - w - 4)) + 'px';
+    b.style.top = Math.max(4, Math.min(r.top, innerHeight - h - 4)) + 'px';
+}
+
+export function hideBalloon() {
+    clearTimeout(balloonTimer);
+    const b = $('#balloon');
+    if (b) b.hidden = true;
+}
+
+addEventListener('blur', hideBalloon); // the window loses focus
+
 // showMenu opens the context menu at (x, y). items: {label, action, danger, disabled},
 // {info} (a line of text, not clickable) or '-'.
 export function showMenu(x, y, items) {
+    hideBalloon();
     const m = $('#menu');
     const prevFocus = document.activeElement;
     m.replaceChildren(...items.map(it => {

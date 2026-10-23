@@ -38,15 +38,18 @@ type Host struct {
 // Session is one work item: a directory on the host bound to an agent host.
 // The order of [[sessions]] in the file is the order in the sidebar.
 type Session struct {
-	ID        string            `toml:"id" json:"id"`
-	Name      string            `toml:"name" json:"name"`
-	Host      string            `toml:"host" json:"host"`
-	LocalPath string            `toml:"local_path" json:"local_path"`
-	StartMode string            `toml:"start_mode" json:"start_mode"`
-	Env       map[string]string `toml:"env,omitempty" json:"env"`               // extra env for the Local tab
-	LocalInit string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
-	ColorMode string            `toml:"color_mode,omitempty" json:"color_mode"` // "" = UI.ColorMode
-	Group     string            `toml:"group,omitempty" json:"group"`           // sidebar folder; "" = none
+	ID   string `toml:"id" json:"id"`
+	Name string `toml:"name" json:"name"`
+	// Description is shown in a balloon when hovering over the session in
+	// the sidebar (after UI.DescriptionDelay).
+	Description string            `toml:"description,omitempty" json:"description"`
+	Host        string            `toml:"host" json:"host"`
+	LocalPath   string            `toml:"local_path" json:"local_path"`
+	StartMode   string            `toml:"start_mode" json:"start_mode"`
+	Env         map[string]string `toml:"env,omitempty" json:"env"`               // extra env for the Local tab
+	LocalInit   string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
+	ColorMode   string            `toml:"color_mode,omitempty" json:"color_mode"` // "" = UI.ColorMode
+	Group       string            `toml:"group,omitempty" json:"group"`           // sidebar folder; "" = none
 	// TrustedGit is the fingerprint of repository hooks/config the user
 	// reviewed; the repository check warns again when it changes.
 	TrustedGit string `toml:"trusted_git,omitempty" json:"trusted_git"`
@@ -155,9 +158,6 @@ type UI struct {
 	// PrivateHistory gives each session's Local and Remote shells their own
 	// history file (HISTFILE; fish_history) instead of the user's shared one.
 	PrivateHistory *bool `toml:"private_history,omitempty" json:"private_history"`
-	// SpellCheck marks misspelled words in the notes, in SpellLanguage (a
-	// Hunspell dictionary name, see internal/spell); SpellWords are the
-	// words added with "Add to dictionary".
 	// SaveAgentCopies saves the agent copy of every working-copy session
 	// (internal/syncer Save) every SaveAgentCopiesEvery (5m to 24h) while the
 	// app runs, and, with SaveAgentCopiesAtQuit, when it quits (the app waits).
@@ -166,11 +166,17 @@ type UI struct {
 	SaveAgentCopiesAtQuit *bool  `toml:"save_agent_copies_at_quit,omitempty" json:"save_agent_copies_at_quit"`
 	// Every save is a dated copy; kept are all of the last SavedCopiesHours
 	// (1 to 720) and the last of each day for SavedCopiesDays (0 to 365).
-	SavedCopiesHours int      `toml:"saved_copies_hours,omitempty" json:"saved_copies_hours"`
-	SavedCopiesDays  *int     `toml:"saved_copies_days,omitempty" json:"saved_copies_days"`
-	SpellCheck       *bool    `toml:"spell_check,omitempty" json:"spell_check"`
-	SpellLanguage    string   `toml:"spell_language,omitempty" json:"spell_language"`
-	SpellWords       []string `toml:"spell_words,omitempty" json:"spell_words"`
+	SavedCopiesHours int  `toml:"saved_copies_hours,omitempty" json:"saved_copies_hours"`
+	SavedCopiesDays  *int `toml:"saved_copies_days,omitempty" json:"saved_copies_days"`
+	// SpellCheck marks misspelled words in the notes, in SpellLanguage (a
+	// Hunspell dictionary name, see internal/spell); SpellWords are the
+	// words added with "Add to dictionary".
+	SpellCheck    *bool    `toml:"spell_check,omitempty" json:"spell_check"`
+	SpellLanguage string   `toml:"spell_language,omitempty" json:"spell_language"`
+	SpellWords    []string `toml:"spell_words,omitempty" json:"spell_words"`
+	// DescriptionDelay is the wait in seconds (0 to 10) before the balloon
+	// with a session's name, path and description shows in the sidebar.
+	DescriptionDelay *float64 `toml:"description_delay,omitempty" json:"description_delay"`
 	// Commands is the command menu of every session (after its own);
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
@@ -290,6 +296,9 @@ func (c *Config) applyDefaults() {
 	if !validSpellLanguage(c.UI.SpellLanguage) {
 		c.UI.SpellLanguage = "en_US"
 	}
+	if !validDelay(c.UI.DescriptionDelay) {
+		c.UI.DescriptionDelay = ptr(1.0)
+	}
 	c.UI.SpellWords = TidyWords(c.UI.SpellWords)
 	if _, err := BackupEvery(c.UI); err != nil {
 		c.UI.ClaudeBackupEvery = "1h"
@@ -307,6 +316,8 @@ func (c *Config) applyDefaults() {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func validDelay(d *float64) bool { return d != nil && *d >= 0 && *d <= 10 }
 
 // BackupEvery parses UI.ClaudeBackupEvery: 5 minutes to 7 days.
 func BackupEvery(u UI) (time.Duration, error) {
@@ -483,6 +494,9 @@ func ValidateUI(u UI) error {
 	}
 	if u.SavedCopiesDays == nil || *u.SavedCopiesDays < 0 || *u.SavedCopiesDays > 365 {
 		return errors.New("keep a saved copy per day: use 0 to 365 days")
+	}
+	if !validDelay(u.DescriptionDelay) {
+		return errors.New("delay before a session's description shows: use 0 to 10 seconds")
 	}
 	if !validRecordDir(u.RecordDir) {
 		return fmt.Errorf("recording folder %q: use a full path (or ~/…)", u.RecordDir)

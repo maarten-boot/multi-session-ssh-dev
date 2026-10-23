@@ -825,3 +825,34 @@ func TestPrivateHistory(t *testing.T) {
 		t.Error("history = sometimes accepted")
 	}
 }
+
+// A description is kept with the session, tidied (line ends, spaces), and
+// left as it is by an Edit without one (the menu's color and recording
+// switches).
+func TestDescription(t *testing.T) {
+	m, root, cfgPath := setup(t)
+	v, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "p"), Description: "  Line one  \r\nline two\t\n\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Description != "Line one\nline two" {
+		t.Errorf("created with %q", v.Description)
+	}
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", ColorMode: "mono"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := Open(cfgPath).State().Sessions[0].Description; got != "Line one\nline two" {
+		t.Errorf("after an edit without a description: %q", got)
+	}
+	empty := ""
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", Description: &empty}); err != nil || m.State().Sessions[0].Description != "" {
+		t.Errorf("cleared: %v, %q", err, m.State().Sessions[0].Description)
+	}
+	long := strings.Repeat("é", MaxDescription+1)
+	if err := m.Update(v.ID, Edit{Name: "p", StartMode: "claude", Description: &long}); err == nil {
+		t.Error("a description that is too long accepted")
+	}
+	if _, err := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "q"), Description: long}); err == nil {
+		t.Error("a new session with a description that is too long accepted")
+	}
+}

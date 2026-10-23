@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-21, app v0.8.44) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-23, app v0.8.45) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -79,6 +79,7 @@ dialog and, for hand-edited values, when the config is read (§4.7).
 [[sessions]]
 id         = "s-7f3a"                  # stable, used for tmux name
 name       = "terminal-app"            # display name (the dialog defaults it to the dir name)
+description = "Port to the new API"    # optional, shown in the sidebar balloon (F1)
 host       = "vibe"
 local_path = "/home/mboot/share-local/workspace/terminal-app"
 start_mode = "claude-continue"         # a name from [[ui.start_commands]] (R2)
@@ -108,11 +109,15 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
+  Resting the mouse on a session shows a balloon with its name, local path and description
+  (optional, set in the New session / Edit dialog; at most 2000 characters, line ends kept,
+  trimmed) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
+  when the mouse leaves, a button is pressed, the list scrolls or changes, or a menu opens.
   A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host)
   and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
   the Prompts page is made if missing).
 - F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
-  workspace root; any path under `local_prefix`) → name → folder → start mode (one of the start commands,
+  workspace root; any path under `local_prefix`) → name → description (optional) → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
   used; one session per directory and host. Host and directory are fixed afterwards.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
@@ -538,7 +543,7 @@ recordings, Notes (spelling on/off, language, own words), Keys.
   default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
   `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),
   `record_dir` (absolute or under `~`), `spell_language`, `save_agent_copies_every` (5m–24h),
-  `saved_copies_hours` (1–720), `saved_copies_days` (0–365); `spell_words` are tidied (N1b). The command lists are not reset: invalid ones are
+  `saved_copies_hours` (1–720), `saved_copies_days` (0–365), `description_delay` (0–10); `spell_words` are tidied (N1b). The command lists are not reset: invalid ones are
   reported (T5, R2) and Settings refuses to save them until fixed; an empty `start_commands` gets
   the default three.
 - `<config>.lock` next to the file keeps a second instance from using it (F8); `notes/` and

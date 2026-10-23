@@ -127,6 +127,9 @@ implementation differs from the original plan.
   folder, host) and Notes / Prompts for all sessions (F1, N2; the Prompts page made if missing).
 - Docs/code cross-check (v0.8.44): the list menu also on the space between hosts and folders
   (and an empty folder's line), not only below the list; the notes docs name it as a way in.
+- v0.8.45: a session description (New session / Edit dialog, `description` in config.toml),
+  shown with name and path in a balloon on the session in the list after `description_delay`
+  seconds (Settings → Appearance, default 1); it replaces the plain tooltip (F1).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

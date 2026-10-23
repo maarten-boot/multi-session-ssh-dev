@@ -543,7 +543,7 @@ dialog label.check {
     font-size: 1rem;
 }
 
-dialog input:not([type]), dialog select {
+dialog input:not([type]), dialog select, dialog textarea {
     display: block;
     box-sizing: border-box;
     width: 100%;
@@ -570,7 +570,7 @@ dialog select option {
     color: var(--text-strong);
 }
 
-dialog input:focus, dialog select:focus {
+dialog input:focus, dialog select:focus, dialog textarea:focus {
     outline: none;
     border-color: var(--accent);
 }
@@ -2127,4 +2127,31 @@ body.sidebar-narrow #sidebar-resizer {
 
 .prompt-actions button:hover:not(:disabled) {
     background: var(--btn-hover);
+}
+
+/* --- the balloon with a session's name, path and description --- */
+#balloon {
+    position: fixed;
+    z-index: 90;
+    max-width: 28rem;
+    padding: 8px 12px;
+    background: var(--menu-bg);
+    color: var(--text-strong);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px var(--shadow);
+    pointer-events: none;
+    font-size: 0.923rem;
+    overflow-wrap: anywhere;
+}
+
+#balloon .balloon-name {
+    font-weight: 600;
+}
+
+#balloon .balloon-text {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-strong);
+    white-space: pre-wrap;
 }

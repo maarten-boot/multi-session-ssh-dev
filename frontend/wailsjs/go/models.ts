@@ -95,6 +95,7 @@ export namespace config {
 	    spell_check?: boolean;
 	    spell_language: string;
 	    spell_words: string[];
+	    description_delay?: number;
 	    commands: Command[];
 	    start_commands: StartCommand[];
 	
@@ -132,6 +133,7 @@ export namespace config {
 	        this.spell_check = source["spell_check"];
 	        this.spell_language = source["spell_language"];
 	        this.spell_words = source["spell_words"];
+	        this.description_delay = source["description_delay"];
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
 	    }
@@ -614,6 +616,7 @@ export namespace session {
 	
 	export class Edit {
 	    name: string;
+	    description?: string;
 	    start_mode: string;
 	    color_mode: string;
 	    group: string;
@@ -628,6 +631,7 @@ export namespace session {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
+	        this.description = source["description"];
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
@@ -658,6 +662,7 @@ export namespace session {
 	    host: string;
 	    local_path: string;
 	    name: string;
+	    description: string;
 	    start_mode: string;
 	    color_mode: string;
 	    group: string;
@@ -671,6 +676,7 @@ export namespace session {
 	        this.host = source["host"];
 	        this.local_path = source["local_path"];
 	        this.name = source["name"];
+	        this.description = source["description"];
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
@@ -697,6 +703,7 @@ export namespace session {
 	export class View {
 	    id: string;
 	    name: string;
+	    description: string;
 	    host: string;
 	    local_path: string;
 	    start_mode: string;
@@ -719,6 +726,7 @@ export namespace session {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	        this.description = source["description"];
 	        this.host = source["host"];
 	        this.local_path = source["local_path"];
 	        this.start_mode = source["start_mode"];

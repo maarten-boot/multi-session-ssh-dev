@@ -22,7 +22,7 @@ click 760 420                          # "Add host…" in the empty state
 typ "local"; k Tab; typ "localhost"; k Return   # no prefixes: same paths
 sleep 1; shot 02-host-added
 for d in /tmp /var /usr; do
-	k ctrl+shift+n; typ "$d"; sleep 0.4; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k Return; sleep 2.5
+	k ctrl+shift+n; typ "$d"; sleep 0.4; k Tab; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k shift+Tab; k Return; sleep 2.5
 done
 shot 03-three
 expect "three sessions, in order, start mode shell" "/tmp shell|/var shell|/usr shell|" \

@@ -114,6 +114,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-terminal-extras.sh build/bin/session-workbench $(SMOKE_OUT)-extras
 	$(XVFB) scripts/gui-smoke-folders.sh build/bin/session-workbench $(SMOKE_OUT)-folders
 	$(XVFB) scripts/gui-smoke-listmenu.sh build/bin/session-workbench $(SMOKE_OUT)-listmenu
+	$(XVFB) scripts/gui-smoke-description.sh build/bin/session-workbench $(SMOKE_OUT)-description
 	$(XVFB) scripts/gui-smoke-git.sh build/bin/session-workbench $(SMOKE_OUT)-git
 	$(XVFB) scripts/gui-smoke-repocheck.sh build/bin/session-workbench $(SMOKE_OUT)-repocheck
 	$(XVFB) scripts/gui-smoke-sync.sh build/bin/session-workbench $(SMOKE_OUT)-sync

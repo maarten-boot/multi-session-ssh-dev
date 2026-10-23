@@ -12,7 +12,7 @@ import {promptMenu} from './prompts';
 import {WebView} from './web';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
-import {$, el, hideMenu, showMenu, store, toast} from './ui';
+import {$, balloon, el, hideBalloon, hideMenu, showMenu, store, toast} from './ui';
 import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
@@ -697,6 +697,7 @@ const app = {
         this.narrowButton();
 
         const list = $('#session-list');
+        hideBalloon(); // its session item goes now
         list.replaceChildren();
         this.order = [];
         this.hostHeads = [];
@@ -806,7 +807,12 @@ const app = {
             el('span', {className: 'badge'}),
             n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
             more);
-        item.title = `${d.name}\n${d.local_path}`;
+        // Name, path and description, after Settings → Appearance's delay.
+        balloon(item, () => [
+            el('div', {className: 'balloon-name', textContent: d.name}),
+            el('div', {className: 'balloon-path', textContent: d.local_path}),
+            d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
+        ], () => 1000 * (this.state.ui.description_delay ?? 1));
         item.dataset.id = d.id;
         item.dataset.host = d.host;
         item.dataset.group = d.group;
@@ -1412,6 +1418,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.dir.value = s?.data.local_path ?? '';
     f.elements.name.value = s?.data.name ?? '';
     f.elements.name.placeholder = '';
+    f.elements.description.value = s?.data.description ?? '';
     const starts = app.state.ui.start_commands ?? [];
     f.elements.mode.replaceChildren(...starts.map(c => el('option', {value: c.name,
         textContent: c.command.trim() && c.command !== c.name ? `${c.name}  (${c.command})` : c.command.trim() ? c.name : `${c.name}  (a login shell)`})));
@@ -1481,12 +1488,13 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
             await UpdateSession(s.id, {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
-                history: f.elements.history.value, commands: cmdList.value,
+                history: f.elements.history.value, commands: cmdList.value, description: f.elements.description.value,
             });
         } else {
             created = await CreateSession({
                 host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value,
                 start_mode: f.elements.mode.value, color_mode: '', group: f.elements.group.value,
+                description: f.elements.description.value,
             });
             store.set('lastHost', f.elements.host.value);
             store.set('lastMode', f.elements.mode.value);
@@ -1613,7 +1621,7 @@ async function settingsDialog() {
     const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
         {emptyCommand: true, placeholder: {name: 'Name (start mode)'}});
-    for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start']) f[k].value = ui[k] ?? '';
+    for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start', 'description_delay']) f[k].value = ui[k] ?? '';
     f.auto_reconnect.checked = !!ui.auto_reconnect;
     f.activity_badges.checked = !!ui.activity_badges;
     f.copy_on_select.checked = !!ui.copy_on_select;
@@ -1700,6 +1708,7 @@ async function settingsDialog() {
         scrollback: Number(f.scrollback.value),
         font_family: f.font_family.value.trim(),
         font_size: Number(f.font_size.value),
+        description_delay: Number(f.description_delay.value),
         connect_on_start: f.connect_on_start.value,
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
