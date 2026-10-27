@@ -53,6 +53,8 @@ export function MoveGroup(arg1:string,arg2:string):Promise<void>;
 
 export function MoveSession(arg1:string,arg2:string):Promise<void>;
 
+export function NotesTodos(arg1:string):Promise<Record<string, number>>;
+
 export function NotesTree(arg1:string):Promise<Array<notes.Page>>;
 
 export function Notify(arg1:string,arg2:string,arg3:string):Promise<void>;

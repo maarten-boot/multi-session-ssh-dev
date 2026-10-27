@@ -21,7 +21,7 @@ import {
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
-    AutosaveStatus, QuitSaving, QuitNow,
+    AutosaveStatus, QuitSaving, QuitNow, NotesTodos,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -198,7 +198,10 @@ class NotesTab {
 
     show() {
         this.pane.hidden = false;
-        if (!this.view) this.view = new NotesView(this.pane, this.session.id, {dialogs: pageDialogs});
+        if (!this.view) {
+            this.view = new NotesView(this.pane, this.session.id, {dialogs: pageDialogs,
+                onTodos: todos => app.setTodos(this.session, todos)});
+        }
         else this.view.refresh();
         this.view.focus();
     }
@@ -294,6 +297,16 @@ class SessionUI {
 
     dotClass() {
         return this.data.error ? 'error' : this.remoteState;
+    }
+
+    // todoCount: the TODO lines in the session's notes; todoText says where.
+    todoCount() {
+        return Object.values(this.todos ?? {}).reduce((a, b) => a + b, 0);
+    }
+
+    todoText() {
+        const n = this.todoCount();
+        return n ? `${n} TODO ${n === 1 ? 'line' : 'lines'} in the notes: ${Object.keys(this.todos).sort().join(', ')}` : '';
     }
 
     // repoWarn: the repository has hooks or risky config the user has not
@@ -456,6 +469,7 @@ const app = {
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
         this.checkAll();
         setInterval(() => this.checkAll(), 120000);
+        this.checkTodos();
         this.select(last || this.order[0] || null);
 
         window.addEventListener('keydown', e => this.onKey(e));
@@ -465,6 +479,7 @@ const app = {
         window.addEventListener('blur', hideMenu);
         window.addEventListener('focus', () => {
             if (this.active) this.checkRepo(this.active);
+            this.checkTodos(); // the notes may have been edited outside the app
             if (this.appNotes?.visible) return; // the page covers the session; closing it clears
             const t = this.active?.activeTabObj();
             t?.setBadge?.(null);
@@ -803,6 +818,7 @@ const app = {
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
                 el('div', {className: 'sub', textContent: '‎' + d.local_path})),
+            el('span', {className: 'todo-warn', textContent: '▲', hidden: !s.todoCount(), title: s.todoText()}),
             el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
                 title: 'Repository hooks or settings to review (see the Files tab)'}),
             el('span', {className: 'badge'}),
@@ -813,6 +829,7 @@ const app = {
             el('div', {className: 'balloon-name', textContent: d.name}),
             el('div', {className: 'balloon-path', textContent: d.local_path}),
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
+            s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
         item.dataset.id = d.id;
         item.dataset.host = d.host;
@@ -854,6 +871,25 @@ const app = {
         s.tab('files')?.view?.renderRepoBanner?.();
     },
 
+    // checkTodos finds the TODO lines in every session's notes (the files,
+    // also when edited outside the app).
+    async checkTodos() {
+        for (const s of [...this.sessions.values()]) {
+            const todos = await NotesTodos(s.id).catch(() => null);
+            if (todos && this.sessions.get(s.id) === s) this.setTodos(s, todos);
+        }
+    },
+
+    setTodos(s, todos) {
+        s.todos = todos;
+        const w = s.item?.querySelector('.todo-warn');
+        if (w) {
+            w.hidden = !s.todoCount();
+            w.title = s.todoText();
+        }
+        if (s === this.active) this.renderBadges(s);
+    },
+
     // checkAll checks every session's repository, one after another.
     async checkAll() {
         for (const s of [...this.sessions.values()]) await this.checkRepo(s);
@@ -870,6 +906,9 @@ const app = {
                 const t = s.tab(btn.dataset.key);
                 btn.classList.toggle('bell', t?.badge === 'bell');
                 btn.classList.toggle('activity', t?.badge === 'activity');
+                const mark = btn.querySelector('.todo-mark');
+                if (mark) mark.hidden = !s.todoCount();
+                if (t?.key === 'notes') btn.title = btn.title.split('\n')[0] + (s.todoCount() ? '\n▲ ' + s.todoText() : '');
             });
         }
         const n = [...this.sessions.values()].filter(x => x.badge()).length;
@@ -907,7 +946,8 @@ const app = {
             label.dataset.label = t.label;
             // The shortcut is in the tooltip, not on the tab.
             const key = keyHint(`tab_${t.key}`) || keyHint(`tab_${i + 1}`);
-            const b = el('button', {title: key ? `${t.label} (${key})` : t.label}, label);
+            const b = el('button', {title: key ? `${t.label} (${key})` : t.label}, label,
+                t.key === 'notes' ? el('span', {className: 'todo-mark', textContent: '▲', hidden: true}) : '');
             b.dataset.key = t.key;
             if (t === active) b.classList.add('active');
             b.onclick = () => this.selectTab(t.key);

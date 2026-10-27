@@ -1374,6 +1374,12 @@ dialog .buttons .about {
 
 /* --- repository check --- */
 
+.session .todo-warn {
+    flex: none;
+    color: var(--danger);
+    font-size: 0.923rem;
+}
+
 .session .repo-warn {
     flex: none;
     color: var(--warn);
@@ -2184,4 +2190,26 @@ body.sidebar-narrow #sidebar-resizer {
     padding-top: 6px;
     border-top: 1px solid var(--border-strong);
     white-space: pre-wrap;
+}
+
+/* --- TODO lines in a session's notes: ▲ on the session, its Notes tab and pages --- */
+#tabs .todo-mark {
+    margin-left: 5px;
+    color: var(--danger);
+    font-size: 0.846rem;
+}
+
+.notes-row .todo-mark {
+    flex: none;
+    margin-left: 6px;
+    color: var(--danger);
+    font-size: 0.846rem;
+}
+
+#balloon .balloon-todo {
+    margin-top: 6px;
+}
+
+#balloon .todo-mark {
+    color: var(--danger);
 }

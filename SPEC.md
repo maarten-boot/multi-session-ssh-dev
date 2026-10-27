@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-23, app v0.8.46) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-23, app v0.8.47) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -109,6 +109,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
+  A red ▲ marks a session whose notes have TODO lines (N1c).
   Resting the mouse on a session shows a balloon with its name, local path and description
   (optional, set in the New session / Edit dialog; at most 2000 characters, line ends kept,
   trimmed; a longer hand-edited one is shown and reported) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
@@ -433,6 +434,13 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   unknown encoding) turns checking off with a message, once per language. A language name is letters, digits and
   `_ @ . -`, not starting with `.` or `-`; an invalid one in the file becomes `en_US`. A few
   tool names (`TOOL_WORDS` in frontend/src/spelling.js: claude, tmux, ssh, git…) are always known.
+- N1c. TODO marks: a line of a page with the word `TODO` (capitals, not part of a longer word:
+  not `TODOs`, `MYTODO`, `TODO_LIST`; `notes.CountTodos`) is a TODO. A session with any gets a
+  red ▲ in the sidebar (F1), on its Notes tab and on each such page in the tree (a folded page
+  also for its subpages); tooltips and the sidebar balloon give the count and the pages. Checked
+  for every session at start and when the window gets the focus (`NotesTodos`, reading the
+  files, so edits outside the app count), and after every save in the Notes tab. The notes for
+  all sessions mark their tree the same way.
 - N2. Notes for all sessions: a page over the main area (sidebar ✎, `app_notes` key, the session
   list's menu of F1) with the same
   page tree and editor for `notes/_app/` (`_` keeps it apart from session ids; the old

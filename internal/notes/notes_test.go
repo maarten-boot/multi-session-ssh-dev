@@ -286,3 +286,43 @@ func TestMigrate(t *testing.T) {
 		t.Errorf("existing Home overwritten: %+v", n)
 	}
 }
+
+func TestCountTodos(t *testing.T) {
+	for text, want := range map[string]int{
+		"TODO: fix the parser":                         1,
+		"- TODO check logs\n- [ ] TODO two\nok":        2,
+		"two on one line: TODO and TODO":               1, // lines count
+		"(TODO) and «TODO»\r\nTODO.":                   2,
+		"todo, Todo, TODOs, MYTODO, TODO_LIST, X1TODO": 0,
+		"ÄTODO and TODOé":                              0,
+		"":                                             0,
+	} {
+		if got := CountTodos(text); got != want {
+			t.Errorf("CountTodos(%q) = %d, want %d", text, got, want)
+		}
+	}
+}
+
+func TestTodos(t *testing.T) {
+	s := newStore(t)
+	for page, text := range map[string]string{
+		"Home":        "Plans.\nTODO: ask about the API\n",
+		"Design/API":  "TODO one\nTODO two\n",
+		"Design":      "nothing to do",
+		"Prompts/Old": "done",
+	} {
+		if _, err := s.Save(book, page, text); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := s.Todos(book)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got["Home"] != 1 || got["Design/API"] != 2 {
+		t.Errorf("Todos = %v", got)
+	}
+	if got, err := s.Todos("s-none"); err != nil || len(got) != 0 {
+		t.Errorf("a book without notes: %v, %v", got, err)
+	}
+}

@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -255,6 +256,45 @@ func (s Store) Load(book, page string) (Note, error) {
 	}
 	n.Text, n.Mtime = string(b), fi.ModTime().UnixMilli()
 	return n, nil
+}
+
+// todoWord is a TODO item: the word in capitals ("TODO: …", "- TODO …"),
+// not part of a longer word (TODOs, MYTODO, TODO_LIST).
+var todoWord = regexp.MustCompile(`(^|[^\pL\pN_])TODO($|[^\pL\pN_])`)
+
+// CountTodos counts the lines of text that have a TODO.
+func CountTodos(text string) int {
+	n := 0
+	for _, l := range strings.Split(text, "\n") {
+		if todoWord.MatchString(l) {
+			n++
+		}
+	}
+	return n
+}
+
+// Todos returns the pages of a book with TODO lines, and how many.
+func (s Store) Todos(book string) (map[string]int, error) {
+	pages, err := s.Tree(book)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]int{}
+	var walk func([]Page)
+	walk = func(ps []Page) {
+		for _, p := range ps {
+			if p.HasText {
+				if n, err := s.Load(book, p.Path); err == nil {
+					if c := CountTodos(n.Text); c > 0 {
+						out[p.Path] = c
+					}
+				}
+			}
+			walk(p.Children)
+		}
+	}
+	walk(pages)
+	return out, nil
 }
 
 // Save writes a page atomically, owner-only (notes may contain anything).

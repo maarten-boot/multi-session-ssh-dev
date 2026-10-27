@@ -138,6 +138,8 @@ implementation differs from the original plan.
 - Docs/code cross-check (v0.8.46): the as-typed description match moved into `rank`
   (frontend/src/fuzzy.js) with a unit test; the GUI test list in the README names the session
   list's menu, descriptions and switcher resizing.
+- v0.8.47: TODO marks (N1c): a line with the word TODO in a session's notes puts a red ▲ on the
+  session in the list, its Notes tab and the page in the tree (`notes.Todos`, `NotesTodos`).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

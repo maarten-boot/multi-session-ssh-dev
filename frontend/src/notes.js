@@ -1,4 +1,4 @@
-import {CreatePage, DeletePage, LoadPage, NotesTree, RenamePage, SavePage} from '../wailsjs/go/main/App';
+import {CreatePage, DeletePage, LoadPage, NotesTodos, NotesTree, RenamePage, SavePage} from '../wailsjs/go/main/App';
 import {Editor, format, listFormat} from './editor';
 import {LISTS, MARKUP} from './markup';
 import {el, showMenu, store} from './ui';
@@ -35,6 +35,8 @@ const within = (p, root) => p === root || p.startsWith(root + '/');
 // for the notes for all sessions.
 // opts: title; placeholder(page) → text for an empty page; onChange(page,
 // text) on every edit and load; onTree(pages) when the tree is (re)loaded;
+// onTodos(todos) with the pages that have TODO lines (page → count), after
+// the tree loads and after every save;
 // dialogs: {prompt({title, hint, value, ok, submit(value)}),
 // confirm({title, text, ok, action})} from the app.
 export class NotesView {
@@ -44,6 +46,7 @@ export class NotesView {
         this.placeholder = opts.placeholder ?? (p => p === HOME ? SESSION_HOME : p === 'Prompts' ? SESSION_PROMPTS : PAGE);
         this.onChange = opts.onChange ?? (() => {});
         this.pages = []; // the tree from NotesTree
+        this.todos = {}; // page → its number of TODO lines (NotesTodos)
         this.expanded = new Set(store.get(`notesopen:${book}`, []));
         this.page = null;
         this.seq = 0; // counts opens, see open
@@ -142,6 +145,24 @@ export class NotesView {
         if (!this.find(HOME)) this.pages.unshift({path: HOME, name: HOME, has_text: false, children: []});
         this.renderTree();
         this.opts.onTree?.(this.pages);
+        this.loadTodos();
+    }
+
+    // loadTodos finds the pages with TODO lines and marks them in the tree.
+    async loadTodos() {
+        const seq = this.todoSeq = (this.todoSeq ?? 0) + 1;
+        const todos = await NotesTodos(this.book).catch(() => null);
+        if (!todos || seq !== this.todoSeq) return;
+        this.todos = todos;
+        this.renderTree();
+        this.opts.onTodos?.(todos);
+    }
+
+    // todoIn: the TODO lines of a page, with those of its subpages when they
+    // are hidden (the page is collapsed).
+    todoIn(p, open) {
+        const sub = ps => ps.reduce((n, c) => n + (this.todos[c.path] ?? 0) + sub(c.children), 0);
+        return (this.todos[p.path] ?? 0) + (open ? 0 : sub(p.children));
     }
 
     renderTree() {
@@ -149,10 +170,12 @@ export class NotesView {
         const walk = (ps, depth) => {
             for (const p of ps) {
                 const open = this.expanded.has(p.path);
+                const todo = this.todoIn(p, open);
                 const row = el('div', {className: 'notes-row' + (p.path === this.page ? ' selected' : '') + (p.has_text ? '' : ' empty'),
-                    title: p.path + (p.has_text ? '' : ' (no text)')},
+                    title: p.path + (p.has_text ? '' : ' (no text)') + (todo ? `\n${todo} TODO line(s)` + (this.todos[p.path] === todo ? '' : ', with its subpages') : '')},
                     el('span', {className: 'caret', textContent: p.children.length ? (open ? '▾' : '▸') : ''}),
-                    el('span', {className: 'name', textContent: p.name}));
+                    el('span', {className: 'name', textContent: p.name}),
+                    todo ? el('span', {className: 'todo-mark', textContent: '▲'}) : '');
                 row.dataset.path = p.path;
                 row.style.paddingLeft = (6 + depth * 14) + 'px';
                 rows.push(row);
@@ -235,6 +258,7 @@ export class NotesView {
             await prev; // never rejects
             const had = !!this.mtime;
             const n = await SavePage(this.book, page, text);
+            this.loadTodos(); // also when another page is open by now
             if (page !== this.page) return;
             this.mtime = n.mtime;
             if (!this.dirty && this.saving === saving) this.say(text ? `Saved ${when(n.mtime || Date.now())}` : 'Empty (no file)');

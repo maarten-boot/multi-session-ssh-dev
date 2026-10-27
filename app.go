@@ -487,6 +487,11 @@ func (a *App) NotesTree(book string) ([]notes.Page, error) {
 	return a.notes.Tree(book)
 }
 
+// NotesTodos returns the pages of a book with TODO lines, and how many.
+func (a *App) NotesTodos(book string) (map[string]int, error) {
+	return a.notes.Todos(book)
+}
+
 // LoadPage returns a page (empty if it has no file yet).
 func (a *App) LoadPage(book, page string) (notes.Note, error) {
 	return a.notes.Load(book, page)

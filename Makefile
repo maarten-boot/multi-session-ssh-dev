@@ -122,6 +122,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-autosave.sh build/bin/session-workbench $(SMOKE_OUT)-autosave
 	$(XVFB) scripts/gui-smoke-share.sh build/bin/session-workbench $(SMOKE_OUT)-share
 	$(XVFB) scripts/gui-smoke-notes.sh build/bin/session-workbench $(SMOKE_OUT)-notes
+	$(XVFB) scripts/gui-smoke-todo.sh build/bin/session-workbench $(SMOKE_OUT)-todo
 	$(XVFB) scripts/gui-smoke-web.sh build/bin/session-workbench $(SMOKE_OUT)-web
 	$(XVFB) scripts/gui-smoke-layout.sh build/bin/session-workbench $(SMOKE_OUT)-layout
 	$(XVFB) scripts/gui-smoke-notify.sh build/bin/session-workbench $(SMOKE_OUT)-notify

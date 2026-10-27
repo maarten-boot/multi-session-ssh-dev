@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.46: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.47: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -80,7 +80,7 @@ make smoke-sessions  # sessions/dialogs/switching/restart, add host, start-mode 
 make smoke-files     # Files tab
 make smoke-ui        # themes/colors, switcher (descriptions, resizing), settings/keys,
                      # reconnect, find/unicode/copy, folders, the session list's menu,
-                     # session descriptions (the balloon), git markers, repository check, working copies (also saved
+                     # session descriptions (the balloon), TODO marks, git markers, repository check, working copies (also saved
                      # automatically and at quit), live share,
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
@@ -179,6 +179,12 @@ Default order:
   goes to its parent), Enter goes to the page. Page names: up to 100 characters per level
   and 10 levels deep; not `/ \ : * ? " < > |`, no dot at the start, no space at either end.
   The tab opens on the page you had open, else *Home*.
+  **TODO**: a line with the word `TODO` (in capitals, e.g. `TODO: ask about the API` or
+  `- [ ] TODO tests`) puts a red ▲ on the session in the list, on its Notes tab and on the
+  page in the tree (on a folded page when a subpage has one); hover it for how many and on
+  which pages. Done: remove the word or change it (e.g. `DONE`), and the ▲ goes. Notes edited
+  outside the app are checked again when the app gets the focus. The notes for all sessions
+  (✎) mark their pages the same way.
   Pages are Markdown, shown with their formatting while the markers stay visible
   (in italics): headings bold (`#` and `##` larger), `**bold**` bold, `_italic_` italic, `~~struck~~` struck
   through and `<u>underlined</u>` underlined (Markdown has no underline of its own; GitHub

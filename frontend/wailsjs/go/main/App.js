@@ -82,6 +82,10 @@ export function MoveSession(arg1, arg2) {
   return window['go']['main']['App']['MoveSession'](arg1, arg2);
 }
 
+export function NotesTodos(arg1) {
+  return window['go']['main']['App']['NotesTodos'](arg1);
+}
+
 export function NotesTree(arg1) {
   return window['go']['main']['App']['NotesTree'](arg1);
 }
