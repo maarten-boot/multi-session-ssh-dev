@@ -85,7 +85,7 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # notes and tab order, Web tab and custom tab order,
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
-                     # Remote tab recordings, command menu, prompts menu and start
+                     # Remote tab recordings, command menu (with groups), prompts menu and start
                      # commands, private shell history, lists and spelling in the notes,
                      # badges (~2 min)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
@@ -459,7 +459,7 @@ Claude data, or delete it (once no session uses it). Right-click the empty space
 between) the hosts and folders for the "+" menu (*New session…*, *New folder…*, *Add host…*)
 and *Notes for all sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes;
 the Prompts page is made when there is none), and *Quick switcher…*. Menus also work from the keyboard (arrows,
-Home/End, Enter, Esc, first letter).
+Home/End, Enter, Esc, first letter; → opens a submenu such as a command group, ← closes it).
 
 **Sidebar width.** Drag the sidebar's right edge to make it wider or narrower (or focus the
 edge with Tab and use ← / →); double-click the edge for the default width. The width is

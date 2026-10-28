@@ -142,6 +142,8 @@ implementation differs from the original plan.
   session in the list, its Notes tab and the page in the tree (`notes.Todos`, `NotesTodos`).
 - v0.8.48: command groups (T5): `group` on a command puts it in a submenu of the command menus
   (menus can have submenus: hover, →, ← / Esc); the notes' + offers a subpage of the open page.
+- Docs/code cross-check (v0.8.48): no code changes; the README names → / ← for submenus in the
+  menu keys and the command groups in the GUI test list.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
