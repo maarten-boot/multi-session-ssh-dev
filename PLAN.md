@@ -138,11 +138,12 @@ implementation differs from the original plan.
 - Docs/code cross-check (v0.8.46): the as-typed description match moved into `rank`
   (frontend/src/fuzzy.js) with a unit test; the GUI test list in the README names the session
   list's menu, descriptions and switcher resizing.
-- v0.8.47: TODO marks (N1c): a line with the word TODO in a session's notes puts a red ▲ on the
-  session in the list, its Notes tab and the page in the tree (`notes.Todos`, `NotesTodos`).
-- v0.8.48: command groups (T5): `group` on a command puts it in a submenu of the command menus
+- v0.9.0 (0.8.47 and 0.8.48 were not tagged): TODO marks (N1c): a line with the word TODO in
+  a session's notes puts a red ▲ on the session in the list, its Notes tab and the page in the
+  tree (`notes.Todos`, `NotesTodos`).
+- v0.9.0: command groups (T5): `group` on a command puts it in a submenu of the command menus
   (menus can have submenus: hover, →, ← / Esc); the notes' + offers a subpage of the open page.
-- Docs/code cross-check (v0.8.48): no code changes; the README names → / ← for submenus in the
+- Docs/code cross-check (v0.9.0): no code changes; the README names → / ← for submenus in the
   menu keys and the command groups in the GUI test list.
 
 ## Next (ideas, not started)
