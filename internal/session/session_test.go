@@ -770,6 +770,13 @@ func TestCommandLimits(t *testing.T) {
 		{[]config.Command{{Name: "long", Command: long}}, true},
 		{[]config.Command{{Name: "long", Command: long + "é"}}, false},
 		{[]config.Command{{Name: " x", Command: "y"}}, false},
+		// Names are unique within a group, not across groups.
+		{[]config.Command{{Name: "status", Command: "git status", Group: "git"}, {Name: "status", Command: "svn status", Group: "svn"}}, true},
+		{[]config.Command{{Name: "status", Command: "a", Group: "git"}, {Name: "Status", Command: "b", Group: "Git"}}, false},
+		{[]config.Command{{Name: "status", Command: "a"}, {Name: "status", Command: "b", Group: "git"}}, true},
+		{[]config.Command{{Name: "x", Command: "a", Group: " git"}}, false},
+		{[]config.Command{{Name: "x", Command: "a", Group: "a\tb"}}, false},
+		{[]config.Command{{Name: "x", Command: "a", Group: strings.Repeat("g", config.MaxCommandNameLen+1)}}, false},
 	} {
 		if err := config.ValidateCommands(c.cs); (err == nil) != c.ok {
 			t.Errorf("%d commands, first %q: %v", len(c.cs), c.cs[0].Name, err)

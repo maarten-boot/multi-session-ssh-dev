@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.8.47: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.8.48: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -172,7 +172,8 @@ Default order:
   When claude exits you get a shell.
 - **Notes** (Ctrl+Shift+4): your notes about the project, as pages in a tree like the
   Zim desktop wiki: the tree on the left, the open page on the right. Every session starts
-  with a *Home* page. **+** (or a right-click on empty space in the tree) makes a *New page…*;
+  with a *Home* page. **+** above the tree offers *New page…* and *New subpage of “…”* (of the
+open page); a right-click on empty space in the tree makes a *New page…*;
   right-click a page for *New page…*, *New subpage…*, *Rename or move…* (subpages move along;
   `Design/API` puts a page under *Design*) and *Delete…* (with its subpages, after asking).
   In the tree ↑/↓ open the next or previous page, →/← unfold and fold (← on a folded page
@@ -330,8 +331,12 @@ in the Local and Remote tabs: at the bottom of the right-click menu, and under *
 next to the tabs. Choosing one types it into the terminal and presses Enter (*run*), or only
 types it, for a command you want to check or finish first (shown with *…* instead of *⏎*).
 The list is in Settings → Commands; each session can add its own in *Edit…* → Commands, shown
-first. In the config: `[[ui.commands]]` with `name`, `command` and `run` (default true), and
-`commands = [{ name = …, command = …, run = false }]` on a session.
+first. Give commands a **group** (e.g. *git*, *claude*) to put them in a submenu: *git ▸*
+opens on hover, or with → (← or Esc goes back); commands without a group stay in the menu
+itself, above the groups. A session's commands and the global ones of the same group share
+one submenu (the session's first); names need to be unique within a group only. In the
+config: `[[ui.commands]]` with `name`, `command`, `run` (default true) and `group`, and
+`commands = [{ name = …, command = …, run = false, group = "git" }]` on a session.
 
 **Start commands.** What a session's Remote tab starts in a new tmux session is a list too
 (Settings → Commands → Start commands; `[[ui.start_commands]]` with `name` and `command`):
@@ -663,6 +668,11 @@ command = "git fetch --all"               # typed into the terminal, then Enter
 name = "rebase on main"
 command = "git rebase origin/main"
 run = false                               # only typed: check it, then press Enter yourself
+group = "git"                             # optional: in the submenu "git ▸"
+[[ui.commands]]
+name = "compact"
+command = "/compact"
+group = "claude"
 
 [[ui.start_commands]]                     # what start_mode can name; a list here replaces the default
                                           # three below, so keep the ones your sessions use

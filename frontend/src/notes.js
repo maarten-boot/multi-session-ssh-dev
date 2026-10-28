@@ -54,8 +54,11 @@ export class NotesView {
         this.saving = null; // the last save, until it is done
 
         this.treeEl = el('div', {className: 'notes-tree', tabIndex: 0});
-        const newBtn = el('button', {className: 'icon', textContent: '+', title: 'New page'});
-        newBtn.onclick = () => this.newPage('');
+        const newBtn = el('button', {className: 'icon', textContent: '+', title: 'New page or subpage'});
+        newBtn.onclick = () => {
+            const r = newBtn.getBoundingClientRect();
+            this.menu(this.page && this.find(this.page) ? this.page : null, r.left, r.bottom + 2, true);
+        };
         this.pageTitle = el('span', {className: 'notes-page-title'});
         this.status = el('span', {className: 'notes-status'});
         this.path = el('span', {className: 'notes-path'});
@@ -275,9 +278,12 @@ export class NotesView {
 
     // --- pages ---
 
-    menu(path, x, y) {
+    // menu is a page's right-click menu (path null: the empty tree); onlyNew:
+    // the + button's (new page, new subpage of the open page).
+    menu(path, x, y, onlyNew = false) {
         const items = [{label: 'New page…', action: () => this.newPage('')}];
-        if (path) {
+        if (path && onlyNew) items.push({label: `New subpage of “${this.find(path)?.name ?? path}”…`, action: () => this.newPage(path)});
+        else if (path) {
             items.push({label: `New subpage of “${this.find(path)?.name ?? path}”…`, action: () => this.newPage(path)}, '-',
                 {label: 'Rename or move…', action: () => this.rename(path)},
                 {label: 'Delete…', danger: true, action: () => this.remove(path)});

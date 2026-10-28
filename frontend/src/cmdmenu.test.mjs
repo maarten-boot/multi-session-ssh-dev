@@ -17,3 +17,18 @@ test('unusable entries are left out, disabled applies to all', () => {
         {name: '', command: 'x'}, {name: 'empty', command: '  '}, {name: 'c1', command: 'a\u009bb'}], () => {}, 'not connected');
     assert.deepEqual(items.map(i => [i.label, i.disabled]), [['ok  ⏎', true]]);
 });
+
+test('groups are submenus after the other commands, merged across own and global', () => {
+    const sent = [];
+    const items = commandItems({data: {commands: [{name: 'st', command: 'git status -s', group: 'git'}, {name: 'own', command: 'make'}]}},
+        [{name: 'compact', command: '/compact', group: 'claude'}, {name: 'fetch', command: 'git fetch', group: 'git'},
+            {name: 'test', command: 'make test'}],
+        t => sent.push(t));
+    assert.deepEqual(items.map(i => i === '-' ? '-' : i.label), ['own  ⏎', 'test  ⏎', '-', 'git', 'claude']);
+    assert.deepEqual(items[3].submenu.map(i => i.label), ['st  ⏎', 'fetch  ⏎']);
+    items[4].submenu[0].action();
+    assert.deepEqual(sent, ['/compact\r']);
+    const only = commandItems(null, [{name: 'a', command: 'x', group: 'g'}, {name: 'b', command: 'y', group: ' '}], () => {});
+    assert.deepEqual(only.map(i => i === '-' ? '-' : i.label), ['b  ⏎', '-', 'g']); // a blank group is none
+    assert.deepEqual(commandItems(null, [{name: 'a', command: 'x', group: 'g'}], () => {}).map(i => i.label), ['g']);
+});

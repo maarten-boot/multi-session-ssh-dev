@@ -67,21 +67,13 @@ export function hideBalloon() {
 addEventListener('blur', hideBalloon); // the window loses focus
 
 // showMenu opens the context menu at (x, y). items: {label, action, danger, disabled},
+// {label, submenu: items} (opens next to it on hover, → or Enter),
 // {info} (a line of text, not clickable) or '-'.
 export function showMenu(x, y, items) {
     hideBalloon();
     const m = $('#menu');
     const prevFocus = document.activeElement;
-    m.replaceChildren(...items.map(it => {
-        if (it === '-') return el('hr');
-        if (it.info) return el('div', {className: 'info', textContent: it.info, title: it.title ?? ''});
-        const b = el('button', {textContent: it.label, className: it.danger ? 'danger' : '', disabled: !!it.disabled, title: it.title ?? ''});
-        b.onclick = () => {
-            hideMenu(); // focus back first; dialogs opened by the action take it from there
-            it.action();
-        };
-        return b;
-    }));
+    fillMenu(m, items);
     m.hidden = false;
     m.restoreFocus = prevFocus;
     const r = m.getBoundingClientRect();
@@ -90,27 +82,87 @@ export function showMenu(x, y, items) {
     m.onkeydown = menuKey;
     // Keys work in a menu of info lines only, too (Esc closes it).
     m.tabIndex = -1;
-    (enabledItems()[0] ?? m).focus();
+    (enabledItems(m)[0] ?? m).focus();
 }
 
-const enabledItems = () => [...$('#menu').querySelectorAll('button:not(:disabled)')];
+// fillMenu puts the items into box: the menu, or a submenu inside it.
+function fillMenu(box, items) {
+    box.replaceChildren(...items.map(it => {
+        if (it === '-') return el('hr');
+        if (it.info) return el('div', {className: 'info', textContent: it.info, title: it.title ?? ''});
+        const b = el('button', {textContent: it.label, className: (it.danger ? 'danger' : '') + (it.submenu ? ' has-sub' : ''),
+            disabled: !!it.disabled || (it.submenu && !it.submenu.length), title: it.title ?? ''});
+        if (it.submenu) {
+            b.append(el('span', {className: 'sub-arrow', textContent: '▸'}));
+            b.onclick = () => openSubmenu(b, it.submenu, true);
+            b.onmouseenter = () => openSubmenu(b, it.submenu, false);
+        } else {
+            b.onclick = () => {
+                hideMenu(); // focus back first; dialogs opened by the action take it from there
+                it.action();
+            };
+            if (box.id === 'menu') b.onmouseenter = closeSubmenu;
+        }
+        return b;
+    }));
+}
+
+// openSubmenu shows a submenu next to its item b (inside #menu, so a click
+// in it is a click in the menu); focus: on its first item (keys).
+function openSubmenu(b, items, focus) {
+    let sub = $('#menu > .submenu');
+    if (sub?.owner !== b) {
+        closeSubmenu();
+        sub = el('div', {className: 'menu submenu'});
+        sub.owner = b;
+        fillMenu(sub, items);
+        $('#menu').append(sub);
+        b.classList.add('open');
+        const r = b.getBoundingClientRect(), w = sub.offsetWidth, h = sub.offsetHeight;
+        sub.style.left = (r.right - 2 + w > innerWidth - 4 ? Math.max(4, r.left - w + 2) : r.right - 2) + 'px';
+        sub.style.top = Math.max(4, Math.min(r.top - 5, innerHeight - h - 4)) + 'px';
+    }
+    if (focus) (enabledItems(sub)[0] ?? b).focus();
+}
+
+function closeSubmenu() {
+    const sub = $('#menu > .submenu');
+    if (!sub) return;
+    sub.owner.classList.remove('open');
+    sub.remove();
+}
+
+const enabledItems = box => [...box.children].filter(c => c.tagName === 'BUTTON' && !c.disabled);
 
 // Menus work from the keyboard: arrows, Home/End, Enter, Esc, and typing
-// a letter jumps to the next item starting with it.
+// a letter jumps to the next item starting with it. → opens a submenu,
+// ← and Esc close it.
 function menuKey(e) {
-    const items = enabledItems();
-    const i = items.indexOf(document.activeElement);
-    const go = j => items[(j + items.length) % items.length]?.focus();
+    const cur = document.activeElement;
+    const box = cur?.closest('.menu') ?? $('#menu');
+    const inSub = box.classList.contains('submenu');
+    const items = enabledItems(box);
+    const i = items.indexOf(cur);
+    const go = j => {
+        if (!inSub) closeSubmenu();
+        items[(j + items.length) % items.length]?.focus();
+    };
     if (e.key === 'ArrowDown') go(i + 1);
     else if (e.key === 'ArrowUp') go(i - 1);
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(items.length - 1);
-    else if (e.key === 'Escape') hideMenu();
-    else if (e.key === 'Enter' || e.key === ' ') document.activeElement?.click();
+    else if (e.key === 'ArrowRight' && cur?.classList.contains('has-sub')) cur.click();
+    else if ((e.key === 'ArrowLeft' || e.key === 'Escape') && inSub) {
+        const owner = box.owner;
+        closeSubmenu();
+        owner.focus();
+    } else if (e.key === 'Escape') hideMenu();
+    else if (e.key === 'Enter' || e.key === ' ') cur?.click();
     else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const ch = e.key.toLowerCase();
         const order = [...items.slice(i + 1), ...items.slice(0, i + 1)];
-        order.find(b => b.textContent.trim().toLowerCase().startsWith(ch))?.focus();
+        const next = order.find(b => b.textContent.trim().toLowerCase().startsWith(ch));
+        if (next) go(items.indexOf(next));
     } else return;
     e.preventDefault();
     e.stopPropagation();
@@ -120,6 +172,7 @@ function menuKey(e) {
 export function hideMenu() {
     const m = $('#menu');
     if (m.hidden) return;
+    closeSubmenu();
     m.hidden = true;
     m.restoreFocus?.focus?.();
 }

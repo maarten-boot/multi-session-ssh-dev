@@ -482,6 +482,25 @@ button.link:hover {
     background: var(--danger-bg);
 }
 
+/* An item with a submenu: ▸ at the right; highlighted while it is open. */
+.menu button.has-sub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.menu .sub-arrow {
+    margin-left: auto;
+}
+
+.menu button.open {
+    background: var(--focus-selected);
+}
+
+.menu.submenu {
+    z-index: 101;
+}
+
 .menu button:disabled {
     color: var(--faint);
     font-style: italic;
@@ -1117,6 +1136,11 @@ dialog .grid {
 
 .command-list[data-list=start_commands] .command-row {
     grid-template-columns: 9rem 1fr auto auto auto;
+}
+
+/* With a group in front: group, name, command, run, ↑ ↓ ✕. */
+.command-list.grouped .command-row {
+    grid-template-columns: 6.5rem 8rem 1fr auto auto auto auto;
 }
 
 dialog .command-row input:not([type]) {
@@ -2212,4 +2236,9 @@ body.sidebar-narrow #sidebar-resizer {
 
 #balloon .todo-mark {
     color: var(--danger);
+}
+
+/* The session dialog is narrower: smaller group and name columns. */
+#dlg-session .command-list.grouped .command-row {
+    grid-template-columns: 4.5rem 6rem 1fr auto auto auto auto;
 }

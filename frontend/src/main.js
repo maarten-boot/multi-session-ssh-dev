@@ -1485,7 +1485,8 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     // The session's own commands (Edit only).
     const cmdBox = dlg.querySelector('.session-commands');
     cmdBox.hidden = !editing;
-    const cmdList = new CommandList(cmdBox.querySelector('.command-list'), s?.data.commands ?? [], {run: true});
+    const cmdList = new CommandList(cmdBox.querySelector('.command-list'), s?.data.commands ?? [],
+        {run: true, group: true, groups: () => (app.state.ui.commands ?? []).map(c => c.group)});
     f.elements.colors.value = s?.data.color_mode ?? '';
     // New sessions look as set in Settings; an override is for Edit only.
     f.elements.colors.closest('label').hidden = !editing;
@@ -1673,7 +1674,8 @@ async function settingsDialog() {
     };
     tabs.forEach(t => t.onclick = () => showPage(t.dataset.page));
     showPage(store.get('settingsPage', 'appearance'));
-    const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true});
+    const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true,
+        groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group))});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
         {emptyCommand: true, placeholder: {name: 'Name (start mode)'}});
     for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start', 'description_delay']) f[k].value = ui[k] ?? '';

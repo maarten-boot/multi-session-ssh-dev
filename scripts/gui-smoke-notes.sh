@@ -81,7 +81,7 @@ expect "copied and pasted with the menu and the keys" $'menu-word\nmenu-word\nme
 
 # A new page (the + button), a subpage (right-click), both saved as files.
 k ctrl+alt+1; sleep 1
-click 393 75; type "Design"; k Return; sleep 1
+click 393 75; menu; type "Design"; k Return; sleep 1     # +: "New page…" (the first item)
 k ctrl+End; type "design notes"; sleep 1
 click $TX $(row 1) 3; menu n                    # "New subpage of “Design”…" (the first n after "New page…")
 type "API"; k Return; sleep 1

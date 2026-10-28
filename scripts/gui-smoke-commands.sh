@@ -3,7 +3,7 @@
 # starts with a start command of its own ([[ui.start_commands]]); the
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
-# is only typed; Settings → Commands adds one; Prompts ▾ pastes the
+# is only typed; groups are submenus (keys and mouse); Settings → Commands adds one; Prompts ▾ pastes the
 # session's own prompts (its notes' Prompts page) and those for all sessions,
 # as does a section of the terminal's right-click menu.
 # Needs `ssh localhost` without prompts and tmux.
@@ -21,6 +21,14 @@ command = "echo answer-\$((6*7)) >>$RAN"
 name = "typed only"
 command = "echo typed-\$((1+1)) >>$RAN"
 run = false
+[[ui.commands]]
+name = "fetch"
+command = "echo git-fetch >>$RAN"
+group = "git"
+[[ui.commands]]
+name = "compact"
+command = "echo claude-compact >>$RAN"
+group = "claude"
 [[ui.start_commands]]
 name = "custom"
 command = "echo started-\$((2+3))"
@@ -36,7 +44,7 @@ name = "commands"
 host = "local"
 local_path = "$OUT"
 start_mode = "custom"
-commands = [{ name = "own", command = "echo own-\$((3*3)) >>$RAN" }]
+commands = [{ name = "own", command = "echo own-\$((3*3)) >>$RAN" }, { name = "log", command = "echo git-log >>$RAN", group = "git" }]
 TOML
 # Prompts: the session's own Prompts page, and the one for all sessions.
 rm -rf $OUT/notes; mkdir -p -m 700 $OUT/notes $OUT/notes/s-cmd $OUT/notes/_app
@@ -68,6 +76,17 @@ in_pane "typed only: on the command line" s-cmd 'echo typed-$((1+1))'
 k Return; sleep 1
 check "and run with Enter" grep -qx typed-2 $RAN
 
+# Groups are submenus: "git" has the session's "log", then the global
+# "fetch". Keys: g, → opens it, ↓ to fetch; the mouse: hover, then click.
+: >$RAN
+click ${CMDX:-700} 17; xdotool key g; sleep 0.3; xdotool key Right; sleep 0.5; shot 3a-submenu
+menu Down                                          # "fetch"
+expect "a command in a submenu, from the keys" "git-fetch" "$(cat $RAN)"
+click ${CMDX:-700} 17; xdotool key g Right Escape; sleep 0.3   # ← / Esc: back to the menu
+menu Down                                          # the group after git: claude ▸ (→ opens it)
+xdotool key Right Return; sleep 1.5
+expect "Esc closes only the submenu" "git-fetch|claude-compact|" "$(tr '\n' '|' <$RAN)"
+
 # Prompts ▾: pasted without Enter, the session's own first.
 : >$RAN
 click ${PROMPTX:-800} 17; sleep 0.5; shot 3b-prompts-button; menu   # the first: "own prompt"
@@ -77,7 +96,7 @@ k Return; sleep 1
 click ${PROMPTX:-800} 17; menu g; k Return; sleep 1                # "global prompt"
 expect "both prompts ran after Enter" "own-prompt-8|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
 # The terminal's right-click menu has them too, after the commands.
-click 700 500 3; sleep 0.5; shot 3c-context-prompts; menu g; k Return; sleep 1   # "global prompt"
+click 700 500 3; sleep 0.5; shot 3c-context-prompts; menu g g; k Return; sleep 1   # "global prompt" (after git ▸)
 expect "a prompt from the right-click menu ran" "own-prompt-8|global-prompt-12|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
 
 # Settings → Commands: the lists, and a command added there.
@@ -85,7 +104,7 @@ k ctrl+shift+comma; sleep 1
 shot 4-settings-pages
 click 551 109; sleep 0.5                          # the Commands page
 shot 5-settings-commands
-click 347 289; sleep 0.5                          # + Add (command menu): the new row's name has focus
+click 347 361; sleep 0.5                          # + Add (command menu): the new row's name has focus
 xdotool type --delay 10 'where'; k Tab; xdotool type --delay 10 'pwd'
 k Return; sleep 1.5                               # Enter in a field saves
 expect "a command added in Settings is saved" 'name = "where"|command = "pwd"' "$(grep -A1 'name = "where"' $CFG | tr -d ' ' | sed 's/=/ = /' | paste -sd'|')"

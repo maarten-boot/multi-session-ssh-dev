@@ -9,14 +9,24 @@ const usable = c => !!c?.name?.trim() && !!c.command?.trim() && !/[\u0000-\u001f
 // commandItems returns the menu entries for a session's commands (its own
 // first, then the global ones); send(text) types into the terminal. Each
 // entry types the command, then Enter (\r) unless its run is false;
-// disabled (a reason) greys out all of them.
+// disabled (a reason) greys out all of them. Commands without a group come
+// first; each group is a submenu (in the order the groups first appear, the
+// session's and the global commands of one group together).
 export function commandItems(session, global, send, disabled = null) {
     const all = [...(session?.data?.commands ?? []), ...(global ?? [])].filter(usable);
-    return all.map(c => {
+    const entry = c => {
         const run = c.run !== false;
         return {
             label: `${c.name}${run ? '  ⏎' : '  …'}`, disabled: !!disabled,
             action: () => send(c.command + (run ? '\r' : '')),
         };
-    });
+    };
+    const top = [], groups = new Map();
+    for (const c of all) {
+        const g = c.group?.trim();
+        if (!g) top.push(entry(c));
+        else groups.set(g, [...(groups.get(g) ?? []), entry(c)]);
+    }
+    const subs = [...groups].map(([label, submenu]) => ({label, submenu}));
+    return [...top, ...(top.length && subs.length ? ['-'] : []), ...subs];
 }

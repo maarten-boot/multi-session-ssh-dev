@@ -140,6 +140,8 @@ implementation differs from the original plan.
   list's menu, descriptions and switcher resizing.
 - v0.8.47: TODO marks (N1c): a line with the word TODO in a session's notes puts a red ▲ on the
   session in the list, its Notes tab and the page in the tree (`notes.Todos`, `NotesTodos`).
+- v0.8.48: command groups (T5): `group` on a command puts it in a submenu of the command menus
+  (menus can have submenus: hover, →, ← / Esc); the notes' + offers a subpage of the open page.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

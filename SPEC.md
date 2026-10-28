@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-23, app v0.8.47) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-23, app v0.8.48) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -378,7 +378,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - N1. Notes per session as a tree of pages (like the Zim desktop wiki): page tree on the left
   (Home always first, then by name; pages without text of their own in italics; expanded
   folders and the open page remembered per session), editor on the right. Context menu / +:
-  new page, new subpage, rename or move (a path with `/`; subpages follow; the target must be
+  new page, new subpage (+: of the open page), rename or move (a path with `/`; subpages follow; the target must be
   free, not inside the page (ignoring case) and keep the subpages within 10 levels; a
   case-only rename only of the page itself), delete (with subpages, confirmed). Page `Design/API` is
   `notes/<session id>/Design/API.md` next to the config file (owner-only folders and files,
@@ -499,8 +499,12 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
   The session's own commands (`commands` on the session, Edit…) come first, then
   `[[ui.commands]]` (Settings → Commands): name, one-line command, `run` (default true: typed,
-  then Enter; false: only typed). At most 100 per list; names non-empty, without leading or
-  trailing spaces, unique ignoring case, up to 60 characters; commands non-empty, one line
+  then Enter; false: only typed), `group` (optional). Commands without a group come first; each
+  group is a submenu (in the order groups first appear; a session's and the global commands of
+  one group share it, the session's first; a blank group is none). Submenus open on hover, →,
+  Enter or a click; ← and Esc close them. At most 100 per list; names non-empty, without leading or
+  trailing spaces, unique within their group ignoring case, up to 60 characters; a group the
+  same, without control characters; commands non-empty, one line
   without control characters, up to 2000 characters; `run = true` is not written to the file.
   Entries a hand-edited file got wrong are left out of the menu. Disabled while the terminal is not running. Invalid lists
   in a hand-edited file are listed as problems; Settings refuses to save them.

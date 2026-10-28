@@ -72,6 +72,9 @@ type Command struct {
 	Name    string `toml:"name" json:"name"`
 	Command string `toml:"command" json:"command"`
 	Run     *bool  `toml:"run,omitempty" json:"run"` // nil: true
+	// Group puts the command in a submenu of that name ("" = the menu
+	// itself); names are unique within a group.
+	Group string `toml:"group,omitempty" json:"group"`
 }
 
 // Runs reports whether choosing c also presses Enter.
@@ -352,9 +355,19 @@ func ValidateCommands(cs []Command) error {
 	if len(cs) > MaxCommands {
 		return fmt.Errorf("at most %d commands", MaxCommands)
 	}
-	seen := map[string]bool{}
+	seen := map[string]map[string]bool{} // group (ignoring case) → names
 	for _, c := range cs {
-		if err := checkCommand(c.Name, c.Command, seen); err != nil {
+		if err := checkGroup(c.Group); err != nil {
+			return fmt.Errorf("command %q: %w", c.Name, err)
+		}
+		g := strings.ToLower(c.Group)
+		if seen[g] == nil {
+			seen[g] = map[string]bool{}
+		}
+		if err := checkCommand(c.Name, c.Command, seen[g]); err != nil {
+			if c.Group != "" {
+				return fmt.Errorf("%w (group %q)", err, c.Group)
+			}
 			return err
 		}
 		if strings.TrimSpace(c.Command) == "" {
@@ -381,6 +394,21 @@ func ValidateStartCommands(cs []StartCommand) error {
 		if strings.HasPrefix(strings.TrimSpace(c.Command), "-") {
 			return fmt.Errorf("start command %q cannot start with - (the shell would read it as options)", c.Name)
 		}
+	}
+	return nil
+}
+
+// checkGroup: a command's group is "" or a name like a command's.
+func checkGroup(g string) error {
+	switch {
+	case g == "":
+		return nil
+	case strings.TrimSpace(g) == "" || strings.TrimSpace(g) != g:
+		return fmt.Errorf("group %q is empty or starts or ends with a space", g)
+	case utf8.RuneCountInString(g) > MaxCommandNameLen:
+		return fmt.Errorf("group %q is longer than %d characters", g, MaxCommandNameLen)
+	case strings.IndexFunc(g, unicode.IsControl) >= 0:
+		return fmt.Errorf("group %q has control characters", g)
 	}
 	return nil
 }
