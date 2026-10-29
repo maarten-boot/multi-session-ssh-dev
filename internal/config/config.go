@@ -221,7 +221,8 @@ func normalizeTabs(u *UI) {
 
 type Config struct {
 	WorkspaceRoots []string `toml:"workspace_roots" json:"workspace_roots"`
-	// Groups are sidebar folders (e.g. "Work", "Private"), in display order.
+	// Groups are sidebar folders (e.g. "Work", "Private"), in display order;
+	// "Work/Client A" is a subfolder of Work.
 	Groups   []string  `toml:"groups,omitempty" json:"groups"`
 	UI       UI        `toml:"ui" json:"ui"`
 	Local    Local     `toml:"local" json:"local"`

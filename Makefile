@@ -82,7 +82,7 @@ clean:
 # smoke-files: Files tab (tree, keyboard, open/refuse, copy paths) with a
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
-#   find/unicode/copy-on-select, folders, git markers, repository check, working
+#   find/unicode/copy-on-select, folders and subfolders, git markers, repository check, working
 #   copies (also saved automatically and at quit), live share, notes and tab order, Web tab and custom tab order, layout
 #   (font size, current tab, narrow sidebar), desktop notifications (fake
 #   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
@@ -113,6 +113,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-reconnect.sh build/bin/session-workbench $(SMOKE_OUT)-reconnect
 	$(XVFB) scripts/gui-smoke-terminal-extras.sh build/bin/session-workbench $(SMOKE_OUT)-extras
 	$(XVFB) scripts/gui-smoke-folders.sh build/bin/session-workbench $(SMOKE_OUT)-folders
+	$(XVFB) scripts/gui-smoke-subfolders.sh build/bin/session-workbench $(SMOKE_OUT)-subfolders
 	$(XVFB) scripts/gui-smoke-listmenu.sh build/bin/session-workbench $(SMOKE_OUT)-listmenu
 	$(XVFB) scripts/gui-smoke-description.sh build/bin/session-workbench $(SMOKE_OUT)-description
 	$(XVFB) scripts/gui-smoke-git.sh build/bin/session-workbench $(SMOKE_OUT)-git

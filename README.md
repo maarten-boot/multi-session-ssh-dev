@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.0: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.1: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -79,7 +79,7 @@ make smoke-sessions  # sessions/dialogs/switching/restart, add host, start-mode 
                      # one instance per config, remembered window size and position, Claude backups
 make smoke-files     # Files tab
 make smoke-ui        # themes/colors, switcher (descriptions, resizing), settings/keys,
-                     # reconnect, find/unicode/copy, folders, the session list's menu,
+                     # reconnect, find/unicode/copy, folders and subfolders, the session list's menu,
                      # session descriptions (the balloon), TODO marks, git markers, repository check, working copies (also saved
                      # automatically and at quit), live share,
                      # notes and tab order, Web tab and custom tab order,
@@ -440,9 +440,13 @@ when you want to.
 **Folders.** Group sessions into folders such as *Work* and *Private*: "+" →
 *New folder…*, then put sessions in it from the session dialog, with *Move to
 folder…*, or by dragging a session onto the folder header; *Move to folder…* →
-*No folder* takes it out again. Right-click a folder (or its ⋯) for *New session in this
-folder…*, rename, move up/down or delete (deleting keeps its sessions). Sessions without
-a folder are listed first.
+*No folder* takes it out again. Folders can hold folders: right-click a folder (or its ⋯)
+for *New session in this folder…*, *New subfolder…*, rename, move up/down (among its
+neighbours), *Move folder to…* (the top or another folder; its subfolders and sessions go
+along) or delete (deleting keeps its sessions: they go to the folder above, and its
+subfolders go too). In a folder, its own sessions come first, then its subfolders; sessions
+without a folder are listed first of all. In `config.toml` a subfolder is a path:
+`groups = ["Work", "Work/Client A"]`.
 
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
 the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
@@ -628,7 +632,7 @@ window to the front (where that is not possible, the second window only says so)
 
 ```toml
 workspace_roots = ["~/share-local/DEV"]   # the first is where "Browse…" starts
-groups = ["Work", "Private"]              # sidebar folders, in this order
+groups = ["Work", "Work/Client A", "Private"]   # sidebar folders, in this order; / nests
 
 [ui]                                      # all of these are in Settings too
 theme = "light"                           # or "dark"

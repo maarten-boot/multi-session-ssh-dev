@@ -413,6 +413,83 @@ func TestGroups(t *testing.T) {
 	}
 }
 
+func TestNestedGroups(t *testing.T) {
+	m, root, cfgPath := setup(t)
+	groups := func() []string { return Open(cfgPath).State().Groups }
+	// A path adds the folders on the way; parts are trimmed.
+	if err := m.SaveGroup("", " Work / Client A "); err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range []string{"Private", "Work/Client B", "Work/Client A/Old"} {
+		if err := m.SaveGroup("", g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := groups(), []string{"Work", "Work/Client A", "Private", "Work/Client B", "Work/Client A/Old"}; !slices.Equal(got, want) {
+		t.Fatalf("groups %q, want %q", got, want)
+	}
+	for _, bad := range []string{"Work//x", "/Work", "Work/ "} {
+		if err := m.SaveGroup("", bad); err == nil {
+			t.Errorf("folder %q accepted", bad)
+		}
+	}
+	a, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "a"), Group: "Work/Client A/Old"})
+	b, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "b"), Group: "Work/Client A"})
+	c, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "c"), Group: "Work"})
+	group := func(id string) string {
+		for _, v := range Open(cfgPath).State().Sessions {
+			if v.ID == id {
+				return v.Group
+			}
+		}
+		return "?"
+	}
+
+	// A rename takes the subfolders and sessions along and keeps its place.
+	if err := m.SaveGroup("Work/Client A", "Work/Acme"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := groups(), []string{"Work", "Work/Acme", "Work/Acme/Old", "Private", "Work/Client B"}; !slices.Equal(got, want) {
+		t.Errorf("after rename: groups %q, want %q", got, want)
+	}
+	if group(a.ID) != "Work/Acme/Old" || group(b.ID) != "Work/Acme" {
+		t.Errorf("after rename: %q %q", group(a.ID), group(b.ID))
+	}
+	// Another parent moves it there, last.
+	if err := m.SaveGroup("Work/Acme", "Private/Acme"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := groups(), []string{"Work", "Private", "Work/Client B", "Private/Acme", "Private/Acme/Old"}; !slices.Equal(got, want) {
+		t.Errorf("after move: groups %q, want %q", got, want)
+	}
+	if err := m.SaveGroup("Private", "Private/Acme/Inner"); err == nil {
+		t.Error("folder moved inside itself")
+	}
+	if err := m.SaveGroup("Private/Acme", "Work/Client B"); err == nil {
+		t.Error("renamed onto an existing folder")
+	}
+	// Reordering moves the subfolders along.
+	if err := m.MoveGroup("Private", "Work"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := groups(), []string{"Private", "Private/Acme", "Private/Acme/Old", "Work", "Work/Client B"}; !slices.Equal(got, want) {
+		t.Errorf("after reorder: groups %q, want %q", got, want)
+	}
+	if err := m.MoveGroup("Private", "Private/Acme"); err == nil {
+		t.Error("folder moved before its own subfolder")
+	}
+	// Deleting takes the subfolders too; their sessions go one folder up.
+	if err := m.DeleteGroup("Private/Acme"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := groups(), []string{"Private", "Work", "Work/Client B"}; !slices.Equal(got, want) {
+		t.Errorf("after delete: groups %q, want %q", got, want)
+	}
+	if group(a.ID) != "Private" || group(b.ID) != "Private" || group(c.ID) != "Work" {
+		t.Errorf("after delete: %q %q %q", group(a.ID), group(b.ID), group(c.ID))
+	}
+}
+
 func TestTrustGit(t *testing.T) {
 	m, root, cfgPath := setup(t)
 	v, _ := m.Create(NewSession{Host: "h", LocalPath: mkdir(t, root, "a")})
@@ -491,7 +568,7 @@ func TestProblemsOfHandEditedConfig(t *testing.T) {
 	base := t.TempDir()
 	dir := func(name string) string { return filepath.Join(base, name) }
 	text := strings.NewReplacer("@BASE@", base, "@A@", dir("a"), "@B@", dir("b"), "@C@", dir("c"),
-		"@T1@", dir("t1"), "@T2@", dir("t2")).Replace(`groups = ["g1", "g1", ""]
+		"@T1@", dir("t1"), "@T2@", dir("t2")).Replace(`groups = ["g1", "g1", "", "x/y", "a//b", "g1 / z"]
 
 [[hosts]]
 name = "ok"
@@ -598,6 +675,9 @@ group = "nope"
 		`session "odd values": history must be "on", "off" or left out, not "maybe"; the global setting is used`,
 		`link: "javascript:alert(1)" is not an http(s) address`,
 		`session "s-0005" has no name`,
+		`folder "x/y": "x" is not in groups; it is shown as (missing)`,
+		`folder "a//b" has an empty part`,
+		`folder "g1 / z" has spaces around a /`,
 		dir("a") + ` already has a session on host "ok"`,
 		`session "bad mode": unknown start mode "zsh"`,
 		`session "lost": host "ghost" is not configured`,

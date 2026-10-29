@@ -668,28 +668,42 @@ const app = {
         this.active?.show(); // the tab order or visibility may have changed
     },
 
-    // sections returns the sidebar structure: ungrouped sessions first, then
-    // one section per folder, each split by host in host order. Hosts appear
-    // where they have sessions; a host without any session is listed in the
-    // ungrouped section so its menu stays reachable. Unknown
-    // hosts or folders referenced by sessions are shown as "(missing)".
-    sections() {
-        const folders = [...this.state.groups];
-        for (const d of this.state.sessions) {
-            if (d.group && !folders.includes(d.group)) folders.push(d.group);
-        }
+    // folderTree returns the sidebar structure: the top (folder '') with
+    // its sessions, then its folders, each again with sessions and then
+    // subfolders. Folders nest by path ("Work/Client A" is in Work);
+    // siblings keep the order of groups. Sessions are split by host in host
+    // order; hosts appear where they have sessions, and a host without any
+    // session is listed at the top so its menu stays reachable. Unknown
+    // hosts or folders referenced by sessions (or subfolders) are shown as
+    // "(missing)".
+    folderTree() {
         const hostNames = this.state.hosts.map(h => h.name);
         for (const d of this.state.sessions) if (!hostNames.includes(d.host)) hostNames.push(d.host);
-        return ['', ...folders].map(group => {
-            const hosts = hostNames.map(name => ({
-                name, group,
-                host: this.state.hosts.find(h => h.name === name) ?? null,
-                sessions: this.state.sessions.filter(d => d.host === name && d.group === group).map(d => this.sessions.get(d.id)),
-            })).filter(h => h.sessions.length ||
-                // A host without any session still needs a header (and menu).
-                (group === '' && h.host && !this.state.sessions.some(d => d.host === h.name)));
-            return {group, known: group === '' || this.state.groups.includes(group), hosts};
-        });
+        const folders = new Map();
+        const node = group => {
+            if (folders.has(group)) return folders.get(group);
+            const parent = group === '' ? null : node(group.includes('/') ? group.slice(0, group.lastIndexOf('/')) : '');
+            const f = {
+                group, name: group.slice(group.lastIndexOf('/') + 1), parent, children: [],
+                known: group === '' || this.state.groups.includes(group),
+                hosts: hostNames.map(name => ({
+                    name, group,
+                    host: this.state.hosts.find(h => h.name === name) ?? null,
+                    sessions: this.state.sessions.filter(d => d.host === name && d.group === group).map(d => this.sessions.get(d.id)),
+                })).filter(h => h.sessions.length ||
+                    // A host without any session still needs a header (and menu).
+                    (group === '' && h.host && !this.state.sessions.some(d => d.host === h.name))),
+            };
+            folders.set(group, f);
+            parent?.children.push(f);
+            return f;
+        };
+        const root = node('');
+        this.state.groups.forEach(node);
+        this.state.sessions.forEach(d => node(d.group));
+        const count = f => f.count = f.hosts.reduce((n, h) => n + h.sessions.length, 0) + f.children.reduce((n, c) => n + count(c), 0);
+        count(root);
+        return root;
     },
 
     collapsible(el, key) {
@@ -717,64 +731,66 @@ const app = {
         list.replaceChildren();
         this.order = [];
         this.hostHeads = [];
-        for (const sec of this.sections()) {
-            let parent = list;
-            if (sec.group) {
-                const folder = el('div', {className: 'folder'});
-                const count = sec.hosts.reduce((n, h) => n + h.sessions.length, 0);
-                const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Folder actions'});
-                const head = el('div', {className: 'folder-head'},
-                    el('span', {className: 'caret', textContent: '▾'}),
-                    el('span', {className: 'label', textContent: sec.group + (sec.known ? '' : ' (missing)')}),
-                    el('span', {className: 'count', textContent: count}), more);
-                const toggle = this.collapsible(folder, 'g:' + sec.group);
-                head.onclick = e => !more.contains(e.target) && toggle();
-                more.onclick = e => {
-                    e.stopPropagation();
-                    folderMenu(sec, e.clientX, e.clientY);
-                };
-                head.oncontextmenu = e => {
-                    e.preventDefault();
-                    folderMenu(sec, e.clientX, e.clientY);
-                };
-                enableFolderDrop(head, sec.group);
-                const body = el('div', {className: 'folder-body'});
-                if (!count) body.append(el('div', {className: 'folder-empty', textContent: 'Empty — drag sessions here'}));
-                folder.append(head, body);
-                list.append(folder);
-                parent = body;
-            }
-            for (const g of sec.hosts) {
-                const group = el('div', {className: 'host-group'});
-                const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
-                const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
-                    el('span', {className: 'caret', textContent: '▾'}),
-                    el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}),
-                    el('span', {className: 'backup-warn', textContent: '⚠', hidden: true}), more);
-                if (g.host) this.hostHeads.push({name: g.name, target: g.host.ssh_target, head});
-                const toggle = this.collapsible(group, `h:${g.group}/${g.name}`);
-                head.onclick = e => !more.contains(e.target) && toggle();
-                more.onclick = e => {
-                    e.stopPropagation();
-                    hostMenu(g, e.clientX, e.clientY);
-                };
-                head.oncontextmenu = e => {
-                    e.preventDefault();
-                    hostMenu(g, e.clientX, e.clientY);
-                };
-                const items = el('div', {className: 'sessions'});
-                for (const s of g.sessions) {
-                    this.order.push(s);
-                    items.append(this.sessionItem(s, this.order.length));
-                }
-                enableDrop(items, g.group, g.name);
-                group.append(head, items);
-                parent.append(group);
-            }
-        }
+        this.renderFolder(this.folderTree(), list, 0);
         if (this.active && !this.sessions.has(this.active.id)) this.active = null;
         for (const h of this.hostHeads) this.renderBackup(h.name);
         this.renderMain();
+    },
+
+    // renderFolder adds folder f's sessions (by host) and then its
+    // subfolders to parent; depth indents them.
+    renderFolder(f, parent, depth) {
+        for (const g of f.hosts) {
+            const group = el('div', {className: 'host-group'});
+            const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
+            const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
+                el('span', {className: 'caret', textContent: '▾'}),
+                el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}),
+                el('span', {className: 'backup-warn', textContent: '⚠', hidden: true}), more);
+            if (g.host) this.hostHeads.push({name: g.name, target: g.host.ssh_target, head});
+            const toggle = this.collapsible(group, `h:${g.group}/${g.name}`);
+            head.onclick = e => !more.contains(e.target) && toggle();
+            more.onclick = e => {
+                e.stopPropagation();
+                hostMenu(g, e.clientX, e.clientY);
+            };
+            head.oncontextmenu = e => {
+                e.preventDefault();
+                hostMenu(g, e.clientX, e.clientY);
+            };
+            const items = el('div', {className: 'sessions'});
+            for (const s of g.sessions) {
+                this.order.push(s);
+                items.append(this.sessionItem(s, this.order.length));
+            }
+            enableDrop(items, g.group, g.name);
+            group.append(head, items);
+            parent.append(group);
+        }
+        for (const sub of f.children) {
+            const folder = el('div', {className: 'folder', style: `--depth: ${depth}`});
+            const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Folder actions'});
+            const head = el('div', {className: 'folder-head', title: sub.group},
+                el('span', {className: 'caret', textContent: '▾'}),
+                el('span', {className: 'label', textContent: sub.name + (sub.known ? '' : ' (missing)')}),
+                el('span', {className: 'count', textContent: sub.count}), more);
+            const toggle = this.collapsible(folder, 'g:' + sub.group);
+            head.onclick = e => !more.contains(e.target) && toggle();
+            more.onclick = e => {
+                e.stopPropagation();
+                folderMenu(sub, e.clientX, e.clientY);
+            };
+            head.oncontextmenu = e => {
+                e.preventDefault();
+                folderMenu(sub, e.clientX, e.clientY);
+            };
+            enableFolderDrop(head, sub.group);
+            const body = el('div', {className: 'folder-body'});
+            if (!sub.count && !sub.children.length) body.append(el('div', {className: 'folder-empty', textContent: 'Empty — drag sessions here'}));
+            folder.append(head, body);
+            parent.append(folder);
+            this.renderFolder(sub, body, depth + 1);
+        }
     },
 
     // notifyWaiting shows a desktop notification for a bell in a session you
@@ -1304,28 +1320,60 @@ function sessionMenu(s, x, y) {
     ]);
 }
 
+// folderChoices lists the folders in sidebar order, indented by depth,
+// as [{group, label}]; skip(group) leaves a folder and its subfolders out.
+function folderChoices(skip = () => false) {
+    const out = [];
+    const walk = (f, depth) => {
+        for (const sub of f.children) {
+            if (skip(sub.group)) continue;
+            if (sub.known) out.push({group: sub.group, label: '\u00a0\u00a0\u00a0'.repeat(depth) + sub.name});
+            walk(sub, depth + 1);
+        }
+    };
+    walk(app.folderTree(), 0);
+    return out;
+}
+
 // folderPicker is the second step of "Move to folder…".
 function folderPicker(s, x, y) {
     showMenu(x, y, [
         {label: s.data.group ? 'No folder' : '✓ No folder', disabled: !s.data.group, action: () => setGroup(s.id, '')},
-        ...app.state.groups.map(g => ({
-            label: (g === s.data.group ? '✓ ' : '') + g, disabled: g === s.data.group, action: () => setGroup(s.id, g),
+        ...folderChoices().map(({group, label}) => ({
+            label: (group === s.data.group ? '✓ ' : '') + label, disabled: group === s.data.group, action: () => setGroup(s.id, group),
         })),
     ]);
 }
 
-function folderMenu(sec, x, y) {
-    const i = app.state.groups.indexOf(sec.group);
-    const groups = app.state.groups;
+function folderMenu(f, x, y) {
+    // Up and down move it among its siblings (with its subfolders).
+    const sibs = f.parent.children.filter(c => c.known);
+    const i = sibs.indexOf(f);
     showMenu(x, y, [
-        {label: 'New session in this folder…', disabled: !sec.known, action: () => sessionDialog(null, null, sec.group)},
-        {label: sec.known ? 'Rename folder…' : 'Create this folder', action: () => sec.known ? folderDialog(sec.group) :
-                groupAction(() => SaveGroup('', sec.group), 'Could not create folder')},
-        {label: 'Move folder up', disabled: i <= 0, action: () => groupAction(() => MoveGroup(sec.group, groups[i - 1]), 'Could not move folder')},
-        {label: 'Move folder down', disabled: i < 0 || i >= groups.length - 1,
-            action: () => groupAction(() => MoveGroup(sec.group, groups[i + 2] ?? ''), 'Could not move folder')},
+        {label: 'New session in this folder…', disabled: !f.known, action: () => sessionDialog(null, null, f.group)},
+        {label: 'New subfolder…', disabled: !f.known, action: () => folderDialog('', f.group)},
         '-',
-        {label: 'Delete folder…', danger: true, disabled: !sec.known, action: () => deleteFolder(sec)},
+        {label: f.known ? 'Rename folder…' : 'Create this folder', action: () => f.known ? folderDialog(f.group) :
+                groupAction(() => SaveGroup('', f.group), 'Could not create folder')},
+        {label: 'Move folder up', disabled: i <= 0, action: () => groupAction(() => MoveGroup(f.group, sibs[i - 1].group), 'Could not move folder')},
+        {label: 'Move folder down', disabled: i < 0 || i >= sibs.length - 1,
+            action: () => groupAction(() => MoveGroup(f.group, sibs[i + 2]?.group ?? ''), 'Could not move folder')},
+        {label: 'Move folder to…', disabled: !f.known, action: () => folderMovePicker(f, x, y)},
+        '-',
+        {label: 'Delete folder…', danger: true, disabled: !f.known, action: () => deleteFolder(f)},
+    ]);
+}
+
+// folderMovePicker is the second step of "Move folder to…": the top or
+// another folder, not one inside it.
+function folderMovePicker(f, x, y) {
+    const into = parent => groupAction(() => SaveGroup(f.group, parent ? `${parent}/${f.name}` : f.name), 'Could not move folder');
+    const here = f.parent.group;
+    showMenu(x, y, [
+        {label: (here ? '' : '✓ ') + 'Top level', disabled: !here, action: () => into('')},
+        ...folderChoices(g => g === f.group).map(({group, label}) => ({
+            label: (group === here ? '✓ ' : '') + label, disabled: group === here, action: () => into(group),
+        })),
     ]);
 }
 
@@ -1497,7 +1545,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
     f.elements.history.closest('label').hidden = !editing;
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
-        ...app.state.groups.map(g => el('option', {value: g, textContent: g})));
+        ...folderChoices().map(({group, label}) => el('option', {value: group, textContent: label, title: group})));
     f.elements.group.value = s?.data.group ?? presetGroup ?? '';
     f.elements.colors.options[0].textContent = `default (${app.state.ui.color_mode})`;
     f.elements.host.disabled = f.elements.dir.disabled = f.elements.browse.disabled = editing;
@@ -2182,14 +2230,20 @@ async function syncGetDialog(s) {
     return ok;
 }
 
-async function folderDialog(oldName = '') {
+// folderDialog adds a folder (in parent, '' = the top) or renames oldName
+// (its last part; it stays where it is).
+async function folderDialog(oldName = '', parent = '') {
     const dlg = $('#dlg-prompt');
     const f = dlg.querySelector('form').elements;
-    dlg.querySelector('h2').textContent = oldName ? `Rename folder “${oldName}”` : 'New folder';
-    dlg.querySelector('.hint').textContent = 'Folders group sessions in the sidebar, e.g. “Work” and “Private”.';
-    f.value.value = oldName;
+    if (oldName) parent = oldName.includes('/') ? oldName.slice(0, oldName.lastIndexOf('/')) : '';
+    const name = oldName.slice(oldName.lastIndexOf('/') + 1);
+    dlg.querySelector('h2').textContent = oldName ? `Rename folder “${name}”` : parent ? `New folder in “${parent}”` : 'New folder';
+    dlg.querySelector('.hint').textContent = 'Folders group sessions in the sidebar, e.g. “Work” and “Private”. ' +
+        'A / makes subfolders: “Clients/Acme”.';
+    f.value.value = name;
     f.value.placeholder = 'Folder name';
-    const ok = await runDialog(dlg, () => SaveGroup(oldName, f.value.value), f.value);
+    const path = () => parent ? `${parent}/${f.value.value}` : f.value.value;
+    const ok = await runDialog(dlg, () => SaveGroup(oldName, path()), f.value);
     if (ok) await app.reload();
 }
 
@@ -2213,13 +2267,15 @@ const pageDialogs = {
     confirm: confirmDialog,
 };
 
-async function deleteFolder(sec) {
-    const n = sec.hosts.reduce((k, h) => k + h.sessions.length, 0);
+async function deleteFolder(f) {
+    const n = f.count;
+    const up = f.parent.group ? `in “${f.parent.group}”` : 'without a folder';
+    const subs = f.children.length ? ' Its subfolders go too.' : '';
     const ok = await confirmDialog({
-        title: `Delete folder “${sec.group}”?`,
-        text: n ? `Its ${n} session(s) stay, without a folder.` : 'The folder is empty.',
+        title: `Delete folder “${f.group}”?`,
+        text: n ? `Its ${n} session(s) stay, ${up}.${subs}` : `The folder has no sessions.${subs}`,
         ok: 'Delete folder',
-        action: () => DeleteGroup(sec.group),
+        action: () => DeleteGroup(f.group),
     });
     if (ok) await app.reload();
 }

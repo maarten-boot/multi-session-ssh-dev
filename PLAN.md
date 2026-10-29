@@ -145,6 +145,9 @@ implementation differs from the original plan.
   (menus can have submenus: hover, →, ← / Esc); the notes' + offers a subpage of the open page.
 - Docs/code cross-check (v0.9.0): no code changes; the README names → / ← for submenus in the
   menu keys and the command groups in the GUI test list.
+- v0.9.1: nested folders (F5): a folder path ("Work/Client A") in `groups` and `group`; the
+  sidebar is a tree; *New subfolder…* and *Move folder to…* in the folder menu; rename, move
+  and delete take the subfolders along (a deleted folder's sessions go one folder up).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

@@ -1287,7 +1287,9 @@ dialog .buttons .about {
 
 /* --- folders --- */
 
+/* --depth is set on each folder: 0 at the top, 1 for a subfolder, ... */
 .folder {
+    --indent: calc(var(--depth, 0) * 14px);
     margin-bottom: 4px;
 }
 
@@ -1295,7 +1297,7 @@ dialog .buttons .about {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 6px 6px 8px;
+    padding: 6px 6px 6px calc(8px + var(--indent));
     color: var(--text-strong);
     font-weight: 600;
     cursor: pointer;
@@ -1346,19 +1348,19 @@ dialog .buttons .about {
 }
 
 .folder-body .host-head {
-    padding-left: 18px;
+    padding-left: calc(18px + var(--indent));
 }
 
 .folder-body .session {
-    padding-left: 28px;
+    padding-left: calc(28px + var(--indent));
 }
 
 .folder-body .session.active {
-    padding-left: 26px; /* 28 + 2px border = 26 + 4px border: text does not shift */
+    padding-left: calc(26px + var(--indent)); /* 28 + 2px border = 26 + 4px border: text does not shift */
 }
 
 .folder-empty {
-    padding: 4px 8px 6px 28px;
+    padding: 4px 8px 6px calc(28px + var(--indent));
     color: var(--faint);
     font-size: 0.923rem;
     font-style: italic;
@@ -2055,6 +2057,10 @@ body.sidebar-narrow .host-head,
 body.sidebar-narrow .folder-head {
     padding-left: 4px;
     gap: 2px;
+}
+
+body.sidebar-narrow .folder-head {
+    padding-left: calc(4px + var(--depth, 0) * 4px); /* subfolders a little in */
 }
 
 body.sidebar-narrow .host-head .label,

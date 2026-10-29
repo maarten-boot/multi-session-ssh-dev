@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-28, app v0.9.0) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-29, app v0.9.1) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -86,7 +86,7 @@ start_mode = "claude-continue"         # a name from [[ui.start_commands]] (R2)
 color_mode = "mono"                    # optional, overrides the global color mode (T3)
 local_init = "git status"              # optional, typed into the Local tab (L2)
 env        = { FOO = "bar" }           # optional, Local tab environment (L2)
-group      = "Work"                    # optional, sidebar folder listed in `groups` (F5)
+group      = "Work"                    # optional, sidebar folder listed in `groups`, e.g. "Work/Client A" (F5)
 links      = [{ name = "Staging", url = "https://staging.example.com" }]   # optional, Web tab (W1)
 commands   = [{ name = "test", command = "make test" }]   # optional, command menu (T5)
 record     = "on"                      # optional, "on"/"off" overrides record_remote (F10)
@@ -140,10 +140,17 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   none again until the session was looked at, which withdraws it and resets the minute. A click
   brings the window forward and opens that session's tab that rang. Without a notification service nothing is shown.
 - F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
-  gives their order, `group` on a session its folder. The sidebar shows ungrouped sessions first,
-  then each folder (collapsible, with a count), each split by host. Folders can be created,
-  renamed (sessions follow), reordered and deleted (sessions stay, ungrouped). Sessions move
-  between folders via the session dialog, "Move to folder…", or drag onto a folder header.
+  gives their order, `group` on a session its folder. Folders nest by path: "Work/Client A" is
+  the folder Client A in Work (parts trimmed, none empty; siblings in the order of `groups`).
+  The sidebar shows ungrouped sessions first, then each folder (collapsible, indented by depth,
+  with a count that includes its subfolders), each with its own sessions split by host and
+  then its subfolders. Folders can be created (also as a subfolder, or as a path: missing
+  folders on the way are added), renamed (sessions and subfolders follow), reordered among
+  their siblings, moved into another folder or the top ("Move folder to…", not into itself)
+  and deleted together with their subfolders (their sessions stay, in the folder above).
+  Sessions move between folders via the session dialog, "Move to folder…", or drag onto a
+  folder header. A folder whose parent is not in `groups` is reported and shown under a
+  "(missing)" parent.
 - F6. Sidebar width: drag the sidebar's right edge (or ←/→ on the focused edge; 12 rem to 60% of
   the window), double-click for the default (18.5 rem); stored in rem, so it scales with the font
   size, and remembered. Narrow sidebar: a toggle (header button, `toggle_sidebar` key) shrinks the sidebar to a rail

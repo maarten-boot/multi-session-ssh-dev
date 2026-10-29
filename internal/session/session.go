@@ -288,8 +288,22 @@ func Problems(c *config.Config) []string {
 			out = append(out, "groups has an empty folder name")
 		case seenGroup[g]:
 			out = append(out, fmt.Sprintf("folder %q is listed twice in groups", g))
+		default:
+			if p, err := folderPath(g); err != nil {
+				out = append(out, err.Error())
+			} else if p != g {
+				out = append(out, fmt.Sprintf("folder %q has spaces around a /", g))
+			}
 		}
 		seenGroup[g] = true
+	}
+	for _, g := range c.Groups {
+		if p, err := folderPath(g); err != nil || p != g {
+			continue // reported above
+		}
+		if p := parentFolder(g); p != "" && !seenGroup[p] {
+			out = append(out, fmt.Sprintf("folder %q: %q is not in groups; it is shown as (missing)", g, p))
+		}
 	}
 	type dirHost struct{ dir, host string }
 	seenDir := map[dirHost]bool{}
@@ -662,57 +676,134 @@ func (m *Manager) SetGroup(id, group string) error {
 	})
 }
 
+// Folders nest by path: "Work/Client A" is the folder Client A inside
+// Work. groups lists every folder by its path; siblings are shown in the
+// order of the list.
+
+// folderPath tidies a folder path: each part trimmed, none empty.
+func folderPath(p string) (string, error) {
+	parts := strings.Split(p, "/")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+		if parts[i] == "" {
+			if len(parts) == 1 {
+				return "", errors.New("folder name cannot be empty")
+			}
+			return "", fmt.Errorf("folder %q has an empty part", p)
+		}
+	}
+	return strings.Join(parts, "/"), nil
+}
+
+// parentFolder returns the folder that holds folder p ("" = the top).
+func parentFolder(p string) string {
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		return p[:i]
+	}
+	return ""
+}
+
+// inFolder reports whether folder p is root or inside it.
+func inFolder(p, root string) bool {
+	return p == root || strings.HasPrefix(p, root+"/")
+}
+
+// addFolder adds folder p and any missing folders above it, at the end.
+func addFolder(c *config.Config, p string) {
+	if p == "" || slices.Contains(c.Groups, p) {
+		return
+	}
+	addFolder(c, parentFolder(p))
+	c.Groups = append(c.Groups, p)
+}
+
+// takeFolder removes folder name and its subfolders from groups and
+// returns them in their order.
+func takeFolder(c *config.Config, name string) []string {
+	var tree []string
+	c.Groups = slices.DeleteFunc(c.Groups, func(g string) bool {
+		if inFolder(g, name) {
+			tree = append(tree, g)
+			return true
+		}
+		return false
+	})
+	return tree
+}
+
 // SaveGroup adds a folder (oldName "") or renames one; renaming moves its
-// sessions along.
+// sessions and subfolders along. A name with / is a path: missing folders
+// on the way are added, and a new parent moves the folder there (last).
 func (m *Manager) SaveGroup(oldName, name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return errors.New("folder name cannot be empty")
+	name, err := folderPath(name)
+	if err != nil {
+		return err
 	}
 	return m.update(func(c *config.Config) error {
 		if name != oldName && slices.Contains(c.Groups, name) {
 			return fmt.Errorf("a folder named %q already exists", name)
 		}
 		if oldName == "" {
-			c.Groups = append(c.Groups, name)
+			addFolder(c, name)
 			return nil
 		}
 		i := slices.Index(c.Groups, oldName)
 		if i < 0 {
 			return fmt.Errorf("unknown folder %q", oldName)
 		}
-		c.Groups[i] = name
-		for j := range c.Sessions {
-			if c.Sessions[j].Group == oldName {
-				c.Sessions[j].Group = name
+		if name != oldName && inFolder(name, oldName) {
+			return fmt.Errorf("folder %q cannot go inside itself", oldName)
+		}
+		rename := func(g string) string {
+			if inFolder(g, oldName) {
+				return name + g[len(oldName):]
 			}
+			return g
+		}
+		// Its place once it and its subfolders are taken out.
+		i -= len(slices.DeleteFunc(slices.Clone(c.Groups[:i]), func(g string) bool { return !inFolder(g, oldName) }))
+		tree := takeFolder(c, oldName)
+		for k, g := range tree {
+			tree[k] = rename(g)
+			if slices.Contains(c.Groups, tree[k]) {
+				return fmt.Errorf("a folder named %q already exists", tree[k])
+			}
+		}
+		if parentFolder(name) != parentFolder(oldName) { // a rename keeps its place
+			addFolder(c, parentFolder(name))
+			i = len(c.Groups)
+		}
+		c.Groups = slices.Insert(c.Groups, i, tree...)
+		for j := range c.Sessions {
+			c.Sessions[j].Group = rename(c.Sessions[j].Group)
 		}
 		return nil
 	})
 }
 
-// DeleteGroup removes a folder; its sessions become ungrouped (never deleted).
+// DeleteGroup removes a folder and its subfolders; their sessions move to
+// the folder above (never deleted).
 func (m *Manager) DeleteGroup(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.update(func(c *config.Config) error {
-		i := slices.Index(c.Groups, name)
-		if i < 0 {
+		if !slices.Contains(c.Groups, name) {
 			return fmt.Errorf("unknown folder %q", name)
 		}
-		c.Groups = slices.Delete(c.Groups, i, i+1)
+		takeFolder(c, name)
 		for j := range c.Sessions {
-			if c.Sessions[j].Group == name {
-				c.Sessions[j].Group = ""
+			if inFolder(c.Sessions[j].Group, name) {
+				c.Sessions[j].Group = parentFolder(name)
 			}
 		}
 		return nil
 	})
 }
 
-// MoveGroup puts folder name directly before beforeName, or last if "".
+// MoveGroup puts folder name, with its subfolders, directly before
+// beforeName, or last if "".
 func (m *Manager) MoveGroup(name, beforeName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -720,18 +811,20 @@ func (m *Manager) MoveGroup(name, beforeName string) error {
 		return nil
 	}
 	return m.update(func(c *config.Config) error {
-		i := slices.Index(c.Groups, name)
-		if i < 0 {
+		if !slices.Contains(c.Groups, name) {
 			return fmt.Errorf("unknown folder %q", name)
 		}
-		c.Groups = slices.Delete(c.Groups, i, i+1)
+		if beforeName != "" && inFolder(beforeName, name) {
+			return fmt.Errorf("folder %q cannot go inside itself", name)
+		}
+		tree := takeFolder(c, name)
 		j := len(c.Groups)
 		if beforeName != "" {
 			if j = slices.Index(c.Groups, beforeName); j < 0 {
 				return fmt.Errorf("unknown folder %q", beforeName)
 			}
 		}
-		c.Groups = slices.Insert(c.Groups, j, name)
+		c.Groups = slices.Insert(c.Groups, j, tree...)
 		return nil
 	})
 }
