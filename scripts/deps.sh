@@ -5,7 +5,7 @@
 set -u
 MODE=${1:-check}
 WAILS_VERSION=v2.16.0
-GO_MIN=1.25
+GO_MIN=1.26
 NODE_MIN=18.0 # vite 6 (Ubuntu 24.04 ships 18.19)
 
 missing=()   # human-readable list
@@ -15,7 +15,7 @@ need_wails=0
 ok()   { printf '  \033[32mok\033[0m       %s\n' "$*"; }
 miss() { printf '  \033[31mmissing\033[0m  %s\n' "$*"; missing+=("$1"); }
 
-# version_ge 1.26.0 1.25 -> true
+# version_ge 1.26.0 1.26 -> true
 version_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }
 
 OS=$(uname -s)

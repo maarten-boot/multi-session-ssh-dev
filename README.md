@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.1: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.2: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -46,7 +46,7 @@ builds take as is) and publishes a GitHub release.
 
 ## Build
 
-Requirements: Go 1.25+, Node 18+ with npm, Wails CLI v2.16
+Requirements: Go 1.26+, Node 18+ with npm, Wails CLI v2.16
 (`go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0`).
 
 Linux also needs `libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config`.
