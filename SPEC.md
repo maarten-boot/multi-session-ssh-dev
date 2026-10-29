@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-29, app v0.9.2) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.8 (2026-10-29, app v0.9.3) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -131,8 +131,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal
   while the window is in the background) rings the bell, or produces output after 10 s idle (at
   least max(512 bytes, 2 × columns) within 2 s; redraws within 1.5 s of a resize don't count). The
-  tab that caused it is marked too; the window title counts sessions with badges. claude waiting
-  for input → bell; the user sets Claude Code's `preferredNotifChannel` to `terminal_bell`.
+  tab that caused it is marked too; the window title counts sessions with badges and ends with
+  the active session's name (`(2) Session Workbench — alpha`). claude waiting for input → bell;
+  the user sets Claude Code's `preferredNotifChannel` to `terminal_bell`.
   A bell in such a terminal also shows a desktop notification (`notifications`, default on; Wails
   runtime notifications: freedesktop D-Bus on Linux, toasts on Windows, Notification Center on
   macOS, which may refuse an unsigned app): "Claude is waiting" for a Remote tab, "Bell in

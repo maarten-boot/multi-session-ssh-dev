@@ -1,7 +1,7 @@
 #!/bin/bash
 # Headless GUI test of activity badges (M5): bell and output-after-idle in
 # hidden sessions, no false badge from tmux's once-a-minute status redraw,
-# badge cleared on view, count in the window title. Takes ~2 minutes.
+# badge cleared on view, count and active session in the window title. Takes ~2 minutes.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-badges.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
@@ -25,13 +25,13 @@ k ctrl+alt+1; k ctrl+shift+3; sleep 2; t 'sleep 5; printf "\a"; echo rang'     #
 k ctrl+alt+2; sleep 2; k ctrl+shift+1; sleep 1.5
 t 'sleep 12; seq 1 3000'                                        # beta Local: output after 12 s idle
 k ctrl+alt+3; sleep 16
-shot 1-bell-and-activity "(2) Session Workbench"               # alpha bell, beta activity
+shot 1-bell-and-activity "(2) Session Workbench — gamma"  # alpha bell, beta activity
 k ctrl+alt+2; sleep 1
-shot 2-beta-viewed "(1) Session Workbench"                      # beta cleared
+shot 2-beta-viewed "(1) Session Workbench — beta"  # beta cleared
 k ctrl+alt+3; sleep 70                                          # tmux clock redraws in hidden sessions
-shot 3-after-status-redraw "(1) Session Workbench"              # still only alpha
+shot 3-after-status-redraw "(1) Session Workbench — gamma"  # still only alpha
 k ctrl+alt+1; sleep 1
-shot 4-all-cleared "Session Workbench"
+shot 4-all-cleared "Session Workbench — alpha"
 alive
 kill $APP; wait $APP 2>/dev/null
 for n in alpha beta gamma; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-b$n'" 2>/dev/null; done

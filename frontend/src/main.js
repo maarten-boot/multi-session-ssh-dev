@@ -927,8 +927,15 @@ const app = {
                 if (t?.key === 'notes') btn.title = btn.title.split('\n')[0] + (s.todoCount() ? '\n▲ ' + s.todoText() : '');
             });
         }
+        this.renderTitle();
+    },
+
+    // renderTitle sets the window title: the number of sessions with a
+    // badge, the app name and the active session's name.
+    renderTitle() {
         const n = [...this.sessions.values()].filter(x => x.badge()).length;
-        const title = n ? `(${n}) Session Workbench` : 'Session Workbench';
+        let title = n ? `(${n}) Session Workbench` : 'Session Workbench';
+        if (this.active) title += ' — ' + this.active.data.name;
         if (title !== this.title) {
             this.title = title;
             WindowSetTitle(title);
@@ -942,6 +949,7 @@ const app = {
 
     renderMain() {
         const s = this.active;
+        this.renderTitle();
         const hasHosts = this.state.hosts.length > 0;
         $('#bar').hidden = !s;
         $('#panes').hidden = !s;

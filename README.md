@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.2: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.3: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -416,7 +416,8 @@ Settings value there removes the session's override.
 terminals rings the bell, and a blue ring when it starts printing again after 10 s of
 quiet (tmux's clock redraw does not count). The same happens to the visible session while
 the window is in the background. The tab that caused it is marked too; the mark clears
-when you look at it, and the window title shows how many sessions want attention. A bell in
+when you look at it, and the window title shows how many sessions want attention, then the
+name of the session you are looking at: `(2) Session Workbench — alpha`. A bell in
 a session you are not looking at (or while the window is in the background) also shows a
 desktop notification — *Claude is waiting* for the Remote tab — at most once a minute per
 session (`<name> · <host>`; "Bell in Local" etc. for other tabs); clicking it opens that session
