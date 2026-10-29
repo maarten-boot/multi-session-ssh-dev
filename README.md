@@ -445,7 +445,8 @@ for *New session in this folder…*, *New subfolder…*, rename, move up/down (a
 neighbours), *Move folder to…* (the top or another folder; its subfolders and sessions go
 along) or delete (deleting keeps its sessions: they go to the folder above, and its
 subfolders go too). In a folder, its own sessions come first, then its subfolders; sessions
-without a folder are listed first of all. In `config.toml` a subfolder is a path:
+without a folder are listed first of all. A `/` in a folder name makes subfolders
+(*Clients/Acme* adds *Clients* too if needed). In `config.toml` a subfolder is a path:
 `groups = ["Work", "Work/Client A"]`.
 
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
@@ -619,10 +620,11 @@ are checked with the dialogs' rules when the file is read, and problems are list
 top of the sidebar; nothing in the file is changed. A session that cannot work (an invalid
 host, an unknown start mode, a relative `local_path`, an id used twice) gets a red dot and
 the reason above its tabs; for the rest (an unknown color mode, `record` or `history` value, a link that
-is not http(s), a host defined twice, a folder not listed in `groups`) the app uses the
-default, skips the value, ignores the second host or shows the folder as *(missing)*; an empty
-name, a directory with two sessions on one host and a folder listed twice or empty in `groups`
-are only reported. An invalid `[[ui.commands]]` or `[[ui.start_commands]]` list (a name used
+is not http(s), a host defined twice, a folder (or a subfolder's parent) not listed in
+`groups`) the app uses the default, skips the value, ignores the second host or shows the
+folder as *(missing)*; an empty name, a directory with two sessions on one host and a folder
+listed twice, empty, with an empty part (`a//b`) or with spaces around a `/` in `groups` are
+only reported. An invalid `[[ui.commands]]` or `[[ui.start_commands]]` list (a name used
 twice, a command of more than one line…) is reported and kept; the menu leaves out bad entries
 and Settings won't save until they are fixed. A session that cannot work does not
 reconnect its Remote tab by itself; the tab shows the reason.

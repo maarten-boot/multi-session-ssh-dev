@@ -561,8 +561,9 @@ recordings, Notes (spelling on/off, language, own words), Keys.
   Remote tab. Otherwise the app falls back: unknown color mode, `record` or `history` value → the global
   one, a non-http(s)
   link is not shown, the second of two hosts with one name is ignored; an empty name, a
-  directory with two sessions on one host, a folder not in `groups`, a duplicate or empty folder
-  name are only reported. A Remote tab that cannot start for such an error does not reconnect
+  directory with two sessions on one host, a folder (or a subfolder's parent) not in `groups`, a
+  duplicate or empty folder name, a folder path with an empty part or spaces around a `/` are
+  only reported. A Remote tab that cannot start for such an error does not reconnect
   automatically; it shows the reason. Every `[ui]` value out of range or unknown gets its
   default: `font_size` (6–48), `scrollback` (1–1 000 000), `min_contrast` (1–21), `theme`,
   `color_mode`, `connect_on_start`, `claude_backup_every` (5m–168h), `record_every` (5m–24h),

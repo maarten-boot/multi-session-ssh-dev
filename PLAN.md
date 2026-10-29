@@ -148,6 +148,9 @@ implementation differs from the original plan.
 - v0.9.1: nested folders (F5): a folder path ("Work/Client A") in `groups` and `group`; the
   sidebar is a tree; *New subfolder…* and *Move folder to…* in the folder menu; rename, move
   and delete take the subfolders along (a deleted folder's sessions go one folder up).
+- Docs/code cross-check (v0.9.1): the session dialog's folder list shows full paths (the closed
+  list showed an indented name without its parent); the README names a / in a folder name and
+  the folder path problems the config check reports.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

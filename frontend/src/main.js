@@ -1545,7 +1545,8 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
     f.elements.history.closest('label').hidden = !editing;
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
-        ...folderChoices().map(({group, label}) => el('option', {value: group, textContent: label, title: group})));
+        // Full paths: the closed list shows only the chosen one, without the tree around it.
+        ...folderChoices().map(({group}) => el('option', {value: group, textContent: group.replaceAll('/', ' / ')})));
     f.elements.group.value = s?.data.group ?? presetGroup ?? '';
     f.elements.colors.options[0].textContent = `default (${app.state.ui.color_mode})`;
     f.elements.host.disabled = f.elements.dir.disabled = f.elements.browse.disabled = editing;
