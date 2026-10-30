@@ -190,3 +190,20 @@ func TestLog(t *testing.T) {
 		}
 	}
 }
+
+func TestAskWithoutCredentials(t *testing.T) {
+	for _, v := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE",
+		"ANTHROPIC_FEDERATION_RULE_ID", "ANTHROPIC_IDENTITY_TOKEN_FILE", "ANTHROPIC_IDENTITY_TOKEN"} {
+		t.Setenv(v, "")
+	}
+	home := t.TempDir() // no `ant auth login` profile here
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	t.Setenv("APPDATA", filepath.Join(home, "appdata"))
+	tr := Asker{Options: []option.RequestOption{option.WithBaseURL("http://127.0.0.1:9"), option.WithMaxRetries(0)}}.
+		Ask(context.Background(), Conversation{}, "x", func(string) {})
+	if tr.Error != "no Claude API credentials: set ANTHROPIC_API_KEY or run `ant auth login`, then restart the app" {
+		t.Errorf("error: %q", tr.Error)
+	}
+}

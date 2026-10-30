@@ -257,8 +257,8 @@ func describe(err error) string {
 		return fmt.Sprintf("Claude API error %d: %s", apierr.StatusCode, apierr.Error())
 	}
 	msg := err.Error()
-	if strings.Contains(msg, "API key") || strings.Contains(msg, "credential") || strings.Contains(msg, "auth") {
-		return "no Claude API credentials: set ANTHROPIC_API_KEY or run `ant auth login`, then restart the app (" + msg + ")"
+	if strings.Contains(msg, "no Anthropic credentials") {
+		return "no Claude API credentials: set ANTHROPIC_API_KEY or run `ant auth login`, then restart the app"
 	}
 	return msg
 }

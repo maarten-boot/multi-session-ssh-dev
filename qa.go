@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"session-workbench/internal/opener"
 	"session-workbench/internal/qa"
 	"session-workbench/internal/reclog"
 )
@@ -147,5 +149,12 @@ func (a *App) QAClear(id string) error {
 
 // QAOpenLog opens the folder of the session's Q&A log.
 func (a *App) QAOpenLog(id string) error {
-	return a.OpenLogFolder(id)
+	dir, name, err := a.qaLogDir(id)
+	if dir == "" {
+		return err
+	}
+	if _, err := os.Stat(dir); err != nil {
+		return fmt.Errorf("nothing logged for %s yet (it goes to %s)", name, dir)
+	}
+	return opener.Open(dir)
 }

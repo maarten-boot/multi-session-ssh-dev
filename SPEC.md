@@ -479,10 +479,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   effort medium, the conversation cached (`cache_control`), server-side fallbacks for declined
   questions (`fallbacks: "default"`). Sent: a fixed system prompt, the earlier questions and
   the API's own answers unchanged (they carry the thinking blocks; a declined, failed or stopped
-  answer is not sent back), and the question — nothing from the session. Credentials only as
+  answer is not sent back; one cut off at the length limit is), and the question — nothing from the session. Credentials only as
   the SDK finds them (`ANTHROPIC_API_KEY`, an `ant auth login` profile); the app stores none.
   The conversation is saved in `<data dir>/qa/<session id>.json` (owner-only, written
-  atomically) and shown again after a restart; *New conversation* removes it. Every question
+  atomically) and shown again after a restart; *New conversation* removes it, deleting the session
+  keeps it (like the notes). Every question
   and answer (time, model, tokens, error) is appended to `qa-YYYY-MM-DD.md` in the session's
   log folder (that of the Remote tab recordings, F10), whether recordings are on or not. Answers show
   text, fenced code blocks (copyable) and closed ```` ```svg ```` blocks holding one `<svg>`

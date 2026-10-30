@@ -264,7 +264,8 @@ open page); a right-click on empty space in the tree makes a *New page…*;
   conversation so far — nothing from the session. Follow-up questions are cheaper: the
   conversation is cached. Under each answer: the time, the model and the tokens used (each
   question costs money on your API account). The conversation is saved (`qa/<session id>.json`
-  in the data directory) and comes back after a restart; *New conversation* starts over. Every
+  in the data directory) and comes back after a restart; *New conversation* starts over
+  (deleting the session keeps it, like its notes). Every
   question and answer is also **logged** in the session's log folder (the one of its Remote
   tab recordings, *Open log folder*), in `qa-YYYY-MM-DD.md`, also after *New conversation*.
   The model is `claude-opus-5-5` (`qa_model` in the config); a question one model declines is

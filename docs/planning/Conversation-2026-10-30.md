@@ -19,3 +19,8 @@
   (qa-YYYY-MM-DD.md); graphics: SVG answers drawn as images (PNG is not possible through the
   Messages API alone). Model claude-opus-5-5 (`qa_model`), effort medium, cached conversation,
   server-side fallbacks. Tests: internal/qa (fake API), qaparse.test.mjs, gui-smoke-qa.sh.
+- **Cross-check of the Q&A tab.** Without credentials the tab showed the SDK's whole
+  12-line explanation: now one line (tested). *Open log folder* in the Q&A tab said "no
+  recordings yet": now says nothing is logged yet and where it goes. SPEC/README: an answer
+  cut off at the length limit is sent back; the conversation is kept when the session is
+  deleted (like notes).
