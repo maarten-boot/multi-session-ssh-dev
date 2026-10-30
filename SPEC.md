@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.8 (2026-10-29, app v0.9.3) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.9 (2026-10-30, app v0.9.4) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -10,7 +10,8 @@ packages, Files tab date column and sort order (B1), window size and position re
 Get listing and taking over every agent branch (F11), the file mode in the session menu (F1)
 appending writes through the live share (§6), the command menu (T5), editable start commands
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
-spelling in the notes (N1a, N1b), the prompts menu (T6) and full transfers for working copies (F12).
+spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
+and the Q&A tab (Q1).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -36,6 +37,7 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 | **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
 | **Notes**  | Notes as a tree of Markdown pages, shown formatted (N1, N1a)                    |
 | **Web**    | Build runs and web links of the repository (W1)                                 |
+| **Q&A**    | Questions to Claude through the Claude API, with the answers (Q1)               |
 
 A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
 which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Appearance); tabs added in a newer
@@ -471,6 +473,23 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   opens in the system browser; web pages are not embedded (GitHub forbids framing). No tokens are
   stored.
 
+### 4.4c Q&A tab
+- Q1. Questions to Claude through the Claude API (Anthropic's Go SDK, streamed, from the app's
+  computer only), one conversation per session. Model `qa_model` (default `claude-opus-5-5`),
+  effort medium, the conversation cached (`cache_control`), server-side fallbacks for declined
+  questions (`fallbacks: "default"`). Sent: a fixed system prompt, the earlier questions and
+  the API's own answers unchanged (they carry the thinking blocks; a declined, failed or stopped
+  answer is not sent back), and the question — nothing from the session. Credentials only as
+  the SDK finds them (`ANTHROPIC_API_KEY`, an `ant auth login` profile); the app stores none.
+  The conversation is saved in `<data dir>/qa/<session id>.json` (owner-only, written
+  atomically) and shown again after a restart; *New conversation* removes it. Every question
+  and answer (time, model, tokens, error) is appended to `qa-YYYY-MM-DD.md` in the session's
+  log folder (that of the Remote tab recordings, F10), whether recordings are on or not. Answers show
+  text, fenced code blocks (copyable) and closed ```` ```svg ```` blocks holding one `<svg>`
+  element as images (`data:` URL in an `<img>`: no scripts, no loads); PNG output is not
+  possible through the Messages API alone. Enter asks, Shift+Enter a new line, *Stop* cancels
+  the request; one question per session at a time.
+
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
   true color; scrollback configurable (default 10 000).
@@ -525,7 +544,7 @@ Defaults (all rebindable in config). Chosen to avoid clashing with shells, tmux,
 | Next / prev session    | Ctrl+Shift+PgDn/PgUp | Cmd+Shift+]/[  | `next_session`, `prev_session` |
 | Session 1…9            | Ctrl+Alt+1…9         | Cmd+1…9        | `session_1` … `session_9`     |
 | 1st … 9th visible tab  | Ctrl+Shift+1…9       | Cmd+Shift+1…9  | `tab_1` … `tab_9`             |
-| A tab by name          | none                 | none           | `tab_local` … `tab_web`       |
+| A tab by name          | none                 | none           | `tab_local` … `tab_qa`        |
 | New session            | Ctrl+Shift+N         | Cmd+Shift+N    | `new_session`                 |
 | Quick switcher (fuzzy) | Ctrl+Shift+P         | Cmd+Shift+P    | `quick_switcher`              |
 | Find in terminal       | Ctrl+Shift+F         | Cmd+F          | `find`                        |
@@ -699,6 +718,11 @@ repository config and warns again whenever they change.
   separators, reserved characters or Windows device names) and files are read and written
   through `os.Root` on the book's folder (no escape through `..` or symlinks out of it),
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
+- Q&A tab (Q1): what you type there goes to the Claude API (Anthropic) — only the questions
+  and the conversation, never session files. No credentials are stored or logged; the SDK
+  reads them from the environment or the `ant` profile. Conversations and the log are
+  owner-only files. Answers are rendered with `textContent`; an SVG is shown only as an
+  `<img>` from a `data:` URL, where it cannot run scripts or load anything.
 - Spelling dictionaries: the language name is checked (letters, digits, `_ @ . -`; no
   separators or leading dot), so only `<name>.aff` / `<name>.dic` in the listed folders are
   read; their text goes to the checker only, never into the page.

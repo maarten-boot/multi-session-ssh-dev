@@ -83,7 +83,8 @@ clean:
 #   fake xdg-open.
 # smoke-ui: colors/themes, quick switcher, settings + keys, reconnect overlay,
 #   find/unicode/copy-on-select, folders and subfolders, git markers, repository check, working
-#   copies (also saved automatically and at quit), live share, notes and tab order, Web tab and custom tab order, layout
+#   copies (also saved automatically and at quit), live share, notes and tab order, Web tab and custom tab order,
+#   Q&A tab (fake Claude API), layout
 #   (font size, current tab, narrow sidebar), desktop notifications (fake
 #   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
 #   copy/paste, Remote tab recordings, command menu, prompts menu and start
@@ -125,6 +126,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-notes.sh build/bin/session-workbench $(SMOKE_OUT)-notes
 	$(XVFB) scripts/gui-smoke-todo.sh build/bin/session-workbench $(SMOKE_OUT)-todo
 	$(XVFB) scripts/gui-smoke-web.sh build/bin/session-workbench $(SMOKE_OUT)-web
+	$(XVFB) scripts/gui-smoke-qa.sh build/bin/session-workbench $(SMOKE_OUT)-qa
 	$(XVFB) scripts/gui-smoke-layout.sh build/bin/session-workbench $(SMOKE_OUT)-layout
 	$(XVFB) scripts/gui-smoke-notify.sh build/bin/session-workbench $(SMOKE_OUT)-notify
 	$(XVFB) scripts/gui-smoke-appnotes.sh build/bin/session-workbench $(SMOKE_OUT)-appnotes

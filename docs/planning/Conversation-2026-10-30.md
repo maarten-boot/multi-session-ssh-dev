@@ -12,3 +12,10 @@
   not keys; private history is tested in remote, not terminal; fsbrowse has no B4 test;
   gitstatus covers the remote URL for W1; syncer covers F12 full transfers). README points to
   Tests.md.
+- **Q&A tab (v0.9.4).** Request: a "Q&A" pane after Web asking Claude through the Claude API.
+  Decisions: credentials from ANTHROPIC_API_KEY or `ant auth login` only (nothing stored);
+  Claude sees only the questions and the conversation; one saved conversation per session.
+  Added while working: every question and answer is logged in the session's log folder
+  (qa-YYYY-MM-DD.md); graphics: SVG answers drawn as images (PNG is not possible through the
+  Messages API alone). Model claude-opus-5-5 (`qa_model`), effort medium, cached conversation,
+  server-side fallbacks. Tests: internal/qa (fake API), qaparse.test.mjs, gui-smoke-qa.sh.

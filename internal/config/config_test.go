@@ -35,7 +35,7 @@ func TestRoundTrip(t *testing.T) {
 	want.UI.MinContrast = 7
 	want.UI.AutoReconnect = ptr(false)
 	want.UI.CopyOnSelect = true
-	want.UI.TabOrder = []string{"remote", "local", "files", "notes", "web"}
+	want.UI.TabOrder = []string{"remote", "local", "files", "notes", "web", "qa"}
 	want.UI.HiddenTabs = []string{"notes"}
 	want.Keys = map[string]string{"next_session": "Ctrl+Tab"}
 	want.Local = Local{Shell: "/bin/zsh", Args: []string{"-l"}}
@@ -159,7 +159,7 @@ func TestTabsNormalized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(c.UI.TabOrder, ","); got != "remote,local,files,notes,web" {
+	if got := strings.Join(c.UI.TabOrder, ","); got != "remote,local,files,notes,web,qa" {
 		t.Errorf("order %s", got) // unknown dropped, duplicates removed, missing appended
 	}
 	if got := strings.Join(c.UI.HiddenTabs, ","); got != "files" {
@@ -193,7 +193,7 @@ func TestClaudeBackupSettings(t *testing.T) {
 // A hand-edited file that hides every tab gets them all back on load.
 func TestAllTabsHiddenOnLoad(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "config.toml")
-	os.WriteFile(p, []byte("[ui]\nhidden_tabs = [\"local\", \"files\", \"remote\", \"notes\", \"web\"]\n"), 0o644)
+	os.WriteFile(p, []byte("[ui]\nhidden_tabs = [\"local\", \"files\", \"remote\", \"notes\", \"web\", \"qa\"]\n"), 0o644)
 	c, err := Load(p)
 	if err != nil {
 		t.Fatal(err)

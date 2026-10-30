@@ -9,8 +9,8 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.3: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
-Notes (page trees with formatting, lists and check lists, spelling) and Web tabs, Remote tab recordings, session folders,
+Status: v0.9.4: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
 auto-reconnect, live share and working copies for hosts without a shared file system (Get
@@ -83,6 +83,7 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # session descriptions (the balloon), TODO marks, git markers, repository check, working copies (also saved
                      # automatically and at quit), live share,
                      # notes and tab order, Web tab and custom tab order,
+                     # Q&A tab (against a fake Claude API),
                      # layout (font size everywhere, current tab, narrow sidebar),
                      # desktop notifications, notes for all sessions and copy/paste,
                      # Remote tab recordings, command menu (with groups), prompts menu and start
@@ -255,6 +256,22 @@ open page); a right-click on empty space in the tree makes a *New page…*;
   logged in (`gh auth login`) on your computer; the app stores no tokens. Pages open in
   your normal browser: GitHub cannot be shown inside the app.
 
+- **Q&A** (Ctrl+Shift+6): ask Claude questions through the Claude API, one conversation per
+  session. Enter asks, Shift+Enter starts a new line; the answer appears as it is written
+  (*Stop* ends it), with code blocks (⧉ copies one) and pictures: an answer that draws in an
+  ```` ```svg ```` block shows the drawing (as an image: an SVG cannot run scripts or load
+  anything there; *SVG source* shows the text). Claude sees only your questions and the
+  conversation so far — nothing from the session. Follow-up questions are cheaper: the
+  conversation is cached. Under each answer: the time, the model and the tokens used (each
+  question costs money on your API account). The conversation is saved (`qa/<session id>.json`
+  in the data directory) and comes back after a restart; *New conversation* starts over. Every
+  question and answer is also **logged** in the session's log folder (the one of its Remote
+  tab recordings, *Open log folder*), in `qa-YYYY-MM-DD.md`, also after *New conversation*.
+  The model is `claude-opus-5-5` (`qa_model` in the config); a question one model declines is
+  answered by another one. **Credentials**: the app stores none — set `ANTHROPIC_API_KEY` in
+  the environment the app starts from, or run `ant auth login` once (the Anthropic CLI); then
+  start the app. A Claude subscription (Claude Code's login) is not an API key.
+
 **Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M, or a right-click on the
 empty space of the session list → *Notes for all sessions…* / *Prompts for all sessions…*) opens a notes page
 for the whole app, for prompts you use often and notes that belong to no session: the same
@@ -382,7 +399,7 @@ the delay before a session's description shows, tab order), Terminals, Commands,
 | Ctrl+Shift+PgDn / PgUp | ⇧⌘] / ⇧⌘[ | next / previous session | `next_session`, `prev_session` |
 | Ctrl+Alt+1…9 | ⌘1…9 | session by number (shown in the sidebar) | `session_1` … `session_9` |
 | Ctrl+Shift+1…9 | ⇧⌘1…9 | 1st…9th visible tab | `tab_1` … `tab_9` |
-| — | — | one tab wherever it is in the order (unbound) | `tab_local`, `tab_files`, `tab_remote`, `tab_notes`, `tab_web` |
+| — | — | one tab wherever it is in the order (unbound) | `tab_local`, `tab_files`, `tab_remote`, `tab_notes`, `tab_web`, `tab_qa` |
 | Ctrl+Shift+P | ⇧⌘P | quick switcher (fuzzy, most recent first; also in the session list's right-click menu) | `quick_switcher` |
 | Ctrl+Shift+N | ⇧⌘N | new session | `new_session` |
 | Ctrl+Shift+, | ⌘, | settings | `settings` |
@@ -667,8 +684,9 @@ saved_copies_days = 14                    # and the last one of each day for 14 
 record_remote = false                     # record every session's Remote tab (as text)
 record_every = "1h"                       # a new recording file every 5m … 24h
 record_dir = "~/sw-logs"                  # optional: default <data dir>/logs
-tab_order = ["local", "files", "remote", "notes", "web"]
-hidden_tabs = []                          # e.g. ["web"]; at least one tab stays visible
+tab_order = ["local", "files", "remote", "notes", "web", "qa"]
+hidden_tabs = []                          # e.g. ["web", "qa"]; at least one tab stays visible
+qa_model = "claude-opus-5-5"              # the Q&A tab's Claude model
 
 [[ui.commands]]                           # the command menu (Settings → Commands)
 name = "fetch all"
@@ -748,8 +766,9 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | What | Linux | macOS | Windows |
 |---|---|---|---|
 | config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
-| Remote tab recordings (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| Remote tab recordings and the Q&A log (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| Q&A conversations (`qa/<session id>.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
 | Local tab shell history (`history/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
@@ -783,6 +802,7 @@ internal/session       hosts + sessions: validation, mapping, ordering
 internal/notes         notes pages: a tree of Markdown files per session and for the app
 internal/spell         spelling dictionaries: built-in en_US (dict/, SCOWL), Hunspell files found
 internal/forge         Web tab: links from the git remote, GitHub runs via gh
+internal/qa            Q&A tab: questions to Claude (Claude API), saved conversations, the log
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab

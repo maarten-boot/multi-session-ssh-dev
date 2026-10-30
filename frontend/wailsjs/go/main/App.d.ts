@@ -7,6 +7,7 @@ import {session} from '../models';
 import {gitstatus} from '../models';
 import {main} from '../models';
 import {fsbrowse} from '../models';
+import {qa} from '../models';
 import {config} from '../models';
 import {share} from '../models';
 import {spell} from '../models';
@@ -68,6 +69,16 @@ export function OpenPath(arg1:string,arg2:string):Promise<void>;
 export function OpenSaved(arg1:string):Promise<void>;
 
 export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>;
+
+export function QAAsk(arg1:string,arg2:string):Promise<qa.Turn>;
+
+export function QAClear(arg1:string):Promise<void>;
+
+export function QALoad(arg1:string):Promise<main.QAInfo>;
+
+export function QAOpenLog(arg1:string):Promise<void>;
+
+export function QAStop(arg1:string):Promise<void>;
 
 export function QuitNow():Promise<void>;
 

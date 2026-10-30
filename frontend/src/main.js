@@ -10,6 +10,7 @@ import {configureSpelling} from './editor';
 import {AppNotesPage, PROMPTS, sessionPrompts} from './appnotes';
 import {promptMenu} from './prompts';
 import {WebView} from './web';
+import {QAView} from './qa';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, showMenu, store, toast} from './ui';
@@ -35,7 +36,7 @@ const appKey = e => actionFor(e, keymap.map);
 // Tabs: their order and which are shown come from Settings (ui.tab_order,
 // ui.hidden_tabs). Ctrl+Shift+N is the Nth visible tab (tab_1 … tab_9);
 // tab_<name> actions can bind a key to one tab regardless of position.
-const tabOrder = () => (app.state.ui.tab_order ?? ['local', 'files', 'remote', 'notes', 'web'])
+const tabOrder = () => (app.state.ui.tab_order ?? ['local', 'files', 'remote', 'notes', 'web', 'qa'])
     .filter(k => !(app.state.ui.hidden_tabs ?? []).includes(k));
 const keyHint = action => format(keymap.map[action], isMac);
 
@@ -184,6 +185,35 @@ class WebTab {
     }
 }
 
+// QATab asks Claude questions through the Claude API (see qa.js).
+class QATab {
+    constructor(session) {
+        this.session = session;
+        this.key = 'qa';
+        this.label = 'Q&A';
+        this.badge = null;
+        this.pane = el('div', {className: 'pane files-pane', hidden: true});
+        session.container.append(this.pane);
+        this.view = null;
+    }
+
+    show() {
+        this.pane.hidden = false;
+        if (!this.view) this.view = new QAView(this.pane, this.session);
+        else this.view.refresh();
+        this.view.focus();
+    }
+
+    hide() {
+        this.pane.hidden = true;
+    }
+
+    dispose() {
+        this.view?.dispose();
+        this.pane.remove();
+    }
+}
+
 // NotesTab hosts the session's notes editor; it reloads when shown.
 class NotesTab {
     constructor(session) {
@@ -273,8 +303,9 @@ class SessionUI {
             }, s => this.setRemoteState(s)),
             new NotesTab(this),
             new WebTab(this),
+            new QATab(this),
         ];
-        const keys = ['local', 'files', 'remote', 'notes', 'web'];
+        const keys = ['local', 'files', 'remote', 'notes', 'web', 'qa'];
         this.tabs.forEach((t, i) => t.key = keys[i]);
         // Each session reopens on the tab last used (Local for new ones).
         this.activeKey = store.get(`tab:${data.id}`, 'local');
@@ -1780,7 +1811,7 @@ async function settingsDialog() {
     RecordInfo().then(r => dlg.querySelector('.record-default').textContent =
         `Default: ${r.default_dir || '(no data folder)'}. Files: <folder>/<host>/<session path>/YYYYMMDD-HHMM.log`).catch(() => {});
     // Tabs: order with ↑/↓, shown or not with the checkbox.
-    const TAB_LABELS = {local: 'Local', files: 'Files', remote: 'Remote', notes: 'Notes', web: 'Web'};
+    const TAB_LABELS = {local: 'Local', files: 'Files', remote: 'Remote', notes: 'Notes', web: 'Web', qa: 'Q&A'};
     let order = [...(ui.tab_order ?? Object.keys(TAB_LABELS))];
     const hidden = new Set(ui.hidden_tabs ?? []);
     const tabList = dlg.querySelector('.tab-list');

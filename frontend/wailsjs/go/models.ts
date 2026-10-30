@@ -97,6 +97,7 @@ export namespace config {
 	    spell_check?: boolean;
 	    spell_language: string;
 	    spell_words: string[];
+	    qa_model: string;
 	    description_delay?: number;
 	    commands: Command[];
 	    start_commands: StartCommand[];
@@ -135,6 +136,7 @@ export namespace config {
 	        this.spell_check = source["spell_check"];
 	        this.spell_language = source["spell_language"];
 	        this.spell_words = source["spell_words"];
+	        this.qa_model = source["qa_model"];
 	        this.description_delay = source["description_delay"];
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
@@ -395,6 +397,42 @@ export namespace main {
 	        this.remote = source["remote"];
 	    }
 	}
+	export class QAInfo {
+	    turns: qa.Turn[];
+	    busy: boolean;
+	    model: string;
+	    log_dir: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QAInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.turns = this.convertValues(source["turns"], qa.Turn);
+	        this.busy = source["busy"];
+	        this.model = source["model"];
+	        this.log_dir = source["log_dir"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RecordInfo {
 	    default_dir: string;
 	    recording: Record<string, boolean>;
@@ -564,6 +602,72 @@ export namespace notes {
 	        this.name = source["name"];
 	        this.has_text = source["has_text"];
 	        this.children = this.convertValues(source["children"], Page);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace qa {
+	
+	export class Usage {
+	    input: number;
+	    output: number;
+	    cache_read: number;
+	    cache_write: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Usage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.input = source["input"];
+	        this.output = source["output"];
+	        this.cache_read = source["cache_read"];
+	        this.cache_write = source["cache_write"];
+	    }
+	}
+	export class Turn {
+	    // Go type: time
+	    time: any;
+	    question: string;
+	    answer: string;
+	    model?: string;
+	    usage: Usage;
+	    error?: string;
+	    raw?: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Turn(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.time = this.convertValues(source["time"], null);
+	        this.question = source["question"];
+	        this.answer = source["answer"];
+	        this.model = source["model"];
+	        this.usage = this.convertValues(source["usage"], Usage);
+	        this.error = source["error"];
+	        this.raw = source["raw"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -114,6 +114,26 @@ export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
 }
 
+export function QAAsk(arg1, arg2) {
+  return window['go']['main']['App']['QAAsk'](arg1, arg2);
+}
+
+export function QAClear(arg1) {
+  return window['go']['main']['App']['QAClear'](arg1);
+}
+
+export function QALoad(arg1) {
+  return window['go']['main']['App']['QALoad'](arg1);
+}
+
+export function QAOpenLog(arg1) {
+  return window['go']['main']['App']['QAOpenLog'](arg1);
+}
+
+export function QAStop(arg1) {
+  return window['go']['main']['App']['QAStop'](arg1);
+}
+
 export function QuitNow() {
   return window['go']['main']['App']['QuitNow']();
 }

@@ -16,6 +16,7 @@ export const ACTIONS = {
     tab_remote: ['none', 'none'],
     tab_notes: ['none', 'none'],
     tab_web: ['none', 'none'],
+    tab_qa: ['none', 'none'],
     new_session: ['Ctrl+Shift+N', 'Cmd+Shift+N'],
     quick_switcher: ['Ctrl+Shift+P', 'Cmd+Shift+P'],
     settings: ['Ctrl+Shift+,', 'Cmd+,'],

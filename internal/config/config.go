@@ -177,6 +177,9 @@ type UI struct {
 	SpellCheck    *bool    `toml:"spell_check,omitempty" json:"spell_check"`
 	SpellLanguage string   `toml:"spell_language,omitempty" json:"spell_language"`
 	SpellWords    []string `toml:"spell_words,omitempty" json:"spell_words"`
+	// QAModel is the Claude model of the Q&A tab ("" = internal/qa
+	// DefaultModel).
+	QAModel string `toml:"qa_model,omitempty" json:"qa_model"`
 	// DescriptionDelay is the wait in seconds (0 to 10) before the balloon
 	// with a session's name, path and description shows in the sidebar.
 	DescriptionDelay *float64 `toml:"description_delay,omitempty" json:"description_delay"`
@@ -187,7 +190,7 @@ type UI struct {
 }
 
 // Tabs lists every session tab in the default order.
-var Tabs = []string{"local", "files", "remote", "notes", "web"}
+var Tabs = []string{"local", "files", "remote", "notes", "web", "qa"}
 
 // NormalizedTabs returns u's tab order and hidden tabs, normalized.
 func NormalizedTabs(u UI) ([]string, []string) {

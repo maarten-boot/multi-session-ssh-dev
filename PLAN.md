@@ -154,6 +154,12 @@ implementation differs from the original plan.
 - v0.9.2: github.com/labstack/echo/v4 4.15.3 → 4.16.1 (Dependabot, critical; only in Wails'
   dev server, not in release builds), with the golang.org/x modules it needs; Go 1.26+.
 - v0.9.3: the window title ends with the active session's name: `(2) Session Workbench — alpha`.
+- v0.9.4: Q&A tab (Q1) after Web: questions to Claude through the Claude API (Go SDK,
+  streamed; model `qa_model`, default claude-opus-5-5; cached conversation, server-side
+  fallbacks), one saved conversation per session, every question and answer logged in the
+  session's log folder, SVG answers drawn as images. Credentials from ANTHROPIC_API_KEY or
+  `ant auth login` only. Tested against a fake Claude API (internal/qa tests,
+  scripts/fake-claude-api.py, gui-smoke-qa.sh).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
