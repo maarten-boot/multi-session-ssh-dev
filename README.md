@@ -92,6 +92,8 @@ make smoke-all       # all GUI tests; each checks its results and fails on a wro
                      # (make -k smoke-all: run the others after a failure)
 ```
 
+docs/planning/Tests.md lists every test with the SPEC.md items it covers.
+
 `make test` and `make vet` need the built frontend (`frontend/dist`, embedded in the
 binary): run `make build` once on a fresh clone.
 

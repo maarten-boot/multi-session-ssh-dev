@@ -13,13 +13,13 @@ README.md "Development" lists the make targets.
 
 | Package     | SPEC items                                                              |
 |-------------|-------------------------------------------------------------------------|
-| session     | F0, F1, F2, F5 (folder paths, subtrees), §4.7 config problems            |
-| config      | §4.7 (file places, atomic write, unknown keys, defaults), §4.6 keys      |
-| remote      | R1, R2, R4, R5                                                          |
-| terminal    | L1, L2, L4, T4                                                          |
-| fsbrowse    | B1, B4                                                                  |
+| session     | F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5, W1 links, B6 reviewed repository, §4.7 config problems |
+| config      | §4.7 (file places, load errors, defaults, invalid values reset, README example); settings of F4, F7, F10, F12, N1b |
+| remote      | R1, R2, R4, R5, L4                                                      |
+| terminal    | L1, L2, T4                                                              |
+| fsbrowse    | B1                                                                      |
 | opener      | B2, B3                                                                  |
-| gitstatus   | B5, B6                                                                  |
+| gitstatus   | B5, B6, W1 (remote URL)                                                 |
 | notes       | N1, N1c, N2                                                             |
 | spell       | N1b                                                                     |
 | forge       | W1                                                                      |
@@ -27,7 +27,7 @@ README.md "Development" lists the make targets.
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
 | reclog      | F10                                                                     |
-| syncer      | F11                                                                     |
+| syncer      | F11, F12 (full transfers)                                               |
 | autosave    | F12                                                                     |
 | savedcopy   | F12                                                                     |
 | share       | live share (`files = "sshfs"`, docs/CONNECTIVITY.md), §6                |
