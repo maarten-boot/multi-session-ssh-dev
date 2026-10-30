@@ -167,6 +167,7 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
 
 ## Testing
+- docs/planning/Tests.md lists every test with the SPEC items it covers.
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
   one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, fsbrowse, opener, gitstatus incl. the repository
