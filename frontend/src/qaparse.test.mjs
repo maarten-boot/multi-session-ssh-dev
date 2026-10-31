@@ -8,9 +8,9 @@ test('text, code and svg parts', () => {
     const a = `Here:\n\n\`\`\`go\nfmt.Println("x")\n\`\`\`\n\nA picture:\n\`\`\`svg\n${svg}\n\`\`\`\nDone.`;
     assert.deepEqual(parseAnswer(a), [
         {type: 'text', text: 'Here:'},
-        {type: 'code', lang: 'go', text: 'fmt.Println("x")'},
+        {type: 'code', lang: 'go', text: 'fmt.Println("x")', raw: '```go\nfmt.Println("x")\n```'},
         {type: 'text', text: 'A picture:'},
-        {type: 'svg', text: svg},
+        {type: 'svg', text: svg, raw: '```svg\n' + svg + '\n```'},
         {type: 'text', text: 'Done.'},
     ]);
 });
@@ -18,21 +18,22 @@ test('text, code and svg parts', () => {
 test('an open fence is code until it closes (streaming)', () => {
     assert.deepEqual(parseAnswer('Look:\n```svg\n<svg>'), [
         {type: 'text', text: 'Look:'},
-        {type: 'code', lang: 'svg', text: '<svg>'},
+        {type: 'code', lang: 'svg', text: '<svg>', raw: '```svg\n<svg>'},
     ]);
 });
 
 test('an svg block that is not one svg element stays code', () => {
     assert.deepEqual(parseAnswer('```svg\n<script>alert(1)</script>\n```'),
-        [{type: 'code', lang: 'svg', text: '<script>alert(1)</script>'}]);
+        [{type: 'code', lang: 'svg', text: '<script>alert(1)</script>', raw: '```svg\n<script>alert(1)</script>\n```'}]);
     assert.ok(isSVG('<?xml version="1.0"?>\n<!-- x -->\n' + svg));
     assert.ok(!isSVG(svg + '<p>after</p>'));
 });
 
 test('longer and tilde fences, Windows line ends', () => {
-    assert.deepEqual(parseAnswer('````md\n```\ninner\n```\n````\r\n~~~\nt\n~~~'), [
-        {type: 'code', lang: 'md', text: '```\ninner\n```'},
-        {type: 'code', lang: '', text: 't'},
+    // raw keeps the fences as written (for copies), the language as typed.
+    assert.deepEqual(parseAnswer('````Md\n```\ninner\n```\n````\r\n~~~\nt\n~~~'), [
+        {type: 'code', lang: 'md', text: '```\ninner\n```', raw: '````Md\n```\ninner\n```\n````'},
+        {type: 'code', lang: '', text: 't', raw: '~~~\nt\n~~~'},
     ]);
 });
 

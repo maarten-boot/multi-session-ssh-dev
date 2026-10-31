@@ -129,7 +129,7 @@ appears on the agent host, or why it can't be used. Host and directory can't be 
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
-*Edit…* shows the session's **id** at the top (e.g. `s-t001`, for information; it can't be
+*Edit…* shows the session's **id** at the top (e.g. `s-3fa2`, for information; it can't be
 changed): the name of the session in `config.toml`, of its folders (`notes/<id>/`,
 `qa/<id>.json`, `working-copies/<id>/`) and of its tmux session `cw-<id>`.
 The **quick switcher** (Ctrl+Shift+P, or *Quick switcher…* in the right-click menu of the

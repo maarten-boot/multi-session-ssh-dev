@@ -1,7 +1,8 @@
 // Answers in the Q&A tab: text, fenced code blocks and SVG pictures.
 
 // parseAnswer splits an answer into parts: {type: 'text', text},
-// {type: 'code', lang, text} and {type: 'svg', text}. Only a closed
+// {type: 'code', lang, text, raw} and {type: 'svg', text, raw} (raw: the
+// block with its fences, as written). Only a closed
 // ```svg block is a picture; while an answer streams in, an open fence is
 // code until it closes.
 export function parseAnswer(answer) {
@@ -19,20 +20,21 @@ export function parseAnswer(answer) {
             const m = /^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)/.exec(line);
             if (m) {
                 flushText();
-                fence = {marker: m[1], lang: m[2].toLowerCase(), lines: []};
+                fence = {marker: m[1], lang: m[2].toLowerCase(), open: line, lines: []};
             } else text.push(line);
             continue;
         }
         const close = new RegExp(`^ {0,3}${fence.marker[0] === '`' ? '`' : '~'}{${fence.marker.length},}\\s*$`);
         if (close.test(line)) {
             const body = fence.lines.join('\n');
+            const raw = [fence.open, ...fence.lines, line].join('\n');
             parts.push(fence.lang === 'svg' && isSVG(body)
-                ? {type: 'svg', text: body}
-                : {type: 'code', lang: fence.lang, text: body});
+                ? {type: 'svg', text: body, raw}
+                : {type: 'code', lang: fence.lang, text: body, raw});
             fence = null;
         } else fence.lines.push(line);
     }
-    if (fence) parts.push({type: 'code', lang: fence.lang, text: fence.lines.join('\n')});
+    if (fence) parts.push({type: 'code', lang: fence.lang, text: fence.lines.join('\n'), raw: [fence.open, ...fence.lines].join('\n')});
     flushText();
     return parts;
 }

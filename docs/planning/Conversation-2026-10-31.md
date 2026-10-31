@@ -64,3 +64,9 @@
   (not in New session): the id, selectable, with what it names (config entry, notes/<id>/,
   qa/<id>.json, working-copies/<id>/, tmux session cw-<id>). Checked on the screenshots of
   gui-smoke-description (Edit) and gui-smoke-sessions (New session, no id).
+- **Cross-check of v0.9.6.** A whole code block or picture in a copy was rebuilt as
+  ```` ```lang ```` (lower case, always backticks) instead of its source as SPEC says: parseAnswer
+  now keeps each block's fences as written (raw; tested with a ```` ````Md ```` and a ~~~ fence).
+  README's example id `s-t001` is a test id: real ids are `s-` + 4 hex digits (`s-3fa2`).
+  Checked as matching: the Markdown SPEC list against the parser, the copy rules, the folders
+  the Edit dialog names (notes next to config.toml, qa/, working-copies/ in the data folder).

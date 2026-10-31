@@ -291,14 +291,14 @@ export class QAView {
         if (p.type === 'svg') {
             const img = el('img', {className: 'qa-svg', src: svgURL(p.text), alt: 'Picture from the answer'});
             const src = el('details', {}, el('summary', {textContent: 'SVG source'}), el('pre', {textContent: p.text}));
-            return md(el('div', {className: 'qa-picture'}, img, src), {md: '```svg\n' + p.text + '\n```', whole: ''});
+            return md(el('div', {className: 'qa-picture'}, img, src), {md: p.raw, whole: ''});
         }
         if (p.type === 'code') {
             const copy = el('button', {className: 'icon', textContent: '⧉', title: 'Copy'});
             copy.onclick = () => ClipboardSetText(p.text).then(() => toast('Copied'));
             return md(el('div', {className: 'qa-code'},
                 md(el('div', {className: 'qa-code-head'}, p.lang || 'code', copy), {skip: ''}),
-                el('pre', {textContent: p.text})), {md: '```' + p.lang + '\n' + p.text + '\n```'});
+                el('pre', {textContent: p.text})), {md: p.raw});
         }
         return md(el('div', {className: 'qa-text'}, ...blocks(parseMarkdown(p.text))), {md: p.text, sep: '\n\n'});
     }
