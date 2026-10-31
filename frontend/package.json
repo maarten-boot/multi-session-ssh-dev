@@ -9,7 +9,7 @@
     "test": "node --test src/spelling.test.mjs src/lists.test.mjs src/appearance.test.mjs src/fuzzy.test.mjs src/keys.test.mjs src/prompts.test.mjs src/format.test.mjs src/markup.test.mjs src/cmdmenu.test.mjs src/qaparse.test.mjs"
   },
   "devDependencies": {
-    "vite": "^6.4.4"
+    "vite": "^6.4.5"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
