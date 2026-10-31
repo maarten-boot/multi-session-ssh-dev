@@ -176,15 +176,15 @@ implementation differs from the original plan.
 - docs/planning/Tests.md lists every test with the SPEC items it covers.
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
-  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, fsbrowse, opener, gitstatus incl. the repository
+  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, qa (against a fake Claude API), fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries, Q&A answers (text, code, SVG)
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 29
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 34
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
@@ -192,7 +192,7 @@ implementation differs from the original plan.
   the agent copy is gone; Get without git; delete with the saved copy; saved automatically, at
   quit with progress, Quit now), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges; working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API); working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

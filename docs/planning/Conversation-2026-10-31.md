@@ -10,3 +10,5 @@
   frontend test file (all in `npm test`) and GUI test script. Note only: `QAInfo.busy` is
   sent but the tab keeps its own busy state (its view lives as long as the session), so it
   is unused — harmless.
+- **PLAN "Testing" brought up to date** (missed by the cross-check): 34 GUI test scripts (not
+  29), and the Q&A tests in the Go, frontend and GUI lists.
