@@ -124,6 +124,9 @@ func (a *App) qaChoice(c qa.Conversation) (engine, model string) {
 			model = a.qaModel()
 		case engine == qa.EngineClaude:
 			model = strings.TrimSpace(a.sessions.Config().UI.QAClaudeModel)
+			if model == "" {
+				model = qa.ClaudeDefault
+			}
 		case cmds[engine].Name != "" && len(cmds[engine].Models) > 0:
 			model = cmds[engine].Models[0]
 		}

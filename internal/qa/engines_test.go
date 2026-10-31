@@ -103,6 +103,9 @@ func TestClaudeCode(t *testing.T) {
 	if strings.Contains(string(args), "--model") {
 		t.Errorf("a model without one chosen:\n%s", args)
 	}
+	if a := (ClaudeCode{Model: ClaudeDefault}).Args("", "id"); strings.Contains(strings.Join(a, " "), "--model") {
+		t.Errorf("Claude Code's default chosen: %q", a)
+	}
 
 	// The next question resumes the session, with the model chosen.
 	cc.Model = "haiku"

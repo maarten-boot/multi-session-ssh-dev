@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.12 (2026-10-31, app v0.9.7) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.12 (2026-10-31, app v1.0.0, the first release version) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -479,7 +479,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   tab's bar (kept per session, with its model; `qa_engine` the default, else the API when
   `ANTHROPIC_API_KEY` is set, else Claude Code when installed; a session without its own model
   uses the engine's default: `qa_model`, `qa_claude_model`, a command's first model; all set in
-  Settings → Q&A, own commands in the config). Changing the engine starts a new
+  Settings → Q&A, own commands in the config; *Claude Code's default* chosen in the bar,
+  `default`, runs it without `--model` even when Settings name a model). Changing the engine starts a new
   conversation (each knows only its own).
   - **Claude API** (Anthropic's Go SDK, streamed, from the app's computer only). Models from the
     API's model list (retired ones left out, kept 10 minutes), default `qa_model`

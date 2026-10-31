@@ -78,3 +78,11 @@
   `qa_claude_model`, used by sessions without a model of their own) and the Claude Code
   program (with where it is found, QAFindClaude). Own commands stay in the config (the page
   names them and the file). Tested in gui-smoke-qa.sh (model saved, then used by Claude Code).
+- **Cross-check of v0.9.7.** A session could not choose *Claude Code's default* in its Q&A
+  bar once Settings named a Claude Code model (the choice was stored as "", meaning "none",
+  so the Settings model won): that choice is now `default`, which runs Claude Code without
+  `--model` (tested). Checked as matching: the Settings page fields and config keys, README
+  and SPEC Settings lists, config example (tested), Tests.md.
+- **v1.0.0.** Decision: move to a release version. wails.json, README, SPEC, CONNECTIVITY
+  and PLAN say v1.0.0; the release workflow takes the version from the tag (semver for the
+  packages), nothing assumes 0.x.

@@ -175,6 +175,9 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.0.0 (2026-10-31): the first release version — the features of v0.9.7, plus (from the
+  cross-check) *Claude Code's default* chosen in a session's Q&A bar stays its default when
+  Settings name a Claude Code model.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

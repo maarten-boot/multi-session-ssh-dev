@@ -20,10 +20,14 @@ import (
 // windows on Windows).
 var Configure = func(*exec.Cmd) {}
 
+// ClaudeDefault is the model that runs Claude Code without --model (its
+// own default), also when Settings name another.
+const ClaudeDefault = "default"
+
 // ClaudeModels are the models offered for Claude Code: its own default and
 // its names for the latest of each line.
 var ClaudeModels = []Model{
-	{ID: "", Name: "Claude Code's default"},
+	{ID: ClaudeDefault, Name: "Claude Code's default"},
 	{ID: "fable", Name: "Fable (latest)"},
 	{ID: "opus", Name: "Opus (latest)"},
 	{ID: "sonnet", Name: "Sonnet (latest)"},
@@ -72,7 +76,7 @@ func FindClaude(program string) (string, error) {
 // Claude Code's own session, resumed with each question.
 type ClaudeCode struct {
 	Program string // as for FindClaude
-	Model   string // "" = Claude Code's default
+	Model   string // "" or ClaudeDefault: Claude Code's default
 	Dir     string
 }
 
@@ -107,7 +111,7 @@ func (cc ClaudeCode) Args(resume, newID string) []string {
 	args := []string{"-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
 		"--tools", "", "--system-prompt", system, "--strict-mcp-config", "--disable-slash-commands",
 		"--setting-sources", ""}
-	if cc.Model != "" {
+	if cc.Model != "" && cc.Model != ClaudeDefault {
 		args = append(args, "--model", cc.Model)
 	}
 	if resume != "" {
