@@ -30,3 +30,6 @@
   failed partial answers in their transcript, unlike the API engine: now left out (tested),
   SPEC says so. Checked as matching: SPEC Q1 flags and folders, model lists, default engine
   rule, data locations, config example (tested), Tests.md and PLAN.
+- **Dependabot: vite 6.4.4 → 6.4.5** (one alert, frontend/package-lock.json). Bumped locally
+  (`npm install -D vite@6.4.5`), `npm audit` clean, frontend tests, build and GUI tests pass;
+  the Dependabot PR becomes unnecessary.
