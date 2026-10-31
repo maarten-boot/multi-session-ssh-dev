@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.6: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.7: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -300,8 +300,11 @@ open page); a right-click on empty space in the tree makes a *New page…*;
     text goes to its standard input; `{model}` by the model chosen from its `models`.
   
   Changing who answers starts a new conversation (each one knows only its own; the log keeps
-  the old one). The default for new sessions is `qa_engine`; without it, the Claude API when
-  `ANTHROPIC_API_KEY` is set, else Claude Code when it is installed.
+  the old one). The defaults are in **Settings → Q&A**: who answers in sessions that chose
+  nobody (`qa_engine`; automatic: the Claude API when `ANTHROPIC_API_KEY` is set, else Claude
+  Code when it is installed), the Claude API model (`qa_model`, with the API's models as
+  suggestions), the Claude Code model (`qa_claude_model`) and the Claude Code program
+  (`qa_claude`; the page shows which one is found). Own commands are added in the config.
 
 **Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M, or a right-click on the
 empty space of the session list → *Notes for all sessions…* / *Prompts for all sessions…*) opens a notes page
@@ -422,8 +425,9 @@ Off: Settings → Terminals (`private_history = false`), or per session in *Edit
 - History files may hold secrets you typed on a command line; they are as private as your
   shell's usual history.
 
-**Settings** (Ctrl+Shift+, or *Settings…*) has six pages: Appearance (theme, colors, fonts,
-the delay before a session's description shows, tab order), Terminals, Commands, Backups and recordings, Notes (spelling) and Keys (the current shortcuts).
+**Settings** (Ctrl+Shift+, or *Settings…*) has seven pages: Appearance (theme, colors, fonts,
+the delay before a session's description shows, tab order), Terminals, Commands, Backups and recordings, Notes (spelling), Q&A (who answers by default, the Claude API and
+Claude Code models, the Claude Code program with where it is found) and Keys (the current shortcuts).
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -720,6 +724,7 @@ hidden_tabs = []                          # e.g. ["web", "qa"]; at least one tab
 qa_model = "claude-opus-5-5"              # the Q&A tab's Claude API model
 qa_engine = "claude"                      # who answers in new Q&A tabs: "api", "claude" (Claude Code) or a qa_commands name
 qa_claude = "~/.local/bin/claude"         # optional: the Claude Code program (default: claude, looked up)
+qa_claude_model = "sonnet"                # Claude Code's model (default: Claude Code's own default)
 
 [[ui.commands]]                           # the command menu (Settings → Commands)
 name = "fetch all"

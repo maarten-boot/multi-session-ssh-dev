@@ -76,6 +76,8 @@ export function QAChoose(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function QAClear(arg1:string):Promise<void>;
 
+export function QAFindClaude(arg1:string):Promise<string>;
+
 export function QALoad(arg1:string):Promise<main.QAInfo>;
 
 export function QAModels(arg1:string):Promise<Array<qa.Model>>;

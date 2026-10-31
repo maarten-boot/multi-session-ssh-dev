@@ -82,7 +82,7 @@ README.md "Development" lists the make targets.
 | gui-smoke-todo.sh         | N1c        | TODO marks                                                   |
 | gui-smoke-appnotes.sh     | N2, T2, T6 | notes for all sessions, prompts page, copy/paste             |
 | gui-smoke-web.sh          | W1         | Web tab links, build runs, tab order                         |
-| gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste; Markdown drawn, copied as Markdown (part of a bold word, Ctrl+C of everything) |
+| gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste; Markdown drawn, copied as Markdown (part of a bold word, Ctrl+C of everything); Settings → Q&A (Claude Code's model saved and used) |
 | gui-smoke-terminal-extras.sh | T1, T2  | find bar, emoji widths, copy-on-select                       |
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |

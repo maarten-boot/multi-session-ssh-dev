@@ -2462,3 +2462,8 @@ body.sidebar-narrow #sidebar-resizer {
     font-family: var(--mono-family, monospace);
     font-weight: bold;
 }
+
+/* Settings → Q&A: the notes under the fields use the whole width. */
+.settings-page[data-page="qa"] .hint {
+    grid-column: 1 / -1;
+}

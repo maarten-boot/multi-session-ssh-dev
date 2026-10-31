@@ -126,6 +126,10 @@ export function QAClear(arg1) {
   return window['go']['main']['App']['QAClear'](arg1);
 }
 
+export function QAFindClaude(arg1) {
+  return window['go']['main']['App']['QAFindClaude'](arg1);
+}
+
 export function QALoad(arg1) {
   return window['go']['main']['App']['QALoad'](arg1);
 }

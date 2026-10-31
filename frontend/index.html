@@ -175,6 +175,7 @@
             <button type="button" data-page="commands">Commands</button>
             <button type="button" data-page="backups">Backups and recordings</button>
             <button type="button" data-page="notes">Notes</button>
+            <button type="button" data-page="qa">Q&amp;A</button>
             <button type="button" data-page="keys">Keys</button>
         </div>
         <section class="settings-page" data-page="appearance">
@@ -295,6 +296,25 @@
                     <textarea name="spell_words" rows="6" spellcheck="false"></textarea>
                 </label>
                 <p class="hint spell-hint"></p>
+            </div>
+        </section>
+        <section class="settings-page" data-page="qa">
+            <div class="grid">
+                <label>Who answers in a session's Q&amp;A tab (until it picks another)
+                    <select name="qa_engine"></select><!-- filled by main.js: automatic, the API, Claude Code, own commands -->
+                </label>
+                <label>Claude API model
+                    <input name="qa_model" list="qa-api-models" autocomplete="off" spellcheck="false" placeholder="claude-opus-5-5">
+                    <datalist id="qa-api-models"></datalist>
+                </label>
+                <label>Claude Code model
+                    <select name="qa_claude_model"></select>
+                </label>
+                <label>Claude Code program (empty: claude, looked up)
+                    <input name="qa_claude" autocomplete="off" spellcheck="false" placeholder="claude">
+                </label>
+                <p class="hint qa-claude-found"></p>
+                <p class="hint qa-hint"></p>
             </div>
         </section>
         <section class="settings-page shortcuts" data-page="keys">

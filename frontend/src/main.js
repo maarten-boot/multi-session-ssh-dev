@@ -22,7 +22,7 @@ import {
     SaveGroup, DeleteGroup, MoveGroup, SetSessionGroup, RepoCheck, TrustRepo,
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
-    AutosaveStatus, QuitSaving, QuitNow, NotesTodos,
+    AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -1768,6 +1768,7 @@ async function settingsDialog() {
     };
     tabs.forEach(t => t.onclick = () => showPage(t.dataset.page));
     showPage(store.get('settingsPage', 'appearance'));
+    qaSettings(dlg, f, ui);
     const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true,
         groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group))});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
@@ -1880,12 +1881,55 @@ async function settingsDialog() {
         spell_check: f.spell_check.checked,
         spell_language: f.spell_language.value,
         spell_words: f.spell_words.value.split('\n'),
+        qa_engine: f.qa_engine.value,
+        qa_model: f.qa_model.value.trim(),
+        qa_claude_model: f.qa_claude_model.value,
+        qa_claude: f.qa_claude.value.trim(),
         commands: commands.value,
         start_commands: starts.value,
         tab_order: order,
         hidden_tabs: order.filter(k => hidden.has(k)),
     }), pages.find(p => !p.hidden)?.querySelector('input, select')); // the open page's first field
     if (ok) await app.reload();
+}
+
+// qaSettings fills the Q&A page of Settings: who answers by default, the
+// models, the Claude Code program (with where it is found).
+function qaSettings(dlg, f, ui) {
+    const option = (value, text) => el('option', {value, textContent: text});
+    const cmds = (ui.qa_commands ?? []).map(c => c.name).filter(Boolean);
+    f.qa_engine.replaceChildren(
+        option('', 'automatic (see below)'),
+        option('api', 'Claude API (needs an API key)'),
+        option('claude', 'Claude Code (its own login, no API key)'),
+        ...cmds.map(n => option(n, `${n} (own command)`)));
+    if (ui.qa_engine && ![...f.qa_engine.options].some(o => o.value === ui.qa_engine)) {
+        f.qa_engine.append(option(ui.qa_engine, `${ui.qa_engine} (unknown: automatic is used)`));
+    }
+    f.qa_engine.value = ui.qa_engine ?? '';
+    f.qa_model.value = ui.qa_model ?? '';
+    // The API's models as suggestions (none without an API key).
+    const list = dlg.querySelector('#qa-api-models');
+    list.replaceChildren();
+    QAModels('api').then(ms => list.replaceChildren(...(ms ?? []).map(m => option(m.id, m.name)))).catch(() => {});
+    f.qa_claude_model.replaceChildren(
+        option('', "Claude Code's default"), option('fable', 'Fable (latest)'), option('opus', 'Opus (latest)'),
+        option('sonnet', 'Sonnet (latest)'), option('haiku', 'Haiku (latest)'));
+    if (ui.qa_claude_model && ![...f.qa_claude_model.options].some(o => o.value === ui.qa_claude_model)) {
+        f.qa_claude_model.append(option(ui.qa_claude_model, ui.qa_claude_model));
+    }
+    f.qa_claude_model.value = ui.qa_claude_model ?? '';
+    f.qa_claude.value = ui.qa_claude ?? '';
+    const found = dlg.querySelector('.qa-claude-found');
+    const look = () => QAFindClaude(f.qa_claude.value)
+        .then(p => found.textContent = `Claude Code found: ${p}`)
+        .catch(err => found.textContent = err?.message ?? String(err));
+    f.qa_claude.oninput = look;
+    look();
+    dlg.querySelector('.qa-hint').textContent = 'Automatic: the Claude API when ANTHROPIC_API_KEY is set, else Claude Code ' +
+        'when it is installed. A session keeps the engine and model chosen in its Q&A tab; these are ' +
+        'the defaults for sessions that chose none. Own commands are [[ui.qa_commands]] entries in ' +
+        `${app.state.config_path}` + (cmds.length ? ` (now: ${cmds.join(', ')}).` : ' (none yet).');
 }
 
 // repoDialog lists what git on this machine would run from the session's

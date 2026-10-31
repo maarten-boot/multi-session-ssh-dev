@@ -122,6 +122,8 @@ func (a *App) qaChoice(c qa.Conversation) (engine, model string) {
 		switch _, cmds := a.qaCommands(); {
 		case engine == qa.EngineAPI:
 			model = a.qaModel()
+		case engine == qa.EngineClaude:
+			model = strings.TrimSpace(a.sessions.Config().UI.QAClaudeModel)
 		case cmds[engine].Name != "" && len(cmds[engine].Models) > 0:
 			model = cmds[engine].Models[0]
 		}
@@ -141,6 +143,12 @@ func (a *App) qaEngine(engine, model string) qa.Engine {
 	_, cmds := a.qaCommands()
 	c := cmds[engine]
 	return qa.Command{Name: c.Name, Argv: c.Command, Model: model, Dir: work}
+}
+
+// QAFindClaude returns the Claude Code program the Q&A tab would run for
+// program (qa_claude; "" = looked up), for Settings.
+func (a *App) QAFindClaude(program string) (string, error) {
+	return qa.FindClaude(strings.TrimSpace(program))
 }
 
 // qaAPIModels caches the Claude API's model list.

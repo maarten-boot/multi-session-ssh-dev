@@ -3,7 +3,8 @@
 # (fake-claude-api.py): a question and its streamed answer, an SVG picture,
 # the conversation sent back with the next question and kept across a
 # restart, Stop, New conversation; every question and answer in the log.
-# Then the model list from the API and another model, the switch to Claude
+# Then the model list from the API and another model, Settings → Q&A (Claude
+# Code's default model), the switch to Claude
 # Code (a fake claude program: no API key) with its session resumed, and
 # the right-click menus: Copy in the answers, Paste in the question box;
 # answers drawn as Markdown and copied (menu, Ctrl+C) as Markdown.
@@ -101,6 +102,12 @@ expect "the model chosen in the bar asks" "claude-other-model" \
 	"$(sed -n 5p $REQ | python3 -c 'import json,sys; print(json.load(sys.stdin)["body"]["model"])')"
 expect "the session keeps its model" "api claude-other-model" \
 	"$(python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); print(c["engine"], c["model"])' $CONV)"
+k ctrl+shift+comma; sleep 1                            # Settings → Q&A: Claude Code's model haiku
+xdotool mousemove 930 159 click 1; sleep 0.7
+shot 7b-settings-qa                                    # shows where Claude Code was found
+xdotool mousemove 535 306 click 1; sleep 0.7; k Down; k Down; k Down; k Down; k Return
+k Tab; k Return; sleep 2                               # Return in the program field saves
+check "Settings saved the Claude Code model" grep -q '^ *qa_claude_model = "haiku"' $CFG
 xdotool mousemove 368 106 click 1; sleep 0.7; k Down; k Return   # the engine: Claude Code
 shot 8-engine-confirm                                  # asks: a new conversation
 k Return; sleep 1
@@ -110,6 +117,7 @@ expect "Claude Code answered, its session kept" "claude 1 claude-fake-1 yes" \
 	"$(python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); t=c["turns"]; print(c["engine"], len(t), t[0]["model"], "yes" if t[0].get("session") else "no")' $CONV)"
 check "a new Claude Code session" grep -qx -- --session-id $OUT/claude-args
 check "Claude Code runs without tools" grep -qx -- --tools $OUT/claude-args
+check "the default model from Settings is used" grep -qxF -- haiku $OUT/claude-args
 ask "Again"
 check "the next question resumes the session" grep -qx -- --resume $OUT/claude-args
 xdotool mousemove $WORDX $WORDY click --repeat 2 1; sleep 0.5   # select a word of the answer

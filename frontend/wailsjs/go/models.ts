@@ -116,6 +116,7 @@ export namespace config {
 	    qa_model: string;
 	    qa_engine: string;
 	    qa_claude: string;
+	    qa_claude_model: string;
 	    qa_commands: QACommand[];
 	    description_delay?: number;
 	    commands: Command[];
@@ -158,6 +159,7 @@ export namespace config {
 	        this.qa_model = source["qa_model"];
 	        this.qa_engine = source["qa_engine"];
 	        this.qa_claude = source["qa_claude"];
+	        this.qa_claude_model = source["qa_claude_model"];
 	        this.qa_commands = this.convertValues(source["qa_commands"], QACommand);
 	        this.description_delay = source["description_delay"];
 	        this.commands = this.convertValues(source["commands"], Command);

@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.11 (2026-10-31, app v0.9.6) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.12 (2026-10-31, app v0.9.7) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -477,7 +477,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 ### 4.4c Q&A tab
 - Q1. Questions to Claude, one conversation per session, answered by the engine chosen in the
   tab's bar (kept per session, with its model; `qa_engine` the default, else the API when
-  `ANTHROPIC_API_KEY` is set, else Claude Code when installed). Changing the engine starts a new
+  `ANTHROPIC_API_KEY` is set, else Claude Code when installed; a session without its own model
+  uses the engine's default: `qa_model`, `qa_claude_model`, a command's first model; all set in
+  Settings → Q&A, own commands in the config). Changing the engine starts a new
   conversation (each knows only its own).
   - **Claude API** (Anthropic's Go SDK, streamed, from the app's computer only). Models from the
     API's model list (retired ones left out, kept 10 minutes), default `qa_model`
@@ -593,7 +595,10 @@ copy/paste/interrupt keys (Ctrl+C/V, Ctrl+Shift+C/V) is allowed with a warning. 
 Settings is one dialog with pages behind a tab bar (the last one used opens again):
 Appearance (theme, colors, fonts, description delay, tab order), Terminals (scrollback, connecting, reconnecting,
 badges, copy/paste, notifications, private shell history), Commands (command menu, start commands), Backups and
-recordings, Notes (spelling on/off, language, own words), Keys.
+recordings, Notes (spelling on/off, language, own words), Q&A (default engine `qa_engine`: automatic,
+Claude API, Claude Code or an own command; Claude API model `qa_model` with the API's models as
+suggestions; Claude Code model `qa_claude_model`; Claude Code program `qa_claude`, with where it is
+found), Keys.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),

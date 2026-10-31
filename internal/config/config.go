@@ -184,10 +184,12 @@ type UI struct {
 	// "api" (the Claude API, needs a key), "claude" (Claude Code with its
 	// own login) or the name of one of QACommands; "" is the API when
 	// ANTHROPIC_API_KEY is set, else Claude Code when it is installed.
-	// QAClaude is the Claude Code program ("" = claude, looked up).
-	QAEngine   string      `toml:"qa_engine,omitempty" json:"qa_engine"`
-	QAClaude   string      `toml:"qa_claude,omitempty" json:"qa_claude"`
-	QACommands []QACommand `toml:"qa_commands,omitempty" json:"qa_commands"`
+	// QAClaude is the Claude Code program ("" = claude, looked up),
+	// QAClaudeModel its model ("" = Claude Code's default).
+	QAEngine      string      `toml:"qa_engine,omitempty" json:"qa_engine"`
+	QAClaude      string      `toml:"qa_claude,omitempty" json:"qa_claude"`
+	QAClaudeModel string      `toml:"qa_claude_model,omitempty" json:"qa_claude_model"`
+	QACommands    []QACommand `toml:"qa_commands,omitempty" json:"qa_commands"`
 	// DescriptionDelay is the wait in seconds (0 to 10) before the balloon
 	// with a session's name, path and description shows in the sidebar.
 	DescriptionDelay *float64 `toml:"description_delay,omitempty" json:"description_delay"`

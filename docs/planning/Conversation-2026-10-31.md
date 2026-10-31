@@ -70,3 +70,11 @@
   README's example id `s-t001` is a test id: real ids are `s-` + 4 hex digits (`s-3fa2`).
   Checked as matching: the Markdown SPEC list against the parser, the copy rules, the folders
   the Edit dialog names (notes next to config.toml, qa/, working-copies/ in the data folder).
+- **v0.9.6 CI** (tagged): success on linux-amd64, windows-amd64, macos-universal and release;
+  all five release files.
+- **Settings → Q&A (v0.9.7).** Request: defaults for the Q&A parameters in Settings. Added a
+  Q&A page: who answers by default (automatic / Claude API / Claude Code / own commands), the
+  Claude API model (the API's models as suggestions), the Claude Code model (new
+  `qa_claude_model`, used by sessions without a model of their own) and the Claude Code
+  program (with where it is found, QAFindClaude). Own commands stay in the config (the page
+  names them and the file). Tested in gui-smoke-qa.sh (model saved, then used by Claude Code).

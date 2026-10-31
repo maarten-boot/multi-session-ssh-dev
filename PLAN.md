@@ -172,6 +172,9 @@ implementation differs from the original plan.
   copying (⧉, Ctrl+C, the right-click menu) gives the Markdown, also of a partial selection.
   Tests: qaparse.test.mjs (parser, copy back with a fake DOM), gui-smoke-qa.sh (rendering,
   partial and full copies). The Edit dialog shows the session id (read-only) and what it names.
+- v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
+  (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
+  program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
