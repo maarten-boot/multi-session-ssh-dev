@@ -1554,6 +1554,12 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     const editing = !!s;
     dlg.querySelector('h2').textContent = editing ? `Edit “${s.data.name}”` : 'New session';
     f.querySelector('button[value=ok]').textContent = editing ? 'Save' : 'Create';
+    // The id names the session in config.toml and its folders; it cannot be changed.
+    const idEl = dlg.querySelector('.session-id');
+    idEl.hidden = !editing;
+    idEl.replaceChildren(...(editing ? ['Id: ', el('code', {textContent: s.data.id}),
+        ` — names it in config.toml, its folders (notes/${s.data.id}/, qa/${s.data.id}.json, ` +
+        `working-copies/${s.data.id}/) and its tmux session cw-${s.data.id}; it cannot be changed.`] : []));
     f.elements.host.replaceChildren(...app.state.hosts.map(h => el('option', {value: h.name, textContent: `${h.name}  (${h.ssh_target})`})));
     const lastHost = store.get('lastHost', '');
     f.elements.host.value = s?.data.host ?? presetHost ?? (app.state.hosts.some(h => h.name === lastHost) ? lastHost : app.state.hosts[0].name);

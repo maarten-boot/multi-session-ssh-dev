@@ -167,6 +167,11 @@ implementation differs from the original plan.
   menus with copy/paste in the turns and the question box. Tested with a fake claude and
   command (the test binary itself), the fake API's model list, gui-smoke-qa.sh; one real
   Claude Code round trip (haiku, session resumed).
+- v0.9.6: Q&A answers shown as Markdown (headings, bold/italic/struck, code, lists, task
+  lists, quotes, tables, links opened in the browser; DOM built with textContent only);
+  copying (⧉, Ctrl+C, the right-click menu) gives the Markdown, also of a partial selection.
+  Tests: qaparse.test.mjs (parser, copy back with a fake DOM), gui-smoke-qa.sh (rendering,
+  partial and full copies). The Edit dialog shows the session id (read-only) and what it names.
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump

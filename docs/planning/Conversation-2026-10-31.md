@@ -48,3 +48,19 @@
   middleware unused — dismiss or wait for a fixed echo.
 - **Cross-check:** no differences; since the last one only PLAN's output-folding note and
   this log changed, and they agree.
+- **Q&A Markdown (v0.9.6).** Request: answers contain Markdown that is not rendered (e.g.
+  **bold**); render the common formats, but copy/paste the raw Markdown. Built: a small
+  Markdown parser (qaparse.js: headings, paragraphs, lists incl. nested and task lists,
+  quotes, tables, rules; bold/italic/struck, code spans, escapes, http/https/mailto links),
+  drawn with textContent only; copies rebuild Markdown from the selection (data-md source of
+  whole blocks, marks around partial ones; buttons, "You:" and the line under the answer left
+  out). Tests: parser and copy-back units (fake DOM), GUI rendering and copy checks.
+- **Question: where are logs and history?** Not in ~/.config (that holds config.toml, notes,
+  dictionaries) but in the data folder ~/.local/share/session-workbench/ (logs/, qa/,
+  history/ for the Local tab) and, for the Remote tab, ~/.local/state/session-workbench/history/
+  on the agent host.
+- **Session id in Edit (v0.9.6).** Request: the short id (folder names, config.toml) is not
+  shown in the session's Edit dialog; show it as information only. Added at the top of Edit
+  (not in New session): the id, selectable, with what it names (config entry, notes/<id>/,
+  qa/<id>.json, working-copies/<id>/, tmux session cw-<id>). Checked on the screenshots of
+  gui-smoke-description (Edit) and gui-smoke-sessions (New session, no id).

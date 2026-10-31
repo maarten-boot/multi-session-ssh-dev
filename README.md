@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.5: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.6: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -129,6 +129,9 @@ appears on the agent host, or why it can't be used. Host and directory can't be 
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
+*Edit…* shows the session's **id** at the top (e.g. `s-t001`, for information; it can't be
+changed): the name of the session in `config.toml`, of its folders (`notes/<id>/`,
+`qa/<id>.json`, `working-copies/<id>/`) and of its tmux session `cw-<id>`.
 The **quick switcher** (Ctrl+Shift+P, or *Quick switcher…* in the right-click menu of the
 session list's empty space) lists the sessions, most recent first: type to filter on name,
 folder, host and path (letters in order, e.g. `wb` finds *workbench*) or on text in a
@@ -259,7 +262,9 @@ open page); a right-click on empty space in the tree makes a *New page…*;
 - **Q&A** (Ctrl+Shift+6): ask Claude questions — through the Claude API, through Claude Code
   without an API key, or your own command (see *Who answers* below) — one conversation per
   session. Enter asks, Shift+Enter starts a new line; the answer appears as it is written
-  (*Stop* ends it), with code blocks (⧉ copies one) and pictures: an answer that draws in an
+  (*Stop* ends it), with its Markdown shown formatted — headings, **bold**, *italic*,
+  ~~struck~~, `code`, lists and check lists, quotes, tables and links (they open in your
+  browser) — code blocks (⧉ copies one) and pictures: an answer that draws in an
   ```` ```svg ```` block shows the drawing (as an image: an SVG cannot run scripts or load
   anything there; *SVG source* shows the text). Claude sees only your questions and the
   conversation so far — nothing from the session. Follow-up questions are cheaper: the
@@ -270,8 +275,11 @@ open page); a right-click on empty space in the tree makes a *New page…*;
   (deleting the session keeps it, like its notes). Every
   question and answer is also **logged** in the session's log folder (the one of its Remote
   tab recordings, *Open log folder*), in `qa-YYYY-MM-DD.md`, also after *New conversation*.
-  Right-click the questions and answers for *Copy* (the selected text), *Copy to the
-  question*, *Paste into the question* and *Select all*; the question box has *Cut*, *Copy*,
+  Copying gives the **Markdown**, not the formatted text: ⧉ under an answer copies it whole,
+  and a selection (Ctrl+C or the right-click menu) gives the source of each whole paragraph,
+  list or table in it and the marks around a part (`**bo**` from half of a bold word); the
+  line under each answer and the buttons are left out. Right-click the questions and answers
+  for *Copy*, *Copy to the question*, *Paste into the question* and *Select all*; the question box has *Cut*, *Copy*,
   *Paste* and *Select all*, as in the notes.
 
   **Who answers** (the two lists at the top left, kept per session):

@@ -6,8 +6,8 @@ POST /v1/messages and records each request body as a line of JSON; GET
 usage: fake-claude-api.py <port file> <request log>
 
 The answer depends on the last question: "picture" gets an SVG block,
-"slow" streams for a long time (to test Stop), anything else gets text
-with a code block. The port it listens on is written to <port file>.
+"slow" streams for a long time (to test Stop), anything else gets Markdown
+(bold, a list, a table) with a code block. The port it listens on is written to <port file>.
 """
 import json
 import sys
@@ -55,7 +55,8 @@ class Handler(BaseHTTPRequestHandler):
         elif "slow" in q:
             pieces = [f"word{i} " for i in range(300)]
         else:
-            pieces = ["The answer ", "is 42.\n\n```sh\necho 42\n```\n"]
+            pieces = ["The **answer** ", "is 42.\n\n- one\n- *two*\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n",
+                      "```sh\necho 42\n```\n"]
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()

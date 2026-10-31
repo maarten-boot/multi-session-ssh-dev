@@ -1,10 +1,68 @@
 import {QAAsk, QAChoose, QAClear, QALoad, QAModels, QAOpenLog, QAStop} from '../wailsjs/go/main/App';
-import {ClipboardGetText, ClipboardSetText, EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
+import {BrowserOpenURL, ClipboardGetText, ClipboardSetText, EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
 import {el, showMenu, toast} from './ui';
-import {engineName, parseAnswer, svgURL, tokens} from './qaparse';
+import {engineName, parseAnswer, parseMarkdown, svgURL, toMarkdown, tokens} from './qaparse';
 
 const errText = err => err?.message ?? String(err);
 const isMac = navigator.platform.startsWith('Mac');
+
+// md sets the data-* attributes that toMarkdown reads (see qaparse.js).
+const md = (e, data) => {
+    for (const [k, v] of Object.entries(data)) if (v !== undefined) e.dataset[k] = v;
+    return e;
+};
+
+// inline draws parseInline nodes (textContent only: nothing is run).
+function inline(nodes) {
+    return nodes.map(n => {
+        if (n.type === 'text') return document.createTextNode(n.text);
+        if (n.type === 'code') return md(el('code', {className: 'qa-inline-code', textContent: n.text}), {open: n.open, close: n.open});
+        if (n.type === 'link') {
+            const a = el('a', {href: n.url, title: n.url}, ...inline(n.children));
+            a.onclick = e => {
+                e.preventDefault();
+                BrowserOpenURL(n.url);
+            };
+            return md(a, {open: n.open, close: n.close});
+        }
+        return md(el(n.type, {}, ...inline(n.children)), {open: n.open, close: n.close});
+    });
+}
+
+// blocks draws parseMarkdown blocks.
+function blocks(bs) {
+    return bs.map(b => {
+        switch (b.type) {
+        case 'heading':
+            return md(el('div', {className: `qa-h qa-h${b.level}`}, ...inline(b.inline)), {md: b.md, open: '#'.repeat(b.level) + ' '});
+        case 'rule':
+            return md(el('hr', {className: 'qa-rule'}), {md: b.md, whole: ''});
+        case 'quote':
+            return md(el('blockquote', {className: 'qa-quote'}, ...blocks(b.blocks)), {md: b.md, open: '> ', sep: '\n\n'});
+        case 'list':
+            return md(el('div', {className: 'qa-ul'}, ...b.items.map(it => {
+                const ordered = /\d/.test(it.marker);
+                const mark = it.task !== null ? (it.task ? '☑' : '☐') : ordered ? it.marker : '•';
+                const li = el('div', {className: 'qa-li'}, md(el('span', {className: 'qa-bullet', textContent: mark}), {skip: ''}),
+                    el('span', {}, ...inline(it.inline)));
+                li.style.paddingLeft = `${it.level * 1.5}em`;
+                const box = it.task === null ? '' : it.task ? '[x] ' : '[ ] ';
+                return md(li, {md: it.md, open: '  '.repeat(it.level) + (ordered ? it.marker : '-') + ' ' + box});
+            })), {md: b.md, sep: '\n'});
+        case 'table': {
+            const cell = (tag, c, i) => {
+                const e = el(tag, {}, ...inline(c));
+                if (b.align[i]) e.style.textAlign = b.align[i];
+                return e;
+            };
+            return md(el('table', {className: 'qa-table'},
+                el('thead', {}, el('tr', {}, ...b.head.map((c, i) => cell('th', c, i)))),
+                el('tbody', {}, ...b.rows.map(r => el('tr', {}, ...r.map((c, i) => cell('td', c, i)))))), {md: b.md, whole: ''});
+        }
+        }
+        return md(el('div', {className: 'qa-p'}, ...inline(b.inline)), {md: b.md});
+    });
+}
 
 // QAView is the Q&A tab: questions to Claude through the Claude API and
 // their answers, one conversation per session (saved, and logged in the
@@ -29,7 +87,7 @@ export class QAView {
         clear.onclick = () => this.clear();
         const log = el('button', {textContent: 'Open log folder'});
         log.onclick = () => QAOpenLog(this.session.id).catch(err => toast(errText(err), true));
-        this.listEl = el('div', {className: 'qa-list'});
+        this.listEl = md(el('div', {className: 'qa-list'}), {sep: '\n\n'});
         this.input = el('textarea', {className: 'qa-input', rows: 3,
             placeholder: 'Ask Claude… (Enter asks, Shift+Enter for a new line)'});
         this.input.addEventListener('keydown', e => {
@@ -40,6 +98,13 @@ export class QAView {
         });
         this.askBtn = el('button', {className: 'primary', textContent: 'Ask'});
         this.askBtn.onclick = () => this.busy ? QAStop(this.session.id) : this.ask();
+        // Copying gives the Markdown of the selection, not the drawn text.
+        this.listEl.addEventListener('copy', e => {
+            const text = this.selectedMarkdown();
+            if (!text) return;
+            e.clipboardData.setData('text/plain', text);
+            e.preventDefault();
+        });
         this.listEl.addEventListener('contextmenu', e => {
             e.preventDefault();
             this.listMenu(e.clientX, e.clientY);
@@ -142,7 +207,7 @@ export class QAView {
     listMenu(x, y) {
         const k = isMac ? '⌘' : 'Ctrl+';
         const sel = window.getSelection();
-        const text = sel && this.listEl.contains(sel.anchorNode) ? sel.toString() : '';
+        const text = this.selectedMarkdown();
         showMenu(x, y, [
             {label: `Copy   ${k}C`, disabled: !text, action: () => ClipboardSetText(text).then(() => toast('Copied'))},
             {label: 'Copy to the question', disabled: !text, action: () => {
@@ -199,23 +264,24 @@ export class QAView {
 
     // renderTurn (re)draws a turn; it keeps its element in t.el.
     renderTurn(t) {
-        const answer = el('div', {className: 'qa-answer'});
+        const answer = md(el('div', {className: 'qa-answer'}), {md: t.answer || undefined, sep: '\n\n'});
         for (const p of parseAnswer(t.answer ?? '')) answer.append(this.part(p));
         if (t === this.live && !t.answer) answer.append(el('p', {className: 'qa-wait', textContent: 'Thinking…'}));
-        const foot = el('div', {className: 'qa-foot'});
+        // The line under the answer is not part of a copy.
+        const foot = md(el('div', {className: 'qa-foot'}), {skip: ''});
         if (t.error) foot.append(el('span', {className: 'qa-error', textContent: '✗ ' + t.error}));
         if (t !== this.live) {
             foot.append(el('span', {textContent: [new Date(t.time).toLocaleString(), tokens(t.usage, t.model, engineName(t.engine))]
                 .filter(Boolean).join(' · ')}));
             if (t.answer) {
-                const copy = el('button', {className: 'icon', textContent: '⧉', title: 'Copy the answer'});
+                const copy = md(el('button', {className: 'icon', textContent: '⧉', title: 'Copy the answer (Markdown)'}), {skip: ''});
                 copy.onclick = () => ClipboardSetText(t.answer).then(() => toast('Answer copied'));
                 foot.append(copy);
             }
         }
-        const e = el('div', {className: 'qa-turn'},
-            el('div', {className: 'qa-question'}, el('b', {textContent: 'You: '}), t.question),
-            answer, foot);
+        const e = md(el('div', {className: 'qa-turn'},
+            md(el('div', {className: 'qa-question'}, md(el('b', {textContent: 'You: '}), {skip: ''}), t.question), {md: t.question}),
+            answer, foot), {sep: '\n\n'});
         t.el?.replaceWith(e);
         t.el = e;
         return e;
@@ -225,15 +291,34 @@ export class QAView {
         if (p.type === 'svg') {
             const img = el('img', {className: 'qa-svg', src: svgURL(p.text), alt: 'Picture from the answer'});
             const src = el('details', {}, el('summary', {textContent: 'SVG source'}), el('pre', {textContent: p.text}));
-            return el('div', {className: 'qa-picture'}, img, src);
+            return md(el('div', {className: 'qa-picture'}, img, src), {md: '```svg\n' + p.text + '\n```', whole: ''});
         }
         if (p.type === 'code') {
             const copy = el('button', {className: 'icon', textContent: '⧉', title: 'Copy'});
             copy.onclick = () => ClipboardSetText(p.text).then(() => toast('Copied'));
-            return el('div', {className: 'qa-code'}, el('div', {className: 'qa-code-head'}, p.lang || 'code', copy),
-                el('pre', {textContent: p.text}));
+            return md(el('div', {className: 'qa-code'},
+                md(el('div', {className: 'qa-code-head'}, p.lang || 'code', copy), {skip: ''}),
+                el('pre', {textContent: p.text})), {md: '```' + p.lang + '\n' + p.text + '\n```'});
         }
-        return el('div', {className: 'qa-text', textContent: p.text});
+        return md(el('div', {className: 'qa-text'}, ...blocks(parseMarkdown(p.text))), {md: p.text, sep: '\n\n'});
+    }
+
+    // selectedMarkdown is the Markdown of the selection in the turns ('' when
+    // nothing there is selected).
+    selectedMarkdown() {
+        const s = window.getSelection();
+        if (!s?.rangeCount || s.isCollapsed) return '';
+        const r = s.getRangeAt(0);
+        if (!r.intersectsNode(this.listEl)) return '';
+        return toMarkdown(this.listEl, {
+            touches: n => r.intersectsNode(n),
+            covers: n => {
+                const all = document.createRange();
+                all.selectNodeContents(n);
+                return r.compareBoundaryPoints(Range.START_TO_START, all) <= 0 && r.compareBoundaryPoints(Range.END_TO_END, all) >= 0;
+            },
+            text: n => n.data.slice(n === r.startContainer ? r.startOffset : 0, n === r.endContainer ? r.endOffset : undefined),
+        }).trim();
     }
 
     scrollDown() {

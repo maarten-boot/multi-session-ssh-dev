@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.10 (2026-10-31, app v0.9.5) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.11 (2026-10-31, app v0.9.6) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -109,7 +109,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
-  (rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
+  (shows the session id, read-only, with the config entry, folders and tmux session it names;
+  rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
   A red ▲ marks a session whose notes have TODO lines (N1c).
   Resting the mouse on a session shows a balloon with its name, local path and description
@@ -503,12 +504,20 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   model stay), deleting the session keeps it (like the notes). Every question and answer
   (time, engine, model, tokens, error) is appended to `qa-YYYY-MM-DD.md` in the session's
   log folder (that of the Remote tab recordings, F10), whether recordings are on or not. Answers show
-  text, fenced code blocks (copyable) and closed ```` ```svg ```` blocks holding one `<svg>`
+  text as Markdown (ATX headings, paragraphs keeping their line breaks, `-`/`*`/`+` and
+  numbered lists, nested by indentation, task items, `>` quotes, `|` tables with alignment,
+  rules; inline `**`/`__` bold, `*`/`_` italic, `~~` struck, code spans, backslash escapes,
+  `[text](url)`, `<url>` and bare http(s) links — only http, https and mailto, opened in the
+  browser; drawn with `textContent`, no HTML from the answer), fenced code blocks (copyable) and closed ```` ```svg ```` blocks holding one `<svg>`
   element as images (`data:` URL in an `<img>`: no scripts, no loads); PNG output is not
   possible through the Messages API alone. Enter asks, Shift+Enter a new line, *Stop* cancels
   the request (or ends the program); one question per session at a time. Right-click menus: on
   the turns *Copy* (the selection), *Copy to the question*, *Paste into the question*, *Select
-  all*; in the question box *Cut*, *Copy*, *Paste*, *Select all*. The log names the engine and
+  all*; in the question box *Cut*, *Copy*, *Paste*, *Select all*. Copies give Markdown: ⧉ the
+  whole answer; a selection (Ctrl+C, *Copy*, *Copy to the question*) the source of every
+  block it covers whole, a partly selected block's text with the marks of its inline parts
+  and its prefix (`## `, `- `, `> `), a touched table or picture whole, a code block's selected
+  code; the question's "You:", the line under the answer and buttons are left out. The log names the engine and
   model of each answer; the token line is left out when the engine reports none.
 
 ### 4.5 Terminals (both)

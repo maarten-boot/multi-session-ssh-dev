@@ -5,7 +5,8 @@
 # restart, Stop, New conversation; every question and answer in the log.
 # Then the model list from the API and another model, the switch to Claude
 # Code (a fake claude program: no API key) with its session resumed, and
-# the right-click menus: Copy in the answers, Paste in the question box.
+# the right-click menus: Copy in the answers, Paste in the question box;
+# answers drawn as Markdown and copied (menu, Ctrl+C) as Markdown.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-qa.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
@@ -24,10 +25,10 @@ open("$OUT/claude-questions", "a").write(q + "\n")
 sid = next(args[i + 1] for i, a in enumerate(args) if a in ("--resume", "--session-id"))
 def out(**d): print(json.dumps(d), flush=True)
 out(type="system", subtype="init", model="claude-fake-1", session_id=sid)
-for p in ["Code ", "says: " + q]:
+for p in ["Code ", "**says**: " + q]:
     out(type="stream_event", parent_tool_use_id=None,
         event={"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": p}})
-out(type="result", subtype="success", is_error=False, result="Code says: " + q, stop_reason="end_turn",
+out(type="result", subtype="success", is_error=False, result="Code **says**: " + q, stop_reason="end_turn",
     session_id=sid, usage={"input_tokens": 4, "output_tokens": 6, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0})
 PY
 chmod +x $OUT/fake-claude
@@ -63,7 +64,7 @@ start() {
 start
 shot 1-empty
 ask "What is the answer?"
-shot 2-answer                                          # text and a code block
+shot 2-answer                                          # Markdown (bold, list, table) and a code block
 ask "Draw a picture" 3
 shot 3-picture                                         # the SVG drawn as an image
 expect "first question: model, fallbacks, one message" "claude-test-model default 1" \
@@ -87,7 +88,7 @@ expect "turns saved (the stopped one too)" "4 stopped" \
 xdotool mousemove 1145 104 click 1; sleep 1                # New conversation (window at 60,50)
 shot 6-new-conversation
 check "New conversation removes the saved conversation" test ! -e $CONV
-for want in "What is the answer?" "The answer is 42." "Draw a picture" "fake svg" "And once more?" \
+for want in "What is the answer?" "The **answer** is 42." "Draw a picture" "fake svg" "And once more?" \
 	"Be slow please" "**Error:** stopped" "Tokens: 20 in (8 from cache), 20 out"; do
 	check "logged: $want" grep -qF -- "$want" $LOGF
 done
@@ -119,8 +120,15 @@ xdotool mousemove $INX $INY click 3; sleep 0.7         # the question box's menu
 shot 11-input-menu
 k Return; sleep 0.5                                    # Paste (Cut and Copy are off: nothing selected)
 k Return; sleep 2                                      # ask the pasted word
-expect "Copy in the answers, Paste in the question box" "$WORD" "$(tail -1 $OUT/claude-questions)"
-for want in "**Answer** (Claude API, claude-other-model):" "**Answer** (Claude Code, claude-fake-1):" "Code says: Hello Claude Code"; do
+expect "Copy in the answers (as Markdown), Paste in the question box" "**$WORD**" "$(tail -1 $OUT/claude-questions)"
+xdotool mousemove $WORDX $WORDY click 3; sleep 0.7
+xdotool mousemove $((WORDX + 40)) $((WORDY + 110)) click 1; sleep 0.5   # Select all
+k ctrl+c
+xdotool mousemove $INX $INY click 1; sleep 0.3
+k ctrl+v; k Return; sleep 2                            # ask everything copied
+check "Ctrl+C copies the Markdown" grep -qF -- "Code **says**: Hello Claude Code" $OUT/claude-questions
+check "Ctrl+C leaves out the buttons, 'You:' and the line under the answer" bash -c "! grep -qE '⧉|You: |tokens in' $OUT/claude-questions"
+for want in "**Answer** (Claude API, claude-other-model):" "**Answer** (Claude Code, claude-fake-1):" "Code **says**: Hello Claude Code"; do
 	check "logged: $want" grep -qF -- "$want" $LOGF
 done
 alive
