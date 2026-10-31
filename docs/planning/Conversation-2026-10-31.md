@@ -33,3 +33,11 @@
 - **Dependabot: vite 6.4.4 → 6.4.5** (one alert, frontend/package-lock.json). Bumped locally
   (`npm install -D vite@6.4.5`), `npm audit` clean, frontend tests, build and GUI tests pass;
   the Dependabot PR becomes unnecessary.
+- **v0.9.5 CI** (tagged): success on macos-universal, linux-amd64, windows-amd64 and release;
+  all five release files. The new Q&A engine tests (fake claude and command through the test
+  binary) pass on all three platforms.
+- **Cross-check after v0.9.5:** no differences. Since the last cross-check only vite changed
+  (not named in the docs); version 0.9.5 everywhere, 34 GUI test scripts as PLAN says, local
+  main equal to GitHub.
+- **Output folding:** not now; when built, the reading view's text comes from the terminal
+  scrollback (noted in PLAN "Next").

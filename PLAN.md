@@ -178,6 +178,8 @@ implementation differs from the original plan.
   - Alternative: a switchable "interactive view" that renders the session's text with the notes
     Markdown parsing (`frontend/src/markup.js`, `editor.js`) into collapsible HTML
     `<details>`/`<summary>` blocks.
+  - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
+    terminal's scrollback (instant, offline), not from tmux history.
 
 ## Testing
 - docs/planning/Tests.md lists every test with the SPEC items it covers.
