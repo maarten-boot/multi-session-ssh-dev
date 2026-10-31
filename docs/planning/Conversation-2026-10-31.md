@@ -41,3 +41,10 @@
   main equal to GitHub.
 - **Output folding:** not now; when built, the reading view's text comes from the terminal
   scrollback (noted in PLAN "Next").
+- **Dependabot alerts** (readable after a token with "Dependabot alerts: Read-only"; the first
+  token pasted into the conversation was revoked): 3 open, medium. #8 vite: fixed on main
+  (6.4.5), waits for Dependabot's rescan. #6/#7 echo/v4 (≤ 4.16.2, no fix yet): indirect via
+  Wails' dev server only, not in the release binary, the affected proxy/rate-limiter
+  middleware unused — dismiss or wait for a fixed echo.
+- **Cross-check:** no differences; since the last one only PLAN's output-folding note and
+  this log changed, and they agree.
