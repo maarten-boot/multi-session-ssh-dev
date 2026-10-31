@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.12 (2026-10-31, app v1.0.0, the first release version) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.12 (2026-10-31, app v1.0.0, the first release version) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions

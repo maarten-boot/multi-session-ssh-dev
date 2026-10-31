@@ -86,3 +86,12 @@
 - **v1.0.0.** Decision: move to a release version. wails.json, README, SPEC, CONNECTIVITY
   and PLAN say v1.0.0; the release workflow takes the version from the tag (semver for the
   packages), nothing assumes 0.x.
+- **v1.0.0 CI** (tagged; the earlier push of a95f7e3 had not reached GitHub, pushed again
+  with a63d99f): success on linux-amd64, windows-amd64, macos-universal and release; all
+  five release files (session-workbench-1.0.0-1.x86_64.rpm, session-workbench_1.0.0_amd64.deb,
+  linux tar.gz, macOS and Windows zips).
+- **Cross-check after v1.0.0:** SPEC's "v1.0 shipped in v0.6.0" and PLAN's "v0.6.0 is the
+  first release" / "After v1 (v1.1)" read wrongly next to app v1.0.0 (they mean SPEC v1.0):
+  now "SPEC v1.0 was implemented in app v0.6.0", "v0.6.0 was the first release (SPEC v1.0)
+  and v1.0.0 the first release version", "After SPEC v1.0 (app v0.6.0 to v1.0.0)". Code and
+  the other docs unchanged since the last cross-check.

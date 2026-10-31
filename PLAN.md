@@ -1,7 +1,8 @@
 # Session Workbench — Implementation Plan
 
 See SPEC.md for requirements. Each milestone ends in something runnable.
-All milestones are done; v0.6.0 is the first release. Notes in *italics* record where the
+All milestones are done; v0.6.0 was the first release (SPEC v1.0) and v1.0.0 (2026-10-31)
+the first release version. Notes in *italics* record where the
 implementation differs from the original plan.
 
 ## M0 — Skeleton (½ day) ✅
@@ -44,7 +45,7 @@ implementation differs from the original plan.
 - *Also: release on `v*` tags, version stamping, macOS app/Edit menu. Windows and macOS are
   tested and built in CI; the apps have not yet been tried interactively on those systems.*
 
-## After v1 (v1.1)
+## After SPEC v1.0 (app v0.6.0 to v1.0.0)
 - Session folders (SPEC F5), keyboard-driven context menus.
 - Git status in the Files tab (SPEC B5).
 - Terminal find bar, Unicode 11 widths, copy on select (SPEC T1/T2, found missing in the
