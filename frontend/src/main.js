@@ -199,7 +199,7 @@ class QATab {
 
     show() {
         this.pane.hidden = false;
-        if (!this.view) this.view = new QAView(this.pane, this.session);
+        if (!this.view) this.view = new QAView(this.pane, this.session, pageDialogs);
         else this.view.refresh();
         this.view.focus();
     }

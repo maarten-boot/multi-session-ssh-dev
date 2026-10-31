@@ -2268,6 +2268,13 @@ body.sidebar-narrow #sidebar-resizer {
 
 .qa-model {
     flex: 1;
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+}
+
+.qa-model select {
+    max-width: 40%;
 }
 
 .qa-list {

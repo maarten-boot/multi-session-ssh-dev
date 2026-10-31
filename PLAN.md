@@ -160,6 +160,13 @@ implementation differs from the original plan.
   session's log folder, SVG answers drawn as images. Credentials from ANTHROPIC_API_KEY or
   `ant auth login` only. Tested against a fake Claude API (internal/qa tests,
   scripts/fake-claude-api.py, gui-smoke-qa.sh).
+- v0.9.5: Q&A without an API key: the engine is chosen in the tab's bar — Claude API, Claude
+  Code (`claude -p` with its own login, no tools, its session resumed) or own commands
+  (`[[ui.qa_commands]]`); the model list next to it (the API's live list, Claude Code's
+  aliases, a command's `models`), both kept per session (`qa_engine`, `qa_claude`). Right-click
+  menus with copy/paste in the turns and the question box. Tested with a fake claude and
+  command (the test binary itself), the fake API's model list, gui-smoke-qa.sh; one real
+  Claude Code round trip (haiku, session resumed).
 
 ## Next (ideas, not started)
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
@@ -176,7 +183,7 @@ implementation differs from the original plan.
 - docs/planning/Tests.md lists every test with the SPEC items it covers.
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
-  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, qa (against a fake Claude API), fsbrowse, opener, gitstatus incl. the repository
+  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, qa (fake Claude API, fake Claude Code and command), fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
 - Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries, Q&A answers (text, code, SVG)
@@ -192,7 +199,7 @@ implementation differs from the original plan.
   the agent copy is gone; Get without git; delete with the saved copy; saved automatically, at
   quit with progress, Quit now), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API); working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API and Claude Code: engines, models, right-click menus); working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

@@ -23,7 +23,7 @@ README.md "Development" lists the make targets.
 | notes       | N1, N1c, N2                                                             |
 | spell       | N1b                                                                     |
 | forge       | W1                                                                      |
-| qa          | Q1 (streaming, history sent back, refusals, errors, stop, store, log; fake API) |
+| qa          | Q1 (streaming, history sent back, refusals, errors, stop, store, log, model list; fake API; Claude Code and commands: arguments, resume, errors, stop, transcript, UTF-8) |
 | backup      | F7                                                                      |
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
@@ -41,7 +41,7 @@ README.md "Development" lists the make targets.
 |----------------------|------------------------------------|
 | appearance.test.mjs  | T3 (themes, color modes, font size) |
 | cmdmenu.test.mjs     | T5                                 |
-| qaparse.test.mjs     | Q1 (text, code and SVG parts)      |
+| qaparse.test.mjs     | Q1 (text, code and SVG parts, engine names, token line) |
 | prompts.test.mjs     | T6, N2                             |
 | keys.test.mjs        | §4.6                               |
 | fuzzy.test.mjs       | §4.6 quick switcher                |
@@ -82,7 +82,7 @@ README.md "Development" lists the make targets.
 | gui-smoke-todo.sh         | N1c        | TODO marks                                                   |
 | gui-smoke-appnotes.sh     | N2, T2, T6 | notes for all sessions, prompts page, copy/paste             |
 | gui-smoke-web.sh          | W1         | Web tab links, build runs, tab order                         |
-| gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log      |
+| gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste |
 | gui-smoke-terminal-extras.sh | T1, T2  | find bar, emoji widths, copy-on-select                       |
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |

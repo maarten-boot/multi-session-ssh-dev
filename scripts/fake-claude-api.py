@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A fake Claude API for the Q&A GUI test: streams a canned answer to every
-POST /v1/messages and records each request body as a line of JSON.
+POST /v1/messages and records each request body as a line of JSON; GET
+/v1/models lists two models.
 
 usage: fake-claude-api.py <port file> <request log>
 
@@ -32,6 +33,17 @@ class Handler(BaseHTTPRequestHandler):
     def event(self, name, data):
         self.wfile.write(f"event: {name}\ndata: {json.dumps(data)}\n\n".encode())
         self.wfile.flush()
+
+    def do_GET(self):
+        models = [{"type": "model", "id": i, "display_name": n, "lifecycle": "active",
+                   "created_at": "2026-01-01T00:00:00Z"}
+                  for i, n in [("claude-test-model", "Test Model"), ("claude-other-model", "Other Model")]]
+        data = json.dumps({"data": models, "has_more": False, "first_id": None, "last_id": None}).encode()
+        self.send_response(200 if self.path.startswith("/v1/models") else 404)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))

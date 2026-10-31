@@ -1,7 +1,9 @@
-// Package qa is the Q&A tab: questions to Claude through the Claude API,
-// one saved conversation per session, and a log of every question and
-// answer. Credentials come from the environment (ANTHROPIC_API_KEY) or an
-// `ant auth login` profile, as the SDK finds them; the app stores none.
+// Package qa is the Q&A tab: questions to Claude, one saved conversation
+// per session, and a log of every question and answer. An engine answers:
+// the Claude API (Asker; credentials from ANTHROPIC_API_KEY or an
+// `ant auth login` profile, as the SDK finds them), Claude Code with its
+// own login (ClaudeCode), or another program (Command). The app stores no
+// credentials.
 package qa
 
 import (
@@ -21,6 +23,32 @@ import (
 // DefaultModel is used when the config names none.
 const DefaultModel = "claude-opus-5-5"
 
+// The engines: the Claude API, Claude Code, and CommandPrefix + the name
+// of a configured command.
+const (
+	EngineAPI     = "api"
+	EngineClaude  = "claude"
+	CommandPrefix = "cmd:"
+)
+
+// EngineName is an engine's name for people.
+func EngineName(id string) string {
+	switch {
+	case id == EngineAPI || id == "":
+		return "Claude API"
+	case id == EngineClaude:
+		return "Claude Code"
+	}
+	return strings.TrimPrefix(id, CommandPrefix)
+}
+
+// Engine answers a question after the conversation c, calling delta with
+// each piece of text as it arrives. The turn has the whole answer, or the
+// error with the text that came before it.
+type Engine interface {
+	Ask(ctx context.Context, c Conversation, question string, delta func(string)) Turn
+}
+
 // system tells Claude how its answers are shown.
 const system = "You answer questions in the Q&A tab of Session Workbench, a desktop app for " +
 	"working in coding sessions on remote hosts. Answers are shown as plain text: " +
@@ -38,19 +66,25 @@ type Usage struct {
 // Turn is one question with its answer. Raw is the API's message, sent
 // back unchanged with the next question (it carries the thinking blocks);
 // a turn without one (an error, a refusal, a stopped answer) is not.
+// Session is Claude Code's session id, resumed with the next question.
 type Turn struct {
 	Time     time.Time       `json:"time"`
 	Question string          `json:"question"`
 	Answer   string          `json:"answer"`
+	Engine   string          `json:"engine,omitempty"`
 	Model    string          `json:"model,omitempty"`
 	Usage    Usage           `json:"usage"`
 	Error    string          `json:"error,omitempty"`
 	Raw      json.RawMessage `json:"raw,omitempty"`
+	Session  string          `json:"session,omitempty"`
 }
 
-// Conversation is a session's Q&A.
+// Conversation is a session's Q&A, with the engine and model chosen for it
+// ("" = the defaults).
 type Conversation struct {
-	Turns []Turn `json:"turns"`
+	Engine string `json:"engine,omitempty"`
+	Model  string `json:"model,omitempty"`
+	Turns  []Turn `json:"turns"`
 }
 
 // Store keeps each session's conversation in Dir/<session id>.json.
@@ -133,13 +167,19 @@ func Log(dir, session string, t Turn) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "## %s — %s\n\n**Question:**\n\n%s\n\n", t.Time.Format("2006-01-02 15:04:05"), session, t.Question)
 	if t.Answer != "" {
-		fmt.Fprintf(&b, "**Answer** (%s):\n\n%s\n\n", t.Model, t.Answer)
+		by := EngineName(t.Engine)
+		if t.Model != "" {
+			by += ", " + t.Model
+		}
+		fmt.Fprintf(&b, "**Answer** (%s):\n\n%s\n\n", by, t.Answer)
 	}
 	if t.Error != "" {
 		fmt.Fprintf(&b, "**Error:** %s\n\n", t.Error)
 	}
-	fmt.Fprintf(&b, "Tokens: %d in (%d from cache), %d out\n\n", t.Usage.Input+t.Usage.CacheRead+t.Usage.CacheWrite,
-		t.Usage.CacheRead, t.Usage.Output)
+	if t.Usage != (Usage{}) {
+		fmt.Fprintf(&b, "Tokens: %d in (%d from cache), %d out\n\n", t.Usage.Input+t.Usage.CacheRead+t.Usage.CacheWrite,
+			t.Usage.CacheRead, t.Usage.Output)
+	}
 	_, err = f.WriteString(b.String())
 	if cerr := f.Close(); err == nil {
 		err = cerr
@@ -178,7 +218,7 @@ func (a Asker) Ask(ctx context.Context, c Conversation, question string, delta f
 	if model == "" {
 		model = DefaultModel
 	}
-	t := Turn{Time: time.Now(), Question: question, Model: model}
+	t := Turn{Time: time.Now(), Question: question, Engine: EngineAPI, Model: model}
 	msgs, err := Messages(c, question)
 	if err != nil {
 		t.Error = err.Error()
@@ -239,6 +279,29 @@ func (a Asker) Ask(ctx context.Context, c Conversation, question string, delta f
 	}
 	t.Raw = json.RawMessage(m.RawJSON())
 	return t
+}
+
+// Model is a model an engine offers: its id and its name for people.
+type Model struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// Models lists the Claude API's models (newest first, retired ones left out).
+func (a Asker) Models(ctx context.Context) ([]Model, error) {
+	client := anthropic.NewClient(a.Options...)
+	pager := client.Models.ListAutoPaging(ctx, anthropic.ModelListParams{Limit: anthropic.Int(100)})
+	var ms []Model
+	for pager.Next() {
+		m := pager.Current()
+		if m.Lifecycle != anthropic.ModelInfoLifecycleRetired {
+			ms = append(ms, Model{ID: m.ID, Name: m.DisplayName})
+		}
+	}
+	if err := pager.Err(); err != nil {
+		return nil, errors.New(describe(err))
+	}
+	return ms, nil
 }
 
 // describe turns an API error into a sentence for the tab.

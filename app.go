@@ -28,6 +28,7 @@ import (
 	"session-workbench/internal/instance"
 	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
+	"session-workbench/internal/qa"
 	"session-workbench/internal/reclog"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/savedcopy"
@@ -100,6 +101,7 @@ func (a *App) startup(ctx context.Context) {
 	syncer.Configure = hideConsole
 	share.Configure = hideConsole
 	forge.Configure = hideConsole
+	qa.Configure = hideConsole
 	a.shares = share.NewManager(func(id string, st share.Status) {
 		runtime.EventsEmit(ctx, "share:"+id, st)
 	})

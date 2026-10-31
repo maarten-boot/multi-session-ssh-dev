@@ -183,11 +183,18 @@ func TestLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := strings.ReplaceAll(string(b), "\r\n", "\n")
-	for _, want := range []string{"## 2026-10-30 09:05:00 — alpha", "Q1", "**Answer** (m):\n\nA1", "Tokens: 5 in (2 from cache), 5 out",
+	for _, want := range []string{"## 2026-10-30 09:05:00 — alpha", "Q1", "**Answer** (Claude API, m):\n\nA1", "Tokens: 5 in (2 from cache), 5 out",
 		"## 2026-10-30 09:06:00 — alpha", "**Error:** stopped"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("log lacks %q:\n%s", want, s)
 		}
+	}
+	if strings.Count(s, "Tokens:") != 1 {
+		t.Errorf("a token line for a turn without tokens:\n%s", s)
+	}
+	Log(dir, "alpha", Turn{Time: when, Question: "Q3", Answer: "A3", Engine: "cmd:gemini"})
+	if b, _ := os.ReadFile(filepath.Join(dir, "qa-2026-10-30.md")); !strings.Contains(string(b), "**Answer** (gemini):") {
+		t.Errorf("command answer:\n%s", b)
 	}
 }
 

@@ -118,12 +118,20 @@ export function QAAsk(arg1, arg2) {
   return window['go']['main']['App']['QAAsk'](arg1, arg2);
 }
 
+export function QAChoose(arg1, arg2, arg3) {
+  return window['go']['main']['App']['QAChoose'](arg1, arg2, arg3);
+}
+
 export function QAClear(arg1) {
   return window['go']['main']['App']['QAClear'](arg1);
 }
 
 export function QALoad(arg1) {
   return window['go']['main']['App']['QALoad'](arg1);
+}
+
+export function QAModels(arg1) {
+  return window['go']['main']['App']['QAModels'](arg1);
 }
 
 export function QAOpenLog(arg1) {

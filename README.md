@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v0.9.4: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v0.9.5: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -268,10 +268,30 @@ open page); a right-click on empty space in the tree makes a *New page…*;
   (deleting the session keeps it, like its notes). Every
   question and answer is also **logged** in the session's log folder (the one of its Remote
   tab recordings, *Open log folder*), in `qa-YYYY-MM-DD.md`, also after *New conversation*.
-  The model is `claude-opus-5-5` (`qa_model` in the config); a question one model declines is
-  answered by another one. **Credentials**: the app stores none — set `ANTHROPIC_API_KEY` in
-  the environment the app starts from, or run `ant auth login` once (the Anthropic CLI); then
-  start the app. A Claude subscription (Claude Code's login) is not an API key.
+  Right-click the questions and answers for *Copy* (the selected text), *Copy to the
+  question*, *Paste into the question* and *Select all*; the question box has *Cut*, *Copy*,
+  *Paste* and *Select all*, as in the notes.
+
+  **Who answers** (the two lists at the top left, kept per session):
+  - **Claude API**: needs an API key — set `ANTHROPIC_API_KEY` in the environment the app
+    starts from, or run `ant auth login` once (the Anthropic CLI); then start the app. The
+    model list comes from the API; the default is `claude-opus-5-5` (`qa_model`). A question
+    one model declines is answered by another one.
+  - **Claude Code**: no API key — it uses Claude Code's own login (your Claude subscription).
+    The app runs `claude -p` on your computer with **no tools** (it only answers; it cannot read
+    or change files), without your Claude Code settings, hooks or MCP servers, in an empty folder
+    of the app (`qa/work` in the data directory); the conversation is Claude Code's own session
+    and is continued with each question (Claude Code keeps it in `~/.claude/projects/`). Models:
+    Claude Code's default, or the latest Fable, Opus, Sonnet or Haiku. The app finds `claude` on
+    the PATH or in `~/.local/bin`; `qa_claude` names another program.
+  - **Your own commands** (`[[ui.qa_commands]]` in the config, see below): any program that
+    answers a question on its standard output, e.g. another vendor's CLI. `{question}` in its
+    arguments is replaced by the question (with the conversation so far before it), else that
+    text goes to its standard input; `{model}` by the model chosen from its `models`.
+  
+  Changing who answers starts a new conversation (each one knows only its own; the log keeps
+  the old one). The default for new sessions is `qa_engine`; without it, the Claude API when
+  `ANTHROPIC_API_KEY` is set, else Claude Code when it is installed.
 
 **Notes for all sessions.** ✎ in the sidebar header (or Ctrl+Shift+M, or a right-click on the
 empty space of the session list → *Notes for all sessions…* / *Prompts for all sessions…*) opens a notes page
@@ -687,7 +707,9 @@ record_every = "1h"                       # a new recording file every 5m … 24
 record_dir = "~/sw-logs"                  # optional: default <data dir>/logs
 tab_order = ["local", "files", "remote", "notes", "web", "qa"]
 hidden_tabs = []                          # e.g. ["web", "qa"]; at least one tab stays visible
-qa_model = "claude-opus-5-5"              # the Q&A tab's Claude model
+qa_model = "claude-opus-5-5"              # the Q&A tab's Claude API model
+qa_engine = "claude"                      # who answers in new Q&A tabs: "api", "claude" (Claude Code) or a qa_commands name
+qa_claude = "~/.local/bin/claude"         # optional: the Claude Code program (default: claude, looked up)
 
 [[ui.commands]]                           # the command menu (Settings → Commands)
 name = "fetch all"
@@ -715,6 +737,11 @@ command = ""                              # empty: just the login shell
 [[ui.start_commands]]
 name = "opus"
 command = "claude --model opus --continue || claude --model opus"
+
+[[ui.qa_commands]]                        # another program answering in the Q&A tab
+name = "gemini"
+command = ["gemini", "--model", "{model}"] # the question (with the conversation) on its standard input
+models = ["gemini-2.5-pro", "gemini-2.5-flash"]
 
 [keys]
 next_session = "Ctrl+Tab"
@@ -769,7 +796,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
 | Remote tab recordings and the Q&A log (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
-| Q&A conversations (`qa/<session id>.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| Q&A conversations (`qa/<session id>.json`; `qa/work/`, the empty folder Claude Code and Q&A commands run in) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
 | Local tab shell history (`history/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |

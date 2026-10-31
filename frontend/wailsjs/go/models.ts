@@ -54,6 +54,22 @@ export namespace config {
 	        this.url = source["url"];
 	    }
 	}
+	export class QACommand {
+	    name: string;
+	    command: string[];
+	    models: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new QACommand(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.command = source["command"];
+	        this.models = source["models"];
+	    }
+	}
 	export class StartCommand {
 	    name: string;
 	    command: string;
@@ -98,6 +114,9 @@ export namespace config {
 	    spell_language: string;
 	    spell_words: string[];
 	    qa_model: string;
+	    qa_engine: string;
+	    qa_claude: string;
+	    qa_commands: QACommand[];
 	    description_delay?: number;
 	    commands: Command[];
 	    start_commands: StartCommand[];
@@ -137,6 +156,9 @@ export namespace config {
 	        this.spell_language = source["spell_language"];
 	        this.spell_words = source["spell_words"];
 	        this.qa_model = source["qa_model"];
+	        this.qa_engine = source["qa_engine"];
+	        this.qa_claude = source["qa_claude"];
+	        this.qa_commands = this.convertValues(source["qa_commands"], QACommand);
 	        this.description_delay = source["description_delay"];
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.start_commands = this.convertValues(source["start_commands"], StartCommand);
@@ -397,9 +419,25 @@ export namespace main {
 	        this.remote = source["remote"];
 	    }
 	}
+	export class QAEngine {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QAEngine(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
 	export class QAInfo {
 	    turns: qa.Turn[];
 	    busy: boolean;
+	    engines: QAEngine[];
+	    engine: string;
 	    model: string;
 	    log_dir: string;
 	
@@ -411,6 +449,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.turns = this.convertValues(source["turns"], qa.Turn);
 	        this.busy = source["busy"];
+	        this.engines = this.convertValues(source["engines"], QAEngine);
+	        this.engine = source["engine"];
 	        this.model = source["model"];
 	        this.log_dir = source["log_dir"];
 	    }
@@ -627,6 +667,20 @@ export namespace notes {
 
 export namespace qa {
 	
+	export class Model {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Model(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
 	export class Usage {
 	    input: number;
 	    output: number;
@@ -650,10 +704,12 @@ export namespace qa {
 	    time: any;
 	    question: string;
 	    answer: string;
+	    engine?: string;
 	    model?: string;
 	    usage: Usage;
 	    error?: string;
 	    raw?: number[];
+	    session?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Turn(source);
@@ -664,10 +720,12 @@ export namespace qa {
 	        this.time = this.convertValues(source["time"], null);
 	        this.question = source["question"];
 	        this.answer = source["answer"];
+	        this.engine = source["engine"];
 	        this.model = source["model"];
 	        this.usage = this.convertValues(source["usage"], Usage);
 	        this.error = source["error"];
 	        this.raw = source["raw"];
+	        this.session = source["session"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

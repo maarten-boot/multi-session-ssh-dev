@@ -180,6 +180,14 @@ type UI struct {
 	// QAModel is the Claude model of the Q&A tab ("" = internal/qa
 	// DefaultModel).
 	QAModel string `toml:"qa_model,omitempty" json:"qa_model"`
+	// QAEngine answers in the Q&A tab unless a session chose another:
+	// "api" (the Claude API, needs a key), "claude" (Claude Code with its
+	// own login) or the name of one of QACommands; "" is the API when
+	// ANTHROPIC_API_KEY is set, else Claude Code when it is installed.
+	// QAClaude is the Claude Code program ("" = claude, looked up).
+	QAEngine   string      `toml:"qa_engine,omitempty" json:"qa_engine"`
+	QAClaude   string      `toml:"qa_claude,omitempty" json:"qa_claude"`
+	QACommands []QACommand `toml:"qa_commands,omitempty" json:"qa_commands"`
 	// DescriptionDelay is the wait in seconds (0 to 10) before the balloon
 	// with a session's name, path and description shows in the sidebar.
 	DescriptionDelay *float64 `toml:"description_delay,omitempty" json:"description_delay"`
@@ -187,6 +195,14 @@ type UI struct {
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
 	StartCommands []StartCommand `toml:"start_commands,omitempty" json:"start_commands"`
+}
+
+// QACommand is another program that answers in the Q&A tab (see
+// internal/qa Command): {model} and {question} in Command are replaced.
+type QACommand struct {
+	Name    string   `toml:"name" json:"name"`
+	Command []string `toml:"command" json:"command"`
+	Models  []string `toml:"models,omitempty" json:"models"`
 }
 
 // Tabs lists every session tab in the default order.

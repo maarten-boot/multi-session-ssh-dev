@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {isSVG, parseAnswer, svgURL, tokens} from './qaparse.js';
+import {engineName, isSVG, parseAnswer, svgURL, tokens} from './qaparse.js';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';
 
@@ -40,4 +40,15 @@ test('svgURL and tokens', () => {
     assert.ok(svgURL(svg).startsWith('data:image/svg+xml;charset=utf-8,%3Csvg'));
     assert.equal(tokens({input: 3, cache_read: 2, cache_write: 1, output: 5}, 'm'), 'm · 6 tokens in (2 from cache), 5 out');
     assert.equal(tokens({input: 3, cache_read: 0, cache_write: 0, output: 5}), '3 tokens in, 5 out');
+    assert.equal(tokens({input: 3, cache_read: 0, cache_write: 0, output: 5}, 'haiku', 'Claude Code'), 'Claude Code · haiku · 3 tokens in, 5 out');
+    // A program that reports no tokens: no count.
+    assert.equal(tokens({input: 0, cache_read: 0, cache_write: 0, output: 0}, '', 'gemini'), 'gemini');
+    assert.equal(tokens(null, 'm'), 'm');
+});
+
+test('engineName', () => {
+    assert.equal(engineName(undefined), 'Claude API');
+    assert.equal(engineName('api'), 'Claude API');
+    assert.equal(engineName('claude'), 'Claude Code');
+    assert.equal(engineName('cmd:gemini'), 'gemini');
 });

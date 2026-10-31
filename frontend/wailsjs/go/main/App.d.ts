@@ -72,9 +72,13 @@ export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>
 
 export function QAAsk(arg1:string,arg2:string):Promise<qa.Turn>;
 
+export function QAChoose(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function QAClear(arg1:string):Promise<void>;
 
 export function QALoad(arg1:string):Promise<main.QAInfo>;
+
+export function QAModels(arg1:string):Promise<Array<qa.Model>>;
 
 export function QAOpenLog(arg1:string):Promise<void>;
 

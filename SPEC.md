@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.9 (2026-10-30, app v0.9.4) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
+Status: v1.10 (2026-10-31, app v0.9.5) — v1.0 shipped in v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -11,7 +11,7 @@ Get listing and taking over every agent branch (F11), the file mode in the sessi
 appending writes through the live share (§6), the command menu (T5), editable start commands
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
-and the Q&A tab (Q1).
+and the Q&A tab (Q1; Claude Code and own commands without an API key).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -37,7 +37,7 @@ A cross-platform (Linux, Windows, macOS) desktop app running on the **host** tha
 | **Remote** | Terminal: SSH to agent host → tmux session → `cd <remote path>` → claude/shell  |
 | **Notes**  | Notes as a tree of Markdown pages, shown formatted (N1, N1a)                    |
 | **Web**    | Build runs and web links of the repository (W1)                                 |
-| **Q&A**    | Questions to Claude through the Claude API, with the answers (Q1)               |
+| **Q&A**    | Questions to Claude (Claude API, Claude Code or own commands), with the answers (Q1) |
 
 A session reopens on the tab used last; new sessions start on Local. The order of the tabs and
 which are shown is a setting (`tab_order`, `hidden_tabs`; Settings → Appearance); tabs added in a newer
@@ -474,22 +474,42 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   stored.
 
 ### 4.4c Q&A tab
-- Q1. Questions to Claude through the Claude API (Anthropic's Go SDK, streamed, from the app's
-  computer only), one conversation per session. Model `qa_model` (default `claude-opus-5-5`),
-  effort medium, the conversation cached (`cache_control`), server-side fallbacks for declined
-  questions (`fallbacks: "default"`). Sent: a fixed system prompt, the earlier questions and
-  the API's own answers unchanged (they carry the thinking blocks; a declined, failed or stopped
-  answer is not sent back; one cut off at the length limit is), and the question — nothing from the session. Credentials only as
-  the SDK finds them (`ANTHROPIC_API_KEY`, an `ant auth login` profile); the app stores none.
+- Q1. Questions to Claude, one conversation per session, answered by the engine chosen in the
+  tab's bar (kept per session, with its model; `qa_engine` the default, else the API when
+  `ANTHROPIC_API_KEY` is set, else Claude Code when installed). Changing the engine starts a new
+  conversation (each knows only its own).
+  - **Claude API** (Anthropic's Go SDK, streamed, from the app's computer only). Models from the
+    API's model list (retired ones left out, kept 10 minutes), default `qa_model`
+    (`claude-opus-5-5`), effort medium, the conversation cached (`cache_control`), server-side
+    fallbacks for declined questions (`fallbacks: "default"`). Sent: a fixed system prompt, the
+    earlier questions and the API's own answers unchanged (they carry the thinking blocks; a
+    declined, failed or stopped answer is not sent back; one cut off at the length limit is),
+    and the question — nothing from the session. Credentials only as the SDK finds them
+    (`ANTHROPIC_API_KEY`, an `ant auth login` profile); the app stores none.
+  - **Claude Code** (no API key: Claude Code's own login): `claude -p --output-format stream-json
+    --include-partial-messages --tools "" --system-prompt <the same> --strict-mcp-config
+    --disable-slash-commands --setting-sources ""`, the question on standard input, run in
+    `<data dir>/qa/work`; the first question starts a session (`--session-id`), the next ones
+    resume it (`--resume`, the id kept with the turn). Models: Claude Code's default, `fable`,
+    `opus`, `sonnet`, `haiku`. The program: `qa_claude`, else `claude` on the PATH, else
+    `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, `/usr/local/bin`.
+  - **Own commands** (`[[ui.qa_commands]]`: `name`, `command` as a list, `models`): no shell;
+    `{model}` in an argument is the chosen model (the first of `models` by default; an error
+    without models), `{question}` the question after the earlier answered turns as text, which
+    otherwise goes to standard input; standard output, as it comes (at most 4 MB), is the
+    answer; a failure shows the exit status and the last line of standard error.
   The conversation is saved in `<data dir>/qa/<session id>.json` (owner-only, written
-  atomically) and shown again after a restart; *New conversation* removes it, deleting the session
-  keeps it (like the notes). Every question
-  and answer (time, model, tokens, error) is appended to `qa-YYYY-MM-DD.md` in the session's
+  atomically) and shown again after a restart; *New conversation* empties it (the engine and
+  model stay), deleting the session keeps it (like the notes). Every question and answer
+  (time, engine, model, tokens, error) is appended to `qa-YYYY-MM-DD.md` in the session's
   log folder (that of the Remote tab recordings, F10), whether recordings are on or not. Answers show
   text, fenced code blocks (copyable) and closed ```` ```svg ```` blocks holding one `<svg>`
   element as images (`data:` URL in an `<img>`: no scripts, no loads); PNG output is not
   possible through the Messages API alone. Enter asks, Shift+Enter a new line, *Stop* cancels
-  the request; one question per session at a time.
+  the request (or ends the program); one question per session at a time. Right-click menus: on
+  the turns *Copy* (the selection), *Copy to the question*, *Paste into the question*, *Select
+  all*; in the question box *Cut*, *Copy*, *Paste*, *Select all*. The log names the engine and
+  model of each answer; the token line is left out when the engine reports none.
 
 ### 4.5 Terminals (both)
 - T1. xterm.js with fit, web-links, search (find bar, Ctrl+Shift+F / Cmd+F), unicode11 addons;
@@ -719,9 +739,13 @@ repository config and warns again whenever they change.
   separators, reserved characters or Windows device names) and files are read and written
   through `os.Root` on the book's folder (no escape through `..` or symlinks out of it),
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
-- Q&A tab (Q1): what you type there goes to the Claude API (Anthropic) — only the questions
-  and the conversation, never session files. No credentials are stored or logged; the SDK
-  reads them from the environment or the `ant` profile. Conversations and the log are
+- Q&A tab (Q1): what you type there goes to the engine — the Claude API or Claude Code
+  (Anthropic), or the program of an own command — only the questions and the conversation,
+  never session files. No credentials are stored or logged; the SDK reads them from the
+  environment or the `ant` profile, Claude Code uses its own login. Claude Code runs with no
+  tools, no settings sources (so no hooks) and no MCP servers, in an empty folder of the app:
+  it can only answer. Own commands run without a shell, as configured; a `{question}`
+  argument is visible to other local users in the process list (standard input is not). Conversations and the log are
   owner-only files. Answers are rendered with `textContent`; an SVG is shown only as an
   `<img>` from a `data:` URL, where it cannot run scripts or load anything.
 - Spelling dictionaries: the language name is checked (letters, digits, `_ @ . -`; no
