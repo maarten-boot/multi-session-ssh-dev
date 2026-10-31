@@ -191,7 +191,7 @@ export class QAView {
         this.listEl.replaceChildren(...this.turns.map(t => this.renderTurn(t)));
         if (!this.turns.length) {
             this.listEl.append(el('p', {className: 'qa-empty',
-                textContent: 'Ask Claude a question. Only your questions and this conversation are sent — ' +
+                textContent: 'Ask a question. Only your questions and this conversation are sent, to the engine chosen above — ' +
                     'nothing from the session. Every question and answer is saved and logged in the session\'s log folder.'}));
         }
         this.scrollDown();

@@ -26,12 +26,13 @@ type Command struct {
 	Dir   string
 }
 
-// Transcript is the question with the earlier answered questions before
-// it, for a program that keeps no conversation of its own.
+// Transcript is the question with the earlier questions answered without
+// an error before it (as the API engine sends back no failed or stopped
+// answer), for a program that keeps no conversation of its own.
 func Transcript(c Conversation, question string) string {
 	var b strings.Builder
 	for _, t := range c.Turns {
-		if t.Answer == "" {
+		if t.Answer == "" || t.Error != "" {
 			continue
 		}
 		if b.Len() == 0 {

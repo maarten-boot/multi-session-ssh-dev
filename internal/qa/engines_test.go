@@ -142,11 +142,11 @@ func TestCommand(t *testing.T) {
 		t.Fatalf("turn %+v, streamed %q", t1, got.String())
 	}
 	// A command keeps no conversation: the earlier turns come with the question.
-	c := Conversation{Turns: []Turn{t1, {Question: "lost", Error: "stopped"}}}
+	c := Conversation{Turns: []Turn{t1, {Question: "lost", Error: "stopped"}, {Question: "half", Answer: "partial", Error: "stopped"}}}
 	cm.Argv = []string{os.Args[0], "{question}"}
 	t2 := cm.Ask(context.Background(), c, "And?", func(string) {})
 	if want := "args=" + Transcript(c, "And?") + " in= é"; t2.Answer != want || !strings.Contains(t2.Answer, "Question:\nHi?") ||
-		strings.Contains(t2.Answer, "lost") {
+		strings.Contains(t2.Answer, "lost") || strings.Contains(t2.Answer, "half") {
 		t.Errorf("transcript: %q", t2.Answer)
 	}
 	cm.Argv = []string{os.Args[0]}

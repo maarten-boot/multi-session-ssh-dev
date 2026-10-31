@@ -23,3 +23,10 @@
   list), qaparse, gui-smoke-qa.sh extended; one real Claude Code round trip (haiku). A first
   GUI run passed falsely (nothing selected, the check matched an older question): fixed to
   select a word that is never asked.
+- **Cross-check of v0.9.5.** README's Q&A intro still said "through the Claude API" and that
+  each question costs money on the API account: now names the three engines and what each
+  costs; package list likewise. The empty Q&A tab said "Ask Claude" (also shown for own
+  commands): now "Ask a question … to the engine chosen above". Own commands got stopped or
+  failed partial answers in their transcript, unlike the API engine: now left out (tested),
+  SPEC says so. Checked as matching: SPEC Q1 flags and folders, model lists, default engine
+  rule, data locations, config example (tested), Tests.md and PLAN.

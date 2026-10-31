@@ -256,14 +256,16 @@ open page); a right-click on empty space in the tree makes a *New page…*;
   logged in (`gh auth login`) on your computer; the app stores no tokens. Pages open in
   your normal browser: GitHub cannot be shown inside the app.
 
-- **Q&A** (Ctrl+Shift+6): ask Claude questions through the Claude API, one conversation per
+- **Q&A** (Ctrl+Shift+6): ask Claude questions — through the Claude API, through Claude Code
+  without an API key, or your own command (see *Who answers* below) — one conversation per
   session. Enter asks, Shift+Enter starts a new line; the answer appears as it is written
   (*Stop* ends it), with code blocks (⧉ copies one) and pictures: an answer that draws in an
   ```` ```svg ```` block shows the drawing (as an image: an SVG cannot run scripts or load
   anything there; *SVG source* shows the text). Claude sees only your questions and the
   conversation so far — nothing from the session. Follow-up questions are cheaper: the
-  conversation is cached. Under each answer: the time, the model and the tokens used (each
-  question costs money on your API account). The conversation is saved (`qa/<session id>.json`
+  conversation is cached. Under each answer: the time, who answered, the model and the tokens
+  used (through the API each question costs money on your API account; Claude Code counts
+  against your Claude subscription; own commands report no tokens). The conversation is saved (`qa/<session id>.json`
   in the data directory) and comes back after a restart; *New conversation* starts over
   (deleting the session keeps it, like its notes). Every
   question and answer is also **logged** in the session's log folder (the one of its Remote
@@ -830,7 +832,7 @@ internal/session       hosts + sessions: validation, mapping, ordering
 internal/notes         notes pages: a tree of Markdown files per session and for the app
 internal/spell         spelling dictionaries: built-in en_US (dict/, SCOWL), Hunspell files found
 internal/forge         Web tab: links from the git remote, GitHub runs via gh
-internal/qa            Q&A tab: questions to Claude (Claude API), saved conversations, the log
+internal/qa            Q&A tab: questions to Claude (Claude API, Claude Code) or own commands, saved conversations, the log
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab

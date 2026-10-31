@@ -495,7 +495,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, `/usr/local/bin`.
   - **Own commands** (`[[ui.qa_commands]]`: `name`, `command` as a list, `models`): no shell;
     `{model}` in an argument is the chosen model (the first of `models` by default; an error
-    without models), `{question}` the question after the earlier answered turns as text, which
+    without models), `{question}` the question after the earlier turns answered without an error, as text, which
     otherwise goes to standard input; standard output, as it comes (at most 4 MB), is the
     answer; a failure shows the exit status and the last line of standard error.
   The conversation is saved in `<data dir>/qa/<session id>.json` (owner-only, written
