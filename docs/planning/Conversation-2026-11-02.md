@@ -64,3 +64,7 @@
   session path, which on Windows has `C:` — rejected by the mount check. Container hosts are
   Linux/macOS only, so these tests skip on Windows. Decision: bump to v1.1.1 (the v1.1.0 tag
   stays, without a release).
+- **v1.1.1 CI** (tagged): success on windows-amd64, macos-universal, linux-amd64 and release;
+  all five release files. The first release with container hosts.
+- **Cross-check after v1.1.1:** version 1.1.1 everywhere; Tests.md now says which container
+  tests skip on Windows. No other differences.

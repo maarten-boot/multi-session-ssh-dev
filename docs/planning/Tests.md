@@ -25,7 +25,7 @@ README.md "Development" lists the make targets.
 | forge       | W1                                                                      |
 | qa          | Q1 (streaming, history sent back, refusals, errors, stop, store, log, model list; fake API; Claude Code and commands: arguments, resume, errors, stop, transcript, UTF-8) |
 | backup      | F7                                                                      |
-| container   | C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start |
+| container   | C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start; on Windows the tests that need a mountable path skip (container hosts are Linux/macOS; the session test checks Windows refuses them) |
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
 | reclog      | F10                                                                     |
