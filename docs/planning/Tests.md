@@ -41,7 +41,7 @@ README.md "Development" lists the make targets.
 | File                 | SPEC items                         |
 |----------------------|------------------------------------|
 | appearance.test.mjs  | T3 (themes, color modes, font size) |
-| cmdmenu.test.mjs     | T5                                 |
+| cmdmenu.test.mjs     | T5 (also Back to the session directory: quoting, control characters) |
 | dockerfile.test.mjs  | C6 (toolchain blocks before the needed part, valid continuations) |
 | qaparse.test.mjs     | Q1 (text, code and SVG parts, engine names, token line, Markdown parsing, copying as Markdown) |
 | prompts.test.mjs     | T6, N2                             |
@@ -91,6 +91,6 @@ README.md "Development" lists the make targets.
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |
 | gui-smoke-switcher.sh     | §4.6       | quick switcher: MRU, fuzzy filter, descriptions, resize      |
-| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu          |
+| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; Local: Back to the session directory after `cd /` |
 
 When a feature is added, add or extend a test here and name the SPEC item it covers.

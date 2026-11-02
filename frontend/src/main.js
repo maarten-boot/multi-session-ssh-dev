@@ -12,7 +12,7 @@ import {promptMenu} from './prompts';
 import {WebView} from './web';
 import {QAView} from './qa';
 import {CommandList} from './commands';
-import {commandItems} from './cmdmenu';
+import {commandItems, homeItem} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, movable, showMenu, store, textMenu, toast} from './ui';
 import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
@@ -58,11 +58,18 @@ const BURST_MIN = 512;
 class Tab {
     // commandItems is this tab's command menu (see commands.js); disabled
     // while the terminal is not running.
+    // The Local tab's menu starts with "Back to the session directory"
+    // (it always runs a shell; the Remote tab may run claude).
     commandItems() {
-        return commandItems(this.session, app.state.ui.commands, d => {
+        const send = d => {
             this.view?.send(d);
             this.view?.term.focus();
-        }, this.view?.id ? null : 'not connected');
+        };
+        const disabled = this.view?.id ? null : 'not connected';
+        const items = commandItems(this.session, app.state.ui.commands, send, disabled);
+        const home = this.key === 'local'
+            ? homeItem(this.session.data.local_path, send, disabled, navigator.platform.startsWith('Win')) : null;
+        return home ? [home, ...(items.length ? ['-', ...items] : [])] : items;
     }
 
     // promptItems is this tab's Prompts menu: the session's own prompts,
@@ -1042,7 +1049,7 @@ const app = {
         }
         // The command menu, on the Local and Remote tabs.
         const term = ['local', 'remote'].includes(active?.key) ? active : null;
-        if (term && ((d.commands?.length ?? 0) + (this.state.ui.commands?.length ?? 0)) > 0) {
+        if (term && (term.key === 'local' || (d.commands?.length ?? 0) + (this.state.ui.commands?.length ?? 0) > 0)) {
             const cmds = el('button', {textContent: 'Commands ▾', title: `Type a command into the ${term.label} tab`});
             cmds.onclick = () => {
                 const r = cmds.getBoundingClientRect();

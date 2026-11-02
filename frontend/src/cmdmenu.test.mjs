@@ -32,3 +32,18 @@ test('groups are submenus after the other commands, merged across own and global
     assert.deepEqual(only.map(i => i === '-' ? '-' : i.label), ['b  ⏎', '-', 'g']); // a blank group is none
     assert.deepEqual(commandItems(null, [{name: 'a', command: 'x', group: 'g'}], () => {}).map(i => i.label), ['g']);
 });
+
+test('back to the session directory: quoted for the shell', async () => {
+    const {cdCommand, homeItem} = await import('./cmdmenu.js');
+    assert.equal(cdCommand('/home/ann/my proj'), `cd '/home/ann/my proj'`);
+    assert.equal(cdCommand(`/tmp/it's $HOME`), `cd '/tmp/it'\\''s $HOME'`);
+    assert.equal(cdCommand('C:\\Users\\ann\\proj', true), 'cd "C:\\Users\\ann\\proj"');
+    const sent = [];
+    const it = homeItem('/srv/p', t => sent.push(t));
+    assert.equal(it.title, '/srv/p');
+    it.action();
+    assert.deepEqual(sent, [`cd '/srv/p'\r`]);
+    assert.equal(homeItem('', () => {}), null);
+    assert.equal(homeItem('/a\nrm -rf ~', () => {}), null);
+    assert.equal(homeItem('/srv/p', () => {}, 'not connected').disabled, true);
+});

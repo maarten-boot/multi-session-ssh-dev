@@ -393,6 +393,9 @@ itself, above the groups. A session's commands and the global ones of the same g
 one submenu (the session's first); names need to be unique within a group only. In the
 config: `[[ui.commands]]` with `name`, `command`, `run` (default true) and `group`, and
 `commands = [{ name = …, command = …, run = false, group = "git" }]` on a session.
+The Local tab's menu always starts with **Back to the session directory**: it types
+`cd '<the session's directory>'` and Enter, for when you have wandered off (the Remote tab
+does not get it, since claude may be running there instead of a shell).
 
 **Start commands.** What a session's Remote tab starts in a new tmux session is a list too
 (Settings → Commands → Start commands; `[[ui.start_commands]]` with `name` and `command`):

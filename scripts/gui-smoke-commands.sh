@@ -3,7 +3,8 @@
 # starts with a start command of its own ([[ui.start_commands]]); the
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
-# is only typed; groups are submenus (keys and mouse); Settings → Commands adds one; Prompts ▾ pastes the
+# is only typed; groups are submenus (keys and mouse); the Local tab's menu
+# starts with Back to the session directory; Settings → Commands adds one; Prompts ▾ pastes the
 # session's own prompts (its notes' Prompts page) and those for all sessions,
 # as does a section of the terminal's right-click menu.
 # Needs `ssh localhost` without prompts and tmux.
@@ -98,6 +99,14 @@ expect "both prompts ran after Enter" "own-prompt-8|global-prompt-12|" "$(tr '\n
 # The terminal's right-click menu has them too, after the commands.
 click 700 500 3; sleep 0.5; shot 3c-context-prompts; menu g g; k Return; sleep 1   # "global prompt" (after git ▸)
 expect "a prompt from the right-click menu ran" "own-prompt-8|global-prompt-12|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
+
+# The Local tab's menu starts with "Back to the session directory".
+k ctrl+shift+1; sleep 2
+xdotool type --delay 10 'cd /'; k Return
+click ${CMDX:-747} 17; sleep 0.5; shot 3d-local-commands; menu   # the first entry
+xdotool type --delay 10 'pwd > $SW_OUT/pwd.txt'; k Return; sleep 1
+expect "Local: back to the session directory" "$OUT" "$(cat $SW_OUT/pwd.txt 2>&1)"
+k ctrl+shift+3; sleep 1
 
 # Settings → Commands: the lists, and a command added there.
 k ctrl+shift+comma; sleep 1

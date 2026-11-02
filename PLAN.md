@@ -182,6 +182,10 @@ implementation differs from the original plan.
   Fixed on the way: a right-click menu opened inside a modal window was drawn behind it (a modal
   dialog is in the browser's top layer); the menu now goes into the open dialog. Tested in the new
   gui-smoke-dockerwin.sh (part of `make smoke-container`).
+  Also in v1.1.2: the Local tab's command menu (right-click and Commands ▾, now always shown
+  there) starts with *Back to the session directory* (`cd '<local_path>'`, Enter; `cd "<path>"`
+  on Windows). Unit tests in cmdmenu.test.mjs (quoting, control characters refused); GUI test in
+  gui-smoke-commands.sh.
 - v1.1.1 (2026-11-02): v1.1.0's Windows build failed — three container tests check paths a mount
   cannot carry, and Windows temp paths have `C:`; they are skipped on Windows (container hosts are
   Linux and macOS only). v1.1.0 has no release; v1.1.1 is the first with container hosts.

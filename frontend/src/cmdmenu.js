@@ -6,6 +6,25 @@
 // listed as problems and left out here).
 const usable = c => !!c?.name?.trim() && !!c.command?.trim() && !/[\u0000-\u001f\u007f-\u009f]/.test(c.command);
 
+// cdCommand is the command that goes back to dir: POSIX shells get it in
+// single quotes; on Windows (PowerShell, else cmd.exe) in double quotes,
+// which both take (a Windows path cannot contain ").
+export function cdCommand(dir, windows = false) {
+    if (windows) return `cd "${dir}"`;
+    return `cd '${dir.replaceAll("'", `'\\''`)}'`;
+}
+
+// homeItem is the Local tab's first command-menu entry: back to the
+// session's directory, the one the tab starts in. null without a usable
+// directory (no path, or control characters a terminal must not get).
+export function homeItem(dir, send, disabled = null, windows = false) {
+    if (!dir || /[\u0000-\u001f\u007f-\u009f]/.test(dir)) return null;
+    return {
+        label: 'Back to the session directory  ⏎', disabled: !!disabled, title: dir,
+        action: () => send(cdCommand(dir, windows) + '\r'),
+    };
+}
+
 // commandItems returns the menu entries for a session's commands (its own
 // first, then the global ones); send(text) types into the terminal. Each
 // entry types the command, then Enter (\r) unless its run is false;

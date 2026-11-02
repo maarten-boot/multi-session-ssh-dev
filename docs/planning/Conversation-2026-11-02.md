@@ -79,3 +79,14 @@
   - The question box's menu in Q&A became the shared `textMenu` (ui.js), also used here.
   - **Test:** new scripts/gui-smoke-dockerwin.sh (in `make smoke-container`): move, resize,
     reopen, Copy and Paste through the menu, Save. Passes; Q&A, settings and hosts tests pass.
+- **Committed** v1.1.2 (e17f80e, the Dockerfile window).
+- **User:** "when i lose my directory in the local tab of a session can we add a automatic
+  command in the Commands section to return to this Local workplace (cd <the path for this
+  sessions local directory>"
+  - **Done (still v1.1.2, not tagged yet):** the Local tab's command menu (right-click and
+    Commands ▾, now always shown on the Local tab) starts with *Back to the session directory*:
+    `cd '<local_path>'` + Enter (single quotes, `'` escaped; on Windows `cd "<path>"`, which
+    PowerShell and cmd.exe both take). Not on the Remote tab: claude may run there, not a shell.
+  - **Tests:** cmdmenu.test.mjs (quoting, a path with a newline refused; 59 frontend tests pass);
+    gui-smoke-commands.sh does `cd /`, picks the entry, checks `pwd`. Passes, as do appnotes,
+    folders, listmenu, share, sync, git, repocheck, layout and terminal-extras.

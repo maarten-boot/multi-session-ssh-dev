@@ -602,7 +602,10 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   *Prompts (this session)* / *Prompts (all sessions)* (no section without prompts); the menu
   opens once the session's prompts are read.
 - T5. Command menu in the Local and Remote tabs: a *Commands* section at the end of the
-  right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands).
+  right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands;
+  always on the Local tab). The Local tab's menu starts with *Back to the session directory*:
+  `cd '<local_path>'` and Enter (POSIX single quotes; on Windows `cd "<path>"`, which
+  PowerShell and cmd.exe both take); not in the Remote tab, which may run claude, not a shell.
   The session's own commands (`commands` on the session, Edit…) come first, then
   `[[ui.commands]]` (Settings → Commands): name, one-line command, `run` (default true: typed,
   then Enter; false: only typed), `group` (optional). Commands without a group come first; each
