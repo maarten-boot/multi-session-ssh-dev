@@ -14,7 +14,8 @@ import {QAView} from './qa';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, showMenu, store, toast} from './ui';
-import {EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
+import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
+import {TOOLCHAINS, addToolchain} from './dockerfile';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -23,6 +24,8 @@ import {
     SyncPreview, SyncSend, SyncGet, SyncTake, ShareStatus, StopShare, RecordInfo, OpenLogFolder, SpellLanguages,
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
+    ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
+    ContainerEngineInfo,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -774,11 +777,11 @@ const app = {
         for (const g of f.hosts) {
             const group = el('div', {className: 'host-group'});
             const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
-            const head = el('div', {className: 'host-head', title: g.host ? g.host.ssh_target : 'host not configured'},
+            const head = el('div', {className: 'host-head', title: g.host ? hostWhere(g.host) : 'host not configured'},
                 el('span', {className: 'caret', textContent: '▾'}),
                 el('span', {className: 'label', textContent: g.name + (g.host ? '' : ' (missing)')}),
                 el('span', {className: 'backup-warn', textContent: '⚠', hidden: true}), more);
-            if (g.host) this.hostHeads.push({name: g.name, target: g.host.ssh_target, head});
+            if (g.host && g.host.kind !== 'container') this.hostHeads.push({name: g.name, target: g.host.ssh_target, head});
             const toggle = this.collapsible(group, `h:${g.group}/${g.name}`);
             head.onclick = e => !more.contains(e.target) && toggle();
             more.onclick = e => {
@@ -1059,7 +1062,9 @@ const app = {
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
         const host = this.state.hosts.find(h => h.name === d.host);
-        path.textContent = d.error || `${host.ssh_target}:${d.remote_path}  ·  tmux ${d.tmux_name}`;
+        path.textContent = d.error || (host.kind === 'container'
+            ? `container sw-${d.id}:${d.remote_path}  ·  tmux ${d.tmux_name}`
+            : `${host.ssh_target}:${d.remote_path}  ·  tmux ${d.tmux_name}`);
         path.title = `local: ${d.local_path}`;
     },
 
@@ -1315,8 +1320,13 @@ async function groupAction(fn, title) {
 
 // ---------------------------------------------------------------- menus
 
+// hostWhere says where a host is: its ssh target, or for a container host
+// that its sessions run in containers here.
+const hostWhere = h => h.kind === 'container' ? 'containers on this computer' : h.ssh_target;
+
 // FILE_MODES names a host's file access mode (docs/CONNECTIVITY.md).
 const FILE_MODES = {
+    container: ['mounted in its container', 'The session directory is mounted at the same path in the session\'s own container.'],
     shared: ['shared folder', 'The agent host sees this directory through a shared file system (NFS, SMB, VM share).'],
     sshfs: ['live share (sshfs)', 'The agent host mounts this directory over ssh while the app runs.'],
     sync: ['working copy (sync)', 'The agent host has its own copy: Send to agent copies files there, Get fetches its commits ' +
@@ -1338,6 +1348,10 @@ function sessionMenu(s, x, y) {
         ...sync,
         ...(s.data.files === 'sshfs' ? [{label: 'Stop sharing', disabled: s.share?.state !== 'mounted',
             action: () => StopShare(s.id)}, '-'] : []),
+        ...(s.data.files === 'container' ? [
+            {label: 'Dockerfile…', action: () => dockerfileDialog(s)},
+            {label: 'Stop container…', action: () => stopContainer(s)},
+            '-'] : []),
         {label: 'Edit…', action: () => sessionDialog(s)},
         {label: 'Move up', action: () => moveBy(s, -1)},
         {label: 'Move down', action: () => moveBy(s, 1)},
@@ -1480,15 +1494,17 @@ async function restoreBackup(h) {
 function hostMenu(g, x, y) {
     const st = app.backups?.[g.name];
     const backedUp = !!when(st?.last_ok);
+    // A container host's ~/.claude is a volume, kept across rebuilds: no backups.
+    const box = g.host?.kind === 'container';
     showMenu(x, y, [
         {label: 'New session on this host…', disabled: !g.host, action: () => sessionDialog(null, g.name, g.group)},
         {label: g.host ? 'Edit host…' : 'Configure host…', action: () => hostDialog(g.host, g.host ? null : g.name)},
         '-',
-        {label: 'Back up Claude data now', disabled: !g.host || st?.busy, action: () => backupNow(g.name)},
+        ...(box ? [] : [{label: 'Back up Claude data now', disabled: !g.host || st?.busy, action: () => backupNow(g.name)},
         {label: 'Restore Claude data to this host…', disabled: !g.host || !backedUp, action: () => restoreBackup(g.host)},
         {label: 'Open Claude backup folder', disabled: !backedUp,
             action: () => OpenBackupFolder(g.name).catch(err => toast(String(err), true))},
-        '-',
+        '-']),
         {label: 'Delete host…', danger: true, disabled: !g.host, action: () => deleteHost(g.host)},
     ]);
 }
@@ -1560,7 +1576,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     idEl.replaceChildren(...(editing ? ['Id: ', el('code', {textContent: s.data.id}),
         ` — names it in config.toml, its folders (notes/${s.data.id}/, qa/${s.data.id}.json, ` +
         `working-copies/${s.data.id}/) and its tmux session cw-${s.data.id}; it cannot be changed.`] : []));
-    f.elements.host.replaceChildren(...app.state.hosts.map(h => el('option', {value: h.name, textContent: `${h.name}  (${h.ssh_target})`})));
+    f.elements.host.replaceChildren(...app.state.hosts.map(h => el('option', {value: h.name, textContent: `${h.name}  (${hostWhere(h)})`})));
     const lastHost = store.get('lastHost', '');
     f.elements.host.value = s?.data.host ?? presetHost ?? (app.state.hosts.some(h => h.name === lastHost) ? lastHost : app.state.hosts[0].name);
     f.elements.dir.value = s?.data.local_path ?? '';
@@ -1589,6 +1605,11 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.history.value = s?.data.history ?? '';
     f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
     f.elements.history.closest('label').hidden = !editing;
+    // Container sessions: the ~/.claude volume (takes effect when the
+    // container is made again: Dockerfile… → Rebuild).
+    const inBox = editing && app.state.hosts.find(h => h.name === s.data.host)?.kind === 'container';
+    f.elements.claude_volume.closest('label').hidden = !inBox;
+    f.elements.claude_volume.value = s?.data.own_claude_volume ? 'own' : 'shared';
     f.elements.group.replaceChildren(el('option', {value: '', textContent: '(no folder)'}),
         // Full paths: the closed list shows only the chosen one, without the tree around it.
         ...folderChoices().map(({group}) => el('option', {value: group, textContent: group.replaceAll('/', ' / ')})));
@@ -1639,6 +1660,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
                 history: f.elements.history.value, commands: cmdList.value, description: f.elements.description.value,
+                ...(inBox ? {own_claude_volume: f.elements.claude_volume.value === 'own'} : {}),
             });
         } else {
             created = await CreateSession({
@@ -1691,20 +1713,27 @@ async function hostDialog(h = null, presetName = null) {
     dlg.querySelector('h2').textContent = h ? `Edit host “${h.name}”` : 'Add agent host';
     for (const k of ['name', 'ssh_target', 'local_prefix', 'remote_prefix', 'remote_workdir']) f.elements[k].value = h?.[k] ?? '';
     f.elements.files.value = h?.files || 'shared';
+    f.elements.kind.value = h?.kind ?? '';
     const showMode = () => {
         const shared = f.elements.files.value === 'shared';
+        const box = f.elements.kind.value === 'container';
+        dlg.querySelector('.host-ssh').hidden = box;
+        dlg.querySelector('.host-container').hidden = !box;
         dlg.querySelector('.files-shared').hidden = !shared;
         dlg.querySelector('.files-workdir').hidden = shared;
     };
     f.elements.files.onchange = showMode;
+    f.elements.kind.onchange = showMode;
     showMode();
     if (presetName) f.elements.name.value = presetName;
     f.elements.browse.onclick = async () => {
         const dir = await BrowseDirectory(f.elements.local_prefix.value || '~');
         if (dir) f.elements.local_prefix.value = dir;
     };
-    const ok = await runDialog(dlg, () => SaveHost(h?.name ?? '', {
-        name: f.elements.name.value, ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
+    const ok = await runDialog(dlg, () => SaveHost(h?.name ?? '', f.elements.kind.value === 'container' ? {
+        name: f.elements.name.value, kind: 'container', ssh_target: '', files: '', local_prefix: '', remote_prefix: '', remote_workdir: '',
+    } : {
+        name: f.elements.name.value, kind: '', ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
         ...(f.elements.files.value === 'shared'
             ? {local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value, remote_workdir: ''}
             : {local_prefix: '', remote_prefix: '', remote_workdir: f.elements.remote_workdir.value}),
@@ -1769,6 +1798,13 @@ async function settingsDialog() {
     tabs.forEach(t => t.onclick = () => showPage(t.dataset.page));
     showPage(store.get('settingsPage', 'appearance'));
     qaSettings(dlg, f, ui);
+    f.container_engine.value = ui.container_engine ?? '';
+    const found = dlg.querySelector('.container-found');
+    const lookEngine = () => ContainerEngineInfo(f.container_engine.value)
+        .then(v => found.textContent = `Found: ${v}`)
+        .catch(err => found.textContent = err?.message ?? String(err));
+    f.container_engine.onchange = lookEngine;
+    lookEngine();
     const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true,
         groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group))});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
@@ -1885,6 +1921,7 @@ async function settingsDialog() {
         qa_model: f.qa_model.value.trim(),
         qa_claude_model: f.qa_claude_model.value,
         qa_claude: f.qa_claude.value.trim(),
+        container_engine: f.container_engine.value,
         commands: commands.value,
         start_commands: starts.value,
         tab_order: order,
@@ -2383,6 +2420,10 @@ async function deleteSession(s) {
     // A working copy's saved agent copy (Full ▾) can go with it; it is kept unless ticked.
     const saved = await SavedCopy(s.id).catch(() => ({exists: false}));
     const check = [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`];
+    const box = s.data.files === 'container';
+    if (box) {
+        check.push(`Also remove its container and image sw-${s.id}` + (s.data.own_claude_volume ? ', and its own Claude Code login volume' : ''));
+    }
     if (saved.exists) {
         const n = saved.copies.length;
         check.push(`Also delete its ${n > 1 ? `${n} saved agent copies` : 'saved agent copy'} (the newest from ${savedWhen(saved.latest.when)})`);
@@ -2393,8 +2434,12 @@ async function deleteSession(s) {
             (saved.exists ? '; so are its saved agent copies unless you tick it below.' : '.'),
         ok: 'Delete',
         check,
-        action: async ([kill, dropSaved]) => {
+        action: async ticks => {
+            const [kill] = ticks;
+            const dropBox = box && ticks[1];
+            const dropSaved = saved.exists && ticks[box ? 2 : 1];
             if (kill) await KillRemote(s.id);
+            if (dropBox) await ContainerRemove(s.id, !!s.data.own_claude_volume);
             await DeleteSession(s.id);
             if (dropSaved) await RemoveSaved(s.id);
         },
@@ -2403,6 +2448,99 @@ async function deleteSession(s) {
     const i = app.order.indexOf(s);
     await app.reload();
     if (!app.active) app.select(app.order[Math.min(i, app.order.length - 1)] || null);
+}
+
+// stopContainer stops a container session's container, after asking (what
+// runs in its tmux ends; the Remote tab starts it again when it connects).
+async function stopContainer(s) {
+    const ok = await confirmDialog({
+        title: `Stop the container of “${s.data.name}”?`,
+        text: `Stops sw-${s.id}: its tmux session and what runs there (claude) end. Its files and the Claude Code login ` +
+            'stay; the Remote tab starts the container again when it connects.',
+        ok: 'Stop container',
+        action: async () => {
+            await ContainerStop(s.id);
+            s.disconnect();
+        },
+    });
+    if (ok) toast(`Container sw-${s.id} stopped`);
+}
+
+// dockerfileDialog edits a container session's Dockerfile: the add-on
+// buttons, Save, and Save and rebuild with the build's output.
+async function dockerfileDialog(s) {
+    const dlg = $('#dlg-dockerfile');
+    if (dlg.open) return;
+    let file;
+    try {
+        file = await ContainerDockerfile(s.id);
+    } catch (err) {
+        return confirmDialog({title: 'Dockerfile', text: err?.message ?? String(err), ok: null});
+    }
+    const f = dlg.querySelector('form').elements;
+    const out = dlg.querySelector('.build-output');
+    const status = dlg.querySelector('.build-status');
+    dlg.querySelector('h2').textContent = `Dockerfile of “${s.data.name}”`;
+    f.text.value = file.text;
+    f.where.value = file.in_repo ? 'repo' : 'app';
+    const where = () => dlg.querySelector('.where-hint').textContent = f.where.value === 'repo'
+        ? `Saved in the repository: ${s.data.local_path}/.session-workbench/Dockerfile (versioned with the project).`
+        : `Saved in the app's data folder (${file.in_repo ? 'the repository\'s file is then not used' : file.path}).`;
+    f.where.onchange = where;
+    where();
+    status.textContent = `Container sw-${s.id}: ${file.state === 'none' ? 'not made yet' : file.state}.`;
+    out.textContent = '';
+    out.hidden = true;
+    dlg.querySelector('.toolchains').replaceChildren(...Object.entries(TOOLCHAINS).map(([name, lines]) => {
+        const b = el('button', {type: 'button', textContent: '+ ' + name, title: lines});
+        b.onclick = () => {
+            f.text.value = addToolchain(f.text.value, lines, name);
+            f.text.focus();
+        };
+        return b;
+    }));
+    const save = () => SaveContainerDockerfile(s.id, f.text.value, f.where.value === 'repo');
+    let building = false;
+    const rebuild = dlg.querySelector('button[name=rebuild]');
+    rebuild.onclick = async () => {
+        if (building) return ContainerStopBuild(s.id);
+        if (file.state === 'running' && !await confirmDialog({
+            title: 'Rebuild and replace the container?',
+            text: `Builds the image again, then replaces the running container sw-${s.id}: its tmux session and what ` +
+                'runs there (claude) end. Your files and the Claude Code login stay.',
+            ok: 'Rebuild',
+        })) return;
+        try {
+            await save();
+        } catch (err) {
+            return status.textContent = err?.message ?? String(err);
+        }
+        building = true;
+        rebuild.textContent = 'Stop build';
+        out.hidden = false;
+        out.textContent = '';
+        status.textContent = 'Building…';
+        EventsOn(`container:build:${s.id}`, chunk => {
+            out.textContent += chunk.replaceAll('\r\n', '\n');
+            out.scrollTop = out.scrollHeight;
+        });
+        try {
+            await ContainerRebuild(s.id);
+            status.textContent = 'Built. The Remote tab starts the new container when it connects.';
+            file.state = 'none';
+            s.disconnect();
+        } catch (err) {
+            const msg = err?.message ?? String(err);
+            const line = /line (\d+)/i.exec(msg);
+            status.textContent = `The build failed: ${msg}` + (line ? ` (Dockerfile line ${line[1]})` : '');
+        } finally {
+            EventsOff(`container:build:${s.id}`);
+            building = false;
+            rebuild.textContent = 'Save and rebuild';
+        }
+    };
+    await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text);
+    if (building) ContainerStopBuild(s.id);
 }
 
 async function deleteHost(h) {

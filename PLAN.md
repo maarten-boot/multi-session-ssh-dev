@@ -176,6 +176,18 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.0 (2026-11-02): containers as agent hosts (SPEC §4.2a, C1–C6; docs/CONNECTIVITY.md mode
+  D): a "Containers (this computer)" host, each session in its own container (Podman or Docker,
+  Settings → Containers) built from `.session-workbench/Dockerfile` or a template copy in the data
+  folder; ssh into it on 127.0.0.1 with the app's key and a pinned host key; the directory
+  mounted at the same path as you (rootless Podman: keep-id); the Claude Code login in the shared
+  `sw-claude` volume or the session's own; the Dockerfile window with toolchain buttons, Save and
+  rebuild with the build output; Stop container; delete removes container, image and own volume.
+  Found while building: a company HTTPS proxy breaks downloads in the image — the app passes your
+  extra CAs as a build context; claude.ai's installer is blocked there too — the app puts your
+  own Claude Code (Linux) into the image. Tests: internal/container units (fake engine via the
+  test binary), a real build/run/ssh test (SW_CONTAINER_TEST=podman|docker, both pass),
+  gui-smoke-container.sh with Podman.
 - v1.0.0 (2026-10-31): the first release version — the features of v0.9.7, plus (from the
   cross-check) *Claude Code's default* chosen in a session's Q&A bar stays its default when
   Settings name a Claude Code model.
@@ -192,40 +204,12 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
-- **Docker/Podman containers as agent hosts for Remote sessions** (noted 2026-11-02; design
-  decided 2026-11-02, not started). A session's Remote tab can run in a container on this
-  computer: the app builds an image from the session's Dockerfile, starts a container and
-  connects with ssh, then tmux as on any agent host, so Remote, Files, working copies,
-  recordings and backups keep working.
-  - Decided by the user:
-    - **Connect with ssh**: an sshd in the image, its port published on 127.0.0.1 only, a key
-      the app generates per container.
-    - **Bind mount**: the session's local directory at the same path inside, run as your own
-      user id (files keep their owner); Files tab, git status and notes work as now.
-    - **This computer only** at first (a remote Docker host maybe later).
-    - **Dockerfile** `.session-workbench/Dockerfile` in the repository; without one, in the
-      app's data folder (`<data dir>/containers/<id>/Dockerfile`). Starting template on
-      **Ubuntu 24.04** with openssh-server, tmux, git and Claude Code.
-    - **Edit window** per session: a Dockerfile editor with buttons that add common toolchains
-      (Go, Node, Python, Rust, Java, build tools); Save, Rebuild with the build output shown,
-      errors with their line.
-    - **Claude Code login**: one shared named volume (`sw-claude`) for ~/.claude and
-      ~/.claude.json by default (log in once, kept across rebuilds); optionally a separate
-      volume per session (Edit).
-    - **Containers keep running** when the app quits (like an ssh host); a menu item stops one;
-      deleting the session offers to remove its container (and volume, image).
-    - **Podman first**, else Docker; Settings can name one.
-    - **A container host**: Add host → "Containers (this computer)", one entry in the list;
-      each session under it gets its own container. Full network access.
-  - My defaults (to confirm while building): names `sw-<session id>` for image and container;
-    the key and the template in `<data dir>/containers/<id>/`; rebuilding asks before it
-    replaces a running container (tmux in it ends); the build runs with the session directory's
-    `.session-workbench/` as context.
-  - Steps: (1) container engine detection and Settings; (2) the container host kind in config,
-    Add host and the list; (3) template, build, run, ssh key and port, connect the Remote tab;
-    (4) the Dockerfile window with add-ons and build output; (5) stop / remove / rebuild in the
-    session menu, the login volumes; (6) tests (unit with a fake engine, a GUI test with real
-    Podman where installed), docs.
+- **Export a session as one archive** (noted 2026-11-02). Bundle everything that belongs to one
+  session into a `.zip` or `.tar.gz`: its config entry (`[[sessions]]` with its own commands and
+  links), notes (`notes/<id>/`), Q&A conversation and log, Remote tab recordings, private shell
+  history, the container's Dockerfile, maybe the saved agent copies (large: optional). To decide:
+  what goes in by default, whether keys and the Claude login stay out (they should), and
+  whether there is an import that recreates the session from the archive.
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.
@@ -234,15 +218,16 @@ implementation differs from the original plan.
 - docs/planning/Tests.md lists every test with the SPEC items it covers.
 - Go unit tests for every internal package (pathmap, remote command quoting executed through a
   real shell, config, session, notes, spell (dictionaries, encodings), autosave (scheduling,
-  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, qa (fake Claude API, fake Claude Code and command), fsbrowse, opener, gitstatus incl. the repository
+  one save at a time, saving all at quit), savedcopy (which copies are kept, the old layout), forge, qa (fake Claude API, fake Claude Code and command), container (fake engine; a real
+  Podman/Docker build with SW_CONTAINER_TEST), fsbrowse, opener, gitstatus incl. the repository
   check, syncer incl. the built-in transfer, xfer, share, backup, instance, winstate, reclog, terminal incl. a ConPTY test on Windows) —
   `make test`, and in CI on Linux, Windows and macOS (race detector on Linux).
-- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries, Q&A answers (text, code, SVG)
+- Frontend unit tests (`node --test`): mono color filter, fuzzy matching, keybindings, size/date format, notes formatting, lists, spelling (with the built-in dictionary), prompts and the prompts menu, command menu entries, Q&A answers (text, code, SVG), Dockerfile toolchain blocks
   on the notes page.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 34
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 35
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
@@ -250,7 +235,8 @@ implementation differs from the original plan.
   the agent copy is gone; Get without git; delete with the saved copy; saved automatically, at
   quit with progress, Quit now), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
-  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API and Claude Code: engines, models, right-click menus); working copies and backups also with the built-in
+  (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API and Claude Code: engines, models, right-click menus); container hosts
+  (real Podman or Docker: build, connect, Dockerfile window, rebuild, stop, delete); working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

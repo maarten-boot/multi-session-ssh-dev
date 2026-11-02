@@ -35,8 +35,8 @@ t 'echo "first: $(tmux display -p "#S")"; export MARK=old'
 check "first tmux session runs a shell" grep -qF 'SHELL\" -l' <<<"$(started)"
 shot 1-shell
 click 120 90 3; menu                            # session menu: Edit… (first item, focused)
-k Tab; k Tab; k Up                              # Name -> Folder -> Start: claude --continue
-k shift+Tab; k shift+Tab; k Return; sleep 1     # back to Name, save
+k Tab; k Tab; k Tab; k Up                       # Name -> Description -> Folder -> Start: claude --continue
+k shift+Tab; k shift+Tab; k shift+Tab; k Return; sleep 1   # back to Name, save
 shot 2-restart-offered
 expect "new start mode saved" "claude-continue" "$(field $CFG mode 4)"
 k Return; sleep 5                               # Restart now

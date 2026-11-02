@@ -67,9 +67,9 @@ shot 1-remote
 click 700 500 3; sleep 0.5; shot 2-context-menu; menu a       # "answer"
 expect "a global command from the right-click menu ran" "answer-42" "$(cat $RAN)"
 # Commands ▾ in the bar: the session's own command first.
-click ${CMDX:-700} 17; sleep 0.5; shot 3-commands-button; menu o   # "own"
+click ${CMDX:-747} 17; sleep 0.5; shot 3-commands-button; menu o   # "own"
 expect "the session's command from the bar ran" "answer-42|own-9|" "$(tr '\n' '|' <$RAN)"
-click ${CMDX:-700} 17; menu t                    # "typed only": typed, no Enter
+click ${CMDX:-747} 17; menu t                    # "typed only": typed, no Enter
 sleep 1
 check "typed only: not run" test -z "$(grep typed $RAN)"
 in_pane "typed only: on the command line" s-cmd 'echo typed-$((1+1))'
@@ -79,21 +79,21 @@ check "and run with Enter" grep -qx typed-2 $RAN
 # Groups are submenus: "git" has the session's "log", then the global
 # "fetch". Keys: g, → opens it, ↓ to fetch; the mouse: hover, then click.
 : >$RAN
-click ${CMDX:-700} 17; xdotool key g; sleep 0.3; xdotool key Right; sleep 0.5; shot 3a-submenu
+click ${CMDX:-747} 17; xdotool key g; sleep 0.3; xdotool key Right; sleep 0.5; shot 3a-submenu
 menu Down                                          # "fetch"
 expect "a command in a submenu, from the keys" "git-fetch" "$(cat $RAN)"
-click ${CMDX:-700} 17; xdotool key g Right Escape; sleep 0.3   # ← / Esc: back to the menu
+click ${CMDX:-747} 17; xdotool key g Right Escape; sleep 0.3   # ← / Esc: back to the menu
 menu Down                                          # the group after git: claude ▸ (→ opens it)
 xdotool key Right Return; sleep 1.5
 expect "Esc closes only the submenu" "git-fetch|claude-compact|" "$(tr '\n' '|' <$RAN)"
 
 # Prompts ▾: pasted without Enter, the session's own first.
 : >$RAN
-click ${PROMPTX:-800} 17; sleep 0.5; shot 3b-prompts-button; menu   # the first: "own prompt"
+click ${PROMPTX:-836} 17; sleep 0.5; shot 3b-prompts-button; menu   # the first: "own prompt"
 check "a prompt is pasted, not run" test ! -s $RAN
 in_pane "the session's prompt is on the command line" s-cmd 'echo own-prompt-$((2*4))'
 k Return; sleep 1
-click ${PROMPTX:-800} 17; menu g; k Return; sleep 1                # "global prompt"
+click ${PROMPTX:-836} 17; menu g; k Return; sleep 1                # "global prompt"
 expect "both prompts ran after Enter" "own-prompt-8|global-prompt-12|" "$(tr '\n' '|' <$RAN)"
 # The terminal's right-click menu has them too, after the commands.
 click 700 500 3; sleep 0.5; shot 3c-context-prompts; menu g g; k Return; sleep 1   # "global prompt" (after git ▸)
@@ -108,7 +108,7 @@ click 347 361; sleep 0.5                          # + Add (command menu): the ne
 xdotool type --delay 10 'where'; k Tab; xdotool type --delay 10 'pwd'
 k Return; sleep 1.5                               # Enter in a field saves
 expect "a command added in Settings is saved" 'name = "where"|command = "pwd"' "$(grep -A1 'name = "where"' $CFG | tr -d ' ' | sed 's/=/ = /' | paste -sd'|')"
-click ${CMDX:-700} 17; sleep 0.5; shot 6-menu-with-new-command; k Escape
+click ${CMDX:-747} 17; sleep 0.5; shot 6-menu-with-new-command; k Escape
 xdotool mousemove 284 137 click 1; sleep 0.5; menu     # session ⋯ → Edit… (focused first): start command and own commands
 shot 7-session-dialog; k Escape
 alive

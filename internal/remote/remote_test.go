@@ -382,3 +382,28 @@ func TestPrivateHistory(t *testing.T) {
 		}
 	}
 }
+
+func TestTargetOptions(t *testing.T) {
+	TargetOptions = func(target string) []string {
+		if target == "sw-s-1" {
+			return []string{"-o", "Port=4242"}
+		}
+		return nil
+	}
+	defer func() { TargetOptions = nil }()
+	has := func(args []string) bool { return strings.Contains(strings.Join(args, " "), "-o Port=4242 -- sw-s-1") }
+	if a, _ := ScriptArgs("sw-s-1", "true"); !has(a) {
+		t.Errorf("script: %q", a)
+	}
+	if a, _ := KillArgs("sw-s-1", "s-1"); !has(a) {
+		t.Errorf("kill: %q", a)
+	}
+	// AttachArgs leaves them to its caller (the container helper adds the
+	// port it starts the container on).
+	if a, _ := AttachArgs("sw-s-1", "s-1", "/p", "", false); strings.Contains(strings.Join(a, " "), "Port=4242") {
+		t.Errorf("attach: %q", a)
+	}
+	if a, _ := ScriptArgs("host", "true"); strings.Contains(strings.Join(a, " "), "Port=") {
+		t.Errorf("other target: %q", a)
+	}
+}

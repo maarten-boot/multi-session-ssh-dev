@@ -20,8 +20,12 @@ import (
 
 // Host is how to reach one agent host and how paths map onto it.
 type Host struct {
-	Name         string `toml:"name" json:"name"`
-	SSHTarget    string `toml:"ssh_target" json:"ssh_target"`
+	Name string `toml:"name" json:"name"`
+	// Kind is "" (an agent host reached with ssh at SSHTarget) or
+	// "container" (each session in its own container on this computer, see
+	// internal/container; no target, prefixes or file mode).
+	Kind         string `toml:"kind,omitempty" json:"kind"`
+	SSHTarget    string `toml:"ssh_target,omitempty" json:"ssh_target"`
 	LocalPrefix  string `toml:"local_prefix,omitempty" json:"local_prefix"` // empty with RemotePrefix: same paths on both sides
 	RemotePrefix string `toml:"remote_prefix,omitempty" json:"remote_prefix"`
 	// Files is how the agent host gets at session directories:
@@ -64,6 +68,9 @@ type Session struct {
 	// History overrides UI.PrivateHistory for this session: "on", "off",
 	// or "" to follow it.
 	History string `toml:"history,omitempty" json:"history"`
+	// OwnClaudeVolume gives a container session its own ~/.claude volume
+	// (its own Claude Code login) instead of the shared one.
+	OwnClaudeVolume bool `toml:"own_claude_volume,omitempty" json:"own_claude_volume"`
 }
 
 // Command is an entry of the command menu of the Local and Remote tabs:
@@ -180,6 +187,9 @@ type UI struct {
 	// QAModel is the Claude model of the Q&A tab ("" = internal/qa
 	// DefaultModel).
 	QAModel string `toml:"qa_model,omitempty" json:"qa_model"`
+	// ContainerEngine runs container hosts' sessions: "podman", "docker",
+	// or "" for Podman when installed, else Docker.
+	ContainerEngine string `toml:"container_engine,omitempty" json:"container_engine"`
 	// QAEngine answers in the Q&A tab unless a session chose another:
 	// "api" (the Claude API, needs a key), "claude" (Claude Code with its
 	// own login) or the name of one of QACommands; "" is the API when

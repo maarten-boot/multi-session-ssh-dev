@@ -20,6 +20,7 @@ export namespace config {
 	}
 	export class Host {
 	    name: string;
+	    kind: string;
 	    ssh_target: string;
 	    local_prefix: string;
 	    remote_prefix: string;
@@ -33,6 +34,7 @@ export namespace config {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
+	        this.kind = source["kind"];
 	        this.ssh_target = source["ssh_target"];
 	        this.local_prefix = source["local_prefix"];
 	        this.remote_prefix = source["remote_prefix"];
@@ -114,6 +116,7 @@ export namespace config {
 	    spell_language: string;
 	    spell_words: string[];
 	    qa_model: string;
+	    container_engine: string;
 	    qa_engine: string;
 	    qa_claude: string;
 	    qa_claude_model: string;
@@ -157,6 +160,7 @@ export namespace config {
 	        this.spell_language = source["spell_language"];
 	        this.spell_words = source["spell_words"];
 	        this.qa_model = source["qa_model"];
+	        this.container_engine = source["container_engine"];
 	        this.qa_engine = source["qa_engine"];
 	        this.qa_claude = source["qa_claude"];
 	        this.qa_claude_model = source["qa_claude_model"];
@@ -407,6 +411,24 @@ export namespace gitstatus {
 
 export namespace main {
 	
+	export class ContainerFile {
+	    path: string;
+	    text: string;
+	    in_repo: boolean;
+	    state: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ContainerFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.text = source["text"];
+	        this.in_repo = source["in_repo"];
+	        this.state = source["state"];
+	    }
+	}
 	export class Paths {
 	    local: string;
 	    remote: string;
@@ -788,6 +810,7 @@ export namespace session {
 	    group: string;
 	    record: string;
 	    history: string;
+	    own_claude_volume?: boolean;
 	    commands: config.Command[];
 	
 	    static createFrom(source: any = {}) {
@@ -803,6 +826,7 @@ export namespace session {
 	        this.group = source["group"];
 	        this.record = source["record"];
 	        this.history = source["history"];
+	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	    }
 	
@@ -881,6 +905,7 @@ export namespace session {
 	    tmux_name: string;
 	    record: string;
 	    history: string;
+	    own_claude_volume: boolean;
 	    commands: config.Command[];
 	    error: string;
 	
@@ -904,6 +929,7 @@ export namespace session {
 	        this.tmux_name = source["tmux_name"];
 	        this.record = source["record"];
 	        this.history = source["history"];
+	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.error = source["error"];
 	    }

@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of October 2026 (v1.0.0).
+at your files, and what each choice means for security. Status as of October 2026 (v1.1.0).
 
 Everything described here is implemented.
 
@@ -276,6 +276,23 @@ copies your `.git/config` to the agent host too: keep tokens out of remote URLs 
 Deleting a session, or changing the host's `remote_workdir` or file access later, leaves the
 copies on the agent host where they are.
 
+### D. A container on this computer (implemented)
+
+No second machine: a host with `kind = "container"` runs each session in its own container on
+your computer (Podman or Docker; Linux and macOS). The session directory is bind-mounted at the
+same path, so there is nothing to share or sync; the app connects with ssh to the container's
+sshd on 127.0.0.1 with its own key. The image comes from the session's Dockerfile
+(`.session-workbench/Dockerfile` in the project, else one in the app's data folder), which the
+session menu's *Dockerfile…* edits and rebuilds. README → *Containers as agent hosts* has the
+details, SPEC §4.2a the exact commands.
+
+- Good for: a separate, reproducible environment per project with exactly its toolchain,
+  without a VM or a second host.
+- Isolation: the container sees the session directory (read-write) and nothing else of yours;
+  rootless Podman keeps container root unprivileged on your computer. It shares your machine's
+  CPU and memory, and the network.
+- Claude Code's login lives in a volume (`sw-claude`, or one per session); no backups needed.
+
 ## Security: what the agent host can do to your host
 
 Keeping credentials on the host protects against **pushing**. It does **not** protect against
@@ -466,6 +483,7 @@ rsync -a --ignore-existing --safe-links -e 'ssh -o ForwardAgent=no -o ClearAllFo
 | No NFS, agent host reachable by ssh, files only needed while you work | B |
 | Agent host less trusted, or you already work with rsync | C |
 | Windows workstation | A with SMB, B, or C (built-in transfer) |
+| No second machine; a separate environment per project | D (container) |
 
 In every mode: review what comes back before you run git on your host, and keep credentials and
 secrets out of what you share.

@@ -13,7 +13,7 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -X main.version=$(VERSION)
 
-.PHONY: check deps dev build build-windows packages run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-all
+.PHONY: check deps dev build build-windows packages run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-container smoke-all
 
 check:
 	@scripts/deps.sh check
@@ -136,4 +136,10 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-spell.sh build/bin/session-workbench $(SMOKE_OUT)-spell
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 
-smoke-all: smoke smoke-sessions smoke-files smoke-ui
+# smoke-container: a container host with a real engine (Podman, else Docker; skipped
+#   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first
+#   build downloads packages (minutes). SW_ENGINE=docker picks Docker.
+smoke-container: build
+	$(XVFB) scripts/gui-smoke-container.sh build/bin/session-workbench $(SMOKE_OUT)-container
+
+smoke-all: smoke smoke-sessions smoke-files smoke-ui smoke-container

@@ -19,7 +19,7 @@ wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 shot 01-empty
 click 760 420                          # "Add host…" in the empty state
-typ "local"; k Tab; typ "localhost"; k Return   # no prefixes: same paths
+typ "local"; k Tab; k Tab; typ "localhost"; k Return   # past Kind (ssh); no prefixes: same paths
 sleep 1; shot 02-host-added
 for d in /tmp /var /usr; do
 	k ctrl+shift+n; typ "$d"; sleep 0.4; k Tab; k Tab; k Tab; k Tab; k Tab; k s; k shift+Tab; k shift+Tab; k shift+Tab; k Return; sleep 2.5

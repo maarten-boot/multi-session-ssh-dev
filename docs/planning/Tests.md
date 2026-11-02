@@ -13,9 +13,9 @@ README.md "Development" lists the make targets.
 
 | Package     | SPEC items                                                              |
 |-------------|-------------------------------------------------------------------------|
-| session     | F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5, W1 links, B6 reviewed repository, §4.7 config problems |
+| session     | C1 (container host rules, resolving to sw-<id>, own volume kept), F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5, W1 links, B6 reviewed repository, §4.7 config problems |
 | config      | §4.7 (file places, load errors, defaults, invalid values reset, README example); settings of F4, F7, F10, F12, N1b |
-| remote      | R1, R2, R4, R5, L4                                                      |
+| remote      | R1, R2, R4, R5, L4, C4 (container options for scripts and kill, not attach)                                                      |
 | terminal    | L1, L2, T4                                                              |
 | fsbrowse    | B1                                                                      |
 | opener      | B2, B3                                                                  |
@@ -25,6 +25,7 @@ README.md "Development" lists the make targets.
 | forge       | W1                                                                      |
 | qa          | Q1 (streaming, history sent back, refusals, errors, stop, store, log, model list; fake API; Claude Code and commands: arguments, resume, errors, stop, transcript, UTF-8) |
 | backup      | F7                                                                      |
+| container   | C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start |
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
 | reclog      | F10                                                                     |
@@ -41,6 +42,7 @@ README.md "Development" lists the make targets.
 |----------------------|------------------------------------|
 | appearance.test.mjs  | T3 (themes, color modes, font size) |
 | cmdmenu.test.mjs     | T5                                 |
+| dockerfile.test.mjs  | C6 (toolchain blocks before the needed part, valid continuations) |
 | qaparse.test.mjs     | Q1 (text, code and SVG parts, engine names, token line, Markdown parsing, copying as Markdown) |
 | prompts.test.mjs     | T6, N2                             |
 | keys.test.mjs        | §4.6                               |
@@ -83,6 +85,7 @@ README.md "Development" lists the make targets.
 | gui-smoke-appnotes.sh     | N2, T2, T6 | notes for all sessions, prompts page, copy/paste             |
 | gui-smoke-web.sh          | W1         | Web tab links, build runs, tab order                         |
 | gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste; Markdown drawn, copied as Markdown (part of a bold word, Ctrl+C of everything); Settings → Q&A (Claude Code's model saved and used) |
+| gui-smoke-container.sh    | C1–C6      | real Podman/Docker: build in the Remote tab, you and the path inside, Claude Code there, ssh only on 127.0.0.1, own volume; Dockerfile window save, Save and rebuild, Stop and Reconnect, delete removes container, image, volume, files |
 | gui-smoke-terminal-extras.sh | T1, T2  | find bar, emoji widths, copy-on-select                       |
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |

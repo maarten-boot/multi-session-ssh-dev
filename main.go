@@ -36,10 +36,14 @@ func main() {
 	fs := flag.NewFlagSet("session-workbench", flag.ExitOnError)
 	cfgPath := fs.String("config", defPath, "config file")
 	showVersion := fs.Bool("version", false, "print the version and exit")
+	attach := fs.String("container-attach", "", "(used by the app) connect a Remote tab to a session's container")
 	fs.Parse(os.Args[1:])
 	if *showVersion {
 		fmt.Println("session-workbench", version)
 		return
+	}
+	if *attach != "" {
+		os.Exit(runContainerAttach(*attach))
 	}
 
 	// One instance per config file: a second one would overwrite the

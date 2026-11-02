@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.12 (2026-10-31, app v1.0.0, the first release version) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.13 (2026-11-02, app v1.1.0) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -11,7 +11,7 @@ Get listing and taking over every agent branch (F11), the file mode in the sessi
 appending writes through the live share (§6), the command menu (T5), editable start commands
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
-and the Q&A tab (Q1; Claude Code and own commands without an API key).
+the Q&A tab (Q1; Claude Code and own commands without an API key) and container hosts (C1–C6).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -331,6 +331,47 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - R5. Agent forwarding and X11 forwarding are **always forced off** — forwarding the agent would
   hand the isolated machine the host's git credentials.
 
+### 4.2a Container hosts
+- C1. A host with `kind = "container"` (Add host → Kind) runs each of its sessions in its own
+  container on this computer (Linux, macOS; not Windows yet), with the engine of
+  `container_engine` (`podman`, `docker`; "" = Podman if installed, else Docker; Settings →
+  Containers shows the one found and its version). No ssh target, prefixes or file mode.
+- C2. Image, container, hostname and ssh alias `sw-<id>`, labelled `io.session-workbench.session=<id>`.
+  Built from `.session-workbench/Dockerfile` in the session directory (context: that folder),
+  else `<data dir>/containers/<id>/Dockerfile` (context: that folder; written from the template
+  the first time: Ubuntu 24.04, openssh-server, tmux, git, build tools, Claude Code), with
+  `--build-arg SW_USER/SW_UID/SW_GID` (your name — when Linux accepts it, else `dev` — and ids),
+  `--build-context sw-certs=<the PEM files of /usr/local/share/ca-certificates and
+  /etc/pki/ca-trust/source/anchors>` and `--build-context sw-tools=<your Claude Code, Linux only,
+  hard-linked or copied>`. The template's part *Needed by Session Workbench*: the extra CAs before
+  ca-certificates is installed, `NODE_EXTRA_CA_CERTS`, the user (an existing one with the uid makes
+  way), sshd (`HostKey` and `AuthorizedKeysFile` in /etc/sw, no passwords, no root login, no
+  agent/TCP/X11 forwarding, `AllowUsers` the user), `CLAUDE_CONFIG_DIR=$HOME/.claude`, Claude Code
+  in ~/.local/bin (your binary through `RUN --mount`, else the official installer).
+- C3. `run -d -p 127.0.0.1::22`, bind mounts: the session directory at the same path (no `,` or
+  `:` in it) and `<data dir>/containers/<id>/sshd` read-only at /etc/sw (host key, authorized
+  key); a volume at `~/.claude`: `sw-claude`, or `sw-claude-<id>` with the session's
+  `own_claude_volume` (Edit…). Rootless Podman adds `--userns=keep-id --user 0:0` (your ids inside
+  are yours outside).
+- C4. Keys: `ssh-keygen -t ed25519` for the client key and the container's host key in
+  `<data dir>/containers/<id>/` (owner-only), the host key pinned in its `known_hosts` as
+  `sw-<id>`. ssh to the alias gets `-o HostName=127.0.0.1 -o Port=<published> -o User=<you>
+  -o IdentityFile=… -o IdentitiesOnly=yes -o PasswordAuthentication=no -o UserKnownHostsFile=…
+  -o GlobalKnownHostsFile=/dev/null -o HostKeyAlias=sw-<id> -o StrictHostKeyChecking=yes` on top
+  of R1's options (remote.TargetOptions for scripts and End remote session).
+- C5. The Remote tab runs the app itself with `-container-attach <file>`: it builds the image if
+  there is none, creates or starts the container, waits for sshd's banner (60 s), all with its
+  output in the terminal, then becomes ssh (R1's command with C4's options). A failure shows in
+  red and the reconnect overlay follows.
+- C6. Session menu: *Dockerfile…* (the editor: toolchain buttons adding a block before the
+  needed part; save to the repository or the data folder; *Save and rebuild* — asks when the
+  container runs — streams the build into the window, then removes the container so the next
+  connection makes it from the new image; errors name the Dockerfile line when the engine does),
+  *Stop container…* (asks). Containers keep running when the app quits. Deleting the session
+  offers to remove container, image, its own volume (never `sw-claude`) and
+  `<data dir>/containers/<id>/`. End remote session with no running container does nothing.
+  No Claude backups for container hosts (the volume stays).
+
 ### 4.3 Local tab
 - L1. Local login shell in a PTY with cwd = `local_path`. Shell from config (`[local] shell/args`),
   default: `$SHELL -l` (Linux/macOS), `pwsh.exe` → `powershell.exe` → `cmd.exe` (Windows, via ConPTY).
@@ -599,7 +640,7 @@ badges, copy/paste, notifications, private shell history), Commands (command men
 recordings, Notes (spelling on/off, language, own words), Q&A (default engine `qa_engine`: automatic,
 Claude API, Claude Code or an own command; Claude API model `qa_model` with the API's models as
 suggestions; Claude Code model `qa_claude_model`; Claude Code program `qa_claude`, with where it is
-found), Keys.
+found), Containers (`container_engine`, with the one found), Keys.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),
@@ -689,6 +730,7 @@ notify.go                  desktop notifications
 proc_*.go                  child processes without a console window (Windows)
 internal/terminal          PTY processes, batched output events
 internal/remote            ssh/tmux command lines
+internal/container         container hosts: build/run with Podman or Docker, keys, ssh options (§4.2a)
 internal/pathmap           local -> remote path mapping
 internal/config            TOML config
 internal/session           hosts/sessions logic on top of the config
@@ -754,6 +796,14 @@ repository config and warns again whenever they change.
   separators, reserved characters or Windows device names) and files are read and written
   through `os.Root` on the book's folder (no escape through `..` or symlinks out of it),
   owner-only, atomic, at most 4 MB a page; notes are rendered with `textContent` only.
+- Container hosts (C1–C6): the container gets the session directory (read-write, as you) and
+  nothing else of yours: no ssh agent or keys of yours (the app's own key per container, pinned
+  host key), no X11, its sshd only on 127.0.0.1. With rootless Podman, root in the container is
+  not root on your computer; with (rootful) Docker it is the Docker daemon's root, as for any
+  Docker container. Your extra certificate authorities and (Linux) your Claude Code binary go
+  into the image; the Claude Code login lives in the `sw-claude` volume (or the session's own).
+  The repository's `.session-workbench/Dockerfile` is project code: review it like a build
+  script before rebuilding (it runs with your engine's rights).
 - Q&A tab (Q1): what you type there goes to the engine — the Claude API or Claude Code
   (Anthropic), or the program of an own command — only the questions and the conversation,
   never session files. No credentials are stored or logged; the SDK reads them from the

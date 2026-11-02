@@ -22,6 +22,7 @@ import (
 	"session-workbench/internal/autosave"
 	"session-workbench/internal/backup"
 	"session-workbench/internal/config"
+	"session-workbench/internal/container"
 	"session-workbench/internal/forge"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
@@ -102,6 +103,8 @@ func (a *App) startup(ctx context.Context) {
 	share.Configure = hideConsole
 	forge.Configure = hideConsole
 	qa.Configure = hideConsole
+	container.Configure = hideConsole
+	remote.TargetOptions = a.containerSSHOptions
 	a.shares = share.NewManager(func(id string, st share.Status) {
 		runtime.EventsEmit(ctx, "share:"+id, st)
 	})
@@ -130,6 +133,9 @@ func (a *App) startup(ctx context.Context) {
 		Hosts: func() []backup.Host {
 			var hs []backup.Host
 			for _, h := range a.sessions.Config().Hosts {
+				if h.Kind == session.HostContainer {
+					continue // ~/.claude is a volume there, kept across rebuilds
+				}
 				hs = append(hs, backup.Host{Name: h.Name, Target: h.SSHTarget})
 			}
 			return hs
@@ -980,6 +986,13 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if r.Host.Kind == session.HostContainer {
+		// The helper builds or starts the container in this terminal, then
+		// becomes ssh with the container's options.
+		if ssh, args, err = a.containerHelper(r, args); err != nil {
+			return "", err
+		}
+	}
 	tgt := reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath}
 	// Attached before any output is read: none is lost, and a connection
 	// that ends at once is not left recording.
@@ -1050,6 +1063,9 @@ func (a *App) KillRemote(id string) error {
 	r, err := a.sessions.Resolve(id)
 	if r.ID == "" {
 		return err
+	}
+	if r.Host.Kind == session.HostContainer && a.containerState(id) != "running" {
+		return nil // no container running: no tmux session either
 	}
 	args, err := remote.KillArgs(r.Host.SSHTarget, r.ID)
 	if err != nil {

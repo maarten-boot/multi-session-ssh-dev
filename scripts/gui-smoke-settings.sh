@@ -48,7 +48,7 @@ shot 5-dark-mono-live                          # no false activity badge from th
 # try to focus the hidden field and silently do nothing).
 k ctrl+shift+comma; sleep 0.8
 k Tab; k Tab; k Tab; k Tab; k ctrl+a; xdotool type '99'   # font size 99 on Appearance
-xdotool mousemove $((60+551)) $((50+109)) click 1; sleep 0.5   # the Commands page
+xdotool mousemove $((60+529)) $((50+109)) click 1; sleep 0.5   # the Commands page
 xdotool mousemove $((60+931)) $((50+520)) click 1; sleep 1   # Save: the message names the problem
 shot 5b-error-on-hidden-page
 k Escape; sleep 0.5

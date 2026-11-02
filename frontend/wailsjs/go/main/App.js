@@ -26,6 +26,30 @@ export function ClearNotification(arg1) {
   return window['go']['main']['App']['ClearNotification'](arg1);
 }
 
+export function ContainerDockerfile(arg1) {
+  return window['go']['main']['App']['ContainerDockerfile'](arg1);
+}
+
+export function ContainerEngineInfo(arg1) {
+  return window['go']['main']['App']['ContainerEngineInfo'](arg1);
+}
+
+export function ContainerRebuild(arg1) {
+  return window['go']['main']['App']['ContainerRebuild'](arg1);
+}
+
+export function ContainerRemove(arg1, arg2) {
+  return window['go']['main']['App']['ContainerRemove'](arg1, arg2);
+}
+
+export function ContainerStop(arg1) {
+  return window['go']['main']['App']['ContainerStop'](arg1);
+}
+
+export function ContainerStopBuild(arg1) {
+  return window['go']['main']['App']['ContainerStopBuild'](arg1);
+}
+
 export function CreatePage(arg1, arg2) {
   return window['go']['main']['App']['CreatePage'](arg1, arg2);
 }
@@ -180,6 +204,10 @@ export function RestoreBackup(arg1) {
 
 export function RevealPath(arg1, arg2) {
   return window['go']['main']['App']['RevealPath'](arg1, arg2);
+}
+
+export function SaveContainerDockerfile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveContainerDockerfile'](arg1, arg2, arg3);
 }
 
 export function SaveGroup(arg1, arg2) {

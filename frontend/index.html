@@ -98,6 +98,12 @@
             <div class="caption">Commands (this session's, before the ones in Settings)</div>
             <div class="command-list" data-list="session_commands"></div>
         </div>
+        <label class="claude-volume">Claude Code login in its container
+            <select name="claude_volume">
+                <option value="shared">shared with the other containers (log in once)</option>
+                <option value="own">its own (a separate volume; log in for this session)</option>
+            </select>
+        </label>
         <label>Shell history (Local and Remote tab)
             <select name="history">
                 <option value="">default</option>
@@ -126,6 +132,16 @@
         <label>Name
             <input name="name" autocomplete="off" spellcheck="false" placeholder="vibe">
         </label>
+        <label>Kind
+            <select name="kind">
+                <option value="">an agent host reached with ssh</option>
+                <option value="container">containers on this computer (Podman or Docker), one per session</option>
+            </select>
+        </label>
+        <p class="hint host-container">Each session under this host runs in its own container, built from its
+            Dockerfile (session menu → Dockerfile…), with the session directory mounted at the same path and ssh
+            reachable only from this computer. Settings → Containers chooses Podman or Docker.</p>
+        <div class="host-ssh">
         <label>SSH target
             <input name="ssh_target" autocomplete="off" spellcheck="false" placeholder="user@agent-host (anything ssh accepts)">
         </label>
@@ -156,10 +172,34 @@
         <p class="hint">Each session gets <code>&lt;folder&gt;/&lt;directory&gt;-&lt;id&gt;</code> there.
             See docs/CONNECTIVITY.md for the trade-offs of each mode.</p>
         </div>
+        </div>
         <div class="error"></div>
         <div class="buttons">
             <button value="ok" class="primary">Save</button>
             <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-dockerfile" class="wide">
+    <form method="dialog">
+        <h2></h2>
+        <p class="build-status"></p>
+        <div class="toolchains"></div>
+        <textarea name="text" class="dockerfile-text" rows="16" spellcheck="false" autocomplete="off"></textarea>
+        <label>Save to
+            <select name="where">
+                <option value="repo">the repository: .session-workbench/Dockerfile (versioned, shared)</option>
+                <option value="app">the app's data folder (only for you)</option>
+            </select>
+        </label>
+        <p class="hint where-hint"></p>
+        <pre class="build-output" hidden></pre>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button type="button" name="rebuild">Save and rebuild</button>
+            <button value="cancel" formnovalidate>Close</button>
         </div>
     </form>
 </dialog>
@@ -176,6 +216,7 @@
             <button type="button" data-page="backups">Backups and recordings</button>
             <button type="button" data-page="notes">Notes</button>
             <button type="button" data-page="qa">Q&amp;A</button>
+            <button type="button" data-page="containers">Containers</button>
             <button type="button" data-page="keys">Keys</button>
         </div>
         <section class="settings-page" data-page="appearance">
@@ -315,6 +356,21 @@
                 </label>
                 <p class="hint qa-claude-found"></p>
                 <p class="hint qa-hint"></p>
+            </div>
+        </section>
+        <section class="settings-page" data-page="containers">
+            <div class="grid">
+                <label>Engine for container hosts' sessions
+                    <select name="container_engine">
+                        <option value="">automatic: Podman if installed, else Docker</option>
+                        <option value="podman">Podman</option>
+                        <option value="docker">Docker</option>
+                    </select>
+                </label>
+                <p class="hint container-found"></p>
+                <p class="hint">A container host (Add host… → Kind) runs each of its sessions in its own container, built
+                    from the session's Dockerfile (session menu → Dockerfile…). The session directory is mounted at the same
+                    path, you are the same user inside, and ssh is reachable only from this computer.</p>
             </div>
         </section>
         <section class="settings-page shortcuts" data-page="keys">

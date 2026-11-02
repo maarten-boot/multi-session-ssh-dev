@@ -44,6 +44,20 @@ var sshOptions = []string{
 	"-o", "ConnectTimeout=20", // an agent host that is off fails in 20 s, not after TCP's ~2 minutes
 }
 
+// TargetOptions, when set, gives more ssh options for a target: the
+// address, key and pinned host key of a container session's alias. Used by
+// ScriptArgs and KillArgs; AttachArgs leaves them to its caller.
+var TargetOptions func(target string) []string
+
+// optionsFor are the forced options and the target's own.
+func optionsFor(target string) []string {
+	opts := append([]string(nil), sshOptions...)
+	if TargetOptions != nil {
+		opts = append(opts, TargetOptions(target)...)
+	}
+	return opts
+}
+
 func checkTarget(target string) error {
 	if target == "" || strings.HasPrefix(target, "-") || strings.ContainsAny(target, " \t\r\n\x00") {
 		return fmt.Errorf("remote: invalid ssh target %q", target)
@@ -178,7 +192,7 @@ func ScriptArgs(target, script string) ([]string, error) {
 	if err := checkTarget(target); err != nil {
 		return nil, err
 	}
-	args := append([]string{"-T", "-o", "BatchMode=yes"}, sshOptions...)
+	args := append([]string{"-T", "-o", "BatchMode=yes"}, optionsFor(target)...)
 	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(script)), nil
 }
 
@@ -208,6 +222,6 @@ func KillArgs(target, id string) ([]string, error) {
 	}
 	// "=" makes tmux match the name exactly rather than as a prefix.
 	tmux := "tmux kill-session -t " + Quote("="+TmuxName(id))
-	args := append([]string{"-T", "-o", "BatchMode=yes"}, sshOptions...)
+	args := append([]string{"-T", "-o", "BatchMode=yes"}, optionsFor(target)...)
 	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(tmux)), nil
 }

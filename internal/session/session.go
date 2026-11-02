@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -35,11 +36,13 @@ type View struct {
 	ColorMode   string `json:"color_mode"` // "" = follow the global setting
 	Group       string `json:"group"`
 	TrustedGit  string `json:"trusted_git"`
-	Files       string `json:"files"` // the host's file access mode
+	Files       string `json:"files"` // the host's file access mode; "container" for a container host
 	RemotePath  string `json:"remote_path"`
 	TmuxName    string `json:"tmux_name"`
 	Record      string `json:"record"`  // "on", "off", "" = follow the global setting
 	History     string `json:"history"` // "on", "off", "" = follow private_history
+	// OwnClaudeVolume: a container session's own ~/.claude volume.
+	OwnClaudeVolume bool `json:"own_claude_volume"`
 	// Commands is the session's own command menu (before the global one).
 	Commands []config.Command `json:"commands"`
 	Error    string           `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -92,6 +95,9 @@ type Edit struct {
 	Group       string  `json:"group"`
 	Record      string  `json:"record"`
 	History     string  `json:"history"` // "on", "off", "" = follow private_history
+	// OwnClaudeVolume: a container session's own ~/.claude volume; null
+	// (left out) keeps it.
+	OwnClaudeVolume *bool `json:"own_claude_volume"`
 	// Commands replaces the session's own command menu; null (left out)
 	// keeps it, [] empties it.
 	Commands []config.Command `json:"commands"`
@@ -163,12 +169,12 @@ func (m *Manager) State() State {
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
-			History: se.History, Commands: se.Commands}
+			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
 			v.RemotePath = r.RemotePath
-			v.Files = FilesMode(r.Host)
+			v.Files = viewFiles(r.Host)
 		}
 		s.Sessions = append(s.Sessions, v)
 	}
@@ -192,6 +198,15 @@ const (
 	FilesSync   = "sync"
 	FilesSSHFS  = "sshfs"
 )
+
+// viewFiles is the file mode the frontend shows: FilesMode, or
+// "container" for a container host (the directory is mounted).
+func viewFiles(h config.Host) string {
+	if h.Kind == HostContainer {
+		return HostContainer
+	}
+	return FilesMode(h)
+}
 
 // FilesMode returns the host's file access mode, "shared" by default.
 func FilesMode(h config.Host) string {
@@ -228,6 +243,13 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 		return r, fmt.Errorf("local_path %q is not an absolute path", s.LocalPath)
 	}
 	r.Host = h
+	if h.Kind == HostContainer {
+		// Its own container: the ssh alias of internal/container, the
+		// directory mounted at the same path.
+		r.Host.SSHTarget = "sw-" + s.ID
+		r.RemotePath = filepath.ToSlash(r.LocalPath)
+		return r, nil
+	}
 	if FilesMode(h) != FilesShared {
 		r.RemotePath = workdirPath(h, r.LocalPath, s.ID)
 		return r, nil
@@ -420,7 +442,7 @@ func (m *Manager) Create(in NewSession) (View, error) {
 		return View{}, err
 	}
 	return View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
-		ColorMode: s.ColorMode, Group: s.Group, Files: FilesMode(r.Host), RemotePath: r.RemotePath,
+		ColorMode: s.ColorMode, Group: s.Group, Files: viewFiles(r.Host), RemotePath: r.RemotePath,
 		TmuxName: remote.TmuxName(s.ID)}, nil
 }
 
@@ -601,6 +623,9 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].Group = e.Group
 		c.Sessions[i].Record = e.Record
 		c.Sessions[i].History = e.History
+		if e.OwnClaudeVolume != nil {
+			c.Sessions[i].OwnClaudeVolume = *e.OwnClaudeVolume
+		}
 		if e.Commands != nil { // left out: unchanged
 			c.Sessions[i].Commands = config.TidyCommands(e.Commands)
 		}
@@ -953,9 +978,25 @@ func (m *Manager) SaveHost(oldName string, h config.Host) error {
 	})
 }
 
+// HostContainer is the kind of a host whose sessions run in containers.
+const HostContainer = "container"
+
 func validHost(h config.Host) error {
 	if h.Name == "" {
 		return errors.New("host name cannot be empty")
+	}
+	switch h.Kind {
+	case "":
+	case HostContainer:
+		if runtime.GOOS == "windows" {
+			return errors.New("containers as agent hosts need Linux or macOS for now")
+		}
+		if h.SSHTarget != "" || h.LocalPrefix != "" || h.RemotePrefix != "" || h.Files != "" || h.RemoteWorkdir != "" {
+			return errors.New("a container host has no ssh target, path prefixes or file mode (the directory is mounted)")
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown host kind %q (\"container\", or none for ssh)", h.Kind)
 	}
 	if h.SSHTarget == "" || strings.HasPrefix(h.SSHTarget, "-") || strings.ContainsAny(h.SSHTarget, " \t\r\n") {
 		return fmt.Errorf("invalid ssh target %q", h.SSHTarget)

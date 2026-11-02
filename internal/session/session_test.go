@@ -948,3 +948,56 @@ func TestDescription(t *testing.T) {
 		t.Errorf("a hand-edited description that is too long not reported: %q", p)
 	}
 }
+
+func TestContainerHost(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	box := config.Host{Name: "boxes", Kind: HostContainer}
+	err := m.SaveHost("", box)
+	if runtime.GOOS == "windows" {
+		if err == nil {
+			t.Fatal("a container host was accepted on Windows")
+		}
+		return
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []config.Host{
+		{Name: "b1", Kind: HostContainer, SSHTarget: "x"},
+		{Name: "b2", Kind: HostContainer, Files: FilesSync},
+		{Name: "b3", Kind: HostContainer, LocalPrefix: "/a", RemotePrefix: "/b"},
+		{Name: "b4", Kind: "vm"},
+	} {
+		if m.SaveHost("", bad) == nil {
+			t.Errorf("accepted %+v", bad)
+		}
+	}
+	proj := filepath.Join(dir, "proj")
+	os.MkdirAll(proj, 0o755)
+	v, err := m.Create(NewSession{Host: "boxes", LocalPath: proj, Name: "boxed", StartMode: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := m.Resolve(v.ID)
+	if err != nil || r.Host.SSHTarget != "sw-"+v.ID || r.RemotePath != filepath.ToSlash(proj) {
+		t.Fatalf("resolved %+v %v", r, err)
+	}
+	st := m.State()
+	if st.Sessions[0].Files != HostContainer || st.Sessions[0].Error != "" {
+		t.Errorf("view %+v", st.Sessions[0])
+	}
+	// Own volume: set in Edit, kept when left out.
+	own := true
+	e := Edit{Name: "boxed", StartMode: "shell", OwnClaudeVolume: &own}
+	if err := m.Update(v.ID, e); err != nil {
+		t.Fatal(err)
+	}
+	e.OwnClaudeVolume = nil
+	if err := m.Update(v.ID, e); err != nil {
+		t.Fatal(err)
+	}
+	if !m.State().Sessions[0].OwnClaudeVolume {
+		t.Error("own volume lost by an edit that left it out")
+	}
+}

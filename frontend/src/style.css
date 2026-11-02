@@ -1095,7 +1095,7 @@ dialog .grid {
 }
 
 .settings-tabs button {
-    padding: 6px 12px;
+    padding: 6px 6px; /* nine pages fit on one line at the usual font size */
     border: 1px solid transparent;
     border-bottom: none;
     border-radius: 4px 4px 0 0;
@@ -2465,5 +2465,42 @@ body.sidebar-narrow #sidebar-resizer {
 
 /* Settings → Q&A: the notes under the fields use the whole width. */
 .settings-page[data-page="qa"] .hint {
+    grid-column: 1 / -1;
+}
+
+/* The Dockerfile window: the text and the build output in the mono font. */
+.dockerfile-text, .build-output {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--mono-family, monospace);
+    font-size: 0.923rem;
+}
+
+.dockerfile-text {
+    resize: vertical;
+}
+
+.build-output {
+    max-height: 14em;
+    overflow: auto;
+    margin: 8px 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel);
+    white-space: pre-wrap;
+}
+
+.toolchains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0;
+}
+
+.build-status {
+    margin: 4px 0;
+}
+
+.settings-page[data-page="containers"] .hint {
     grid-column: 1 / -1;
 }

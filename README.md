@@ -9,11 +9,11 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.0.0 (the first release version): sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.0: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
-auto-reconnect, live share and working copies for hosts without a shared file system (Get
+auto-reconnect, containers on this computer as agent hosts (Podman or Docker, a Dockerfile per session), live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch; full save, take, send and restore, also without git),
 Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
 and macOS.
@@ -89,6 +89,8 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # Remote tab recordings, command menu (with groups), prompts menu and start
                      # commands, private shell history, lists and spelling in the notes,
                      # badges (~2 min)
+make smoke-container # a container host with real Podman (else Docker; SW_ENGINE=docker):
+                     # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes)
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -425,9 +427,10 @@ Off: Settings → Terminals (`private_history = false`), or per session in *Edit
 - History files may hold secrets you typed on a command line; they are as private as your
   shell's usual history.
 
-**Settings** (Ctrl+Shift+, or *Settings…*) has seven pages: Appearance (theme, colors, fonts,
+**Settings** (Ctrl+Shift+, or *Settings…*) has eight pages: Appearance (theme, colors, fonts,
 the delay before a session's description shows, tab order), Terminals, Commands, Backups and recordings, Notes (spelling), Q&A (who answers by default, the Claude API and
-Claude Code models, the Claude Code program with where it is found) and Keys (the current shortcuts).
+Claude Code models, the Claude Code program with where it is found), Containers (Podman or Docker for
+container hosts, with the one found) and Keys (the current shortcuts).
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -595,6 +598,46 @@ copies* in the delete dialog.
 there are no commits to fetch: **⇣ Get** then takes the agent copy's files, with *Also delete
 files here…* ticked, so you get a full copy of the other side. Send works as usual.
 
+### Containers as agent hosts
+
+Instead of a machine you reach with ssh, a session can run in **its own container on this
+computer** (Linux or macOS; Podman or Docker). Add a host with *Kind: containers on this
+computer*; every session under it gets a container built from its own Dockerfile:
+
+- **Connecting** works as with any agent host: the first time the Remote tab shows the image
+  being built (a few minutes), then the app starts the container and connects with **ssh**
+  (then tmux). The container's sshd is reachable only from this computer (127.0.0.1), with a key
+  the app made for that container and its host key pinned, so ssh never asks; your own
+  `~/.ssh/config` is not used or changed.
+- **Your files**: the session directory is **mounted at the same path** inside, and you are the
+  same user there (your name, user and group id; Podman runs rootless with `--userns=keep-id`),
+  so files claude makes belong to you. Files tab, git status, notes and recordings work as usual.
+- **The Dockerfile**: session menu → **Dockerfile…** edits it — `.session-workbench/Dockerfile`
+  in the session directory (versioned with the project, shared with your team) or, when the
+  project has none, a copy in the app's data folder. The first one comes from a template:
+  Ubuntu 24.04 with sshd, tmux, git, build tools and Claude Code. Buttons add **Go, Node.js,
+  Python, Rust, Java** or more build tools as their own block; add whatever else the project
+  needs above the part marked *Needed by Session Workbench* (the user, sshd and Claude Code;
+  keep it). **Save and rebuild** builds the image again (the output shows in the window) and
+  replaces the container: it asks first when it runs, since its tmux session ends.
+- **Claude Code** in the containers: on Linux the app puts **your own Claude Code** into the
+  image (the same version, no download); elsewhere the official installer gets it. Its login
+  and settings live in a volume, **`sw-claude`**, shared by all containers, so you log in once
+  and it survives rebuilds. *Edit…* → *Claude Code login in its container*: **its own** gives a
+  session a separate volume (`sw-claude-<id>`; takes effect when the container is made again).
+- **A company proxy** that inspects HTTPS: the app passes your computer's extra certificate
+  authorities (`/usr/local/share/ca-certificates`, `/etc/pki/ca-trust/source/anchors`) into the
+  build, so downloads in the Dockerfile and Claude Code in the container trust them.
+- **Lifetime**: containers keep running when the app quits (like an ssh host, claude keeps
+  working); the Remote tab starts a stopped one again when it connects. Session menu →
+  **Stop container…** stops it (its tmux session ends); deleting the session offers to remove
+  container, image and its own login volume (never the shared one). Claude backups are not
+  made for container hosts (the login volume is kept).
+- **Engine**: Settings → **Containers**: automatic (Podman if installed, else Docker), Podman or
+  Docker; the page shows which one is found. Image, container and ssh alias are named
+  `sw-<session id>`. Rootless Docker is not supported (your files would belong to root
+  inside); Windows is not supported yet.
+
 **Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`
 (settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
 `~/.claude.json` — to this computer with rsync over ssh. It checks a minute after it
@@ -725,6 +768,7 @@ qa_model = "claude-opus-5-5"              # the Q&A tab's Claude API model
 qa_engine = "claude"                      # who answers in new Q&A tabs: "api", "claude" (Claude Code) or a qa_commands name
 qa_claude = "~/.local/bin/claude"         # optional: the Claude Code program (default: claude, looked up)
 qa_claude_model = "sonnet"                # Claude Code's model (default: Claude Code's own default)
+container_engine = "podman"               # container hosts: "podman", "docker"; default Podman if installed, else Docker
 
 [[ui.commands]]                           # the command menu (Settings → Commands)
 name = "fetch all"
@@ -786,6 +830,10 @@ name = "cloud"
 ssh_target = "me@cloud-box"
 files = "sshfs"                           # mounted at ~/sw/<dir>-<session id> while the app runs
 
+[[hosts]]                                 # each session in its own container on this computer
+name = "boxes"
+kind = "container"                        # no ssh_target, prefixes or files: the directory is mounted
+
 [[sessions]]                              # sidebar order = order in this file
 id = "s-7f3a"                             # tmux session cw-s-7f3a; [a-z0-9-], not starting with -, at most 63 characters
 name = "workbench"
@@ -797,6 +845,7 @@ group = "Work"                            # optional: sidebar folder (listed in 
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
 history = "off"                           # optional: "on" / "off" overrides [ui] private_history
+# own_claude_volume = true                # a container session's own Claude Code login (default: the shared sw-claude)
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 commands = [{ name = "test", command = "make test" }]                 # optional: before [[ui.commands]] in the menu
@@ -811,6 +860,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
 | Remote tab recordings and the Q&A log (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| container sessions' keys, pinned host key, extra certificates and Dockerfile without one in the project (`containers/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
 | Q&A conversations (`qa/<session id>.json`; `qa/work/`, the empty folder Claude Code and Q&A commands run in) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
@@ -846,6 +896,7 @@ internal/notes         notes pages: a tree of Markdown files per session and for
 internal/spell         spelling dictionaries: built-in en_US (dict/, SCOWL), Hunspell files found
 internal/forge         Web tab: links from the git remote, GitHub runs via gh
 internal/qa            Q&A tab: questions to Claude (Claude API, Claude Code) or own commands, saved conversations, the log
+internal/container     container hosts: each session's container (Podman/Docker), its Dockerfile, keys, ssh options
 internal/fsbrowse      directory listing for the Files tab (confined to the session directory)
 internal/opener        open / reveal with the OS, refusing executables
 internal/gitstatus     git status markers and the repository check for the Files tab
