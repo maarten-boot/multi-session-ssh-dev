@@ -13,7 +13,7 @@ import {WebView} from './web';
 import {QAView} from './qa';
 import {CommandList} from './commands';
 import {commandItems} from './cmdmenu';
-import {$, balloon, el, hideBalloon, hideMenu, showMenu, store, toast} from './ui';
+import {$, balloon, el, hideBalloon, hideMenu, movable, showMenu, store, textMenu, toast} from './ui';
 import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
 import {
@@ -1513,7 +1513,7 @@ function hostMenu(g, x, y) {
 
 // runDialog opens dlg and calls submit(form) when OK is pressed; the dialog
 // stays open and shows the error if submit throws. Resolves true on success.
-function runDialog(dlg, submit, focus = null) {
+function runDialog(dlg, submit, focus = null, opened = null) {
     const form = dlg.querySelector('form');
     const errEl = dlg.querySelector('.error');
     errEl.textContent = '';
@@ -1539,6 +1539,7 @@ function runDialog(dlg, submit, focus = null) {
         }, {once: true});
         dlg.returnValue = '';
         dlg.showModal();
+        opened?.();
         focus?.focus();
     });
 }
@@ -2467,10 +2468,23 @@ async function stopContainer(s) {
 }
 
 // dockerfileDialog edits a container session's Dockerfile: the add-on
-// buttons, Save, and Save and rebuild with the build's output.
+// buttons, Save, and Save and rebuild with the build's output. The window
+// can be moved (by its heading) and resized (its corner); the text and the
+// output have the right-click Cut/Copy/Paste menu.
+let dockerfileWindow;
 async function dockerfileDialog(s) {
     const dlg = $('#dlg-dockerfile');
     if (dlg.open) return;
+    if (!dockerfileWindow) {
+        dockerfileWindow = movable(dlg);
+        for (const field of [dlg.querySelector('.dockerfile-text'), dlg.querySelector('.build-output')]) {
+            field.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                textMenu(e.clientX, e.clientY, field);
+            });
+        }
+    }
     let file;
     try {
         file = await ContainerDockerfile(s.id);
@@ -2541,7 +2555,7 @@ async function dockerfileDialog(s) {
             rebuild.textContent = 'Save and rebuild';
         }
     };
-    await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text);
+    await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text, () => dockerfileWindow.pin());
     if (building) ContainerStopBuild(s.id);
 }
 

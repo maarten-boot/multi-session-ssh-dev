@@ -1,6 +1,6 @@
 import {QAAsk, QAChoose, QAClear, QALoad, QAModels, QAOpenLog, QAStop} from '../wailsjs/go/main/App';
 import {BrowserOpenURL, ClipboardGetText, ClipboardSetText, EventsOff, EventsOn} from '../wailsjs/runtime/runtime';
-import {el, showMenu, toast} from './ui';
+import {el, showMenu, textMenu, toast} from './ui';
 import {engineName, parseAnswer, parseMarkdown, svgURL, toMarkdown, tokens} from './qaparse';
 
 const errText = err => err?.message ?? String(err);
@@ -220,29 +220,7 @@ export class QAView {
 
     // inputMenu is the question box's right-click menu.
     inputMenu(x, y) {
-        const k = isMac ? '⌘' : 'Ctrl+';
-        const i = this.input;
-        const [from, to] = [i.selectionStart, i.selectionEnd];
-        const text = i.value.slice(from, to);
-        const back = () => {
-            i.focus();
-            i.setSelectionRange(from, to);
-        };
-        showMenu(x, y, [
-            {label: `Cut   ${k}X`, disabled: !text, action: () => ClipboardSetText(text).then(() => {
-                back();
-                i.setRangeText('', from, to, 'end');
-            })},
-            {label: `Copy   ${k}C`, disabled: !text, action: () => ClipboardSetText(text).then(back)},
-            {label: `Paste   ${k}V`, action: () => ClipboardGetText().then(t => {
-                back();
-                if (t) i.setRangeText(t, from, to, 'end');
-            })},
-            {label: 'Select all', action: () => {
-                i.focus();
-                i.select();
-            }},
-        ]);
+        textMenu(x, y, this.input);
     }
 
     // insert puts text into the question box at the cursor.

@@ -1,5 +1,7 @@
 // Shared DOM helpers.
 
+import {ClipboardGetText, ClipboardSetText} from '../wailsjs/runtime/runtime';
+
 export const $ = sel => document.querySelector(sel);
 export const el = (tag, props = {}, ...children) => {
     const e = Object.assign(document.createElement(tag), props);
@@ -73,6 +75,10 @@ export function showMenu(x, y, items) {
     hideBalloon();
     const m = $('#menu');
     const prevFocus = document.activeElement;
+    // A modal dialog is drawn above everything (the top layer): the menu
+    // goes into the open dialog then, else it would be hidden behind it.
+    const host = [...document.querySelectorAll('dialog[open]')].filter(isModal).pop() ?? document.body;
+    if (m.parentElement !== host) host.append(m);
     fillMenu(m, items);
     m.hidden = false;
     m.restoreFocus = prevFocus;
@@ -166,6 +172,100 @@ function menuKey(e) {
     } else return;
     e.preventDefault();
     e.stopPropagation();
+}
+
+// isModal: the dialog was opened with showModal (older WebKit lacks :modal;
+// all of this app's dialogs are modal then).
+function isModal(d) {
+    try {
+        return d.matches(':modal');
+    } catch {
+        return true;
+    }
+}
+
+// textMenu is the right-click menu of a text field (input, textarea) or of
+// read-only text (any other element: Copy and Select all only).
+export function textMenu(x, y, field) {
+    const k = navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl+';
+    if (!('value' in field) || field.tagName === 'BUTTON') {
+        const sel = getSelection();
+        const text = sel.rangeCount && field.contains(sel.anchorNode) ? sel.toString() : '';
+        return showMenu(x, y, [
+            {label: `Copy   ${k}C`, disabled: !text, action: () => ClipboardSetText(text)},
+            {label: 'Copy all', disabled: !field.textContent, action: () => ClipboardSetText(field.textContent)},
+            {label: 'Select all', action: () => sel.selectAllChildren(field)},
+        ]);
+    }
+    const [from, to] = [field.selectionStart, field.selectionEnd];
+    const text = field.value.slice(from, to);
+    const editable = !field.readOnly && !field.disabled;
+    const back = () => {
+        field.focus();
+        field.setSelectionRange(from, to);
+    };
+    // setRangeText does not fire input; listeners (autosave, counters) want it.
+    const changed = () => field.dispatchEvent(new Event('input', {bubbles: true}));
+    showMenu(x, y, [
+        {label: `Cut   ${k}X`, disabled: !text || !editable, action: () => ClipboardSetText(text).then(() => {
+            back();
+            field.setRangeText('', from, to, 'end');
+            changed();
+        })},
+        {label: `Copy   ${k}C`, disabled: !text, action: () => ClipboardSetText(text).then(back)},
+        {label: `Paste   ${k}V`, disabled: !editable, action: () => ClipboardGetText().then(t => {
+            back();
+            if (!t) return;
+            field.setRangeText(t, from, to, 'end');
+            changed();
+        })},
+        {label: 'Select all', action: () => {
+            field.focus();
+            field.select();
+        }},
+    ]);
+}
+
+// movable lets a dialog be dragged by its heading. pin, called after
+// showModal, fixes the dialog where it is (or where it was dragged to
+// before), so that resizing grows it to the right and down instead of
+// around its centre; it stays inside the window.
+export function movable(dlg) {
+    const head = dlg.querySelector('h2');
+    head.classList.add('drag-handle');
+    head.title = 'Drag to move the window';
+    head.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        const r = dlg.getBoundingClientRect();
+        const dx = e.clientX - r.left, dy = e.clientY - r.top;
+        head.setPointerCapture(e.pointerId);
+        const move = ev => place(dlg, ev.clientX - dx, ev.clientY - dy);
+        const up = () => {
+            head.removeEventListener('pointermove', move);
+            head.removeEventListener('pointerup', up);
+        };
+        head.addEventListener('pointermove', move);
+        head.addEventListener('pointerup', up);
+        e.preventDefault();
+    });
+    return {
+        pin() {
+            const r = dlg.getBoundingClientRect();
+            if (r.width > innerWidth - 8) dlg.style.width = (innerWidth - 8) + 'px';
+            if (r.height > innerHeight - 8) dlg.style.height = (innerHeight - 8) + 'px';
+            const left = dlg.style.left ? parseFloat(dlg.style.left) : r.left;
+            const top = dlg.style.top ? parseFloat(dlg.style.top) : r.top;
+            place(dlg, left, top);
+        },
+    };
+}
+
+function place(dlg, left, top) {
+    const r = dlg.getBoundingClientRect();
+    // Keep the heading reachable: at least 80px of the dialog stays visible.
+    left = Math.max(80 - r.width, Math.min(left, innerWidth - 80));
+    top = Math.max(0, Math.min(top, innerHeight - 40));
+    Object.assign(dlg.style, {margin: '0', left: left + 'px', top: top + 'px'});
 }
 
 // hideMenu closes the menu and returns focus to where it was.

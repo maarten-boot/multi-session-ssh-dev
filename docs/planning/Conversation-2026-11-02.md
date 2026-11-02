@@ -68,3 +68,14 @@
   all five release files. The first release with container hosts.
 - **Cross-check after v1.1.1:** version 1.1.1 everywhere; Tests.md now says which container
   tests skip on Windows. No other differences.
+- **User:** "the docker edit window is not resizable nor movable, the copy paste popup is not
+  visible there, could we add all that?"
+  - **Done (v1.1.2):** the Dockerfile window moves by its heading and resizes by its lower-right
+    corner (the text takes the extra room); place and size stay while the app runs. Right-click
+    on the text: Cut, Copy, Paste, Select all; on the build output: Copy, Copy all, Select all.
+  - **Cause of the missing popup:** a modal dialog is drawn in the browser's top layer, above
+    every z-index, so the app's menu was behind it (and the page outside a modal is inert). The
+    menu is now placed inside the open modal dialog; this fixes right-click menus in any dialog.
+  - The question box's menu in Q&A became the shared `textMenu` (ui.js), also used here.
+  - **Test:** new scripts/gui-smoke-dockerwin.sh (in `make smoke-container`): move, resize,
+    reopen, Copy and Paste through the menu, Save. Passes; Q&A, settings and hosts tests pass.

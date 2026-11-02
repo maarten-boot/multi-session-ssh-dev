@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.13 (2026-11-02, app v1.1.1) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.14 (2026-11-02, app v1.1.2) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -367,8 +367,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   needed part; save to the repository or the data folder — the repository's file is used
   while it exists; opening it only writes the template if there is no Dockerfile yet; *Save and rebuild* — asks when the
   container runs — streams the build into the window, then removes the container so the next
-  connection makes it from the new image; errors name the Dockerfile line when the engine does),
-  *Stop container…* (asks). Containers keep running when the app quits. Deleting the session
+  connection makes it from the new image; errors name the Dockerfile line when the engine does;
+  the window moves by its heading and resizes by its corner, keeping place and size while the
+  app runs; the text and the build output have the right-click menu — Cut, Copy, Paste, Select
+  all, and Copy all for the output),
+  *Stop container…* (asks). Right-click menus opened inside any modal window show above it. Containers keep running when the app quits. Deleting the session
   offers to remove container, image, its own volume (never `sw-claude`) and
   `<data dir>/containers/<id>/`. End remote session with no running container does nothing.
   No Claude backups for container hosts (the volume stays). The container's own files (outside

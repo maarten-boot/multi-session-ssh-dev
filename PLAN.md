@@ -176,6 +176,12 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.2 (2026-11-02): the Dockerfile window can be moved (drag its heading) and resized (its
+  corner), and keeps both while the app runs; its text and the build output have the right-click
+  Cut/Copy/Paste/Select all menu (the Q&A question box's menu, now shared as `textMenu` in ui.js).
+  Fixed on the way: a right-click menu opened inside a modal window was drawn behind it (a modal
+  dialog is in the browser's top layer); the menu now goes into the open dialog. Tested in the new
+  gui-smoke-dockerwin.sh (part of `make smoke-container`).
 - v1.1.1 (2026-11-02): v1.1.0's Windows build failed — three container tests check paths a mount
   cannot carry, and Windows temp paths have `C:`; they are skipped on Windows (container hosts are
   Linux and macOS only). v1.1.0 has no release; v1.1.1 is the first with container hosts.

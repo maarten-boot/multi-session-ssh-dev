@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.1: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.2: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -90,7 +90,8 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # commands, private shell history, lists and spelling in the notes,
                      # badges (~2 min)
 make smoke-container # a container host with real Podman (else Docker; SW_ENGINE=docker):
-                     # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes)
+                     # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes);
+                     # also the Dockerfile window itself: move, resize, right-click Copy and Paste
 make smoke-all       # all GUI tests; each checks its results and fails on a wrong one
                      # (make -k smoke-all: run the others after a failure)
 ```
@@ -619,7 +620,9 @@ computer*; every session under it gets a container built from its own Dockerfile
   Python, Rust, Java** or more build tools as their own block; add whatever else the project
   needs above the part marked *Needed by Session Workbench* (the user, sshd and Claude Code;
   keep it). **Save and rebuild** builds the image again (the output shows in the window) and
-  replaces the container: it asks first when it runs, since its tmux session ends.
+  replaces the container: it asks first when it runs, since its tmux session ends. Drag the
+  window's heading to move it and its lower-right corner to make it larger (it opens there
+  again); right-click the text or the build output for Cut, Copy, Paste and Select all.
 - **Claude Code** in the containers: on Linux the app puts **your own Claude Code** into the
   image (the same version, no download); elsewhere the official installer gets it. Its login
   and settings live in a volume, **`sw-claude`**, shared by all containers, so you log in once

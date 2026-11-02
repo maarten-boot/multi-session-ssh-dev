@@ -463,6 +463,7 @@ button.link:hover {
     text-align: left;
     background: none;
     border: none;
+    border-radius: 0; /* not the dialog buttons' style when shown in a dialog */
     padding: 6px 14px;
     cursor: pointer;
 }
@@ -2476,8 +2477,42 @@ body.sidebar-narrow #sidebar-resizer {
     font-size: 0.923rem;
 }
 
+/* It can be resized (the corner) and moved (the heading); the text takes
+   what the other parts leave. */
+#dlg-dockerfile {
+    resize: both;
+    overflow: auto;
+    min-width: 420px;
+    min-height: 360px;
+    max-width: calc(100vw - 8px);
+    max-height: calc(100vh - 8px);
+    box-sizing: border-box;
+    padding-bottom: 14px; /* room for the resize corner */
+}
+
+#dlg-dockerfile[open], #dlg-dockerfile form {
+    display: flex;
+    flex-direction: column;
+}
+
+#dlg-dockerfile form {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .dockerfile-text {
-    resize: vertical;
+    flex: 1 1 auto;
+    min-height: 8em;
+    resize: none;
+}
+
+#dlg-dockerfile .build-output {
+    flex: 0 0 auto;
+}
+
+dialog h2.drag-handle {
+    cursor: move;
+    user-select: none;
 }
 
 .build-output {
