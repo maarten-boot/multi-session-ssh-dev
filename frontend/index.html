@@ -425,6 +425,53 @@
     </form>
 </dialog>
 
+<dialog id="dlg-export">
+    <form method="dialog">
+        <h2></h2>
+        <p class="text">What goes into the archive: notes, the Dockerfile and the session's settings always;
+            never keys, logins or Claude backups.</p>
+        <div class="export-parts"></div>
+        <label>Format
+            <select name="kind">
+                <option value="zip">.zip (opens everywhere)</option>
+                <option value="tar.gz">.tar.gz</option>
+            </select>
+        </label>
+        <p class="hint export-status"></p>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Export…</button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-import">
+    <form method="dialog">
+        <h2>Import session</h2>
+        <p class="text import-about"></p>
+        <label>Agent host
+            <select name="host"></select>
+        </label>
+        <label>Directory
+            <span class="row">
+                <input name="dir" autocomplete="off" spellcheck="false">
+                <button type="button" name="browse">Browse…</button>
+            </span>
+        </label>
+        <p class="hint import-dir-hint"></p>
+        <label>Name
+            <input name="name" autocomplete="off" spellcheck="false">
+        </label>
+        <p class="hint import-notes"></p>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Import</button>
+            <button value="cancel" formnovalidate>Cancel</button>
+        </div>
+    </form>
+</dialog>
+
 <dialog id="dlg-confirm">
     <form method="dialog">
         <h2></h2>

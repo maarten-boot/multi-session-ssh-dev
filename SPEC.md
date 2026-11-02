@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.14 (2026-11-02, app v1.1.2) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.15 (2026-11-02, app v1.1.3) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -11,7 +11,8 @@ Get listing and taking over every agent branch (F11), the file mode in the sessi
 appending writes through the live share (§6), the command menu (T5), editable start commands
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
-the Q&A tab (Q1; Claude Code and own commands without an API key) and container hosts (C1–C6).
+the Q&A tab (Q1; Claude Code and own commands without an API key), container hosts (C1–C6) and
+exporting a session as an archive / importing it as a new session (F13).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -285,6 +286,37 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     refused (it would empty the agent copy). Built-in: as F9 with every file on both sides.
   - Get on a session directory that is not a repository's top (no git, or a subdirectory)
     opens Take all files with *delete* ticked: a full copy of the agent's side.
+- F13. Export and import a session (internal/sessionarchive, export.go).
+  - Export: session menu → *Export…* asks each time which parts go in, with what each holds
+    now. Always: `manifest.json` (format 1, app version, time, the `[[sessions]]` entry and its
+    host profile with the configured ssh target), notes (`notes/`), the Dockerfile (the
+    project's `.session-workbench/Dockerfile`, else the app's copy). Ticked: Q&A (`qa/`
+    conversation and its `qa-*.md` log), Remote tab recordings (`recordings/`), private shell
+    history (`history/local`, and `history/remote` fetched over ssh — the container only when
+    it runs; unreachable: listed under `missing`). Unticked: saved agent copies
+    (`working-copies/`) and the project directory (`project/`: `git ls-files --cached --others
+    --exclude-standard` plus `.git` with its directories when it is the repository's top;
+    without git every file). Never: keys, pinned host keys, certificates, the Claude login,
+    Claude backups (per host), window state. Format `.zip` or `.tar.gz` (Export dialog; the save
+    dialog adds the extension when missing); written through a temporary file, mode 0600.
+    Symlinks and special files are left out and counted. File modes (executable bits) and
+    directories are kept.
+  - Import: *+* (and the list menu) → *Import session…* opens an archive (the dialogs start in
+    the folder of the last archive this run) and makes a **new** session with a new id; nothing
+    existing is replaced. The dialog: the host (the archive's preselected when it exists, else
+    *Add “name” from the archive*), the directory (the original suggested; project files only
+    into an empty or new one; without them an existing directory is used, a new one made), the
+    name. Settings come along (description, colors, record, history, own Claude volume, own
+    commands, links); a start mode or folder that does not exist here is replaced by the
+    default (and said); `env`, `local_init` and `trusted_git` are not imported (they run
+    commands here or trust git hooks) and the dialog says so. Q&A loses Claude Code's session
+    ids (they belong to the other computer). The Remote history waits in
+    `history/<id>.remote` and is appended to the agent host's file when the Remote tab connects
+    (a container: retried while it starts). The Dockerfile goes to the app's copy only for a
+    container host whose project has none.
+  - Reading never trusts the archive: names must be local paths (no absolute names, no ".."),
+    only regular files and directories are written, through `os.Root`; a newer format is
+    refused.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

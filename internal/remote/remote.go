@@ -50,6 +50,9 @@ var sshOptions = []string{
 var TargetOptions func(target string) []string
 
 // optionsFor are the forced options and the target's own.
+// OptionsFor is the forced ssh options plus the target's own (TargetOptions).
+func OptionsFor(target string) []string { return optionsFor(target) }
+
 func optionsFor(target string) []string {
 	opts := append([]string(nil), sshOptions...)
 	if TargetOptions != nil {

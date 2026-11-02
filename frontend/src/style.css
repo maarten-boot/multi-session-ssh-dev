@@ -2539,3 +2539,15 @@ dialog h2.drag-handle {
 .settings-page[data-page="containers"] .hint {
     grid-column: 1 / -1;
 }
+
+/* The export dialog: one line per part, its note below in smaller text. */
+.export-parts label.check {
+    display: block;
+    margin: 6px 0;
+}
+
+.export-parts .part-note {
+    display: block;
+    margin-left: 24px;
+    font-size: 0.923rem;
+}

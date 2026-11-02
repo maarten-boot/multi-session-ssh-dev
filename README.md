@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.2: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.3: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -88,7 +88,7 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # desktop notifications, notes for all sessions and copy/paste,
                      # Remote tab recordings, command menu (with groups), prompts menu and start
                      # commands, private shell history, lists and spelling in the notes,
-                     # badges (~2 min)
+                     # badges, exporting and importing a session (~2 min)
 make smoke-container # a container host with real Podman (else Docker; SW_ENGINE=docker):
                      # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes);
                      # also the Dockerfile window itself: move, resize, right-click Copy and Paste
@@ -706,6 +706,19 @@ that cannot be written is reported once and tried again every minute. Files are 
 nothing removes old ones. The session menu's *Open recordings folder* opens a session's
 folder.
 
+**Export and import a session.** The session menu's **Export…** puts one session into a
+`.zip` or `.tar.gz` file, to keep it, move it to another computer or hand it over. The dialog
+asks what goes in, with how much each part holds: the session's settings, its notes and its
+Dockerfile always; the Q&A conversation and log, the Remote tab recordings and the private
+shell history (the Remote one is fetched from the agent host when it can be reached) ticked;
+the saved agent copies and the project directory itself (tracked and untracked files and
+`.git`, not what `.gitignore` excludes) unticked. Keys, logins and Claude backups never go in.
+**Import session…** in the **+** menu opens such a file and makes a **new** session from it:
+pick the host (the original one is suggested, or added from the archive when you do not have
+it), the directory (project files only go into an empty or new one) and the name. The
+session's `env` and `local_init` are not imported, since they would run commands on this
+computer; the Remote history is put back on the agent host when the Remote tab connects.
+
 Agent and X11 forwarding are always forced off on every ssh connection. The
 agent host needs `tmux` on the PATH of a login shell; the start command (`claude` by default)
 runs in an interactive login shell, so it is found on the same PATH as when you log in by hand
@@ -872,7 +885,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | Q&A conversations (`qa/<session id>.json`; `qa/work/`, the empty folder Claude Code and Q&A commands run in) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
-| Local tab shell history (`history/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
+| Local tab shell history (`history/`; `<id>.remote`: an imported Remote history until the Remote tab connects) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
@@ -914,6 +927,7 @@ internal/autosave      saving the agent copies regularly and at quit (one save p
 internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
+internal/sessionarchive  one session as a .zip or .tar.gz (export, import): manifest, parts, safe reading
 internal/instance      one instance per config file (lock)
 internal/winstate      window size and position across restarts (window.json in the data dir)
 internal/reclog        Remote tab recordings: readable text, hidden passwords, time segments

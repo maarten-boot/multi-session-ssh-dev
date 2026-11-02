@@ -72,6 +72,66 @@ export namespace config {
 	        this.models = source["models"];
 	    }
 	}
+	export class Session {
+	    id: string;
+	    name: string;
+	    description: string;
+	    host: string;
+	    local_path: string;
+	    start_mode: string;
+	    env: Record<string, string>;
+	    local_init: string;
+	    color_mode: string;
+	    group: string;
+	    trusted_git: string;
+	    links: Link[];
+	    record: string;
+	    commands: Command[];
+	    history: string;
+	    own_claude_volume: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Session(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.host = source["host"];
+	        this.local_path = source["local_path"];
+	        this.start_mode = source["start_mode"];
+	        this.env = source["env"];
+	        this.local_init = source["local_init"];
+	        this.color_mode = source["color_mode"];
+	        this.group = source["group"];
+	        this.trusted_git = source["trusted_git"];
+	        this.links = this.convertValues(source["links"], Link);
+	        this.record = source["record"];
+	        this.commands = this.convertValues(source["commands"], Command);
+	        this.history = source["history"];
+	        this.own_claude_volume = source["own_claude_volume"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class StartCommand {
 	    name: string;
 	    command: string;
@@ -428,6 +488,134 @@ export namespace main {
 	        this.in_repo = source["in_repo"];
 	        this.state = source["state"];
 	    }
+	}
+	export class ExportPart {
+	    id: string;
+	    label: string;
+	    always: boolean;
+	    default: boolean;
+	    files: number;
+	    size: number;
+	    note: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportPart(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.always = source["always"];
+	        this.default = source["default"];
+	        this.files = source["files"];
+	        this.size = source["size"];
+	        this.note = source["note"];
+	    }
+	}
+	export class ExportResult {
+	    file: string;
+	    missing: string[];
+	    skipped: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.missing = source["missing"];
+	        this.skipped = source["skipped"];
+	    }
+	}
+	export class ImportInfo {
+	    path: string;
+	    manifest: sessionarchive.Manifest;
+	    host_exists: boolean;
+	    not_imported: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.manifest = this.convertValues(source["manifest"], sessionarchive.Manifest);
+	        this.host_exists = source["host_exists"];
+	        this.not_imported = source["not_imported"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImportRequest {
+	    path: string;
+	    host: string;
+	    add_host: boolean;
+	    local_path: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.host = source["host"];
+	        this.add_host = source["add_host"];
+	        this.local_path = source["local_path"];
+	        this.name = source["name"];
+	    }
+	}
+	export class ImportResult {
+	    session: session.View;
+	    notes: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.session = this.convertValues(source["session"], session.View);
+	        this.notes = source["notes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class Paths {
 	    local: string;
@@ -978,6 +1166,58 @@ export namespace session {
 	        this.config_path = source["config_path"];
 	        this.config_error = source["config_error"];
 	        this.problems = source["problems"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace sessionarchive {
+	
+	export class Manifest {
+	    format: number;
+	    app: string;
+	    // Go type: time
+	    exported: any;
+	    session: config.Session;
+	    host: config.Host;
+	    parts: string[];
+	    missing?: string[];
+	    dockerfile_in_repo?: boolean;
+	    skipped?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Manifest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.format = source["format"];
+	        this.app = source["app"];
+	        this.exported = this.convertValues(source["exported"], null);
+	        this.session = this.convertValues(source["session"], config.Session);
+	        this.host = this.convertValues(source["host"], config.Host);
+	        this.parts = source["parts"];
+	        this.missing = source["missing"];
+	        this.dockerfile_in_repo = source["dockerfile_in_repo"];
+	        this.skipped = source["skipped"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

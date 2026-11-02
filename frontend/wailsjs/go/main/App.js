@@ -74,8 +74,24 @@ export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
 
+export function ExportParts(arg1) {
+  return window['go']['main']['App']['ExportParts'](arg1);
+}
+
+export function ExportSession(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ExportSession'](arg1, arg2, arg3);
+}
+
 export function GitStatus(arg1) {
   return window['go']['main']['App']['GitStatus'](arg1);
+}
+
+export function ImportOpen() {
+  return window['go']['main']['App']['ImportOpen']();
+}
+
+export function ImportSession(arg1) {
+  return window['go']['main']['App']['ImportSession'](arg1);
 }
 
 export function InstanceProblem() {

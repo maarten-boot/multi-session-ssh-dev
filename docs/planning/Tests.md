@@ -28,6 +28,7 @@ README.md "Development" lists the make targets.
 | container   | C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start; on Windows the tests that need a mountable path skip (container hosts are Linux/macOS; the session test checks Windows refuses them) |
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
+| sessionarchive | F13 (.zip and .tar.gz round trip, existing files kept, empty directories back; hostile archives: "..", absolute names, symlinks, no manifest, newer format, not an archive; project files: tracked, untracked, .git with its directories, not ignored; without git all; executable bits kept, skipped on Windows) |
 | reclog      | F10                                                                     |
 | syncer      | F11, F12 (full transfers)                                               |
 | autosave    | F12                                                                     |
@@ -85,6 +86,7 @@ README.md "Development" lists the make targets.
 | gui-smoke-appnotes.sh     | N2, T2, T6 | notes for all sessions, prompts page, copy/paste             |
 | gui-smoke-web.sh          | W1         | Web tab links, build runs, tab order                         |
 | gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste; Markdown drawn, copied as Markdown (part of a bold word, Ctrl+C of everything); Settings → Q&A (Claude Code's model saved and used) |
+| gui-smoke-export.sh       | F13        | session menu → Export… (project ticked) → .zip via the save dialog: manifest, notes, Q&A and its log, recordings, both histories, project with .git, not git-ignored files, no keys; + → Import session… → new id, new directory with a working repository, notes, Q&A without Claude Code ids, recordings, Local history, own commands, local_init left out; the Remote history pushed when the Remote tab connects |
 | gui-smoke-dockerwin.sh    | C6         | the Dockerfile window (no container made): dragging the heading moves it, the corner makes it larger, both kept when opened again; the right-click menu shows inside the modal window — Copy then Paste through it puts a line in twice, Save writes it |
 | gui-smoke-container.sh    | C1–C6      | real Podman/Docker: build in the Remote tab, you and the path inside, Claude Code there, ssh only on 127.0.0.1, own volume; Dockerfile window save, Save and rebuild, Stop and Reconnect, delete removes container, image, volume, files |
 | gui-smoke-terminal-extras.sh | T1, T2  | find bar, emoji widths, copy-on-select                       |

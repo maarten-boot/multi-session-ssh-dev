@@ -176,6 +176,17 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.3 (2026-11-02): export a session as a `.zip` or `.tar.gz` and import it as a new session
+  (SPEC F13; decided with the user 2026-11-02): session menu → Export… asks the parts each time
+  (always settings, notes, Dockerfile; ticked Q&A, recordings, shell history with the Remote one
+  fetched over ssh; unticked saved agent copies and the project without git-ignored files);
+  never keys, logins, Claude backups. + → Import session… makes a new session (new id): host
+  suggested or added from the archive, project files only into an empty or new directory,
+  env/local_init/trusted_git not imported, Claude Code session ids dropped, the Remote history
+  pushed when the Remote tab connects. New package internal/sessionarchive (safe reading through
+  os.Root; directories kept, so a fresh repository's empty .git/refs comes back). xfer now
+  uses the target's own ssh options too (container sessions). Tests: unit tests (both formats,
+  hostile archives, project file choice, modes, empty directories) and gui-smoke-export.sh.
 - v1.1.2 (2026-11-02): the Dockerfile window can be moved (drag its heading) and resized (its
   corner), and keeps both while the app runs; its text and the build output have the right-click
   Cut/Copy/Paste/Select all menu (the Q&A question box's menu, now shared as `textMenu` in ui.js).
@@ -217,27 +228,14 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
-- **Export a session as one archive** (noted 2026-11-02; design decided 2026-11-02, not built).
-  - Export: session menu → *Export…*, a dialog that asks each time which parts go in. Always:
-    the config entry (`[[sessions]]` with its own commands, links, description), its host
-    profile (name, kind, ssh target, path prefixes — for import's suggestion), notes
-    (`notes/<id>/`) and the Dockerfile (the repository's or the data folder's copy). Ticked by
-    default: Q&A conversation and log (`qa/<id>.json`, its log in `logs/…`), Remote tab
-    recordings (`logs/<host>/<session path>/`), private shell history — the Local tab's
-    (`history/<id>.history`) and the Remote tab's, fetched over ssh from
-    `~/.local/state/session-workbench/history/<id>` when the host (or running container) is
-    reachable, else noted as missing. Unticked: saved agent copies (`working-copies/<id>/`,
-    large) and the project directory (tracked and untracked files plus `.git`, without what
-    `.gitignore` excludes; without git all files).
-  - Never in it: keys (`containers/<id>/` keys, pinned host keys, certificates), the Claude
-    login volume, Claude backups (per host, not per session), window state.
-  - Format: the save dialog offers `.zip` and `.tar.gz`. A `manifest.json` in it names the
-    app version, the session id, what is in it and what was missing.
-  - Import: *Import session…* makes a **new** session with a new id (never overwrites): you
-    pick the host — the archive's preselected when you have it, else an option to add it from
-    the archive's profile — and the local directory (the original path suggested); project
-    files are unpacked only into an empty or new directory. The Remote shell history goes to
-    the chosen host at the next connect.
+- **Local and Remote commands** (asked 2026-11-02; decided, not built). Each command menu entry
+  gets `where`: "" (the tab you are in, the default — existing commands unchanged), "local" or
+  "remote". Commands ▾ and the right-click menu list the commands for the tab you are in, then a
+  section for the other tab (*Local tab* / *Remote tab*), groups kept inside each section.
+  Picking a Local command on the Remote tab types it into the session's Local tab (started if
+  needed) and you stay on the Remote screen: a toast says where it ran, the Local tab's
+  activity badge shows its output. Use: `git push` from this computer when the agent host has
+  no GitHub access. Settings → Commands and Edit… get a Where column.
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.
@@ -255,7 +253,7 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 35
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 36
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
@@ -264,7 +262,8 @@ implementation differs from the original plan.
   quit with progress, Quit now), live share (commits and
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API and Claude Code: engines, models, right-click menus); container hosts
-  (real Podman or Docker: build, connect, Dockerfile window, rebuild, stop, delete); working copies and backups also with the built-in
+  (real Podman or Docker: build, connect, Dockerfile window — also moving, resizing and its
+  right-click menu — rebuild, stop, delete); exporting and importing a session; working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

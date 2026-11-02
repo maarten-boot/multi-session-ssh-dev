@@ -50,7 +50,15 @@ export function DeletePage(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteSession(arg1:string):Promise<void>;
 
+export function ExportParts(arg1:string):Promise<Array<main.ExportPart>>;
+
+export function ExportSession(arg1:string,arg2:Array<string>,arg3:string):Promise<main.ExportResult>;
+
 export function GitStatus(arg1:string):Promise<gitstatus.Status>;
+
+export function ImportOpen():Promise<main.ImportInfo>;
+
+export function ImportSession(arg1:main.ImportRequest):Promise<main.ImportResult>;
 
 export function InstanceProblem():Promise<string>;
 

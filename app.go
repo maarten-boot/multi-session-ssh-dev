@@ -34,6 +34,7 @@ import (
 	"session-workbench/internal/remote"
 	"session-workbench/internal/savedcopy"
 	"session-workbench/internal/session"
+	"session-workbench/internal/sessionarchive"
 	"session-workbench/internal/share"
 	"session-workbench/internal/spell"
 	"session-workbench/internal/syncer"
@@ -50,15 +51,17 @@ type App struct {
 	sessions *session.Manager
 	shares   *share.Manager
 	notes    notes.Store
-	dictDir  string // own spelling dictionaries: "dictionaries" next to the config
-	backups  *backup.Runner
-	saves    *autosave.Runner // agent copies of working-copy sessions
-	rec      *reclog.Recorder // Remote tab recordings
-	dataDir  string           // config.DataDir: Claude backups, window.json
-	win      winstate.State   // as the window was last closed
-	placed   sync.Once        // the window was put back where it was (domReady)
-	closing  atomic.Bool      // the page was asked to save before quitting (beforeClose)
-	notify   notifier
+	// lastArchiveDir: where the last session archive was saved or opened.
+	lastArchiveDir string
+	dictDir        string // own spelling dictionaries: "dictionaries" next to the config
+	backups        *backup.Runner
+	saves          *autosave.Runner // agent copies of working-copy sessions
+	rec            *reclog.Recorder // Remote tab recordings
+	dataDir        string           // config.DataDir: Claude backups, window.json
+	win            winstate.State   // as the window was last closed
+	placed         sync.Once        // the window was put back where it was (domReady)
+	closing        atomic.Bool      // the page was asked to save before quitting (beforeClose)
+	notify         notifier
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
 	running error
@@ -128,6 +131,7 @@ func (a *App) startup(ctx context.Context) {
 	a.terms.SetTap(a.rec)
 	backup.Configure = hideConsole
 	xfer.Configure = hideConsole
+	sessionarchive.Configure = hideConsole
 	a.backups = &backup.Runner{
 		Dir: filepath.Join(a.dataDir, "claude-backups"),
 		Hosts: func() []backup.Host {
@@ -992,6 +996,13 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 		if ssh, args, err = a.containerHelper(r, args); err != nil {
 			return "", err
 		}
+	}
+	// An imported Remote history goes to the host first (a container is
+	// still starting: then while it comes up).
+	if r.Host.Kind == session.HostContainer {
+		go a.pushPendingHistory(r)
+	} else {
+		a.pushPendingHistory(r)
 	}
 	tgt := reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath}
 	// Attached before any output is read: none is lost, and a connection

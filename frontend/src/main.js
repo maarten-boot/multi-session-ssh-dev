@@ -16,6 +16,7 @@ import {commandItems, homeItem} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, movable, showMenu, store, textMenu, toast} from './ui';
 import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
+import {fmtSize} from './format';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -25,7 +26,7 @@ import {
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
-    ContainerEngineInfo,
+    ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -1373,6 +1374,7 @@ function sessionMenu(s, x, y) {
             action: () => setSessionRecord(s, !recordsRemote(app.state.ui, s.data)),
         },
         {label: 'Open recordings folder', action: () => OpenLogFolder(s.id).catch(err => toast(err?.message ?? String(err), true))},
+        {label: 'Export…', action: () => exportDialog(s)},
         '-',
         {label: 'Disconnect', action: () => s.disconnect()},
         {label: 'End remote session…', danger: true, action: () => endRemote(s)},
@@ -1441,6 +1443,7 @@ const newItems = () => [
     {label: `New session…   ${keyHint('new_session')}`, action: () => sessionDialog()},
     {label: 'New folder…', action: () => folderDialog()},
     {label: 'Add host…', action: () => hostDialog()},
+    {label: 'Import session…', action: () => importDialog()},
 ];
 
 function newMenu(x, y) {
@@ -2564,6 +2567,97 @@ async function dockerfileDialog(s) {
     };
     await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text, () => dockerfileWindow.pin());
     if (building) ContainerStopBuild(s.id);
+}
+
+// exportDialog asks which parts of the session go into an archive (notes,
+// Dockerfile and settings always), and its format; Export… then asks where.
+async function exportDialog(s) {
+    const dlg = $('#dlg-export');
+    if (dlg.open) return;
+    let parts;
+    try {
+        parts = await ExportParts(s.id);
+    } catch (err) {
+        return confirmDialog({title: 'Export', text: err?.message ?? String(err), ok: null});
+    }
+    const f = dlg.querySelector('form').elements;
+    dlg.querySelector('h2').textContent = `Export “${s.data.name}”`;
+    const status = dlg.querySelector('.export-status');
+    status.textContent = '';
+    const amount = p => p.files < 0 ? '' : p.files === 0 ? ' — nothing yet' : ` — ${p.files} file${p.files === 1 ? '' : 's'}, ${fmtSize(p.size)}`;
+    dlg.querySelector('.export-parts').replaceChildren(...parts.map(p => {
+        const box = el('input', {type: 'checkbox', name: 'part', value: p.id, checked: p.always || p.default, disabled: p.always});
+        return el('label', {className: 'check', title: p.note},
+            box, ` ${p.label}${p.always ? ' (always)' : ''}${amount(p)}`,
+            ...(p.note ? [el('span', {className: 'part-note', textContent: p.note})] : []));
+    }));
+    f.kind.value = store.get('exportKind', 'zip');
+    const ok = await runDialog(dlg, async () => {
+        const chosen = [...dlg.querySelectorAll('input[name=part]:checked:not(:disabled)')].map(b => b.value);
+        store.set('exportKind', f.kind.value);
+        status.textContent = 'Exporting…';
+        let res;
+        try {
+            res = await ExportSession(s.id, chosen, f.kind.value);
+        } finally {
+            status.textContent = '';
+        }
+        if (!res.file) throw new Error('Not exported: no file chosen.');
+        const extra = [...(res.missing ?? []), ...(res.skipped ? [`${res.skipped} symlink(s) or special file(s) left out`] : [])];
+        toast(`Exported to ${res.file}` + (extra.length ? ` — missing: ${extra.join('; ')}` : ''), extra.length > 0);
+    }, dlg.querySelector('button[value=ok]'));
+    return ok;
+}
+
+// importDialog opens an archive, then asks for the host (the archive's
+// suggested, or added from it), the directory and the name of the new
+// session.
+async function importDialog() {
+    const dlg = $('#dlg-import');
+    if (dlg.open) return;
+    let info;
+    try {
+        info = await ImportOpen();
+    } catch (err) {
+        return confirmDialog({title: 'Import session', text: err?.message ?? String(err), ok: null});
+    }
+    if (!info) return;
+    const m = info.manifest;
+    const f = dlg.querySelector('form').elements;
+    const when = m.exported ? new Date(m.exported).toLocaleString() : '';
+    const PARTS = {notes: 'notes', dockerfile: 'the Dockerfile', qa: 'Q&A', recordings: 'recordings',
+        history: 'shell history', copies: 'saved agent copies', project: 'the project files'};
+    dlg.querySelector('.import-about').textContent = `“${m.session.name}” from ${info.path.split(/[\\/]/).pop()}` +
+        ` (exported ${when} by Session Workbench ${m.app}). In it: ${(m.parts ?? []).map(p => PARTS[p] ?? p).join(', ')}.` +
+        (m.missing?.length ? ` Missing at export: ${m.missing.join('; ')}.` : '');
+    const ADD = '\u0000add';
+    f.host.replaceChildren(
+        ...app.state.hosts.map(h => el('option', {value: h.name, textContent: h.name, selected: h.name === m.host.name})),
+        ...(info.host_exists ? [] : [el('option', {value: ADD, selected: true,
+            textContent: `Add “${m.host.name}” from the archive (${m.host.kind === 'container' ? 'containers' : m.host.ssh_target || 'ssh'})`})]));
+    f.dir.value = m.session.local_path;
+    f.name.value = m.session.name;
+    const hasProject = (m.parts ?? []).includes('project');
+    dlg.querySelector('.import-dir-hint').textContent = hasProject
+        ? 'The project files are unpacked here: the directory must be empty or new.'
+        : 'The archive has no project files: an existing directory is used as it is, a new one is created.';
+    dlg.querySelector('.import-notes').textContent = info.not_imported?.length
+        ? `Not imported (they would run commands on this computer): ${info.not_imported.join(', ')}.` : '';
+    f.browse.onclick = async () => {
+        const dir = await BrowseDirectory(f.dir.value);
+        if (dir) f.dir.value = dir;
+    };
+    let result;
+    const ok = await runDialog(dlg, async () => {
+        const add = f.host.value === ADD;
+        result = await ImportSession({path: info.path, host: add ? m.host.name : f.host.value, add_host: add,
+            local_path: f.dir.value, name: f.name.value});
+    }, f.dir);
+    if (!ok) return;
+    await app.reload();
+    app.select(app.sessions.get(result.session.id));
+    const notes = result.notes ?? [];
+    toast(`Imported “${result.session.name}”` + (notes.length ? ` — ${notes.join('; ')}` : ''), notes.length > 0);
 }
 
 async function deleteHost(h) {

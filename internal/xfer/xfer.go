@@ -48,7 +48,8 @@ func ssh(ctx context.Context, target, script string, stdin io.Reader, stdout io.
 	if err := remote.CheckTarget(target); err != nil {
 		return 0, "", err
 	}
-	args := append([]string{"-T", "-o", "BatchMode=yes"}, remote.SSHOptions()...)
+	// The target's own options too: a container session's port and keys.
+	args := append([]string{"-T", "-o", "BatchMode=yes"}, remote.OptionsFor(target)...)
 	args = append(args, "--", target, "exec /bin/sh -c "+remote.Quote(script))
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 	cmd.Stdin, cmd.Stdout = stdin, stdout

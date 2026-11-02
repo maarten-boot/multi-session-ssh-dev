@@ -113,3 +113,32 @@
   - Project directory: optional, unticked; tracked and untracked files and .git, not the
     git-ignored ones.
   - Remote tab shell history: fetched over ssh when reachable, else noted as missing.
+- **Committed** 27ed666 (export design); pushed.
+- **User:** "pushed, start" — built the session export and import (v1.1.3, SPEC F13):
+  - internal/sessionarchive: zip and tar.gz writer and reader, manifest, project file list
+    (git ls-files plus .git), safe Extract through os.Root; export.go: ExportParts,
+    ExportSession (save dialog), ImportOpen (open dialog), ImportSession; the Export… and
+    Import session… dialogs.
+  - My own choices, beyond the user's answers: env, local_init and trusted_git are not
+    imported (they would run commands on this computer or trust git hooks; the dialog says
+    so); Claude Code session ids are dropped from the imported Q&A; the export and import
+    dialogs start in the folder of the last archive this run.
+  - Found while testing: a fresh repository's empty `.git/refs/heads` was lost (files only),
+    so git refused the imported copy — archives now keep directories. xfer (the built-in
+    ssh transfer) now also uses a target's own options, so container sessions work for the
+    Remote history.
+  - GTK file dialogs in tests: typing a full path into the open dialog's location bar is
+    garbled by GTK's completion; the test types the name only (the dialog starts in the
+    export's folder). A SIGTERM while a native file dialog is open waits until it closes (a
+    second one kills the app) — existing behaviour; the test closes dialogs first.
+  - Tests: sessionarchive unit tests; gui-smoke-export.sh (29 checks) passes; go test -race
+    ./..., 59 frontend tests, cross vet for Windows/macOS pass.
+- **User (during the export work):** "if we split the commands menu into local and remote we
+  can use that to issue local commands (on the local session) while we are looking at the
+  remote screen: e.g when the remote session asks for a push to git (as it has no github
+  access)" — decided (in PLAN "Next"): a `where` per command (default the tab you are in);
+  a Local command picked on the Remote tab runs in the Local tab and you stay on the Remote
+  screen; one menu with a section for the other tab.
+- **Fixed** gui-smoke-container.sh: Delete session… is one row lower after the new Export…
+  entry; the container test passes again, as do listmenu, sessions, hosts, history, backup
+  and sync (also with the built-in transfer).
