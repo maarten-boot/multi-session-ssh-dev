@@ -217,12 +217,27 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
-- **Export a session as one archive** (noted 2026-11-02). Bundle everything that belongs to one
-  session into a `.zip` or `.tar.gz`: its config entry (`[[sessions]]` with its own commands and
-  links), notes (`notes/<id>/`), Q&A conversation and log, Remote tab recordings, private shell
-  history, the container's Dockerfile, maybe the saved agent copies (large: optional). To decide:
-  what goes in by default, whether keys and the Claude login stay out (they should), and
-  whether there is an import that recreates the session from the archive.
+- **Export a session as one archive** (noted 2026-11-02; design decided 2026-11-02, not built).
+  - Export: session menu → *Export…*, a dialog that asks each time which parts go in. Always:
+    the config entry (`[[sessions]]` with its own commands, links, description), its host
+    profile (name, kind, ssh target, path prefixes — for import's suggestion), notes
+    (`notes/<id>/`) and the Dockerfile (the repository's or the data folder's copy). Ticked by
+    default: Q&A conversation and log (`qa/<id>.json`, its log in `logs/…`), Remote tab
+    recordings (`logs/<host>/<session path>/`), private shell history — the Local tab's
+    (`history/<id>.history`) and the Remote tab's, fetched over ssh from
+    `~/.local/state/session-workbench/history/<id>` when the host (or running container) is
+    reachable, else noted as missing. Unticked: saved agent copies (`working-copies/<id>/`,
+    large) and the project directory (tracked and untracked files plus `.git`, without what
+    `.gitignore` excludes; without git all files).
+  - Never in it: keys (`containers/<id>/` keys, pinned host keys, certificates), the Claude
+    login volume, Claude backups (per host, not per session), window state.
+  - Format: the save dialog offers `.zip` and `.tar.gz`. A `manifest.json` in it names the
+    app version, the session id, what is in it and what was missing.
+  - Import: *Import session…* makes a **new** session with a new id (never overwrites): you
+    pick the host — the archive's preselected when you have it, else an option to add it from
+    the archive's profile — and the local directory (the original path suggested); project
+    files are unpacked only into an empty or new directory. The Remote shell history goes to
+    the chosen host at the next connect.
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.

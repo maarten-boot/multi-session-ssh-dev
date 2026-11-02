@@ -100,3 +100,16 @@
   no macOS runner and cancelled that job — capacity, not the code.)
 - **Cross-check after the v1.1.2 release:** no code or docs changed since dc0398b (only this
   log); version 1.1.2 everywhere, PLAN has the v1.1.2 entry. No differences.
+- **User:** "yes, start asking questions about the export" — design of the session export decided
+  (in PLAN "Next"):
+  - Defaults: "when preparing for a export ask the user what parts they want in by default
+    check 1,2,3 as on and 4 as off" — the export dialog asks every time; Q&A, recordings and
+    shell history ticked, saved agent copies unticked. Always in: config entry, host profile,
+    notes, Dockerfile. Never: keys, the Claude login, Claude backups (per host).
+  - Import: yes, as a new session (new id); host picked with the original suggested (or added
+    from the archive's profile); local directory picked, project files only into an empty or
+    new directory.
+  - Format: chosen per export (.zip or .tar.gz).
+  - Project directory: optional, unticked; tracked and untracked files and .git, not the
+    git-ignored ones.
+  - Remote tab shell history: fetched over ssh when reachable, else noted as missing.
