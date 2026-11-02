@@ -90,3 +90,8 @@
   - **Tests:** cmdmenu.test.mjs (quoting, a path with a newline refused; 59 frontend tests pass);
     gui-smoke-commands.sh does `cd /`, picks the entry, checks `pwd`. Passes, as do appnotes,
     folders, listmenu, share, sync, git, repocheck, layout and terminal-extras.
+- **Committed** 6bc8ba5 (Back to the session directory); pushed, GitHub main = 6bc8ba5.
+- **Cross-check after 6bc8ba5:** version 1.1.2 in wails.json, README, SPEC (v1.14) and
+  CONNECTIVITY; the Dockerfile window (C6), the in-dialog menus and the Local tab's Back entry
+  (T5) are in README, SPEC, PLAN and Tests.md, each with its test. One fix: CONNECTIVITY said
+  "Status as of October 2026" — now November 2026 (stale since v1.1.0).
