@@ -150,3 +150,9 @@
   - Found in the GUI test: after a command went to the other tab, the keys went nowhere (the
     focus was left on the menu button) — the tab on screen gets the focus back.
   - Tests: session validation, cmdmenu (60 frontend tests), gui-smoke-commands.sh passes.
+- **Committed** 30f47e1 (Local and Remote commands; the amended commit adds the generated
+  models.ts with `where`); pushed, GitHub main = 30f47e1.
+- **Cross-check after 30f47e1:** version 1.1.3 everywhere; F13 and T5 (where) match the code,
+  with their tests in Tests.md. Fixed: the README's list of session menu entries lacked
+  *Export…* (and the container sessions' *Dockerfile…* / *Stop container…*), the "+" menu lists
+  in README and SPEC F1 lacked *Import session…*, SPEC F1's session menu lacked export.

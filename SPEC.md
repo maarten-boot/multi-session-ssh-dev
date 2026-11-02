@@ -111,14 +111,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (shows the session id, read-only, with the config entry, folders and tmux session it names;
-  rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), disconnect, end remote session, delete (optionally ending
+  rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), export (F13), disconnect, end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
   A red ▲ marks a session whose notes have TODO lines (N1c).
   Resting the mouse on a session shows a balloon with its name, local path and description
   (optional, set in the New session / Edit dialog; at most 2000 characters, line ends kept,
   trimmed; a longer hand-edited one is shown and reported) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
   when the mouse leaves, a button is pressed, the list scrolls or changes, or a menu opens.
-  A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host)
+  A right-click on the empty space of the list (below or between hosts and folders): the + menu (new session, new folder, add host, import session — F13)
   and *Notes for all sessions…* / *Prompts for all sessions…* (N2, on its Home or Prompts page;
   the Prompts page is made if missing), *Quick switcher…*.
   The quick switcher (`quick_switcher` key or that menu) ranks sessions by a fuzzy match on name

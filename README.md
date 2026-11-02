@@ -525,13 +525,14 @@ the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*
 work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
-*Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
+*Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
 session too, and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
-*Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*. Drag sessions to reorder
+*Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
+container sessions *Dockerfile…* and *Stop container…*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
 Claude data, or delete it (once no session uses it). Right-click the empty space below (or
-between) the hosts and folders for the "+" menu (*New session…*, *New folder…*, *Add host…*)
+between) the hosts and folders for the "+" menu (*New session…*, *New folder…*, *Add host…*, *Import session…*)
 and *Notes for all sessions…* / *Prompts for all sessions…* (opens that page of the ✎ notes;
 the Prompts page is made when there is none), and *Quick switcher…*. Menus also work from the keyboard (arrows,
 Home/End, Enter, Esc, first letter; → opens a submenu such as a command group, ← closes it).
