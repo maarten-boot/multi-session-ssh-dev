@@ -202,3 +202,22 @@ func TestFind(t *testing.T) {
 		t.Error("names")
 	}
 }
+
+func TestEnsureDockerfile(t *testing.T) {
+	s := spec(t)
+	if err := EnsureDockerfile(s); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(s.Dir, "Dockerfile")); string(b) != Template {
+		t.Error("no template")
+	}
+	// Nothing else is made: no keys, no certificates.
+	if _, err := os.Stat(filepath.Join(s.Dir, "id_ed25519")); err == nil {
+		t.Error("made keys")
+	}
+	os.WriteFile(filepath.Join(s.Dir, "Dockerfile"), []byte("FROM mine\n"), 0o600)
+	EnsureDockerfile(s)
+	if b, _ := os.ReadFile(filepath.Join(s.Dir, "Dockerfile")); string(b) != "FROM mine\n" {
+		t.Error("replaced an existing Dockerfile")
+	}
+}

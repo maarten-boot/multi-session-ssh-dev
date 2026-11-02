@@ -614,7 +614,7 @@ computer*; every session under it gets a container built from its own Dockerfile
   so files claude makes belong to you. Files tab, git status, notes and recordings work as usual.
 - **The Dockerfile**: session menu → **Dockerfile…** edits it — `.session-workbench/Dockerfile`
   in the session directory (versioned with the project, shared with your team) or, when the
-  project has none, a copy in the app's data folder. The first one comes from a template:
+  project has none, a copy in the app's data folder (the project's file wins while it exists). The first one comes from a template:
   Ubuntu 24.04 with sshd, tmux, git, build tools and Claude Code. Buttons add **Go, Node.js,
   Python, Rust, Java** or more build tools as their own block; add whatever else the project
   needs above the part marked *Needed by Session Workbench* (the user, sshd and Claude Code;
@@ -632,7 +632,9 @@ computer*; every session under it gets a container built from its own Dockerfile
   working); the Remote tab starts a stopped one again when it connects. Session menu →
   **Stop container…** stops it (its tmux session ends); deleting the session offers to remove
   container, image and its own login volume (never the shared one). Claude backups are not
-  made for container hosts (the login volume is kept).
+  made for container hosts (the login volume is kept). What lives only in the container —
+  outside the mounted directory and the login volume, such as the Remote tab's private shell
+  history (`~/.local/state/session-workbench/history/` there) — is gone after a rebuild.
 - **Engine**: Settings → **Containers**: automatic (Podman if installed, else Docker), Podman or
   Docker; the page shows which one is found. Image, container and ssh alias are named
   `sw-<session id>`. Rootless Docker is not supported (your files would belong to root

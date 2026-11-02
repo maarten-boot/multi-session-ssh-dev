@@ -217,7 +217,7 @@ func (a *App) ContainerDockerfile(id string) (ContainerFile, error) {
 		return ContainerFile{}, err
 	}
 	spec := a.containerSpec(r)
-	if err := container.Prepare(spec); err != nil {
+	if err := container.EnsureDockerfile(spec); err != nil {
 		return ContainerFile{}, err
 	}
 	file, _, inRepo := spec.Dockerfile()

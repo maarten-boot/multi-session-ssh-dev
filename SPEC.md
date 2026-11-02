@@ -364,13 +364,15 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   output in the terminal, then becomes ssh (R1's command with C4's options). A failure shows in
   red and the reconnect overlay follows.
 - C6. Session menu: *Dockerfile…* (the editor: toolchain buttons adding a block before the
-  needed part; save to the repository or the data folder; *Save and rebuild* — asks when the
+  needed part; save to the repository or the data folder — the repository's file is used
+  while it exists; opening it only writes the template if there is no Dockerfile yet; *Save and rebuild* — asks when the
   container runs — streams the build into the window, then removes the container so the next
   connection makes it from the new image; errors name the Dockerfile line when the engine does),
   *Stop container…* (asks). Containers keep running when the app quits. Deleting the session
   offers to remove container, image, its own volume (never `sw-claude`) and
   `<data dir>/containers/<id>/`. End remote session with no running container does nothing.
-  No Claude backups for container hosts (the volume stays).
+  No Claude backups for container hosts (the volume stays). The container's own files (outside
+  the mount and the volume, e.g. the private history of L4) do not survive a rebuild.
 
 ### 4.3 Local tab
 - L1. Local login shell in a PTY with cwd = `local_path`. Shell from config (`[local] shell/args`),

@@ -2485,7 +2485,9 @@ async function dockerfileDialog(s) {
     f.where.value = file.in_repo ? 'repo' : 'app';
     const where = () => dlg.querySelector('.where-hint').textContent = f.where.value === 'repo'
         ? `Saved in the repository: ${s.data.local_path}/.session-workbench/Dockerfile (versioned with the project).`
-        : `Saved in the app's data folder (${file.in_repo ? 'the repository\'s file is then not used' : file.path}).`;
+        : file.in_repo
+            ? 'Saved in the app\'s data folder — but the repository\'s .session-workbench/Dockerfile is used while it exists.'
+            : `Saved in the app's data folder (${file.path}).`;
     f.where.onchange = where;
     where();
     status.textContent = `Container sw-${s.id}: ${file.state === 'none' ? 'not made yet' : file.state}.`;

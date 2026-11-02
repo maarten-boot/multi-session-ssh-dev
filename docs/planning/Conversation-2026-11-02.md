@@ -36,8 +36,8 @@
   the runs before). Next: fix those two tests, rerun the GUI tests, then commit v1.1.0.
 - **Continued: the two failing GUI tests.** gui-smoke-hosts: Tab after the host name now lands
   on the new Kind field — the test tabs past it (Kind stays right after Name: it decides which
-  fields show). gui-smoke-qa: with nine Settings pages the tab bar wrapped onto a second line
-  and moved the page down — the tabs are narrower now (padding 6px), all nine fit on one line
+  fields show). gui-smoke-qa: with eight Settings pages the tab bar wrapped onto a second line
+  and moved the page down — the tabs are narrower now (padding 6px), all eight fit on one line
   at the usual font size; the tests click the Q&A and Commands tabs at their new positions.
   Both pass; the full GUI suite runs again before the commit.
 - **Full GUI suite before the commit.** Fixed tests that were already broken, found because the
@@ -50,3 +50,12 @@
   once in the suite and passed when run alone. All 35 GUI tests passed in this round.
 - **Note: export a session as one archive** (zip or tgz with its config entry, notes, Q&A,
   recordings, history, Dockerfile; keys and logins left out). Noted in PLAN "Next".
+- **Cross-check of v1.1.0.** The push of bd43e76 had not reached GitHub (main still 5e4dc7d):
+  asked to push again. Fixed: the Dockerfile window said a repository Dockerfile "is then not
+  used" when saving to the data folder — the code (and now the hint) uses the repository's
+  file while it exists; opening the window ran the whole build preparation (keys, certificates,
+  linking the 328 MB Claude Code binary): now only EnsureDockerfile (tested); "nine" Settings
+  pages corrected to eight (CSS comment, this log; the commit message of bd43e76 says nine).
+  Documented: the container's own files (e.g. the private shell history) are gone after a
+  rebuild. Checked as matching: SPEC C1–C6 against internal/container and containers.go, the
+  README section, the data-locations table, Tests.md rows.

@@ -226,12 +226,26 @@ func Prepare(s Spec) error {
 	if err := os.WriteFile(s.knownHosts(), []byte(Name(s.ID)+" "+f[0]+" "+f[1]+"\n"), 0o600); err != nil {
 		return err
 	}
-	if file, _, inRepo := s.Dockerfile(); !inRepo {
-		if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
-			return os.WriteFile(file, []byte(Template), 0o600)
-		}
+	return EnsureDockerfile(s)
+}
+
+// EnsureDockerfile writes Template to Dir/Dockerfile when neither the
+// repository nor Dir has a Dockerfile (all the Dockerfile window needs).
+func EnsureDockerfile(s Spec) error {
+	if err := s.Check(); err != nil {
+		return err
 	}
-	return nil
+	file, _, inRepo := s.Dockerfile()
+	if inRepo {
+		return nil
+	}
+	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.MkdirAll(s.Dir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(file, []byte(Template), 0o600)
 }
 
 // copyCerts fills dir with the PEM certificates in CertDirs, as .crt files

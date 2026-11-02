@@ -1095,7 +1095,7 @@ dialog .grid {
 }
 
 .settings-tabs button {
-    padding: 6px 6px; /* nine pages fit on one line at the usual font size */
+    padding: 6px 6px; /* eight pages fit on one line at the usual font size */
     border: 1px solid transparent;
     border-bottom: none;
     border-radius: 4px 4px 0 0;
