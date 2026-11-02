@@ -95,3 +95,8 @@
   CONNECTIVITY; the Dockerfile window (C6), the in-dialog menus and the Local tab's Back entry
   (T5) are in README, SPEC, PLAN and Tests.md, each with its test. One fix: CONNECTIVITY said
   "Status as of October 2026" — now November 2026 (stale since v1.1.0).
+- **v1.1.2 CI** (tagged): success on linux-amd64, windows-amd64, macos-universal and release;
+  all five release files. (The earlier main run for d4d6e9e "failed" only because GitHub found
+  no macOS runner and cancelled that job — capacity, not the code.)
+- **Cross-check after the v1.1.2 release:** no code or docs changed since dc0398b (only this
+  log); version 1.1.2 everywhere, PLAN has the v1.1.2 entry. No differences.
