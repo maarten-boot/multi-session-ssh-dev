@@ -47,3 +47,28 @@ test('back to the session directory: quoted for the shell', async () => {
     assert.equal(homeItem('/a\nrm -rf ~', () => {}), null);
     assert.equal(homeItem('/srv/p', () => {}, 'not connected').disabled, true);
 });
+
+test('local and remote commands: the other tab\'s in their own section, sent there', () => {
+    const here = [], there = [];
+    const cmds = [{name: 'status', command: 'git status'}, {name: 'push', command: 'git push', where: 'local'},
+        {name: 'top', command: 'top', where: 'remote'}, {name: 'fetch', command: 'git fetch', where: 'local', group: 'git'},
+        {name: 'bad', command: 'x', where: 'mars'}];
+    const remote = commandItems(null, cmds, t => here.push(t), null,
+        {tab: 'remote', sendOther: (t, c) => there.push([t, c.name])});
+    assert.deepEqual(remote.map(i => i === '-' ? '-' : i.info ?? i.label), ['status  ⏎', 'top  ⏎', '-', 'Local tab', 'push  ⏎', '-', 'git']);
+    remote[4].action();
+    remote[6].submenu[0].action();
+    remote[0].action();
+    assert.deepEqual(there, [['git push\r', 'push'], ['git fetch\r', 'fetch']]);
+    assert.deepEqual(here, ['git status\r']);
+    // On the Local tab: local and unplaced ones here, the remote one in its section.
+    const local = commandItems(null, cmds, () => {}, null, {tab: 'local', sendOther: () => {}});
+    assert.deepEqual(local.map(i => i === '-' ? '-' : i.info ?? i.label), ['status  ⏎', 'push  ⏎', '-', 'git', '-', 'Remote tab', 'top  ⏎']);
+    // Disabled (this tab not connected) does not disable the other tab's: it is started.
+    const off = commandItems(null, cmds, () => {}, 'not connected', {tab: 'remote', sendOther: () => {}});
+    assert.equal(off[0].disabled, true);
+    assert.equal(off[4].disabled, false);
+    // Without a tab: everything as before, in one list.
+    assert.deepEqual(commandItems(null, cmds, () => {}).map(i => i === '-' ? '-' : i.label),
+        ['status  ⏎', 'push  ⏎', 'top  ⏎', '-', 'git']);
+});

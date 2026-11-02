@@ -13,7 +13,7 @@ README.md "Development" lists the make targets.
 
 | Package     | SPEC items                                                              |
 |-------------|-------------------------------------------------------------------------|
-| session     | C1 (container host rules, resolving to sw-<id>, own volume kept), F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5, W1 links, B6 reviewed repository, §4.7 config problems |
+| session     | C1 (container host rules, resolving to sw-<id>, own volume kept), F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5 (also where: local, remote, nothing else), W1 links, B6 reviewed repository, §4.7 config problems |
 | config      | §4.7 (file places, load errors, defaults, invalid values reset, README example); settings of F4, F7, F10, F12, N1b |
 | remote      | R1, R2, R4, R5, L4, C4 (container options for scripts and kill, not attach)                                                      |
 | terminal    | L1, L2, T4                                                              |
@@ -42,7 +42,7 @@ README.md "Development" lists the make targets.
 | File                 | SPEC items                         |
 |----------------------|------------------------------------|
 | appearance.test.mjs  | T3 (themes, color modes, font size) |
-| cmdmenu.test.mjs     | T5 (also Back to the session directory: quoting, control characters) |
+| cmdmenu.test.mjs     | T5 (also Back to the session directory: quoting, control characters; Local/Remote sections: which list, sent where, disabled, unknown where left out) |
 | dockerfile.test.mjs  | C6 (toolchain blocks before the needed part, valid continuations) |
 | qaparse.test.mjs     | Q1 (text, code and SVG parts, engine names, token line, Markdown parsing, copying as Markdown) |
 | prompts.test.mjs     | T6, N2                             |
@@ -93,6 +93,6 @@ README.md "Development" lists the make targets.
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |
 | gui-smoke-switcher.sh     | §4.6       | quick switcher: MRU, fuzzy filter, descriptions, resize      |
-| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; Local: Back to the session directory after `cd /` |
+| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; a `where = "local"` command chosen on the Remote tab runs in the Local shell and the Remote tab keeps the keys; Settings → Commands (with Where); Local: Back to the session directory after `cd /` |
 
 When a feature is added, add or extend a test here and name the SPEC item it covers.

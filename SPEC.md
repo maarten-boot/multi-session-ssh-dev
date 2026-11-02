@@ -640,7 +640,13 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   PowerShell and cmd.exe both take); not in the Remote tab, which may run claude, not a shell.
   The session's own commands (`commands` on the session, Edit…) come first, then
   `[[ui.commands]]` (Settings → Commands): name, one-line command, `run` (default true: typed,
-  then Enter; false: only typed), `group` (optional). Commands without a group come first; each
+  then Enter; false: only typed), `group` (optional), `where` ("" the tab it is chosen in —
+  the default; "local" or "remote": always that tab). A tab's menu lists the commands for it,
+  then a section *Local tab* / *Remote tab* with those for the other one (groups kept inside
+  each); choosing one there types it into the other tab — started in the background when it
+  is not running, waiting up to 20 s for it — while the tab on screen stays and keeps the keys;
+  a toast says where it went, the other tab's activity badge shows its output. Settings →
+  Commands and Edit… have a Where column (this tab, Local, Remote). Commands without a group come first; each
   group is a submenu (in the order groups first appear; a session's and the global commands of
   one group share it, the session's first; a blank group is none). Submenus open on hover, →,
   Enter or a click; ← and Esc close them. At most 100 per list; names non-empty, without leading or

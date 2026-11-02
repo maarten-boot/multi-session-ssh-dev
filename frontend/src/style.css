@@ -2250,6 +2250,21 @@ body.sidebar-narrow #sidebar-resizer {
     grid-template-columns: 4.5rem 6rem 1fr auto auto auto auto;
 }
 
+/* With where too: group, name, command, run, where, ↑ ↓ ✕. */
+.command-list.grouped.placed .command-row {
+    grid-template-columns: 6.5rem 8rem 1fr auto auto auto auto auto;
+}
+
+#dlg-session .command-list.grouped.placed .command-row {
+    grid-template-columns: 4.5rem 5.5rem 1fr auto auto auto auto auto;
+}
+
+dialog .command-row select.cmd-where {
+    margin-top: 0;
+    width: auto;
+    padding-right: 22px;
+}
+
 /* Q&A tab: the conversation, then the question box. */
 .qa {
     position: absolute;

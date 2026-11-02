@@ -67,10 +67,36 @@ class Tab {
             this.view?.term.focus();
         };
         const disabled = this.view?.id ? null : 'not connected';
-        const items = commandItems(this.session, app.state.ui.commands, send, disabled);
+        const otherKey = this.key === 'local' ? 'remote' : 'local';
+        const items = commandItems(this.session, app.state.ui.commands, send, disabled, {
+            tab: this.key,
+            sendOther: (d, c) => {
+                this.view?.term.focus(); // keys keep going to the tab on screen
+                return this.session.tab(otherKey)?.typeInBackground(d)
+                    .then(() => toast(`“${c.name}” typed into the ${otherKey === 'local' ? 'Local' : 'Remote'} tab`))
+                    .catch(err => toast(`“${c.name}”: ${err?.message ?? err}`, true))
+                    .finally(() => {
+                        if (app.active === this.session && !this.pane.hidden) this.view?.term.focus();
+                    });
+            },
+        });
         const home = this.key === 'local'
             ? homeItem(this.session.data.local_path, send, disabled, navigator.platform.startsWith('Win')) : null;
         return home ? [home, ...(items.length ? ['-', ...items] : [])] : items;
+    }
+
+    // typeInBackground types text into this tab without showing it: the
+    // terminal is started first when it is not running (it stays hidden;
+    // its activity badge shows what it prints). Waits up to 20 s for it.
+    async typeInBackground(text) {
+        const v = this.ensureView();
+        if (v.exited) v.spawn(); // ended earlier: start it again
+        for (let i = 0; i < 200 && !v.id; i++) {
+            if (v.exited && i > 0) break;
+            await new Promise(r => setTimeout(r, 100));
+        }
+        if (!v.id) throw new Error(`the ${this.label} tab is not connected`);
+        v.send(text);
     }
 
     // promptItems is this tab's Prompts menu: the session's own prompts,
@@ -1606,7 +1632,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     const cmdBox = dlg.querySelector('.session-commands');
     cmdBox.hidden = !editing;
     const cmdList = new CommandList(cmdBox.querySelector('.command-list'), s?.data.commands ?? [],
-        {run: true, group: true, groups: () => (app.state.ui.commands ?? []).map(c => c.group)});
+        {run: true, group: true, where: true, groups: () => (app.state.ui.commands ?? []).map(c => c.group)});
     f.elements.colors.value = s?.data.color_mode ?? '';
     // New sessions look as set in Settings; an override is for Edit only.
     f.elements.colors.closest('label').hidden = !editing;
@@ -1816,7 +1842,7 @@ async function settingsDialog() {
         .catch(err => found.textContent = err?.message ?? String(err));
     f.container_engine.onchange = lookEngine;
     lookEngine();
-    const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true,
+    const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true, where: true,
         groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group))});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
         {emptyCommand: true, placeholder: {name: 'Name (start mode)'}});

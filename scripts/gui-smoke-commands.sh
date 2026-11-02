@@ -3,8 +3,10 @@
 # starts with a start command of its own ([[ui.start_commands]]); the
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
-# is only typed; groups are submenus (keys and mouse); the Local tab's menu
-# starts with Back to the session directory; Settings → Commands adds one; Prompts ▾ pastes the
+# is only typed; groups are submenus (keys and mouse); a command with
+# where = "local" chosen on the Remote tab runs in the Local tab while the
+# Remote tab stays; the Local tab's menu starts with Back to the session
+# directory; Settings → Commands adds one; Prompts ▾ pastes the
 # session's own prompts (its notes' Prompts page) and those for all sessions,
 # as does a section of the terminal's right-click menu.
 # Needs `ssh localhost` without prompts and tmux.
@@ -30,6 +32,10 @@ group = "git"
 name = "compact"
 command = "echo claude-compact >>$RAN"
 group = "claude"
+[[ui.commands]]
+name = "push here"
+command = "echo where-\${SW_OUT:+local} >>$RAN"
+where = "local"
 [[ui.start_commands]]
 name = "custom"
 command = "echo started-\$((2+3))"
@@ -88,6 +94,16 @@ menu Down                                          # the group after git: claude
 xdotool key Right Return; sleep 1.5
 expect "Esc closes only the submenu" "git-fetch|claude-compact|" "$(tr '\n' '|' <$RAN)"
 
+# A command with where = "local", chosen on the Remote tab: typed into the
+# Local tab (SW_OUT is only set there), and the Remote tab stays on screen.
+: >$RAN
+click ${CMDX:-747} 17; sleep 0.5; shot 3e-local-section; menu p   # "push here", in the Local tab section
+sleep 3
+expect "a Local command from the Remote tab ran in the Local tab" "where-local" "$(cat $RAN)"
+xdotool type --delay 10 'echo still-on-remote'; k Return; sleep 1
+in_pane "the Remote tab stayed on screen" s-cmd 'still-on-remote'
+
+
 # Prompts ▾: pasted without Enter, the session's own first.
 : >$RAN
 click ${PROMPTX:-836} 17; sleep 0.5; shot 3b-prompts-button; menu   # the first: "own prompt"
@@ -113,7 +129,7 @@ k ctrl+shift+comma; sleep 1
 shot 4-settings-pages
 click 551 109; sleep 0.5                          # the Commands page
 shot 5-settings-commands
-click 347 361; sleep 0.5                          # + Add (command menu): the new row's name has focus
+click 347 414; sleep 0.5                          # + Add (command menu): the new row's name has focus
 xdotool type --delay 10 'where'; k Tab; xdotool type --delay 10 'pwd'
 k Return; sleep 1.5                               # Enter in a field saves
 expect "a command added in Settings is saved" 'name = "where"|command = "pwd"' "$(grep -A1 'name = "where"' $CFG | tr -d ' ' | sed 's/=/ = /' | paste -sd'|')"

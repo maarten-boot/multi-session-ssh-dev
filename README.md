@@ -391,8 +391,16 @@ first. Give commands a **group** (e.g. *git*, *claude*) to put them in a submenu
 opens on hover, or with → (← or Esc goes back); commands without a group stay in the menu
 itself, above the groups. A session's commands and the global ones of the same group share
 one submenu (the session's first); names need to be unique within a group only. In the
-config: `[[ui.commands]]` with `name`, `command`, `run` (default true) and `group`, and
-`commands = [{ name = …, command = …, run = false, group = "git" }]` on a session.
+config: `[[ui.commands]]` with `name`, `command`, `run` (default true), `group` and `where`,
+and `commands = [{ name = …, command = …, run = false, group = "git" }]` on a session.
+
+**Local and Remote commands.** A command's *Where* (Settings → Commands, Edit…; `where` in the
+config) says which terminal it is typed into: *this tab* (the default: the tab you choose it
+in), or always **Local** or **Remote**. The other tab's commands are in their own section of
+the menu (*Local tab* or *Remote tab*), and choosing one types it there while you stay where
+you are: e.g. a `git push` that runs on this computer, while you watch claude in the Remote tab
+of an agent host that has no GitHub access. The other tab is started in the background when it
+is not running; a message says where the command went, and that tab's badge shows its output.
 The Local tab's menu always starts with **Back to the session directory**: it types
 `cd '<the session's directory>'` and Enter, for when you have wandered off (the Remote tab
 does not get it, since claude may be running there instead of a shell).
@@ -799,6 +807,10 @@ name = "rebase on main"
 command = "git rebase origin/main"
 run = false                               # only typed: check it, then press Enter yourself
 group = "git"                             # optional: in the submenu "git ▸"
+[[ui.commands]]
+name = "push from here"
+command = "git push"
+where = "local"                           # always in the Local tab, also chosen on the Remote one
 [[ui.commands]]
 name = "compact"
 command = "/compact"

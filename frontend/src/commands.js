@@ -8,8 +8,9 @@ let lists = 0; // numbers the group suggestion lists
 // CommandList edits a list of {name, command, run?, group?} in container: a
 // row per entry (group, name, command, optional "run" tick, ↑ ↓ ✕) and an
 // Add button. opts: run (show the tick), group (show the group, suggesting
-// the groups in the list and those of groups()), emptyCommand (an empty
-// command is allowed), placeholder {name, command}.
+// the groups in the list and those of groups()), where (show which tab it
+// goes to: the tab it is chosen in, Local or Remote), emptyCommand (an
+// empty command is allowed), placeholder {name, command}.
 export class CommandList {
     constructor(container, items, opts = {}) {
         this.container = container;
@@ -17,6 +18,7 @@ export class CommandList {
         this.items = (items ?? []).map(c => ({...c}));
         this.listId = `cmd-groups-${++lists}`;
         container.classList.toggle('grouped', !!opts.group);
+        container.classList.toggle('placed', !!opts.where);
         this.render();
     }
 
@@ -28,6 +30,7 @@ export class CommandList {
             it.command = row.querySelector('.cmd-command').value;
             if (this.opts.group) it.group = row.querySelector('.cmd-group').value;
             if (this.opts.run) it.run = row.querySelector('.cmd-run').checked;
+            if (this.opts.where) it.where = row.querySelector('.cmd-where').value;
         });
     }
 
@@ -37,7 +40,8 @@ export class CommandList {
         return this.items.filter(c => c.name.trim() || c.command.trim())
             .map(c => ({name: c.name.trim(), command: c.command,
                 ...(this.opts.run ? {run: c.run !== false} : {}),
-                ...(this.opts.group ? {group: (c.group ?? '').trim()} : {})}));
+                ...(this.opts.group ? {group: (c.group ?? '').trim()} : {}),
+                ...(this.opts.where ? {where: c.where ?? ''} : {})}));
     }
 
     render(focus = -1) {
@@ -57,6 +61,16 @@ export class CommandList {
             if (this.opts.run) {
                 cells.push(el('label', {className: 'check cmd-run-label', title: 'Press Enter after typing it'},
                     el('input', {type: 'checkbox', className: 'cmd-run', checked: c.run !== false}), ' run'));
+            }
+            if (this.opts.where) {
+                const where = el('select', {className: 'cmd-where', ariaLabel: 'Typed into',
+                    title: 'Which terminal it is typed into: the tab you choose it in, or always the Local or the Remote ' +
+                        'tab (the one on screen stays; e.g. git push from this computer while you watch the Remote tab)'},
+                    el('option', {value: '', textContent: 'this tab'}),
+                    el('option', {value: 'local', textContent: 'Local'}),
+                    el('option', {value: 'remote', textContent: 'Remote'}));
+                where.value = c.where ?? '';
+                cells.push(where);
             }
             const button = (text, title, action, disabled = false) => {
                 const b = el('button', {type: 'button', className: 'icon', textContent: text, title, disabled});

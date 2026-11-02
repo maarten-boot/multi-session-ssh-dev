@@ -857,6 +857,9 @@ func TestCommandLimits(t *testing.T) {
 		{[]config.Command{{Name: "x", Command: "a", Group: " git"}}, false},
 		{[]config.Command{{Name: "x", Command: "a", Group: "a\tb"}}, false},
 		{[]config.Command{{Name: "x", Command: "a", Group: strings.Repeat("g", config.MaxCommandNameLen+1)}}, false},
+		// Where: the tab it goes to.
+		{[]config.Command{{Name: "push", Command: "git push", Where: "local"}, {Name: "ls", Command: "ls", Where: "remote"}}, true},
+		{[]config.Command{{Name: "x", Command: "a", Where: "elsewhere"}}, false},
 	} {
 		if err := config.ValidateCommands(c.cs); (err == nil) != c.ok {
 			t.Errorf("%d commands, first %q: %v", len(c.cs), c.cs[0].Name, err)

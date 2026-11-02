@@ -176,6 +176,13 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.3 (2026-11-02), also: Local and Remote commands (asked by the user while the export was
+  built): `where` on a command ("" the tab it is chosen in, "local", "remote"); the menu lists
+  the other tab's commands in their own section, and choosing one types it into that tab
+  (started in the background when needed) while the tab on screen stays and keeps the keys.
+  Settings → Commands and Edit… got a Where column. Tests: session (validation), cmdmenu
+  (sections, sending, disabled), gui-smoke-commands.sh (a `where = "local"` command chosen on
+  the Remote tab runs in the Local shell; the Remote tab still gets the keys).
 - v1.1.3 (2026-11-02): export a session as a `.zip` or `.tar.gz` and import it as a new session
   (SPEC F13; decided with the user 2026-11-02): session menu → Export… asks the parts each time
   (always settings, notes, Dockerfile; ticked Q&A, recordings, shell history with the Remote one
@@ -228,14 +235,6 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
-- **Local and Remote commands** (asked 2026-11-02; decided, not built). Each command menu entry
-  gets `where`: "" (the tab you are in, the default — existing commands unchanged), "local" or
-  "remote". Commands ▾ and the right-click menu list the commands for the tab you are in, then a
-  section for the other tab (*Local tab* / *Remote tab*), groups kept inside each section.
-  Picking a Local command on the Remote tab types it into the session's Local tab (started if
-  needed) and you stay on the Remote screen: a toast says where it ran, the Local tab's
-  activity badge shows its output. Use: `git push` from this computer when the agent host has
-  no GitHub access. Settings → Commands and Edit… get a Where column.
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.

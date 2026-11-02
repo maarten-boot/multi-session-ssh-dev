@@ -142,3 +142,11 @@
 - **Fixed** gui-smoke-container.sh: Delete session… is one row lower after the new Export…
   entry; the container test passes again, as do listmenu, sessions, hosts, history, backup
   and sync (also with the built-in transfer).
+- **Committed** bc1f99d (v1.1.3 export/import); pushed.
+- **User:** "pushed, start" — built Local and Remote commands (still v1.1.3, not tagged):
+  `where` on commands (config, validation), the menu's section for the other tab
+  (cmdmenu.js), typing into the other tab in the background (started when needed), the Where
+  column in Settings → Commands and Edit…, a Settings hint.
+  - Found in the GUI test: after a command went to the other tab, the keys went nowhere (the
+    focus was left on the menu button) — the tab on screen gets the focus back.
+  - Tests: session validation, cmdmenu (60 frontend tests), gui-smoke-commands.sh passes.

@@ -5,6 +5,7 @@ export namespace config {
 	    command: string;
 	    run?: boolean;
 	    group: string;
+	    where: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Command(source);
@@ -16,6 +17,7 @@ export namespace config {
 	        this.command = source["command"];
 	        this.run = source["run"];
 	        this.group = source["group"];
+	        this.where = source["where"];
 	    }
 	}
 	export class Host {

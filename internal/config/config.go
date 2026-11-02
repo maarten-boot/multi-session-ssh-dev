@@ -82,6 +82,10 @@ type Command struct {
 	// Group puts the command in a submenu of that name ("" = the menu
 	// itself); names are unique within a group.
 	Group string `toml:"group,omitempty" json:"group"`
+	// Where is the tab it is typed into: "" the tab whose menu it is
+	// chosen from, "local" the Local tab, "remote" the Remote tab (even
+	// when chosen in the other one, which stays on screen).
+	Where string `toml:"where,omitempty" json:"where"`
 }
 
 // Runs reports whether choosing c also presses Enter.
@@ -404,6 +408,9 @@ func ValidateCommands(cs []Command) error {
 		}
 		if strings.TrimSpace(c.Command) == "" {
 			return fmt.Errorf("command %q is empty", c.Name)
+		}
+		if c.Where != "" && c.Where != "local" && c.Where != "remote" {
+			return fmt.Errorf("command %q: where must be empty, \"local\" or \"remote\", not %q", c.Name, c.Where)
 		}
 	}
 	return nil
