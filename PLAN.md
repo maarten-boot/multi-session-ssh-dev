@@ -192,6 +192,25 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
+- **Docker/Podman containers as agent hosts for Remote sessions** (noted 2026-11-02). A
+  session's Remote tab can run in a container instead of on an ssh host: the app builds an
+  image from the session's own Dockerfile, starts a container and connects into it with ssh
+  (then tmux, as on any agent host), so the existing Remote, Files, working-copy and recording
+  paths keep working.
+  - Per session, in *Edit…*: a window to edit the session's **Dockerfile** (a starting
+    template with ssh, tmux, git and Claude Code), customized with all the software the
+    project needs; saving offers to rebuild the image and restart the container.
+  - Docker or Podman: whichever is installed (or chosen in Settings), local first; maybe a
+    remote Docker host later.
+  - To decide when it is built: ssh into the container (an sshd in the image, a published
+    port, a generated key) as asked, or `docker exec`/`podman exec` as a fallback; how the
+    project directory gets in (bind mount vs. the working-copy sync); where the Dockerfile
+    lives (`<data dir>/containers/<id>/Dockerfile` or in the repository); keeping
+    `~/.claude` (logins, history) across rebuilds (a named volume); image and container
+    names (`sw-<id>`); stopping containers when the app quits or keeping them.
+- **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
+  server uses echo; not in the release binary). Update around mid-November, once the
+  release is two weeks old, unless Dependabot opens a PR first.
 
 ## Testing
 - docs/planning/Tests.md lists every test with the SPEC items it covers.
