@@ -192,22 +192,40 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
-- **Docker/Podman containers as agent hosts for Remote sessions** (noted 2026-11-02). A
-  session's Remote tab can run in a container instead of on an ssh host: the app builds an
-  image from the session's own Dockerfile, starts a container and connects into it with ssh
-  (then tmux, as on any agent host), so the existing Remote, Files, working-copy and recording
-  paths keep working.
-  - Per session, in *Edit…*: a window to edit the session's **Dockerfile** (a starting
-    template with ssh, tmux, git and Claude Code), customized with all the software the
-    project needs; saving offers to rebuild the image and restart the container.
-  - Docker or Podman: whichever is installed (or chosen in Settings), local first; maybe a
-    remote Docker host later.
-  - To decide when it is built: ssh into the container (an sshd in the image, a published
-    port, a generated key) as asked, or `docker exec`/`podman exec` as a fallback; how the
-    project directory gets in (bind mount vs. the working-copy sync); where the Dockerfile
-    lives (`<data dir>/containers/<id>/Dockerfile` or in the repository); keeping
-    `~/.claude` (logins, history) across rebuilds (a named volume); image and container
-    names (`sw-<id>`); stopping containers when the app quits or keeping them.
+- **Docker/Podman containers as agent hosts for Remote sessions** (noted 2026-11-02; design
+  decided 2026-11-02, not started). A session's Remote tab can run in a container on this
+  computer: the app builds an image from the session's Dockerfile, starts a container and
+  connects with ssh, then tmux as on any agent host, so Remote, Files, working copies,
+  recordings and backups keep working.
+  - Decided by the user:
+    - **Connect with ssh**: an sshd in the image, its port published on 127.0.0.1 only, a key
+      the app generates per container.
+    - **Bind mount**: the session's local directory at the same path inside, run as your own
+      user id (files keep their owner); Files tab, git status and notes work as now.
+    - **This computer only** at first (a remote Docker host maybe later).
+    - **Dockerfile** `.session-workbench/Dockerfile` in the repository; without one, in the
+      app's data folder (`<data dir>/containers/<id>/Dockerfile`). Starting template on
+      **Ubuntu 24.04** with openssh-server, tmux, git and Claude Code.
+    - **Edit window** per session: a Dockerfile editor with buttons that add common toolchains
+      (Go, Node, Python, Rust, Java, build tools); Save, Rebuild with the build output shown,
+      errors with their line.
+    - **Claude Code login**: one shared named volume (`sw-claude`) for ~/.claude and
+      ~/.claude.json by default (log in once, kept across rebuilds); optionally a separate
+      volume per session (Edit).
+    - **Containers keep running** when the app quits (like an ssh host); a menu item stops one;
+      deleting the session offers to remove its container (and volume, image).
+    - **Podman first**, else Docker; Settings can name one.
+    - **A container host**: Add host → "Containers (this computer)", one entry in the list;
+      each session under it gets its own container. Full network access.
+  - My defaults (to confirm while building): names `sw-<session id>` for image and container;
+    the key and the template in `<data dir>/containers/<id>/`; rebuilding asks before it
+    replaces a running container (tmux in it ends); the build runs with the session directory's
+    `.session-workbench/` as context.
+  - Steps: (1) container engine detection and Settings; (2) the container host kind in config,
+    Add host and the list; (3) template, build, run, ssh key and port, connect the Remote tab;
+    (4) the Dockerfile window with add-ons and build output; (5) stop / remove / rebuild in the
+    session menu, the login volumes; (6) tests (unit with a fake engine, a GUI test with real
+    Podman where installed), docs.
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.
