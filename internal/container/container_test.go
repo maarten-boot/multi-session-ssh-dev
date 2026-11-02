@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -83,6 +84,9 @@ func TestArgs(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("container hosts are not supported on Windows (a path with C: cannot be mounted)")
+	}
 	good := spec(t)
 	if err := good.Check(); err != nil {
 		t.Fatal(err)
@@ -101,6 +105,9 @@ func TestCheck(t *testing.T) {
 }
 
 func TestPrepare(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("container hosts are not supported on Windows (a path with C: cannot be mounted)")
+	}
 	if _, err := exec.LookPath("ssh-keygen"); err != nil {
 		t.Skip("no ssh-keygen")
 	}
@@ -204,6 +211,9 @@ func TestFind(t *testing.T) {
 }
 
 func TestEnsureDockerfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("container hosts are not supported on Windows (a path with C: cannot be mounted)")
+	}
 	s := spec(t)
 	if err := EnsureDockerfile(s); err != nil {
 		t.Fatal(err)

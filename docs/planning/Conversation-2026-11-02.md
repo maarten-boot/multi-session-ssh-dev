@@ -59,3 +59,8 @@
   Documented: the container's own files (e.g. the private shell history) are gone after a
   rebuild. Checked as matching: SPEC C1–C6 against internal/container and containers.go, the
   README section, the data-locations table, Tests.md rows.
+- **v1.1.0 CI failed on Windows** (macOS and Linux passed; release skipped, so no v1.1.0 release):
+  TestCheck, TestPrepare and TestEnsureDockerfile in internal/container use a t.TempDir()
+  session path, which on Windows has `C:` — rejected by the mount check. Container hosts are
+  Linux/macOS only, so these tests skip on Windows. Decision: bump to v1.1.1 (the v1.1.0 tag
+  stays, without a release).

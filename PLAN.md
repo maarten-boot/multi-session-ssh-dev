@@ -176,6 +176,9 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.1 (2026-11-02): v1.1.0's Windows build failed — three container tests check paths a mount
+  cannot carry, and Windows temp paths have `C:`; they are skipped on Windows (container hosts are
+  Linux and macOS only). v1.1.0 has no release; v1.1.1 is the first with container hosts.
 - v1.1.0 (2026-11-02): containers as agent hosts (SPEC §4.2a, C1–C6; docs/CONNECTIVITY.md mode
   D): a "Containers (this computer)" host, each session in its own container (Podman or Docker,
   Settings → Containers) built from `.session-workbench/Dockerfile` or a template copy in the data
