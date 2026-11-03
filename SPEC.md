@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.17 (2026-11-03, app v1.1.6) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.18 (2026-11-03, app v1.1.7) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -203,7 +203,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (internal/xfer): `tar -cf -` with the same exclusions on the agent host, unpacked here through
   `os.Root` (no absolute or `..` paths, symlinks only relative and inside, no hard links or
   devices; the exclusions applied here too), copying everything each time; restore sends a
-  tar unpacked there with GNU `--skip-old-files` / BSD `-k`.
+  tar unpacked there with GNU `--skip-old-files` / BSD `-k`. When rsync reports that the agent
+  host has none (`rsync: (command )?not found`, e.g. ESXi), the same backup or restore runs
+  with the built-in transfer, the status note says so, and that target gets it directly until
+  the app restarts. Hosts: Add/Edit host's *Back up Claude data from this host* (`backup`;
+  left out: yes, but no for a host with `local_dir = false`; the dialog follows *Sessions on
+  this host* until it is changed and stores it only when it differs); a host that is off is
+  never backed up, its header says "Claude backups are off for this host" with no ⚠, and its
+  menu has no backup items.
 - F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
   running window forward (Wails single-instance lock, keyed on the config path) or, where that
   is not available, shows only a message and touches nothing.

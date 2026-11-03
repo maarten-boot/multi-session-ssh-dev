@@ -173,6 +173,12 @@
                 <option value="no">no: the host has no tmux (e.g. VMware ESXi)</option>
             </select>
         </label>
+        <label>Back up Claude data from this host
+            <select name="backup">
+                <option value="yes">yes: ~/.claude and ~/.claude.json, as set in Settings → Backups</option>
+                <option value="no">no (e.g. no claude on it)</option>
+            </select>
+        </label>
         <p class="hint">A plain login only has the Remote, Notes, Web and Q&amp;A tabs; its shell starts in the
             login's home or a folder you give. Each session can still choose otherwise;
             the file access and path fields below then only apply to sessions that do.</p>

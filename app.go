@@ -141,6 +141,9 @@ func (a *App) startup(ctx context.Context) {
 				if h.Kind == session.HostContainer {
 					continue // ~/.claude is a volume there, kept across rebuilds
 				}
+				if !config.BacksUp(h) {
+					continue // switched off for this host (e.g. plain logins: no claude there)
+				}
 				hs = append(hs, backup.Host{Name: h.Name, Target: h.SSHTarget})
 			}
 			return hs

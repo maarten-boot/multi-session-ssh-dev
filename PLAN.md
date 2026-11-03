@@ -176,6 +176,13 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.7 (2026-11-03): Claude backups and ssh-only hosts (the user: "a vmware has no rsync so a
+  remote backup can never be done and as it is a ssh only what would we need to replicate?" —
+  nothing: no claude there). A host's *Back up Claude data from this host* (`backup`; off by
+  default for plain-login hosts); a backup or restore whose agent host lacks rsync falls back to
+  the built-in transfer and remembers it. Tests: config (TestBacksUp), backup (TestRemoteNoRsync;
+  TestSSHNoRemoteRsync with a fake rsync, via make test-ssh), gui-smoke-login.sh (Add host…
+  leaves backup to follow the logins).
 - v1.1.6 (2026-11-03), also: sessions without tmux (SPEC F2b; the user: "make also a option for
   plain ssh logins not to have a tmux (vmware hosts have no tmux)"): a host's `tmux = false` and a
   per-session override, for any session; remote.PlainArgs; no End remote session, no tmux in the

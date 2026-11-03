@@ -30,6 +30,7 @@ export namespace config {
 	    remote_workdir: string;
 	    local_dir?: boolean;
 	    tmux?: boolean;
+	    backup?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Host(source);
@@ -46,6 +47,7 @@ export namespace config {
 	        this.remote_workdir = source["remote_workdir"];
 	        this.local_dir = source["local_dir"];
 	        this.tmux = source["tmux"];
+	        this.backup = source["backup"];
 	    }
 	}
 	export class Link {

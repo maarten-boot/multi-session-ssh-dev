@@ -191,3 +191,53 @@ func TestScheduledTimeout(t *testing.T) {
 		t.Errorf("status: %+v", s)
 	}
 }
+
+// TestRemoteNoRsync: the shells' "no rsync" messages are recognised; a
+// missing file is not that.
+func TestRemoteNoRsync(t *testing.T) {
+	for _, s := range []string{"bash: line 1: rsync: command not found\nrsync: connection unexpectedly closed (0 bytes received so far) [Receiver]",
+		"sh: rsync: not found\nrsync error: error in rsync protocol data stream (code 12)"} {
+		if !remoteNoRsync.MatchString(s) {
+			t.Errorf("not recognised: %q", s)
+		}
+	}
+	if remoteNoRsync.MatchString(`rsync: link_stat "/h/.claude" failed: No such file or directory (2)`) {
+		t.Error("a missing file taken for a missing rsync")
+	}
+}
+
+// TestSSHNoRemoteRsync: when the agent host has no rsync (a fake rsync
+// here says so, as ssh would), the backup and the restore use the built-in
+// transfer, say so in the note, and remember it for the host.
+func TestSSHNoRemoteRsync(t *testing.T) {
+	target := os.Getenv("SW_SSH_TARGET")
+	if target == "" || runtime.GOOS == "windows" {
+		t.Skip("set SW_SSH_TARGET (needs the same paths on both sides, e.g. localhost)")
+	}
+	bin := t.TempDir()
+	os.WriteFile(filepath.Join(bin, "rsync"), []byte("#!/bin/sh\necho 'sh: rsync: not found' >&2\nexit 12\n"), 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("SW_NO_RSYNC", "")
+	defer noRsync.Delete(target)
+	home := t.TempDir()
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o700)
+	os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte("esx"), 0o600)
+	dir := t.TempDir()
+	note, err := runNote(context.Background(), Host{Name: "esx", Target: target, Home: home}, dir)
+	if err != nil || !strings.Contains(note, "no rsync") {
+		t.Fatalf("backup: note %q, %v", note, err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "home", ".claude", "settings.json")); string(b) != "esx" {
+		t.Errorf("not backed up: %q", b)
+	}
+	if useRsync(target) {
+		t.Error("the host's missing rsync was not remembered")
+	}
+	fresh := t.TempDir()
+	if err := Restore(context.Background(), Host{Name: "esx", Target: target, Home: fresh}, dir); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(fresh, ".claude", "settings.json")); string(b) != "esx" {
+		t.Errorf("not restored: %q", b)
+	}
+}

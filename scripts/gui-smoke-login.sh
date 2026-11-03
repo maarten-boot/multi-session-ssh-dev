@@ -81,9 +81,10 @@ xdotool type --delay 10 'switch'; k Tab; k Tab         # Name; past Kind
 xdotool type --delay 10 'localhost'; k Tab             # SSH target; to Sessions on this host
 k a; k Tab; k n; sleep 0.5                             # "are plain ssh logins"; tmux: "no"
 shot 4-host-logins
-xdotool mousemove 910 789 click 1; sleep 1.5           # Save (Enter on a select does not submit)
+k Tab; k Tab; k Return; sleep 1.5                      # Backup (follows: no), then Save — the disabled file fields are skipped
 check "Add host: plain logins saved as local_dir = false" bash -c "grep -A8 'name = \"switch\"' $CFG | grep -q 'local_dir = false'"
 check "Add host: no tmux saved as tmux = false" bash -c "grep -A8 'name = \"switch\"' $CFG | grep -q 'tmux = false'"
+check "Add host: backups follow the logins (off, nothing stored)" bash -c "grep -q 'name = \"switch\"' $CFG && ! grep -A8 'name = \"switch\"' $CFG | grep -q 'backup ='"
 alive
 kill $APP; wait $APP 2>/dev/null
 for id in s-lg $NEW; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; done

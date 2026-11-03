@@ -49,6 +49,10 @@ type Host struct {
 	// tab is a plain ssh login that ends with the connection. A session's
 	// own tmux overrides it.
 	Tmux *bool `toml:"tmux,omitempty" json:"tmux"`
+	// Backup: back up Claude Code's data (~/.claude) from this host; left
+	// out: yes, but no for a host whose sessions are plain logins (no
+	// claude there, e.g. VMware ESXi).
+	Backup *bool `toml:"backup,omitempty" json:"backup"`
 }
 
 // Session is one work item: a directory on the host bound to an agent host.
@@ -740,4 +744,13 @@ func UsesTmux(h Host, s Session) bool {
 		return *h.Tmux
 	}
 	return true
+}
+
+// BacksUp reports whether the Claude backups include host h: its backup,
+// else yes unless its sessions are plain logins (local_dir = false).
+func BacksUp(h Host) bool {
+	if h.Backup != nil {
+		return *h.Backup
+	}
+	return h.LocalDir == nil || *h.LocalDir
 }

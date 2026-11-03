@@ -67,6 +67,20 @@ type Status struct {
 // not keep the host busy until the app restarts (BackupNow uses the same).
 var ScheduledTimeout = 30 * time.Minute
 
+// remoteNoRsync matches the agent host's shell saying it has no rsync
+// (bash "rsync: command not found", busybox/ESXi "rsync: not found").
+var remoteNoRsync = regexp.MustCompile(`rsync: (command )?not found`)
+
+// noRsync remembers the targets that have no rsync: they get the built-in
+// transfer (tar over ssh) right away from then on (until the app restarts).
+var noRsync sync.Map
+
+// useRsync: rsync here, and not known to be missing on the agent host.
+func useRsync(target string) bool {
+	_, missing := noRsync.Load(target)
+	return xfer.UseRsync() && !missing
+}
+
 // rsyncMissing matches rsync's report of a missing source file.
 var rsyncMissing = regexp.MustCompile(`link_stat "[^"]*?(\.claude(?:\.json)?)" failed: No such file`)
 
@@ -117,7 +131,7 @@ func runNote(ctx context.Context, h Host, dir string) (string, error) {
 	if err := os.MkdirAll(dest, 0o700); err != nil {
 		return "", err
 	}
-	if !xfer.UseRsync() {
+	if !useRsync(h.Target) {
 		skipped, err := pull(ctx, h, dest)
 		return skippedNote(skipped), err
 	}
@@ -130,6 +144,17 @@ func runNote(ctx context.Context, h Host, dir string) (string, error) {
 	stderr, code, err := rsync(ctx, args...)
 	if err != nil {
 		return "", err
+	}
+	if code != 0 && remoteNoRsync.MatchString(stderr) {
+		// The agent host has no rsync (e.g. VMware ESXi): the built-in
+		// transfer only needs sh and tar there.
+		noRsync.Store(h.Target, true)
+		skipped, err := pull(ctx, h, dest)
+		note := "the agent host has no rsync: the built-in transfer was used"
+		if s := skippedNote(skipped); s != "" {
+			note += "; " + s
+		}
+		return note, err
 	}
 	return "", classify(code, stderr)
 }
@@ -278,7 +303,7 @@ func Restore(ctx context.Context, h Host, dir string) error {
 	if len(sources) == 0 {
 		return errors.New("there is no backup for this host yet")
 	}
-	if !xfer.UseRsync() {
+	if !useRsync(h.Target) {
 		return push(ctx, h, src)
 	}
 	base := remoteDir(h)
@@ -290,6 +315,10 @@ func Restore(ctx context.Context, h Host, dir string) error {
 	stderr, code, err := rsync(ctx, args...)
 	if err != nil {
 		return err
+	}
+	if code != 0 && remoteNoRsync.MatchString(stderr) {
+		noRsync.Store(h.Target, true)
+		return push(ctx, h, src) // no rsync on the agent host: the built-in transfer
 	}
 	if code != 0 {
 		return fmt.Errorf("rsync exit %d: %s", code, strings.TrimSpace(lastLines(stderr, 3)))

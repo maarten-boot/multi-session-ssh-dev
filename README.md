@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.6: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.7: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -686,7 +686,11 @@ files deleted on the agent host stay in it. Left out are claude's login
 (`.credentials.json`; log in to claude once after a restore) and caches and downloads
 claude recreates. Backups are kept per host *name*: keep the name when the machine behind
 it changes. Uses rsync where it is installed (only changes are copied); without it (Windows)
-a built-in transfer over the same ssh connection copies everything each time. Restoring a crashed agent host, step by step:
+a built-in transfer over the same ssh connection copies everything each time — also when the
+agent host has no rsync (it only needs `sh` and `tar` there; the app notices and uses it for
+that host from then on). A host without claude (an ssh-only login host such as VMware ESXi)
+has nothing to back up: Add/Edit host's *Back up Claude data from this host* switches it off
+(`backup = false`); for a host whose sessions are plain logins it is off unless switched on. Restoring a crashed agent host, step by step:
 [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md#claude-backups).
 
 **Recording the Remote tab.** Off by default. Settings → Backups and recordings → *Record the Remote tabs of all

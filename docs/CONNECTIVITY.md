@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of November 2026 (v1.1.6).
+at your files, and what each choice means for security. Status as of November 2026 (v1.1.7).
 
 Everything described here is implemented.
 
@@ -441,6 +441,10 @@ copies `~/.claude` and `~/.claude.json` of every agent host to your workstation 
 the README), pulling them with rsync over the same ssh setup as everything else: your host
 connects out, the agent host gets no access to your workstation.
 
+- **Only hosts with claude.** A host can be left out (*Back up Claude data from this host: no*,
+  `backup = false`); hosts whose sessions are plain ssh logins are left out unless switched on.
+  An agent host without rsync (VMware ESXi, minimal systems) gets the built-in transfer
+  (`sh` and `tar` there) automatically.
 - **One way, and only growing.** Files deleted on the agent host are kept in the backup, so a
   misbehaving or compromised agent host cannot wipe it; it can at most add or change files in
   its own backup folder. Nothing in a backup is executed by the app.

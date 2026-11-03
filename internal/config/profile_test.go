@@ -24,3 +24,23 @@ func TestProfileDirs(t *testing.T) {
 		t.Errorf("data %s (default %s): %v", d, data, err)
 	}
 }
+
+// TestBacksUp: hosts are backed up unless switched off; a host whose
+// sessions are plain logins is not, unless switched on.
+func TestBacksUp(t *testing.T) {
+	no, yes := false, true
+	for _, c := range []struct {
+		h    Host
+		want bool
+	}{
+		{Host{}, true},
+		{Host{LocalDir: &yes}, true},
+		{Host{LocalDir: &no}, false},
+		{Host{LocalDir: &no, Backup: &yes}, true},
+		{Host{Backup: &no}, false},
+	} {
+		if BacksUp(c.h) != c.want {
+			t.Errorf("%+v: want %v", c.h, c.want)
+		}
+	}
+}

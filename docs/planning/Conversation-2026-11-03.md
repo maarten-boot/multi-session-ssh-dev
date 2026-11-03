@@ -95,3 +95,18 @@
   all five release files. The first release with sessions without tmux.
 - **Cross-check after the v1.1.6 release:** nothing changed since d0db5c4 (only this log);
   1.1.6 everywhere, PLAN has its entries. No differences.
+- **User:** "similar item with rsync a vmware has no rsync so a remote backup can never be done
+  and as it is a ssh only what would we need to replicate ?"
+  - Answer: nothing — the Claude backup copies only Claude Code's data (~/.claude,
+    ~/.claude.json), and an ssh-only host has no claude; the session's notes, Q&A and
+    recordings are on this computer. Today the backup tried every ssh host anyway: rsync
+    failed there (no rsync on the host), the built-in transfer would stop at "no ~/.claude".
+  - Decided (questions): a per-host switch, off for plain-login hosts; and when an agent host
+    lacks rsync, fall back to the built-in transfer automatically.
+  - Built (v1.1.7): config `backup` on hosts and config.BacksUp; the backup runner skips hosts
+    that are off; the header tooltip says so, no ⚠, no backup items in the host menu; Add/Edit
+    host *Back up Claude data from this host* (follows Sessions on this host until changed,
+    stored only when different); internal/backup recognises "rsync: (command )?not found",
+    runs the built-in transfer for backup and restore, notes it and remembers the target.
+  - Tests: TestBacksUp, TestRemoteNoRsync, TestSSHNoRemoteRsync (passes with
+    SW_SSH_TARGET=localhost), gui-smoke-login.sh.

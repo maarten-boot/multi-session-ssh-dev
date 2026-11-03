@@ -894,9 +894,11 @@ const app = {
     // with a ⚠ when the last backup failed.
     renderBackup(host) {
         const st = this.backups?.[host];
+        const cfg = this.state.hosts.find(x => x.name === host);
+        const off = cfg && cfg.kind !== 'container' && !backsUp(cfg);
         for (const h of this.hostHeads.filter(h => h.name === host)) {
-            h.head.title = `${h.target}\n${backupText(st, this.state.ui.claude_backup)}`;
-            h.head.querySelector('.backup-warn').hidden = !st?.error;
+            h.head.title = `${h.target}\n${off ? 'Claude backups are off for this host (Edit host…)' : backupText(st, this.state.ui.claude_backup)}`;
+            h.head.querySelector('.backup-warn').hidden = off || !st?.error;
         }
     },
 
@@ -1541,11 +1543,16 @@ async function restoreBackup(h) {
     if (ok) toast(`Claude data restored to ${h.name}.`);
 }
 
+// backsUp: the Claude backups include host h (config.BacksUp): its own
+// backup setting, else yes unless its sessions are plain logins.
+const backsUp = h => h?.backup ?? (h?.local_dir !== false);
+
 function hostMenu(g, x, y) {
     const st = app.backups?.[g.name];
     const backedUp = !!when(st?.last_ok);
-    // A container host's ~/.claude is a volume, kept across rebuilds: no backups.
-    const box = g.host?.kind === 'container';
+    // A container host's ~/.claude is a volume, kept across rebuilds; a host
+    // can have backups switched off (plain logins): no backup items.
+    const box = g.host?.kind === 'container' || (g.host && !backsUp(g.host));
     showMenu(x, y, [
         {label: 'New session on this host…', disabled: !g.host, action: () => sessionDialog(null, g.name, g.group)},
         {label: g.host ? 'Edit host…' : 'Configure host…', action: () => hostDialog(g.host, g.host ? null : g.name)},
@@ -1818,6 +1825,11 @@ async function hostDialog(h = null, presetName = null) {
     f.elements.kind.value = h?.kind ?? '';
     f.elements.local_dir.value = h?.local_dir === false ? 'no' : 'yes';
     f.elements.tmux.value = h?.tmux === false ? 'no' : 'yes';
+    // Claude backups: the host's own choice, else follow Sessions on this
+    // host (plain logins: no claude there, so no backups) until changed.
+    let backupSet = h?.backup != null;
+    f.elements.backup.value = backsUp(h ?? {}) ? 'yes' : 'no';
+    f.elements.backup.onchange = () => backupSet = true;
     const showMode = () => {
         const shared = f.elements.files.value === 'shared';
         const box = f.elements.kind.value === 'container';
@@ -1828,6 +1840,7 @@ async function hostDialog(h = null, presetName = null) {
         // Plain logins share no directory: the file fields are shown, not
         // used (a session can still choose a directory, then they apply).
         const logins = f.elements.local_dir.value === 'no';
+        if (!backupSet) f.elements.backup.value = logins ? 'no' : 'yes';
         for (const k of ['files', 'local_prefix', 'remote_prefix', 'browse', 'remote_workdir']) f.elements[k].disabled = logins;
     };
     f.elements.files.onchange = showMode;
@@ -1845,6 +1858,8 @@ async function hostDialog(h = null, presetName = null) {
         name: f.elements.name.value, kind: '', ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
         local_dir: f.elements.local_dir.value === 'no' ? false : null,
         tmux: f.elements.tmux.value === 'no' ? false : null,
+        // Stored only when it differs from what Sessions on this host implies.
+        backup: (f.elements.backup.value === 'yes') === (f.elements.local_dir.value !== 'no') ? null : f.elements.backup.value === 'yes',
         ...(f.elements.files.value === 'shared'
             ? {local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value, remote_workdir: ''}
             : {local_prefix: '', remote_prefix: '', remote_workdir: f.elements.remote_workdir.value}),
