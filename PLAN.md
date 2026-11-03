@@ -176,6 +176,9 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.5 (2026-11-03): v1.1.4's Windows build failed — TestPlainLogin made a session with a
+  directory on a host without path mapping, which Windows paths need; the test host now has
+  prefixes. v1.1.4 has no release; v1.1.5 is the first with -profile and plain logins.
 - v1.1.4 (2026-11-03), also: plain ssh login sessions (SPEC F2a; the user's note "when using
   the app only for ssh remote sessions there is no need to share the local directory"): a host's
   `local_dir = false` and a per-session override; no local path, the shell in home or

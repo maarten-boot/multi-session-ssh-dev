@@ -58,3 +58,6 @@
   a login) and F2 (the dialog's Local directory step), README's recordings row (logins go to
   logs/<host>/logins/<id>/) and Edit… list (a login's remote folder), and CONNECTIVITY now
   says plain logins share no files.
+- **v1.1.4 CI** (tagged): failed on windows-amd64 (TestPlainLogin: "host "jump" has no path
+  mapping and "C:\…\proj" is not a POSIX path" — a test bug, not the app); linux and macOS
+  passed; no release. Fixed: the test host gets prefixes. **User:** bump to v1.1.5.

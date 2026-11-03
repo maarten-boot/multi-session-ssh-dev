@@ -1013,7 +1013,9 @@ func TestPlainLogin(t *testing.T) {
 	dir := t.TempDir()
 	m := Open(filepath.Join(dir, "config.toml"))
 	no := false
-	if err := m.SaveHost("", config.Host{Name: "jump", SSHTarget: "me@jump", LocalDir: &no}); err != nil {
+	// Prefixes: a session with a directory on it needs a mapping on Windows.
+	if err := m.SaveHost("", config.Host{Name: "jump", SSHTarget: "me@jump", LocalDir: &no,
+		LocalPrefix: dir, RemotePrefix: "/srv/share"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.SaveHost("", config.Host{Name: "dev", SSHTarget: "dev"}); err != nil {
