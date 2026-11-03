@@ -68,13 +68,22 @@
         <label>Agent host
             <select name="host"></select>
         </label>
-        <label>Directory
+        <label>Local directory
+            <select name="localdir">
+                <option value="yes">yes: a directory here, shared with the agent host</option>
+                <option value="no">no: a plain ssh login</option>
+            </select>
+        </label>
+        <label class="dir-row">Directory
             <span class="row">
                 <input name="dir" autocomplete="off" spellcheck="false" placeholder="/path/to/repository">
                 <button type="button" name="browse">Browse…</button>
             </span>
         </label>
         <div class="preview" data-for="dir"></div>
+        <label class="remote-dir" hidden>Remote folder (where the shell starts; empty: the login's home)
+            <input name="remotedir" autocomplete="off" spellcheck="false" placeholder="~ (home), or /var/log, ~/work">
+        </label>
         <label>Name
             <input name="name" autocomplete="off" spellcheck="false">
         </label>
@@ -172,6 +181,14 @@
         <p class="hint">Each session gets <code>&lt;folder&gt;/&lt;directory&gt;-&lt;id&gt;</code> there.
             See docs/CONNECTIVITY.md for the trade-offs of each mode.</p>
         </div>
+        <label>Sessions on this host
+            <select name="local_dir">
+                <option value="yes">get a local directory, shared with it (default)</option>
+                <option value="no">are plain ssh logins (no local directory)</option>
+            </select>
+        </label>
+        <p class="hint">A plain login only has the Remote, Notes, Web and Q&amp;A tabs; its shell starts in the
+            login's home or a folder you give. Each session can still choose otherwise.</p>
         </div>
         <div class="error"></div>
         <div class="buttons">

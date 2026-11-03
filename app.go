@@ -429,6 +429,9 @@ func (a *App) localRoot(id string) (session.Resolved, error) {
 	if r.ID == "" {
 		return r, err
 	}
+	if _, err := r.Dir(); err != nil {
+		return r, err // a plain login: nothing here to list, check or open
+	}
 	return r, nil
 }
 
@@ -461,8 +464,8 @@ type WebInfo struct {
 }
 
 func (a *App) WebInfo(id string) (WebInfo, error) {
-	r, err := a.localRoot(id)
-	if err != nil {
+	r, err := a.sessions.Resolve(id)
+	if r.ID == "" {
 		return WebInfo{}, err
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
@@ -470,6 +473,9 @@ func (a *App) WebInfo(id string) (WebInfo, error) {
 	w := WebInfo{Links: []forge.Link{}, Custom: a.sessions.Links(id), GH: forge.HaveGH()}
 	if w.Custom == nil {
 		w.Custom = []config.Link{}
+	}
+	if r.Plain {
+		return w, nil // a plain login: only its own links (no repository here)
 	}
 	if repo, ok := forge.Parse(gitstatus.RemoteURL(ctx, r.LocalPath)); ok {
 		w.Repo = &repo
@@ -558,8 +564,9 @@ func (a *App) syncSession(id string) (syncer.Session, error) {
 	if err != nil {
 		return syncer.Session{}, err
 	}
-	if session.FilesMode(r.Host) != session.FilesSync {
-		return syncer.Session{}, fmt.Errorf("host %q does not use working copies", r.Host.Name)
+	if session.FilesMode(r.Host) != session.FilesSync || r.Plain {
+		return syncer.Session{}, fmt.Errorf("session %q has no working copy (host %q, %s)", r.Name, r.Host.Name,
+			map[bool]string{true: "a plain login", false: "not a working-copy host"}[r.Plain])
 	}
 	return syncer.Session{ID: r.ID, Target: r.Host.SSHTarget, LocalPath: r.LocalPath, RemotePath: r.RemotePath}, nil
 }
@@ -922,6 +929,9 @@ func (a *App) StartLocal(id string, cols, rows int) (string, error) {
 	if r.ID == "" {
 		return "", err // unknown session; other resolve errors only affect Remote
 	}
+	if r.Plain {
+		return "", session.ErrNoLocalDir // the frontend shows no Local tab for it
+	}
 	cfg := a.sessions.Config()
 	sh, args := terminal.DefaultShell()
 	if cfg.Local.Shell != "" {
@@ -963,6 +973,9 @@ func (a *App) ensureShare(id string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
+	if r.Plain {
+		return session.ErrNoLocalDir
+	}
 	return a.shares.Ensure(id, share.Spec{Target: r.Host.SSHTarget, LocalPath: r.LocalPath, RemotePath: r.RemotePath}, timeout)
 }
 
@@ -982,7 +995,7 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if session.FilesMode(r.Host) == session.FilesSSHFS {
+	if session.FilesMode(r.Host) == session.FilesSSHFS && !r.Plain {
 		if err := a.ensureShare(id, 25*time.Second); err != nil {
 			return "", fmt.Errorf("sharing the directory: %w", err)
 		}
@@ -1010,7 +1023,7 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	} else {
 		a.pushPendingHistory(r)
 	}
-	tgt := reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LocalPath}
+	tgt := reclog.Target{Session: r.ID, Name: r.Name, Host: r.Host.Name, Path: r.LogPath()}
 	// Attached before any output is read: none is lost, and a connection
 	// that ends at once is not left recording.
 	return a.terms.Start(terminal.Spec{Command: ssh, Args: args, Cols: cols, Rows: rows,
@@ -1067,7 +1080,7 @@ func (a *App) OpenLogFolder(id string) error {
 	if base == "" {
 		return fmt.Errorf("no folder for recordings: set one in Settings → Backups and recordings")
 	}
-	dir := reclog.Dir(base, r.Host.Name, r.LocalPath)
+	dir := reclog.Dir(base, r.Host.Name, r.LogPath())
 	if _, err := os.Stat(dir); err != nil {
 		return fmt.Errorf("no recordings of %s yet (they go to %s)", r.Name, dir)
 	}

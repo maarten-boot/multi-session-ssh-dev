@@ -39,6 +39,11 @@ type Host struct {
 	// RemoteWorkdir holds the agent-host copies or mounts for "sync" and
 	// "sshfs" (default ~/sw): <remote_workdir>/<dir name>-<session id>.
 	RemoteWorkdir string `toml:"remote_workdir,omitempty" json:"remote_workdir"`
+	// LocalDir: its sessions share a local directory with the host (the
+	// default); false makes them plain logins (no directory here, the shell
+	// starts in the login's home or the session's remote_dir). A session's
+	// own local_dir overrides it.
+	LocalDir *bool `toml:"local_dir,omitempty" json:"local_dir"`
 }
 
 // Session is one work item: a directory on the host bound to an agent host.
@@ -50,7 +55,7 @@ type Session struct {
 	// the sidebar (after UI.DescriptionDelay).
 	Description string            `toml:"description,omitempty" json:"description"`
 	Host        string            `toml:"host" json:"host"`
-	LocalPath   string            `toml:"local_path" json:"local_path"`
+	LocalPath   string            `toml:"local_path,omitempty" json:"local_path"` // "" for a plain login
 	StartMode   string            `toml:"start_mode" json:"start_mode"`
 	Env         map[string]string `toml:"env,omitempty" json:"env"`               // extra env for the Local tab
 	LocalInit   string            `toml:"local_init,omitempty" json:"local_init"` // typed into the Local tab after start
@@ -73,6 +78,13 @@ type Session struct {
 	// OwnClaudeVolume gives a container session its own ~/.claude volume
 	// (its own Claude Code login) instead of the shared one.
 	OwnClaudeVolume bool `toml:"own_claude_volume,omitempty" json:"own_claude_volume"`
+	// LocalDir overrides the host's local_dir: false is a plain login
+	// (no local_path), true a session with a directory on a host whose
+	// sessions are logins by default.
+	LocalDir *bool `toml:"local_dir,omitempty" json:"local_dir"`
+	// RemoteDir is where a plain login's shell starts (absolute or ~/…;
+	// "" is the login's home). Typed as is: no path mapping.
+	RemoteDir string `toml:"remote_dir,omitempty" json:"remote_dir"`
 }
 
 // Command is an entry of the command menu of the Local and Remote tabs:
@@ -697,4 +709,16 @@ func Save(path string, c *Config) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// HasLocalDir reports whether a session on host h has a local directory:
+// the session's local_dir, else the host's, else yes.
+func HasLocalDir(h Host, s Session) bool {
+	switch {
+	case s.LocalDir != nil:
+		return *s.LocalDir
+	case h.LocalDir != nil:
+		return *h.LocalDir
+	}
+	return true
 }

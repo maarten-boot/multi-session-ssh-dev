@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1002,5 +1003,86 @@ func TestContainerHost(t *testing.T) {
 	}
 	if !m.State().Sessions[0].OwnClaudeVolume {
 		t.Error("own volume lost by an edit that left it out")
+	}
+}
+
+// TestPlainLogin: a host whose sessions are logins (local_dir = false):
+// no directory, the shell in home or remote_dir, the name from the host;
+// a session can override either way; container hosts need directories.
+func TestPlainLogin(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	no := false
+	if err := m.SaveHost("", config.Host{Name: "jump", SSHTarget: "me@jump", LocalDir: &no}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SaveHost("", config.Host{Name: "dev", SSHTarget: "dev"}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := m.Create(NewSession{Host: "jump", StartMode: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Name != "jump" || !v.Plain || v.Files != FilesLogin || v.LocalPath != "" {
+		t.Errorf("first login: %+v", v)
+	}
+	r, err := m.Resolve(v.ID)
+	if err != nil || !r.Plain || r.RemotePath != "~" || r.LogPath() != "logins/"+v.ID {
+		t.Errorf("resolved %+v %v", r, err)
+	}
+	if _, err := r.Dir(); !errors.Is(err, ErrNoLocalDir) {
+		t.Errorf("Dir: %v", err)
+	}
+	if args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, "", false); err != nil ||
+		!strings.Contains(strings.Join(args, " "), `cd "$HOME"`) {
+		t.Errorf("attach: %v %v", args, err)
+	}
+	// A second login on the same host: no directory clash, a numbered name.
+	v2, err := m.Create(NewSession{Host: "jump", StartMode: "shell", RemoteDir: "/var/log"})
+	if err != nil || v2.Name != "jump 2" {
+		t.Fatalf("second login: %+v %v", v2, err)
+	}
+	if r2, _ := m.Resolve(v2.ID); r2.RemotePath != "/var/log" {
+		t.Errorf("remote dir: %q", r2.RemotePath)
+	}
+	if _, err := m.Create(NewSession{Host: "jump", StartMode: "shell", RemoteDir: "relative/dir"}); err == nil {
+		t.Error("a relative remote folder was accepted")
+	}
+	// Edit changes the folder; left out keeps it.
+	home := ""
+	if err := m.Update(v2.ID, Edit{Name: "logs", StartMode: "shell", RemoteDir: &home}); err != nil {
+		t.Fatal(err)
+	}
+	if r2, _ := m.Resolve(v2.ID); r2.RemotePath != "~" {
+		t.Errorf("after edit: %q", r2.RemotePath)
+	}
+	// Overrides: a directory on the login host, a login on the other host.
+	proj := filepath.Join(dir, "proj")
+	os.MkdirAll(proj, 0o755)
+	yes := true
+	v3, err := m.Create(NewSession{Host: "jump", StartMode: "shell", LocalPath: proj, LocalDir: &yes})
+	if err != nil || v3.Plain || v3.LocalPath != proj {
+		t.Errorf("directory on a login host: %+v %v", v3, err)
+	}
+	v4, err := m.Create(NewSession{Host: "dev", StartMode: "shell", LocalDir: &no})
+	if err != nil || !v4.Plain || v4.Name != "dev" {
+		t.Errorf("login on a directory host: %+v %v", v4, err)
+	}
+	cfg := m.Config()
+	for _, s := range cfg.Sessions {
+		if s.ID == v.ID && s.LocalDir != nil {
+			t.Error("the host's default was stored on the session")
+		}
+		if s.ID == v4.ID && (s.LocalDir == nil || *s.LocalDir) {
+			t.Error("the override was not stored")
+		}
+	}
+	if p := Problems(&cfg); len(p) != 0 {
+		t.Errorf("problems: %v", p)
+	}
+	if runtime.GOOS != "windows" {
+		if err := m.SaveHost("", config.Host{Name: "box", Kind: HostContainer, LocalDir: &no}); err == nil {
+			t.Error("a container host without directories was accepted")
+		}
 	}
 }

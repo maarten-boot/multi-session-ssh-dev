@@ -200,7 +200,7 @@ func (a *App) qaLogDir(id string) (string, string, error) {
 	if base == "" {
 		return "", r.Name, fmt.Errorf("no folder for the Q&A log: set one in Settings → Backups and recordings")
 	}
-	return reclog.Dir(base, r.Host.Name, r.LocalPath), r.Name, nil
+	return reclog.Dir(base, r.Host.Name, r.LogPath()), r.Name, nil
 }
 
 // QALoad returns the session's Q&A.

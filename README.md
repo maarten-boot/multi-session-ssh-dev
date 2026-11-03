@@ -89,7 +89,7 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # Remote tab recordings, command menu (with groups), prompts menu and start
                      # commands, private shell history, lists and spelling in the notes,
                      # badges, exporting and importing a session (.zip and .tar.gz),
-                     # a separate setup with -profile (~2 min)
+                     # a separate setup with -profile, plain ssh logins (~2 min)
 make smoke-container # a container host with real Podman (else Docker; SW_ENGINE=docker):
                      # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes);
                      # also the Dockerfile window itself: move, resize, right-click Copy and Paste
@@ -133,6 +133,14 @@ appears on the agent host, or why it can't be used. Host and directory can't be 
 later, and a directory can have one session per host. `claude --continue` starts a new
 conversation when the directory has none yet. The start mode only applies when the remote
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
+
+**Plain ssh logins.** Not every session needs a directory here: for a quick login (or a
+whole `-profile ssh-switcher` setup), set the host's *Sessions on this host* to *are plain ssh
+logins*, or choose *Local directory: no* in New session. Such a session only has the Remote,
+Notes, Web and Q&A tabs; its shell starts in the login's home or in a *Remote folder* you give
+(`/var/log`, `~/work`; changeable in *Edit…*), it is named after the host (`jump`, `jump 2`, …)
+and starts a shell rather than claude. In the config: `local_dir = false` on the host or the
+session, `remote_dir = "/var/log"` on the session, and no `local_path`.
 *Edit…* shows the session's **id** at the top (e.g. `s-3fa2`, for information; it can't be
 changed): the name of the session in `config.toml`, of its folders (`notes/<id>/`,
 `qa/<id>.json`, `working-copies/<id>/`) and of its tmux session `cw-<id>`.

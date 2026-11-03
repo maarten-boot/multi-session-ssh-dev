@@ -28,6 +28,7 @@ export namespace config {
 	    remote_prefix: string;
 	    files: string;
 	    remote_workdir: string;
+	    local_dir?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Host(source);
@@ -42,6 +43,7 @@ export namespace config {
 	        this.remote_prefix = source["remote_prefix"];
 	        this.files = source["files"];
 	        this.remote_workdir = source["remote_workdir"];
+	        this.local_dir = source["local_dir"];
 	    }
 	}
 	export class Link {
@@ -91,6 +93,8 @@ export namespace config {
 	    commands: Command[];
 	    history: string;
 	    own_claude_volume: boolean;
+	    local_dir?: boolean;
+	    remote_dir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -114,6 +118,8 @@ export namespace config {
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.history = source["history"];
 	        this.own_claude_volume = source["own_claude_volume"];
+	        this.local_dir = source["local_dir"];
+	        this.remote_dir = source["remote_dir"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -536,6 +542,7 @@ export namespace main {
 	    manifest: sessionarchive.Manifest;
 	    host_exists: boolean;
 	    not_imported: string[];
+	    plain: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ImportInfo(source);
@@ -547,6 +554,7 @@ export namespace main {
 	        this.manifest = this.convertValues(source["manifest"], sessionarchive.Manifest);
 	        this.host_exists = source["host_exists"];
 	        this.not_imported = source["not_imported"];
+	        this.plain = source["plain"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1002,6 +1010,7 @@ export namespace session {
 	    history: string;
 	    own_claude_volume?: boolean;
 	    commands: config.Command[];
+	    remote_dir?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Edit(source);
@@ -1018,6 +1027,7 @@ export namespace session {
 	        this.history = source["history"];
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
+	        this.remote_dir = source["remote_dir"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1046,6 +1056,8 @@ export namespace session {
 	    start_mode: string;
 	    color_mode: string;
 	    group: string;
+	    local_dir?: boolean;
+	    remote_dir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new NewSession(source);
@@ -1060,6 +1072,8 @@ export namespace session {
 	        this.start_mode = source["start_mode"];
 	        this.color_mode = source["color_mode"];
 	        this.group = source["group"];
+	        this.local_dir = source["local_dir"];
+	        this.remote_dir = source["remote_dir"];
 	    }
 	}
 	export class Preview {
@@ -1097,6 +1111,8 @@ export namespace session {
 	    history: string;
 	    own_claude_volume: boolean;
 	    commands: config.Command[];
+	    plain: boolean;
+	    remote_dir: string;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1121,6 +1137,8 @@ export namespace session {
 	        this.history = source["history"];
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
+	        this.plain = source["plain"];
+	        this.remote_dir = source["remote_dir"];
 	        this.error = source["error"];
 	    }
 	

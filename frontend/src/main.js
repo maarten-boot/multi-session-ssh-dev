@@ -68,9 +68,10 @@ class Tab {
         };
         const disabled = this.view?.id ? null : 'not connected';
         const otherKey = this.key === 'local' ? 'remote' : 'local';
+        const hasOther = this.session.visibleTabs().some(t => t.key === otherKey);
         const items = commandItems(this.session, app.state.ui.commands, send, disabled, {
             tab: this.key,
-            sendOther: (d, c) => {
+            sendOther: hasOther && ((d, c) => {
                 this.view?.term.focus(); // keys keep going to the tab on screen
                 return this.session.tab(otherKey)?.typeInBackground(d)
                     .then(() => toast(`“${c.name}” typed into the ${otherKey === 'local' ? 'Local' : 'Remote'} tab`))
@@ -78,7 +79,7 @@ class Tab {
                     .finally(() => {
                         if (app.active === this.session && !this.pane.hidden) this.view?.term.focus();
                     });
-            },
+            }),
         });
         const home = this.key === 'local'
             ? homeItem(this.session.data.local_path, send, disabled, navigator.platform.startsWith('Win')) : null;
@@ -396,9 +397,11 @@ class SessionUI {
         return b.includes('bell') ? 'bell' : b.includes('activity') ? 'activity' : null;
     }
 
-    // visibleTabs returns the shown tabs in the order set in Settings.
+    // visibleTabs returns the shown tabs in the order set in Settings; a
+    // plain login has no Local and Files tabs (no local directory).
     visibleTabs() {
-        return tabOrder().map(k => this.tab(k)).filter(Boolean);
+        const none = this.data.plain ? ['local', 'files'] : [];
+        return tabOrder().filter(k => !none.includes(k)).map(k => this.tab(k)).filter(Boolean);
     }
 
     activeTabObj() {
@@ -905,7 +908,7 @@ const app = {
             el('span', {className: 'abbr', textContent: initials(d.name)}),
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
-                el('div', {className: 'sub', textContent: '‎' + d.local_path})),
+                el('div', {className: 'sub', textContent: '‎' + where(d) + '‎'})),
             el('span', {className: 'todo-warn', textContent: '▲', hidden: !s.todoCount(), title: s.todoText()}),
             el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
                 title: 'Repository hooks or settings to review (see the Files tab)'}),
@@ -915,7 +918,7 @@ const app = {
         // Name, path and description, after Settings → Appearance's delay.
         balloon(item, () => [
             el('div', {className: 'balloon-name', textContent: d.name}),
-            el('div', {className: 'balloon-path', textContent: d.local_path}),
+            el('div', {className: 'balloon-path', textContent: where(d)}),
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
             s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
@@ -1104,7 +1107,7 @@ const app = {
         path.textContent = d.error || (host.kind === 'container'
             ? `container sw-${d.id}:${d.remote_path}  ·  tmux ${d.tmux_name}`
             : `${host.ssh_target}:${d.remote_path}  ·  tmux ${d.tmux_name}`);
-        path.title = `local: ${d.local_path}`;
+        path.title = d.plain ? 'a plain ssh login (no local directory)' : `local: ${d.local_path}`;
     },
 
     select(s) {
@@ -1364,7 +1367,12 @@ async function groupAction(fn, title) {
 const hostWhere = h => h.kind === 'container' ? 'containers on this computer' : h.ssh_target;
 
 // FILE_MODES names a host's file access mode (docs/CONNECTIVITY.md).
+// where is a session's place for the list: its local directory, or for a
+// plain login the folder it starts in on the host.
+const where = d => d.plain ? `ssh login: ${d.remote_dir || '~'}` : d.local_path;
+
 const FILE_MODES = {
+    login: ['none (a plain ssh login)', 'No local directory: the shell starts in the login\'s home or the remote folder set in Edit….'],
     container: ['mounted in its container', 'The session directory is mounted at the same path in the session\'s own container.'],
     shared: ['shared folder', 'The agent host sees this directory through a shared file system (NFS, SMB, VM share).'],
     sshfs: ['live share (sshfs)', 'The agent host mounts this directory over ssh while the app runs.'],
@@ -1661,17 +1669,46 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     const preview = dlg.querySelector('.preview');
     preview.textContent = editing ? `→ ${s.data.remote_path || s.data.error}` : '';
     preview.classList.toggle('bad', editing && !!s.data.error);
+    // With or without a local directory: the host's default, fixed once
+    // made; a container host always mounts one.
+    const hostOf = () => app.state.hosts.find(h => h.name === f.elements.host.value);
+    const plain = () => f.elements.localdir.value === 'no';
+    f.elements.remotedir.value = s?.data.remote_dir ?? '';
+    const showKind = () => {
+        const box = hostOf()?.kind === 'container';
+        if (box) f.elements.localdir.value = 'yes';
+        f.elements.localdir.disabled = editing || box;
+        dlg.querySelector('.dir-row').hidden = plain();
+        dlg.querySelector('.remote-dir').hidden = !plain();
+        // A new plain login starts a shell (a start command without a
+        // command), not the last mode used for agent sessions.
+        const shell = starts.find(c => !c.command.trim());
+        if (!editing) f.elements.mode.value = plain() && shell ? shell.name
+            : (starts.some(c => c.name === lastMode) ? lastMode : starts[0]?.name ?? '');
+    };
+    f.elements.localdir.value = editing ? (s.data.plain ? 'no' : 'yes') : (hostOf()?.local_dir === false ? 'no' : 'yes');
+    showKind();
 
     let seq = 0;
     const update = async () => {
         if (editing) return;
         const n = ++seq;
+        if (plain()) {
+            const p = await PreviewSession({host: f.elements.host.value, local_path: '', name: '', start_mode: f.elements.mode.value,
+                color_mode: '', group: '', local_dir: false, remote_dir: f.elements.remotedir.value});
+            if (n !== seq) return;
+            f.elements.name.placeholder = p.name;
+            preview.classList.toggle('bad', !!p.error);
+            preview.textContent = p.error || `→ ${f.elements.host.value}:${p.remote_path}  (a plain login)`;
+            return;
+        }
         if (!f.elements.dir.value.trim()) {
             preview.textContent = '';
             f.elements.name.placeholder = '';
             return;
         }
-        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value, color_mode: '', group: ''});
+        const p = await PreviewSession({host: f.elements.host.value, local_path: f.elements.dir.value, name: '', start_mode: f.elements.mode.value,
+            color_mode: '', group: '', local_dir: true, remote_dir: ''});
         if (n !== seq) return; // a newer request is in flight
         f.elements.name.placeholder = p.name;
         preview.classList.toggle('bad', !!p.error);
@@ -1682,7 +1719,19 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
         clearTimeout(timer);
         timer = setTimeout(update, 150);
     };
-    f.elements.host.onchange = update;
+    f.elements.host.onchange = () => {
+        f.elements.localdir.value = hostOf()?.local_dir === false ? 'no' : 'yes';
+        showKind();
+        update();
+    };
+    f.elements.localdir.onchange = () => {
+        showKind();
+        update();
+    };
+    f.elements.remotedir.oninput = () => {
+        clearTimeout(timer);
+        timer = setTimeout(update, 150);
+    };
     f.elements.browse.onclick = async () => {
         const host = app.state.hosts.find(h => h.name === f.elements.host.value);
         const start = f.elements.dir.value || app.state.workspace_roots?.[0] || host?.local_prefix || '';
@@ -1703,17 +1752,19 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
                 history: f.elements.history.value, commands: cmdList.value, description: f.elements.description.value,
                 ...(inBox ? {own_claude_volume: f.elements.claude_volume.value === 'own'} : {}),
+                ...(s.data.plain ? {remote_dir: f.elements.remotedir.value} : {}),
             });
         } else {
             created = await CreateSession({
                 host: f.elements.host.value, local_path: f.elements.dir.value, name: f.elements.name.value,
                 start_mode: f.elements.mode.value, color_mode: '', group: f.elements.group.value,
                 description: f.elements.description.value,
+                local_dir: !plain(), remote_dir: plain() ? f.elements.remotedir.value : '',
             });
             store.set('lastHost', f.elements.host.value);
-            store.set('lastMode', f.elements.mode.value);
+            if (!plain()) store.set('lastMode', f.elements.mode.value); // a login's shell is not the agents' default
         }
-    }, editing ? f.elements.name : f.elements.dir);
+    }, editing || plain() ? f.elements.name : f.elements.dir);
     if (!ok) return;
     await app.reload();
     if (created) app.select(app.sessions.get(created.id));
@@ -1756,6 +1807,7 @@ async function hostDialog(h = null, presetName = null) {
     for (const k of ['name', 'ssh_target', 'local_prefix', 'remote_prefix', 'remote_workdir']) f.elements[k].value = h?.[k] ?? '';
     f.elements.files.value = h?.files || 'shared';
     f.elements.kind.value = h?.kind ?? '';
+    f.elements.local_dir.value = h?.local_dir === false ? 'no' : 'yes';
     const showMode = () => {
         const shared = f.elements.files.value === 'shared';
         const box = f.elements.kind.value === 'container';
@@ -1776,6 +1828,7 @@ async function hostDialog(h = null, presetName = null) {
         name: f.elements.name.value, kind: 'container', ssh_target: '', files: '', local_prefix: '', remote_prefix: '', remote_workdir: '',
     } : {
         name: f.elements.name.value, kind: '', ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
+        local_dir: f.elements.local_dir.value === 'no' ? false : null,
         ...(f.elements.files.value === 'shared'
             ? {local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value, remote_workdir: ''}
             : {local_prefix: '', remote_prefix: '', remote_workdir: f.elements.remote_workdir.value}),
@@ -2666,10 +2719,13 @@ async function importDialog() {
         ...app.state.hosts.map(h => el('option', {value: h.name, textContent: h.name, selected: h.name === m.host.name})),
         ...(info.host_exists ? [] : [el('option', {value: ADD, selected: true,
             textContent: `Add “${m.host.name}” from the archive (${m.host.kind === 'container' ? 'containers' : m.host.ssh_target || 'ssh'})`})]));
-    f.dir.value = m.session.local_path;
+    f.dir.value = m.session.local_path ?? '';
     f.name.value = m.session.name;
+    f.dir.closest('label').hidden = info.plain; // a plain login has no directory
     const hasProject = (m.parts ?? []).includes('project');
-    dlg.querySelector('.import-dir-hint').textContent = hasProject
+    dlg.querySelector('.import-dir-hint').textContent = info.plain
+        ? `A plain ssh login: no directory; its shell starts in ${m.session.remote_dir || 'the home folder'}.`
+        : hasProject
         ? 'The project files are unpacked here: the directory must be empty or new.'
         : 'The archive has no project files: an existing directory is used as it is, a new one is created.';
     dlg.querySelector('.import-notes').textContent = info.not_imported?.length
@@ -2683,7 +2739,7 @@ async function importDialog() {
         const add = f.host.value === ADD;
         result = await ImportSession({path: info.path, host: add ? m.host.name : f.host.value, add_host: add,
             local_path: f.dir.value, name: f.name.value});
-    }, f.dir);
+    }, info.plain ? f.name : f.dir);
     if (!ok) return;
     await app.reload();
     app.select(app.sessions.get(result.session.id));

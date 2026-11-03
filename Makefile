@@ -137,6 +137,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-badges.sh build/bin/session-workbench $(SMOKE_OUT)-badges
 	$(XVFB) scripts/gui-smoke-export.sh build/bin/session-workbench $(SMOKE_OUT)-export
 	$(XVFB) scripts/gui-smoke-profile.sh build/bin/session-workbench $(SMOKE_OUT)-profile
+	$(XVFB) scripts/gui-smoke-login.sh build/bin/session-workbench $(SMOKE_OUT)-login
 
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first

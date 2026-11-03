@@ -71,6 +71,9 @@ func (a *App) exportSources(id string) (exportSources, error) {
 		s.history = filepath.Join(a.dataDir, "history", id+".history")
 	}
 	s.copies, _ = a.savedBase(id)
+	if r.Plain {
+		return s, nil // a plain login: no directory, no Dockerfile
+	}
 	spec := container.Spec{ID: id, LocalPath: r.LocalPath}
 	if a.dataDir != "" {
 		spec.Dir = filepath.Join(a.dataDir, "containers", id)
@@ -162,9 +165,11 @@ func (a *App) ExportParts(id string) ([]ExportPart, error) {
 	p = part(sessionarchive.PartCopies, "Saved agent copies")
 	p.Files, p.Size = dirStats(s.copies, nil)
 	parts = append(parts, p)
-	p = part(sessionarchive.PartProject, "The project directory")
-	p.Files, p.Size, p.Note = -1, -1, s.r.LocalPath+": tracked and untracked files and .git, not what .gitignore excludes"
-	parts = append(parts, p)
+	if !s.r.Plain { // a plain login has no project directory
+		p = part(sessionarchive.PartProject, "The project directory")
+		p.Files, p.Size, p.Note = -1, -1, s.r.LocalPath+": tracked and untracked files and .git, not what .gitignore excludes"
+		parts = append(parts, p)
+	}
 	return parts, nil
 }
 
@@ -305,7 +310,7 @@ func (a *App) writeExport(s exportSources, parts []string, file string) (ExportR
 		}
 		have(sessionarchive.PartCopies)
 	}
-	if want[sessionarchive.PartProject] {
+	if want[sessionarchive.PartProject] && !s.r.Plain {
 		ctx, cancel := context.WithTimeout(a.ctx, 2*time.Minute)
 		files, err := sessionarchive.ProjectFiles(ctx, s.r.LocalPath)
 		cancel()
@@ -408,6 +413,8 @@ type ImportInfo struct {
 	// NotImported names settings the archive has that import leaves out
 	// (they run commands on this computer, or trust its git hooks).
 	NotImported []string `json:"not_imported"`
+	// Plain: the session is a plain login (no directory to choose).
+	Plain bool `json:"plain"`
 }
 
 // ImportOpen asks for an archive and reads its manifest (nil: cancelled).
@@ -429,7 +436,7 @@ func (a *App) importInfo(file string) (*ImportInfo, error) {
 		return nil, err
 	}
 	m := arc.Manifest
-	info := &ImportInfo{Path: file, Manifest: m}
+	info := &ImportInfo{Path: file, Manifest: m, Plain: !config.HasLocalDir(m.Host, m.Session)}
 	for _, h := range a.sessions.Config().Hosts {
 		if h.Name == m.Host.Name {
 			info.HostExists = true
@@ -472,13 +479,16 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 	}
 	m := arc.Manifest
 	cfg := a.sessions.Config()
+	plain := !config.HasLocalDir(m.Host, m.Session)
 	local := filepath.Clean(session.ExpandHome(strings.TrimSpace(req.LocalPath)))
-	if !filepath.IsAbs(local) {
+	if !plain && !filepath.IsAbs(local) {
 		return ImportResult{}, errors.New("choose the session's directory (a full path)")
 	}
 	// The directory: new or existing; with project files only empty or new.
 	made := false
-	if fi, err := os.Stat(local); err == nil {
+	if plain {
+		local = "" // a plain login: no directory
+	} else if fi, err := os.Stat(local); err == nil {
 		if !fi.IsDir() {
 			return ImportResult{}, fmt.Errorf("%s is not a directory", local)
 		}
@@ -518,7 +528,10 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 	var notes []string
 	src := m.Session
 	in := session.NewSession{Host: strings.TrimSpace(req.Host), LocalPath: local, Name: strings.TrimSpace(req.Name),
-		Description: src.Description, ColorMode: src.ColorMode}
+		Description: src.Description, ColorMode: src.ColorMode, RemoteDir: src.RemoteDir}
+	// What the archive's session was, whatever the chosen host's default.
+	hasDir := !plain
+	in.LocalDir = &hasDir
 	if in.Name == "" {
 		in.Name = src.Name
 	}
@@ -562,7 +575,7 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 			notes = append(notes, what+": "+err.Error())
 		}
 	}
-	if m.Has(sessionarchive.PartProject) {
+	if m.Has(sessionarchive.PartProject) && !plain {
 		_, err := arc.Extract("project", local, false)
 		step("project files", err)
 	}
@@ -595,7 +608,7 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 			step("saved copies", err)
 		}
 	}
-	if m.Has(sessionarchive.PartDockerfile) {
+	if m.Has(sessionarchive.PartDockerfile) && !plain {
 		repo := filepath.Join(local, filepath.FromSlash(container.RepoDockerfile))
 		_, repoErr := os.Stat(repo)
 		r, _ := a.sessions.Resolve(v.ID)

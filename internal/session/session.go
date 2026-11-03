@@ -46,7 +46,11 @@ type View struct {
 	OwnClaudeVolume bool `json:"own_claude_volume"`
 	// Commands is the session's own command menu (before the global one).
 	Commands []config.Command `json:"commands"`
-	Error    string           `json:"error"` // why the Remote tab cannot work, if it cannot
+	// Plain: a login without a local directory (no Local and Files tabs);
+	// RemoteDir is where its shell starts ("" = home).
+	Plain     bool   `json:"plain"`
+	RemoteDir string `json:"remote_dir"`
+	Error     string `json:"error"` // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -72,6 +76,30 @@ type Resolved struct {
 	RemotePath string
 	// StartCommand is what the start mode runs ("" is a login shell).
 	StartCommand string
+	// Plain: a login without a local directory (LocalPath is "").
+	Plain bool
+}
+
+// ErrNoLocalDir: a plain login session has no local directory.
+var ErrNoLocalDir = errors.New("this session is a plain login: it has no local directory")
+
+// Dir is the session's local directory, or ErrNoLocalDir for a plain
+// login (so nothing runs in the app's own folder by mistake).
+func (r Resolved) Dir() (string, error) {
+	if r.Plain || r.LocalPath == "" {
+		return "", ErrNoLocalDir
+	}
+	return r.LocalPath, nil
+}
+
+// LogPath is the path recordings and the Q&A log are kept under (with the
+// host's name, see reclog.Dir): the local directory, or logins/<id> for a
+// plain login.
+func (r Resolved) LogPath() string {
+	if r.Plain {
+		return "logins/" + r.ID
+	}
+	return r.LocalPath
 }
 
 // NewSession is the input for Create.
@@ -83,6 +111,10 @@ type NewSession struct {
 	StartMode   string `json:"start_mode"`
 	ColorMode   string `json:"color_mode"` // "" = follow the global setting
 	Group       string `json:"group"`
+	// LocalDir: null follows the host (local_dir); false is a plain login
+	// (no directory), starting in RemoteDir ("" = home).
+	LocalDir  *bool  `json:"local_dir"`
+	RemoteDir string `json:"remote_dir"`
 }
 
 // Edit is the input for Update.
@@ -102,6 +134,8 @@ type Edit struct {
 	// Commands replaces the session's own command menu; null (left out)
 	// keeps it, [] empties it.
 	Commands []config.Command `json:"commands"`
+	// RemoteDir: a plain login's start folder; null (left out) keeps it.
+	RemoteDir *string `json:"remote_dir"`
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -170,12 +204,18 @@ func (m *Manager) State() State {
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
-			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume}
+			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir}
+		if h, ok := findHost(m.cfg, se.Host); ok {
+			v.Plain = !config.HasLocalDir(h, se)
+		}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
 		} else {
 			v.RemotePath = r.RemotePath
 			v.Files = viewFiles(r.Host)
+			if r.Plain {
+				v.Files = FilesLogin
+			}
 		}
 		s.Sessions = append(s.Sessions, v)
 	}
@@ -198,6 +238,8 @@ const (
 	FilesShared = "shared"
 	FilesSync   = "sync"
 	FilesSSHFS  = "sshfs"
+	// FilesLogin is shown for a plain login session: no files at all.
+	FilesLogin = "login"
 )
 
 // viewFiles is the file mode the frontend shows: FilesMode, or
@@ -240,6 +282,21 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 		return r, fmt.Errorf("unknown start mode %q (not in [ui] start_commands)", s.StartMode)
 	}
 	r.StartCommand = start.Command
+	if !config.HasLocalDir(h, s) {
+		// A plain login: no directory here, no mapping; home or remote_dir.
+		if h.Kind == HostContainer {
+			return r, errors.New("a container session needs its local directory (it is mounted)")
+		}
+		r.Host, r.Plain, r.LocalPath = h, true, ""
+		r.RemotePath = s.RemoteDir
+		if r.RemotePath == "" {
+			r.RemotePath = "~"
+		}
+		if err := remote.CheckRemotePath(r.RemotePath); err != nil {
+			return r, fmt.Errorf("remote_dir %q must be absolute or start with ~/", s.RemoteDir)
+		}
+		return r, nil
+	}
 	if !filepath.IsAbs(r.LocalPath) {
 		return r, fmt.Errorf("local_path %q is not an absolute path", s.LocalPath)
 	}
@@ -366,6 +423,9 @@ func Problems(c *config.Config) []string {
 			}
 		}
 		k := dirHost{filepath.Clean(ExpandHome(s.LocalPath)), s.Host}
+		if s.LocalPath == "" {
+			continue // a plain login: no directory to share
+		}
 		if seenDir[k] {
 			out = append(out, fmt.Sprintf("session %q: %s already has a session on host %q", label, s.LocalPath, s.Host))
 		}
@@ -442,9 +502,13 @@ func (m *Manager) Create(in NewSession) (View, error) {
 	}); err != nil {
 		return View{}, err
 	}
-	return View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
+	v := View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
 		ColorMode: s.ColorMode, Group: s.Group, Files: viewFiles(r.Host), RemotePath: r.RemotePath,
-		TmuxName: remote.TmuxName(s.ID)}, nil
+		TmuxName: remote.TmuxName(s.ID), Plain: r.Plain, RemoteDir: s.RemoteDir}
+	if r.Plain {
+		v.Files = FilesLogin
+	}
+	return v, nil
 }
 
 func (m *Manager) newSession(in NewSession) (config.Session, error) {
@@ -455,6 +519,18 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 		if _, ok := config.FindStartCommand(m.cfg.UI, "claude"); ok {
 			s.StartMode = "claude"
 		}
+	}
+	h, ok := findHost(m.cfg, s.Host)
+	if !ok {
+		return s, fmt.Errorf("host %q is not configured", s.Host)
+	}
+	// Stored only when it differs from the host's default.
+	if in.LocalDir != nil && *in.LocalDir != config.HasLocalDir(h, config.Session{}) {
+		v := *in.LocalDir
+		s.LocalDir = &v
+	}
+	if !config.HasLocalDir(h, s) {
+		return m.newLogin(s, h, in)
 	}
 	p := strings.TrimSpace(in.LocalPath)
 	if p == "" {
@@ -494,6 +570,43 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 		if o.Host == s.Host && filepath.Clean(ExpandHome(o.LocalPath)) == s.LocalPath {
 			return s, fmt.Errorf("session %q already uses this directory on %s", o.Name, s.Host)
 		}
+	}
+	s.ID = m.newID()
+	return s, nil
+}
+
+// newLogin finishes a plain login session: no directory; the shell starts
+// in RemoteDir (absolute or ~/…, typed as is) or the login's home; the name
+// defaults to the host's ("host 2", "host 3" for more).
+func (m *Manager) newLogin(s config.Session, h config.Host, in NewSession) (config.Session, error) {
+	if h.Kind == HostContainer {
+		return s, errors.New("a container session needs a local directory (it is mounted)")
+	}
+	s.RemoteDir = strings.TrimSpace(in.RemoteDir)
+	if s.RemoteDir != "" {
+		if err := remote.CheckRemotePath(s.RemoteDir); err != nil {
+			return s, fmt.Errorf("the remote folder must be absolute or start with ~/ (empty: the home folder)")
+		}
+	}
+	if s.Name == "" {
+		s.Name = h.Name
+		for n := 2; slices.ContainsFunc(m.cfg.Sessions, func(o config.Session) bool { return o.Name == s.Name }); n++ {
+			s.Name = fmt.Sprintf("%s %d", h.Name, n)
+		}
+	}
+	d, err := tidyDescription(in.Description)
+	if err != nil {
+		return s, err
+	}
+	s.Description = d
+	if _, ok := config.FindStartCommand(m.cfg.UI, s.StartMode); !ok {
+		return s, fmt.Errorf("unknown start mode %q", s.StartMode)
+	}
+	if err := validColorMode(s.ColorMode); err != nil {
+		return s, err
+	}
+	if s.Group != "" && !slices.Contains(m.cfg.Groups, s.Group) {
+		return s, fmt.Errorf("folder %q does not exist", s.Group)
 	}
 	s.ID = m.newID()
 	return s, nil
@@ -629,6 +742,15 @@ func (m *Manager) Update(id string, e Edit) error {
 		}
 		if e.Commands != nil { // left out: unchanged
 			c.Sessions[i].Commands = config.TidyCommands(e.Commands)
+		}
+		if e.RemoteDir != nil { // left out: unchanged
+			d := strings.TrimSpace(*e.RemoteDir)
+			if d != "" {
+				if err := remote.CheckRemotePath(d); err != nil {
+					return fmt.Errorf("the remote folder must be absolute or start with ~/ (empty: the home folder)")
+				}
+			}
+			c.Sessions[i].RemoteDir = d
 		}
 		return nil
 	})
@@ -994,6 +1116,9 @@ func validHost(h config.Host) error {
 		}
 		if h.SSHTarget != "" || h.LocalPrefix != "" || h.RemotePrefix != "" || h.Files != "" || h.RemoteWorkdir != "" {
 			return errors.New("a container host has no ssh target, path prefixes or file mode (the directory is mounted)")
+		}
+		if h.LocalDir != nil && !*h.LocalDir {
+			return errors.New("a container host's sessions need their local directory (it is mounted)")
 		}
 		return nil
 	default:

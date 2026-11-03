@@ -131,6 +131,21 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   workspace root; any path under `local_prefix`) → name → description (optional) → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
   used; one session per directory and host. Host and directory are fixed afterwards.
+- F2a. Plain login sessions (no local directory). A host's *Sessions on this host*
+  (`local_dir = false`; default: with a directory) makes its new sessions plain ssh logins;
+  New session's *Local directory* (yes / no: a plain ssh login; preset from the host, fixed
+  once made; never for a container host) overrides it per session (`local_dir` on the session,
+  stored only when it differs from the host). A plain login has no `local_path`, no path
+  mapping and no file mode: its Remote tab's shell starts in its *Remote folder*
+  (`remote_dir`: absolute or `~/…`, typed as is; editable in Edit…) or the login's home; its
+  name defaults to the host's (`host 2`, `host 3`, …); several per host are fine; the dialog
+  picks a start command without a command (a shell) for it, and keeps the last start mode for
+  directory sessions. Tabs: Remote, Notes, Web (its own links), Q&A — no Local, no Files (and
+  so no git status, repository check, working copies, live share, Local commands or Back to
+  the session directory; the backend refuses those with "a plain login"). The list shows
+  `ssh login: <folder>`, the session menu *Files: none (a plain ssh login)*. Recordings and
+  the Q&A log go to `<logs>/<host>/logins/<id>/`. Export leaves out the project part; import
+  keeps a login a login (no directory to choose).
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable).
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal

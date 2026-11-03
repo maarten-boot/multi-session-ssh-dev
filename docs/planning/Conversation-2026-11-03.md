@@ -40,3 +40,15 @@
   tabs Remote, Notes, Web, Q&A; the name defaults to the host's name. Not built yet.
 - Regression after the profile: badges, window, sessions, history, instance, layout,
   switcher, dockerwin and container GUI tests pass; 60 frontend tests, go test, cross vet.
+- **Committed** 1b8401b (v1.1.4: profiles, Edit… layout, tests); pushed.
+- **User:** "pushed, start" — built plain ssh login sessions (still v1.1.4, not tagged):
+  config `local_dir` (host, session) and `remote_dir`; session.Resolved.Plain/Dir/LogPath;
+  the backend refuses directory actions for logins; Local/Files tabs hidden; the session and
+  host dialogs; sidebar `ssh login: <folder>`; export/import keep a login a login.
+  - My choices beyond the answers: a new plain login preselects a start command without a
+    command (a shell), not the last mode (which stays for directory sessions); the local
+    directory choice is fixed once the session is made (like host and directory);
+    recordings and the Q&A log of a login go under `<logs>/<host>/logins/<id>/`.
+  - Found in the GUI test: the sidebar line "ssh login: ~" showed as "~ :ssh login" (the
+    list shows paths right-to-left to cut them at the start) — fixed with a closing mark.
+  - Tests: TestPlainLogin, gui-smoke-login.sh (9 checks) pass.
