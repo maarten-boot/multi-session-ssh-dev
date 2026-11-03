@@ -176,6 +176,15 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.6 (2026-11-03), also: sessions without tmux (SPEC F2b; the user: "make also a option for
+  plain ssh logins not to have a tmux (vmware hosts have no tmux)"): a host's `tmux = false` and a
+  per-session override, for any session; remote.PlainArgs; no End remote session, no tmux in the
+  delete dialog, no restart offer. Tests: remote (TestPlainArgs), session (TestNoTmux),
+  gui-smoke-login.sh (a no-tmux host: plain login in its folder, no tmux session; Add host…
+  saves tmux = false).
+- v1.1.6 (2026-11-03): Add/Edit host asks *Sessions on this host* right after Name, Kind and SSH
+  target (the user: "move the sessions on this host as 4th item"); *are plain ssh logins*
+  disables File access and the path fields. Tested in gui-smoke-login.sh.
 - v1.1.5 (2026-11-03): v1.1.4's Windows build failed — TestPlainLogin made a session with a
   directory on a host without path mapping, which Windows paths need; the test host now has
   prefixes. v1.1.4 has no release; v1.1.5 is the first with -profile and plain logins.

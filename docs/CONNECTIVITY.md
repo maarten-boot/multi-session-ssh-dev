@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of November 2026 (v1.1.5).
+at your files, and what each choice means for security. Status as of November 2026 (v1.1.6).
 
 Everything described here is implemented.
 
@@ -32,6 +32,8 @@ reach that machine. Your ssh agent is not forwarded to it either.
 
 - An ssh server you can log in to **with a key**, without typing a password.
 - `tmux`, on the PATH of a *login* shell (`~/.profile`): the app starts it with `"$SHELL" -lc`.
+  A host without tmux (VMware ESXi) works with *Keep sessions in tmux: no* (`tmux = false`):
+  its sessions are plain ssh logins that end with the connection.
 - `claude` (or whatever your start commands run), on the PATH of an *interactive* login shell
   (`~/.profile` or `~/.bashrc`, for example `~/.local/bin`): start commands run like a manual
   login, with `"$SHELL" -lic`.

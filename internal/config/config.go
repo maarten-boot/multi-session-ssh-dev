@@ -44,6 +44,11 @@ type Host struct {
 	// starts in the login's home or the session's remote_dir). A session's
 	// own local_dir overrides it.
 	LocalDir *bool `toml:"local_dir,omitempty" json:"local_dir"`
+	// Tmux: its sessions run in tmux (the default; they survive a dropped
+	// connection); false for hosts without tmux (VMware ESXi): the Remote
+	// tab is a plain ssh login that ends with the connection. A session's
+	// own tmux overrides it.
+	Tmux *bool `toml:"tmux,omitempty" json:"tmux"`
 }
 
 // Session is one work item: a directory on the host bound to an agent host.
@@ -85,6 +90,8 @@ type Session struct {
 	// RemoteDir is where a plain login's shell starts (absolute or ~/…;
 	// "" is the login's home). Typed as is: no path mapping.
 	RemoteDir string `toml:"remote_dir,omitempty" json:"remote_dir"`
+	// Tmux overrides the host's tmux.
+	Tmux *bool `toml:"tmux,omitempty" json:"tmux"`
 }
 
 // Command is an entry of the command menu of the Local and Remote tabs:
@@ -719,6 +726,18 @@ func HasLocalDir(h Host, s Session) bool {
 		return *s.LocalDir
 	case h.LocalDir != nil:
 		return *h.LocalDir
+	}
+	return true
+}
+
+// UsesTmux reports whether a session on host h runs in tmux: the
+// session's tmux, else the host's, else yes.
+func UsesTmux(h Host, s Session) bool {
+	switch {
+	case s.Tmux != nil:
+		return *s.Tmux
+	case h.Tmux != nil:
+		return *h.Tmux
 	}
 	return true
 }

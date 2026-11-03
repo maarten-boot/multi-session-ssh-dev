@@ -427,3 +427,23 @@ func TestProfileNames(t *testing.T) {
 		t.Errorf("kill: %v %v", args, err)
 	}
 }
+
+// TestPlainArgs: without tmux the shell starts in the folder, the missing
+// folder is still reported, and tmux is not mentioned.
+func TestPlainArgs(t *testing.T) {
+	args, err := PlainArgs("esx", "s-1", "~", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := strings.Join(args, " ")
+	if strings.Contains(cmd, "tmux") || !strings.Contains(cmd, `cd "$HOME"`) || !strings.Contains(cmd, "HISTFILE") ||
+		args[0] != "-t" || !slices.Contains(args, "esx") {
+		t.Errorf("plain: %s", cmd)
+	}
+	if _, err := PlainArgs("esx", "s-1", "relative", "", false); err == nil {
+		t.Error("a relative folder was accepted")
+	}
+	if _, err := PlainArgs("-oProxyCommand=x", "s-1", "~", "", false); err == nil {
+		t.Error("an option as target was accepted")
+	}
+}

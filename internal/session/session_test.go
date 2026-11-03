@@ -1088,3 +1088,53 @@ func TestPlainLogin(t *testing.T) {
 		}
 	}
 }
+
+// TestNoTmux: a host without tmux, a session overriding either way, Edit
+// switching back to the host's setting.
+func TestNoTmux(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	no, yes := false, true
+	if err := m.SaveHost("", config.Host{Name: "esx", SSHTarget: "root@esx", LocalDir: &no, Tmux: &no}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SaveHost("", config.Host{Name: "dev", SSHTarget: "dev", LocalDir: &no}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := m.Create(NewSession{Host: "esx", StartMode: "shell"})
+	if err != nil || v.Tmux || v.TmuxOwn != nil {
+		t.Fatalf("on esx: %+v %v", v, err)
+	}
+	if r, _ := m.Resolve(v.ID); r.Tmux {
+		t.Error("resolved with tmux")
+	}
+	v2, err := m.Create(NewSession{Host: "esx", StartMode: "shell", Tmux: &yes})
+	if err != nil || !v2.Tmux || v2.TmuxOwn == nil || !*v2.TmuxOwn {
+		t.Errorf("override yes: %+v %v", v2, err)
+	}
+	v3, err := m.Create(NewSession{Host: "dev", StartMode: "shell", Tmux: &yes})
+	if err != nil || !v3.Tmux || v3.TmuxOwn != nil {
+		t.Errorf("yes on a tmux host is the default, not stored: %+v %v", v3, err)
+	}
+	if err := m.Update(v3.ID, Edit{Name: v3.Name, StartMode: "shell", Tmux: "no"}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := m.Resolve(v3.ID); r.Tmux {
+		t.Error("Edit no: still tmux")
+	}
+	if err := m.Update(v3.ID, Edit{Name: v3.Name, StartMode: "shell"}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := m.Resolve(v3.ID); r.Tmux {
+		t.Error("left out: the override was dropped")
+	}
+	if err := m.Update(v3.ID, Edit{Name: v3.Name, StartMode: "shell", Tmux: "host"}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := m.Resolve(v3.ID); !r.Tmux {
+		t.Error("host: not back to the host's tmux")
+	}
+	if err := m.Update(v3.ID, Edit{Name: v3.Name, StartMode: "shell", Tmux: "maybe"}); err == nil {
+		t.Error("tmux = maybe accepted")
+	}
+}

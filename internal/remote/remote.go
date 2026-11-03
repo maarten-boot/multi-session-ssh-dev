@@ -225,6 +225,34 @@ func SSHOptions() []string { return append([]string(nil), sshOptions...) }
 // their own command lines).
 func CheckTarget(target string) error { return checkTarget(target) }
 
+// PlainArgs is AttachArgs without tmux, for hosts that have none (VMware
+// ESXi): the shell in remotePath running cmd, ending with the connection
+// (a reconnect starts a new one). A missing directory exits with
+// ExitMissingDir, as with tmux.
+func PlainArgs(target, id, remotePath, cmd string, privateHistory bool) ([]string, error) {
+	if err := checkTarget(target); err != nil {
+		return nil, err
+	}
+	if !ValidID(id) {
+		return nil, fmt.Errorf("remote: invalid session id %q", id)
+	}
+	if err := CheckRemotePath(remotePath); err != nil {
+		return nil, err
+	}
+	pane, err := paneCommand(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if privateHistory {
+		pane = historyEnv(id) + pane
+	}
+	script := fmt.Sprintf(`cd %s || { printf '%%s\n' %s >&2; exit %d; }; %s`,
+		ShellPath(remotePath), Quote("session directory "+remotePath+" does not exist on this host"),
+		ExitMissingDir, pane)
+	args := append([]string{"-t"}, sshOptions...)
+	return append(args, "--", target, `exec "$SHELL" -lc `+Quote(script)), nil
+}
+
 // KillArgs returns ssh arguments that kill the session's tmux session.
 // It never prompts (BatchMode) since it runs without a terminal.
 func KillArgs(target, id string) ([]string, error) {

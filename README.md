@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.5: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.6: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -135,12 +135,21 @@ conversation when the directory has none yet. The start mode only applies when t
 tmux session is created; after changing it in *Edit…* the app offers to restart a running one.
 
 **Plain ssh logins.** Not every session needs a directory here: for a quick login (or a
-whole `-profile ssh-switcher` setup), set the host's *Sessions on this host* to *are plain ssh
-logins*, or choose *Local directory: no* in New session. Such a session only has the Remote,
+whole `-profile ssh-switcher` setup), set the host's *Sessions on this host* (right after its
+SSH target) to *are plain ssh logins* — the file access and path fields are then not used — or choose *Local directory: no* in New session. Such a session only has the Remote,
 Notes, Web and Q&A tabs; its shell starts in the login's home or in a *Remote folder* you give
 (`/var/log`, `~/work`; changeable in *Edit…*), it is named after the host (`jump`, `jump 2`, …)
 and starts a shell rather than claude. In the config: `local_dir = false` on the host or the
 session, `remote_dir = "/var/log"` on the session, and no `local_path`.
+
+**Hosts without tmux.** Normally a session's Remote tab runs in tmux on the agent host, so
+claude keeps running when the connection drops. A host without tmux (VMware ESXi, appliances)
+gets *Keep sessions in tmux on this host: no* (`tmux = false`); each session can choose
+otherwise in New session / *Edit…* (*Keep it in tmux*: default, yes, no; `tmux` on the
+session). Without tmux the Remote tab is a plain ssh login in the session's folder: it ends
+with the connection, *Reconnect* logs in again (running the start command), and there is no
+*End remote session…*. Any session can do this, also one with a directory (claude then ends
+when the connection drops).
 *Edit…* shows the session's **id** at the top (e.g. `s-3fa2`, for information; it can't be
 changed): the name of the session in `config.toml`, of its folders (`notes/<id>/`,
 `qa/<id>.json`, `working-copies/<id>/`) and of its tmux session `cw-<id>`.
@@ -738,7 +747,8 @@ session's `env` and `local_init` are not imported, since they would run commands
 computer; the Remote history is put back on the agent host when the Remote tab connects.
 
 Agent and X11 forwarding are always forced off on every ssh connection. The
-agent host needs `tmux` on the PATH of a login shell; the start command (`claude` by default)
+agent host needs `tmux` on the PATH of a login shell (or *Keep sessions in tmux: no* for a host
+without it, see *Plain ssh logins*); the start command (`claude` by default)
 runs in an interactive login shell, so it is found on the same PATH as when you log in by hand
 (`~/.profile` and `~/.bashrc`).
 

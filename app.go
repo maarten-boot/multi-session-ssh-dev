@@ -1004,7 +1004,13 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ssh client not found: %w", err)
 	}
-	args, err := remote.AttachArgs(r.Host.SSHTarget, r.ID, r.RemotePath, r.StartCommand,
+	// Without tmux (a host that has none): a plain login that ends with
+	// the connection.
+	attach := remote.AttachArgs
+	if !r.Tmux {
+		attach = remote.PlainArgs
+	}
+	args, err := attach(r.Host.SSHTarget, r.ID, r.RemotePath, r.StartCommand,
 		session.PrivateHistory(r.Session, a.sessions.Config().UI))
 	if err != nil {
 		return "", err
@@ -1096,6 +1102,9 @@ func (a *App) KillRemote(id string) error {
 	}
 	if r.Host.Kind == session.HostContainer && a.containerState(id) != "running" {
 		return nil // no container running: no tmux session either
+	}
+	if !r.Tmux {
+		return nil // no tmux: nothing keeps running after the connection
 	}
 	args, err := remote.KillArgs(r.Host.SSHTarget, r.ID)
 	if err != nil {

@@ -1104,9 +1104,10 @@ const app = {
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
         const host = this.state.hosts.find(h => h.name === d.host);
+        const tmux = d.tmux ? `tmux ${d.tmux_name}` : 'no tmux';
         path.textContent = d.error || (host.kind === 'container'
-            ? `container sw-${d.id}:${d.remote_path}  ·  tmux ${d.tmux_name}`
-            : `${host.ssh_target}:${d.remote_path}  ·  tmux ${d.tmux_name}`);
+            ? `container sw-${d.id}:${d.remote_path}  ·  ${tmux}`
+            : `${host.ssh_target}:${d.remote_path}  ·  ${tmux}`);
         path.title = d.plain ? 'a plain ssh login (no local directory)' : `local: ${d.local_path}`;
     },
 
@@ -1416,7 +1417,7 @@ function sessionMenu(s, x, y) {
         {label: 'Export…', action: () => exportDialog(s)},
         '-',
         {label: 'Disconnect', action: () => s.disconnect()},
-        {label: 'End remote session…', danger: true, action: () => endRemote(s)},
+        ...(s.data.tmux ? [{label: 'End remote session…', danger: true, action: () => endRemote(s)}] : []),
         {label: 'Delete session…', danger: true, action: () => deleteSession(s)},
     ]);
 }
@@ -1625,7 +1626,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     idEl.hidden = !editing;
     idEl.replaceChildren(...(editing ? ['Id: ', el('code', {textContent: s.data.id}),
         ` — names it in config.toml, its folders (notes/${s.data.id}/, qa/${s.data.id}.json, ` +
-        `working-copies/${s.data.id}/) and its tmux session ${s.data.tmux_name}; it cannot be changed.`] : []));
+        `working-copies/${s.data.id}/)${s.data.tmux ? ` and its tmux session ${s.data.tmux_name}` : ''}; it cannot be changed.`] : []));
     f.elements.host.replaceChildren(...app.state.hosts.map(h => el('option', {value: h.name, textContent: `${h.name}  (${hostWhere(h)})`})));
     const lastHost = store.get('lastHost', '');
     f.elements.host.value = s?.data.host ?? presetHost ?? (app.state.hosts.some(h => h.name === lastHost) ? lastHost : app.state.hosts[0].name);
@@ -1674,6 +1675,10 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     const hostOf = () => app.state.hosts.find(h => h.name === f.elements.host.value);
     const plain = () => f.elements.localdir.value === 'no';
     f.elements.remotedir.value = s?.data.remote_dir ?? '';
+    // tmux: the host's setting unless the session has its own.
+    const tmuxLabel = () => `default (${hostOf()?.tmux === false ? 'no: the host has no tmux' : 'yes'}, from the host)`;
+    f.elements.tmux.value = s?.data.tmux_own == null ? 'host' : s.data.tmux_own ? 'yes' : 'no';
+    f.elements.tmux.options[0].textContent = tmuxLabel();
     const showKind = () => {
         const box = hostOf()?.kind === 'container';
         if (box) f.elements.localdir.value = 'yes';
@@ -1720,6 +1725,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
         timer = setTimeout(update, 150);
     };
     f.elements.host.onchange = () => {
+        f.elements.tmux.options[0].textContent = tmuxLabel();
         f.elements.localdir.value = hostOf()?.local_dir === false ? 'no' : 'yes';
         showKind();
         update();
@@ -1753,6 +1759,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
                 history: f.elements.history.value, commands: cmdList.value, description: f.elements.description.value,
                 ...(inBox ? {own_claude_volume: f.elements.claude_volume.value === 'own'} : {}),
                 ...(s.data.plain ? {remote_dir: f.elements.remotedir.value} : {}),
+                tmux: f.elements.tmux.value,
             });
         } else {
             created = await CreateSession({
@@ -1760,6 +1767,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
                 start_mode: f.elements.mode.value, color_mode: '', group: f.elements.group.value,
                 description: f.elements.description.value,
                 local_dir: !plain(), remote_dir: plain() ? f.elements.remotedir.value : '',
+                tmux: {host: null, yes: true, no: false}[f.elements.tmux.value],
             });
             store.set('lastHost', f.elements.host.value);
             if (!plain()) store.set('lastMode', f.elements.mode.value); // a login's shell is not the agents' default
@@ -1768,7 +1776,8 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     if (!ok) return;
     await app.reload();
     if (created) app.select(app.sessions.get(created.id));
-    if (editing && s.data.start_mode !== oldMode) await offerRestart(s, oldMode);
+    // Without tmux the next connection starts the new mode anyway.
+    if (editing && s.data.start_mode !== oldMode && s.data.tmux) await offerRestart(s, oldMode);
 }
 
 // startLabel describes a start mode: its name and command.
@@ -1808,6 +1817,7 @@ async function hostDialog(h = null, presetName = null) {
     f.elements.files.value = h?.files || 'shared';
     f.elements.kind.value = h?.kind ?? '';
     f.elements.local_dir.value = h?.local_dir === false ? 'no' : 'yes';
+    f.elements.tmux.value = h?.tmux === false ? 'no' : 'yes';
     const showMode = () => {
         const shared = f.elements.files.value === 'shared';
         const box = f.elements.kind.value === 'container';
@@ -1815,9 +1825,14 @@ async function hostDialog(h = null, presetName = null) {
         dlg.querySelector('.host-container').hidden = !box;
         dlg.querySelector('.files-shared').hidden = !shared;
         dlg.querySelector('.files-workdir').hidden = shared;
+        // Plain logins share no directory: the file fields are shown, not
+        // used (a session can still choose a directory, then they apply).
+        const logins = f.elements.local_dir.value === 'no';
+        for (const k of ['files', 'local_prefix', 'remote_prefix', 'browse', 'remote_workdir']) f.elements[k].disabled = logins;
     };
     f.elements.files.onchange = showMode;
     f.elements.kind.onchange = showMode;
+    f.elements.local_dir.onchange = showMode;
     showMode();
     if (presetName) f.elements.name.value = presetName;
     f.elements.browse.onclick = async () => {
@@ -1829,6 +1844,7 @@ async function hostDialog(h = null, presetName = null) {
     } : {
         name: f.elements.name.value, kind: '', ssh_target: f.elements.ssh_target.value, files: f.elements.files.value,
         local_dir: f.elements.local_dir.value === 'no' ? false : null,
+        tmux: f.elements.tmux.value === 'no' ? false : null,
         ...(f.elements.files.value === 'shared'
             ? {local_prefix: f.elements.local_prefix.value, remote_prefix: f.elements.remote_prefix.value, remote_workdir: ''}
             : {local_prefix: '', remote_prefix: '', remote_workdir: f.elements.remote_workdir.value}),
@@ -2514,7 +2530,9 @@ async function endRemote(s) {
 async function deleteSession(s) {
     // A working copy's saved agent copy (Full ▾) can go with it; it is kept unless ticked.
     const saved = await SavedCopy(s.id).catch(() => ({exists: false}));
-    const check = [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`];
+    // Without tmux nothing keeps running on the host: nothing to end.
+    const tm = !!s.data.tmux;
+    const check = tm ? [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`] : [];
     const box = s.data.files === 'container';
     if (box) {
         check.push(`Also remove its container and image sw-${s.id}` + (s.data.own_claude_volume ? ', and its own Claude Code login volume' : ''));
@@ -2530,9 +2548,10 @@ async function deleteSession(s) {
         ok: 'Delete',
         check,
         action: async ticks => {
-            const [kill] = ticks;
-            const dropBox = box && ticks[1];
-            const dropSaved = saved.exists && ticks[box ? 2 : 1];
+            const o = tm ? 1 : 0;
+            const kill = tm && ticks[0];
+            const dropBox = box && ticks[o];
+            const dropSaved = saved.exists && ticks[o + (box ? 1 : 0)];
             if (kill) await KillRemote(s.id);
             if (dropBox) await ContainerRemove(s.id, !!s.data.own_claude_volume);
             await DeleteSession(s.id);

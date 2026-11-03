@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.16 (2026-11-03, app v1.1.5) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.17 (2026-11-03, app v1.1.6) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -132,7 +132,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
   used; one session per directory and host. Host and directory are fixed afterwards.
 - F2a. Plain login sessions (no local directory). A host's *Sessions on this host*
-  (`local_dir = false`; default: with a directory) makes its new sessions plain ssh logins;
+  (`local_dir = false`; default: with a directory; in Add/Edit host right after Name, Kind and
+  SSH target; *are plain ssh logins* disables File access and the path fields, which then only
+  apply to sessions that choose a directory) makes its new sessions plain ssh logins;
   New session's *Local directory* (yes / no: a plain ssh login; preset from the host, fixed
   once made; never for a container host) overrides it per session (`local_dir` on the session,
   stored only when it differs from the host). A plain login has no `local_path`, no path
@@ -146,6 +148,14 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `ssh login: <folder>`, the session menu *Files: none (a plain ssh login)*. Recordings and
   the Q&A log go to `<logs>/<host>/logins/<id>/`. Export leaves out the project part; import
   keeps a login a login (no directory to choose).
+- F2b. Sessions without tmux: a host's *Keep sessions in tmux on this host* (`tmux = false`;
+  default yes; Add/Edit host after *Sessions on this host*) and a session's *Keep it in tmux*
+  (default / yes / no; New session and Edit…; `tmux` stored only when it differs from the
+  host). Without tmux the Remote tab runs `ssh -t <target> 'exec "$SHELL" -lc "cd <dir> ||
+  exit 3; [history env]; <start command>"'` (remote.PlainArgs; the same missing-directory exit
+  and message as with tmux): it ends with the connection; Reconnect starts a new one; End
+  remote session… is not offered, deleting the session does not offer ending tmux, and a new
+  start mode needs no restart offer. The path line says "no tmux". Any session can use it.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable).
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal

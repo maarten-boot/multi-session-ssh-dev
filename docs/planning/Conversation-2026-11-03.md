@@ -66,3 +66,23 @@
   plain ssh logins.
 - **Cross-check after v1.1.5:** only the test fix and the version changed since the last
   cross-check; 1.1.5 everywhere, PLAN explains v1.1.4. No differences.
+- **User:** "when adding a host after name and login move the sessions on this host as 4th
+  item as when we say just ssh we can gray out the local folder"
+  - Done (v1.1.6): *Sessions on this host* right after Name, Kind and SSH target; *are plain ssh
+    logins* disables File access, the prefixes, Browse… and the working folder (the app's
+    disabled style: dashed border, text stays black — no grey text). They stay visible, as a
+    session on that host can still choose a directory.
+  - gui-smoke-login.sh: Add host… → Sessions on this host = plain logins → Save writes
+    local_dir = false (Enter on a select does not submit: the test clicks Save). Passes, as do
+    gui-smoke-hosts and gui-smoke-sessions.
+- **User:** "make also a option for plain ssh logins not to have a tmux (vmware hosts have no
+  tmux)" — decided (questions): per host with a per-session override; for any session;
+  Reconnect starts a fresh shell (no confirmation on close).
+  - Built (still v1.1.6, SPEC F2b): config `tmux` (host, session); remote.PlainArgs (ssh -t,
+    cd or the missing-directory exit, history env, the start command); KillRemote does nothing
+    without tmux; no End remote session…, no tmux tick in the delete dialog, no restart offer;
+    the path line says "no tmux"; Add/Edit host *Keep sessions in tmux on this host*, New
+    session / Edit… *Keep it in tmux* (default, yes, no).
+  - Tests: TestPlainArgs, TestNoTmux; gui-smoke-login.sh (16 checks) passes: a tmux = false
+    host gives a plain login in /var/tmp with an empty $TMUX and no tmux session; Add host…
+    saves tmux = false.

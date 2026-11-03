@@ -96,6 +96,13 @@
         <label>Start in new remote session
             <select name="mode"></select><!-- the start commands (Settings → Commands), filled by main.js -->
         </label>
+        <label>Keep it in tmux on the agent host
+            <select name="tmux">
+                <option value="host">default</option>
+                <option value="yes">yes: it keeps running when the connection drops</option>
+                <option value="no">no: a plain ssh login that ends with the connection</option>
+            </select>
+        </label>
         <label>Colors (overrides Settings for this session)
             <select name="colors">
                 <option value="">default</option>
@@ -154,6 +161,21 @@
         <label>SSH target
             <input name="ssh_target" autocomplete="off" spellcheck="false" placeholder="user@agent-host (anything ssh accepts)">
         </label>
+        <label>Sessions on this host
+            <select name="local_dir">
+                <option value="yes">get a local directory, shared with it (default)</option>
+                <option value="no">are plain ssh logins (no local directory)</option>
+            </select>
+        </label>
+        <label>Keep sessions in tmux on this host
+            <select name="tmux">
+                <option value="yes">yes (default): they keep running when the connection drops</option>
+                <option value="no">no: the host has no tmux (e.g. VMware ESXi)</option>
+            </select>
+        </label>
+        <p class="hint">A plain login only has the Remote, Notes, Web and Q&amp;A tabs; its shell starts in the
+            login's home or a folder you give. Each session can still choose otherwise;
+            the file access and path fields below then only apply to sessions that do.</p>
         <label>File access (how the agent host gets the session directories)
             <select name="files">
                 <option value="shared">shared file system (NFS, SMB, VM share)</option>
@@ -181,14 +203,6 @@
         <p class="hint">Each session gets <code>&lt;folder&gt;/&lt;directory&gt;-&lt;id&gt;</code> there.
             See docs/CONNECTIVITY.md for the trade-offs of each mode.</p>
         </div>
-        <label>Sessions on this host
-            <select name="local_dir">
-                <option value="yes">get a local directory, shared with it (default)</option>
-                <option value="no">are plain ssh logins (no local directory)</option>
-            </select>
-        </label>
-        <p class="hint">A plain login only has the Remote, Notes, Web and Q&amp;A tabs; its shell starts in the
-            login's home or a folder you give. Each session can still choose otherwise.</p>
         </div>
         <div class="error"></div>
         <div class="buttons">

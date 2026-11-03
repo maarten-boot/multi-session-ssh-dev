@@ -29,6 +29,7 @@ export namespace config {
 	    files: string;
 	    remote_workdir: string;
 	    local_dir?: boolean;
+	    tmux?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Host(source);
@@ -44,6 +45,7 @@ export namespace config {
 	        this.files = source["files"];
 	        this.remote_workdir = source["remote_workdir"];
 	        this.local_dir = source["local_dir"];
+	        this.tmux = source["tmux"];
 	    }
 	}
 	export class Link {
@@ -95,6 +97,7 @@ export namespace config {
 	    own_claude_volume: boolean;
 	    local_dir?: boolean;
 	    remote_dir: string;
+	    tmux?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -120,6 +123,7 @@ export namespace config {
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.local_dir = source["local_dir"];
 	        this.remote_dir = source["remote_dir"];
+	        this.tmux = source["tmux"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1011,6 +1015,7 @@ export namespace session {
 	    own_claude_volume?: boolean;
 	    commands: config.Command[];
 	    remote_dir?: string;
+	    tmux: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Edit(source);
@@ -1028,6 +1033,7 @@ export namespace session {
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.remote_dir = source["remote_dir"];
+	        this.tmux = source["tmux"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1058,6 +1064,7 @@ export namespace session {
 	    group: string;
 	    local_dir?: boolean;
 	    remote_dir: string;
+	    tmux?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new NewSession(source);
@@ -1074,6 +1081,7 @@ export namespace session {
 	        this.group = source["group"];
 	        this.local_dir = source["local_dir"];
 	        this.remote_dir = source["remote_dir"];
+	        this.tmux = source["tmux"];
 	    }
 	}
 	export class Preview {
@@ -1113,6 +1121,8 @@ export namespace session {
 	    commands: config.Command[];
 	    plain: boolean;
 	    remote_dir: string;
+	    tmux: boolean;
+	    tmux_own?: boolean;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1139,6 +1149,8 @@ export namespace session {
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.plain = source["plain"];
 	        this.remote_dir = source["remote_dir"];
+	        this.tmux = source["tmux"];
+	        this.tmux_own = source["tmux_own"];
 	        this.error = source["error"];
 	    }
 	

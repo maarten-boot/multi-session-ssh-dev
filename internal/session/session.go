@@ -50,7 +50,12 @@ type View struct {
 	// RemoteDir is where its shell starts ("" = home).
 	Plain     bool   `json:"plain"`
 	RemoteDir string `json:"remote_dir"`
-	Error     string `json:"error"` // why the Remote tab cannot work, if it cannot
+	// Tmux: the Remote tab runs in tmux (else a plain ssh login that ends
+	// with the connection); TmuxOwn: the session's own setting (null:
+	// the host's).
+	Tmux    bool   `json:"tmux"`
+	TmuxOwn *bool  `json:"tmux_own"`
+	Error   string `json:"error"` // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -78,6 +83,8 @@ type Resolved struct {
 	StartCommand string
 	// Plain: a login without a local directory (LocalPath is "").
 	Plain bool
+	// Tmux: the Remote tab runs in tmux (config.UsesTmux).
+	Tmux bool
 }
 
 // ErrNoLocalDir: a plain login session has no local directory.
@@ -115,6 +122,8 @@ type NewSession struct {
 	// (no directory), starting in RemoteDir ("" = home).
 	LocalDir  *bool  `json:"local_dir"`
 	RemoteDir string `json:"remote_dir"`
+	// Tmux: null follows the host's tmux.
+	Tmux *bool `json:"tmux"`
 }
 
 // Edit is the input for Update.
@@ -136,6 +145,9 @@ type Edit struct {
 	Commands []config.Command `json:"commands"`
 	// RemoteDir: a plain login's start folder; null (left out) keeps it.
 	RemoteDir *string `json:"remote_dir"`
+	// Tmux: "host" follows the host, "yes" / "no" override it; "" (left
+	// out) keeps it.
+	Tmux string `json:"tmux"`
 }
 
 // Preview is what Create would produce, for live feedback in the dialog.
@@ -205,8 +217,10 @@ func (m *Manager) State() State {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
 			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir}
+		v.TmuxOwn = se.Tmux
 		if h, ok := findHost(m.cfg, se.Host); ok {
 			v.Plain = !config.HasLocalDir(h, se)
+			v.Tmux = config.UsesTmux(h, se)
 		}
 		if r, err := resolve(m.cfg, se); err != nil {
 			v.Error = err.Error()
@@ -282,6 +296,7 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 		return r, fmt.Errorf("unknown start mode %q (not in [ui] start_commands)", s.StartMode)
 	}
 	r.StartCommand = start.Command
+	r.Tmux = config.UsesTmux(h, s)
 	if !config.HasLocalDir(h, s) {
 		// A plain login: no directory here, no mapping; home or remote_dir.
 		if h.Kind == HostContainer {
@@ -504,7 +519,7 @@ func (m *Manager) Create(in NewSession) (View, error) {
 	}
 	v := View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
 		ColorMode: s.ColorMode, Group: s.Group, Files: viewFiles(r.Host), RemotePath: r.RemotePath,
-		TmuxName: remote.TmuxName(s.ID), Plain: r.Plain, RemoteDir: s.RemoteDir}
+		TmuxName: remote.TmuxName(s.ID), Plain: r.Plain, RemoteDir: s.RemoteDir, Tmux: r.Tmux, TmuxOwn: s.Tmux}
 	if r.Plain {
 		v.Files = FilesLogin
 	}
@@ -528,6 +543,10 @@ func (m *Manager) newSession(in NewSession) (config.Session, error) {
 	if in.LocalDir != nil && *in.LocalDir != config.HasLocalDir(h, config.Session{}) {
 		v := *in.LocalDir
 		s.LocalDir = &v
+	}
+	if in.Tmux != nil && *in.Tmux != config.UsesTmux(h, config.Session{}) {
+		v := *in.Tmux
+		s.Tmux = &v
 	}
 	if !config.HasLocalDir(h, s) {
 		return m.newLogin(s, h, in)
@@ -742,6 +761,16 @@ func (m *Manager) Update(id string, e Edit) error {
 		}
 		if e.Commands != nil { // left out: unchanged
 			c.Sessions[i].Commands = config.TidyCommands(e.Commands)
+		}
+		switch e.Tmux {
+		case "": // left out: unchanged
+		case "host":
+			c.Sessions[i].Tmux = nil
+		case "yes", "no":
+			v := e.Tmux == "yes"
+			c.Sessions[i].Tmux = &v
+		default:
+			return fmt.Errorf(`tmux must be "host", "yes" or "no", not %q`, e.Tmux)
 		}
 		if e.RemoteDir != nil { // left out: unchanged
 			d := strings.TrimSpace(*e.RemoteDir)
