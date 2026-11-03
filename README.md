@@ -531,7 +531,7 @@ without a folder are listed first of all. A `/` in a folder name makes subfolder
 Right-click a session (or its ⋯) for its menu. The top line names how the agent host gets at
 the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*, or
 *working copy (sync)*; hover it for a short explanation; not shown for a session that cannot
-work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history),
+work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history; for a plain login its remote folder),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
@@ -915,7 +915,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | What | Linux | macOS | Windows |
 |---|---|---|---|
 | config (`config.toml`, its `.lock`, `notes/`, `dictionaries/`) | `~/.config/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%AppData%\session-workbench\` |
-| Remote tab recordings and the Q&A log (`logs/<host>/<session path>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
+| Remote tab recordings and the Q&A log (`logs/<host>/<session path>/`; a plain login: `logs/<host>/logins/<id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | Claude backups (`claude-backups/<host>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | container sessions' keys, pinned host key, extra certificates and Dockerfile without one in the project (`containers/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
 | Q&A conversations (`qa/<session id>.json`; `qa/work/`, the empty folder Claude Code and Q&A commands run in) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |

@@ -293,6 +293,13 @@ details, SPEC §4.2a the exact commands.
   CPU and memory, and the network.
 - Claude Code's login lives in a volume (`sw-claude`, or one per session); no backups needed.
 
+### No files at all: plain ssh logins
+
+A host with `local_dir = false` (or a session with *Local directory: no*) shares nothing: its
+sessions are plain ssh logins with a tmux session, starting in the login's home or a remote
+folder (README → *Plain ssh logins*). The agent host gets no access to your files, so the
+sections below do not apply to them.
+
 ## Security: what the agent host can do to your host
 
 Keeping credentials on the host protects against **pushing**. It does **not** protect against

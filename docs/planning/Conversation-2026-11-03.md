@@ -52,3 +52,9 @@
   - Found in the GUI test: the sidebar line "ssh login: ~" showed as "~ :ssh login" (the
     list shows paths right-to-left to cut them at the start) — fixed with a closing mark.
   - Tests: TestPlainLogin, gui-smoke-login.sh (9 checks) pass.
+- **Committed** 9f6eb62 (plain ssh logins); pushed, GitHub main = 9f6eb62.
+- **Cross-check after 9f6eb62:** version 1.1.4 everywhere; all 38 GUI tests in the Makefile
+  and Tests.md; F2a and F14 match the code with their tests. Fixed: SPEC F1 (the list line of
+  a login) and F2 (the dialog's Local directory step), README's recordings row (logins go to
+  logs/<host>/logins/<id>/) and Edit… list (a login's remote folder), and CONNECTIVITY now
+  says plain logins share no files.

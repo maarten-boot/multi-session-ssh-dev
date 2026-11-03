@@ -108,7 +108,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 ### 4.1 Session list
 - F0. Multiple agent hosts are a first-class use case: sidebar groups sessions by host profile
   (collapsible); a host profile can be added/edited from the UI; a session's host is fixed at creation.
-- F1. Left sidebar lists sessions (name, local path, status dot, number for Ctrl+Alt+n) grouped
+- F1. Left sidebar lists sessions (name, local path — `ssh login: <folder>` for a plain login, F2a —, status dot, number for Ctrl+Alt+n) grouped
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (shows the session id, read-only, with the config entry, folders and tmux session it names;
@@ -127,7 +127,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   (case-insensitive; no fuzzy match in long text); empty query: most recent first, the current
   session last. Rows show the description's first line and a tooltip with the full path and
   description. It can be resized from its corner; the size is kept (web view storage).
-- F2. "New session" dialog: pick host profile → pick directory (Browse… starts at the first
+- F2. "New session" dialog: pick host profile → local directory yes / no (F2a) → pick directory (Browse… starts at the first
   workspace root; any path under `local_prefix`) → name → description (optional) → folder → start mode (one of the start commands,
   R2; the default list is claude, claude-continue, shell). It previews the remote path or why the directory can't be
   used; one session per directory and host. Host and directory are fixed afterwards.
