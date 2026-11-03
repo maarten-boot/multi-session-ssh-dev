@@ -13,8 +13,8 @@ appending writes through the live share (§6), the command menu (T5), editable s
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
 the Q&A tab (Q1; Claude Code and own commands without an API key), container hosts (C1–C6) and
 exporting a session as an archive / importing it as a new session (F13), separate setups
-(`-profile`, F14), plain ssh logins without a local directory (F2a) and sessions without tmux
-(F2b).
+(`-profile`, F14), plain ssh logins without a local directory (F2a), sessions without tmux
+(F2b) and per-host Claude backups with a fallback for agent hosts without rsync (F7).
 Sections describe the implemented behaviour.
 
 ## 1. Problem

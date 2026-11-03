@@ -40,7 +40,9 @@ reach that machine. Your ssh agent is not forwarded to it either.
 - `rsync` for Claude backups (on by default) and working copies, and `git` for working copies,
   both on the default PATH (for example `/usr/bin`): ssh starts them without a login shell.
   Where this computer has no rsync (Windows) the app uses `tar`, `find`, `xargs` and `cksum`
-  there instead, which every Linux and macOS system has.
+  there instead, which every Linux and macOS system has. Claude backups also switch to `tar`
+  by themselves when the agent host has no rsync (VMware ESXi); working copies do not — with
+  rsync here they need it there too.
 - Depending on the file access mode: an NFS client, or `sshfs` + FUSE for live share (see below).
 
 Nothing is installed on the agent host by the app. It only keeps each session's Remote tab

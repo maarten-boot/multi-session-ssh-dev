@@ -110,3 +110,8 @@
     runs the built-in transfer for backup and restore, notes it and remembers the target.
   - Tests: TestBacksUp, TestRemoteNoRsync, TestSSHNoRemoteRsync (passes with
     SW_SSH_TARGET=localhost), gui-smoke-login.sh.
+- **Committed** 0472a86 and 67b862a (v1.1.7); pushed, GitHub main = 67b862a.
+- **Cross-check after 67b862a:** version 1.1.7 everywhere; F7 (per-host backups, the rsync
+  fallback) matches the code with its tests. Fixed: CONNECTIVITY's agent-host requirements now
+  say backups switch to tar without rsync on the agent host while working copies do not; the
+  SPEC status line lists the per-host backups.
