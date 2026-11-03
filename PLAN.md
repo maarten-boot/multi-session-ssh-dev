@@ -176,6 +176,16 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.4 (2026-11-03): separate setups (SPEC F14; asked by the user: "the default for AI supported
+  development, but a second location for a simple ssh switcher"): `-profile NAME` or
+  SESSION_WORKBENCH_PROFILE (the flag wins) puts config and data under NAME instead of
+  session-workbench, tags tmux sessions (`cw-NAME-<id>`), the agent hosts' history folder,
+  fish history names and containers, prefixes the browser storage's keys, and names the setup in
+  the window title. Found: WebKit's storage folder on Linux does not follow Wails' program name
+  (WebKit picks it first), hence the key prefix. Also: the Edit… dialog's commands on two lines
+  (the command below, full width; the Where column had squeezed it); more GUI tests: a Remote
+  command chosen on the Local tab, a Local command starting the ended Local shell again, export
+  and import as .tar.gz. Tests: profile, remote, config, container units; gui-smoke-profile.sh.
 - v1.1.3 (2026-11-02), also: Local and Remote commands (asked by the user while the export was
   built): `where` on a command ("" the tab it is chosen in, "local", "remote"); the menu lists
   the other tab's commands in their own section, and choosing one types it into that tab
@@ -235,6 +245,15 @@ implementation differs from the original plan.
     `<details>`/`<summary>` blocks.
   - Decided 2026-10-31: postponed; when built, the reading view takes its text from the
     terminal's scrollback (instant, offline), not from tmux history.
+- **Plain login sessions (no local directory)** (asked 2026-11-03; decided, not built). "When
+  using the app only for ssh remote sessions there is no need to share the local directory".
+  - Host: "Share a local directory with the agent host" (default yes); a session can override
+    it (New session…/Edit…), so both per host and per session.
+  - A plain login session: no local directory, no path mapping, no file mode; its Remote tab
+    starts in the login's home, or in an optional remote folder typed as is (no mapping).
+  - Tabs: Remote, Notes, Web, Q&A (no Local, no Files); no git, working copies, live share,
+    project export. Name defaults to the host's name ("host 2", "host 3" for more).
+  - Fits a `-profile ssh-switcher` setup (F14).
 - **echo/v4 v4.16.3** (noted 2026-11-02): fixes Dependabot alerts #6 and #7 (only Wails' dev
   server uses echo; not in the release binary). Update around mid-November, once the
   release is two weeks old, unless Dependabot opens a PR first.
@@ -252,7 +271,7 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 36
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 37
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
@@ -262,7 +281,7 @@ implementation differs from the original plan.
   branches through the mount), notes and tab order, Web tab, layout, desktop notifications
   (fake notification service), notes for all sessions and copy/paste, Remote tab recordings, command menu, prompts menu (also in the right-click menu) and start commands, private shell history, lists and spelling in the notes, badges and window title, Q&A tab (fake Claude API and Claude Code: engines, models, right-click menus); container hosts
   (real Podman or Docker: build, connect, Dockerfile window — also moving, resizing and its
-  right-click menu — rebuild, stop, delete); exporting and importing a session; working copies and backups also with the built-in
+  right-click menu — rebuild, stop, delete); exporting and importing a session (.zip and .tar.gz); a separate setup (-profile); working copies and backups also with the built-in
   transfer.
   Each test checks its results (terminal output, saved config, files, window title, screenshot
   pixels for the layout) and fails on a wrong one; colors are judged from the screenshots.

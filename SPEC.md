@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.15 (2026-11-02, app v1.1.3) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.16 (2026-11-03, app v1.1.4) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -12,7 +12,8 @@ appending writes through the live share (§6), the command menu (T5), editable s
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
 the Q&A tab (Q1; Claude Code and own commands without an API key), container hosts (C1–C6) and
-exporting a session as an archive / importing it as a new session (F13).
+exporting a session as an archive / importing it as a new session (F13) and separate setups
+(`-profile`, F14).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -180,6 +181,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F8. One instance per config file: an OS file lock `<config>.lock`; a second start brings the
   running window forward (Wails single-instance lock, keyed on the config path) or, where that
   is not available, shows only a message and touches nothing.
+- F8a (see F14): a profile is a separate setup with its own config file, so it is its own
+  instance; both can run at the same time.
 - F9. Working copies without rsync (Windows, or `SW_NO_RSYNC=1`): the built-in transfer gives
   rsync's result (`-a --delete --filter=':- .gitignore'`). At a repository's top the files to
   send are those git does not ignore (`git ls-files --cached --others --exclude-standard`) plus
@@ -317,6 +320,17 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - Reading never trusts the archive: names must be local paths (no absolute names, no ".."),
     only regular files and directories are written, through `os.Root`; a newer format is
     refused.
+- F14. Separate setups (internal/profile): `-profile NAME` or `SESSION_WORKBENCH_PROFILE=NAME`
+  (the flag wins; NAME: lower-case letters, digits, `-`, `_`, up to 40, starting with a letter
+  or digit; anything else stops the app with exit status 2; `session-workbench` is the
+  default). NAME replaces `session-workbench` in the config folder (config.toml, notes,
+  dictionaries, the lock) and the data folder (window size, recordings, Q&A, histories,
+  working copies, containers' files); on the agent hosts the tmux sessions are
+  `cw-NAME-<id>` and the private histories `~/.local/state/NAME/history/<id>` (fish:
+  `session_NAME_<id>`); containers `sw-NAME-<id>` (own login volume `sw-claude-NAME-<id>`; the
+  shared `sw-claude` stays shared); the browser storage's keys `sw:NAME:` (the storage itself
+  is shared); the window title and About say "Session Workbench — NAME"; the Linux WM_CLASS is
+  NAME. The container helper gets `-profile NAME`. Without a profile every name stays as before.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

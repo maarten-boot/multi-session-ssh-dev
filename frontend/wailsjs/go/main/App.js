@@ -154,6 +154,10 @@ export function PreviewSession(arg1) {
   return window['go']['main']['App']['PreviewSession'](arg1);
 }
 
+export function Profile() {
+  return window['go']['main']['App']['Profile']();
+}
+
 export function QAAsk(arg1, arg2) {
   return window['go']['main']['App']['QAAsk'](arg1, arg2);
 }

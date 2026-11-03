@@ -29,6 +29,7 @@ import (
 	"session-workbench/internal/instance"
 	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
+	"session-workbench/internal/profile"
 	"session-workbench/internal/qa"
 	"session-workbench/internal/reclog"
 	"session-workbench/internal/remote"
@@ -318,6 +319,11 @@ func (a *App) OpenBackupFolder(host string) error {
 // Version is the app version (set at build time, see the Makefile).
 func (a *App) Version() string {
 	return version
+}
+
+// Profile is the setup's name ("" without -profile), for the window title.
+func (a *App) Profile() string {
+	return profile.Name()
 }
 
 func (a *App) State() session.State {
@@ -948,7 +954,7 @@ func (a *App) historyEnv(id string) []string {
 		return nil
 	}
 	os.Chmod(dir, 0o700)
-	return []string{"HISTFILE=" + filepath.Join(dir, id+".history"), "fish_history=session_" + strings.ReplaceAll(id, "-", "_")}
+	return []string{"HISTFILE=" + filepath.Join(dir, id+".history"), "fish_history=" + remote.FishHistory(id)}
 }
 
 // ensureShare starts a live share and waits up to timeout for the mount.

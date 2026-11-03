@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"session-workbench/internal/profile"
 )
 
 // Template is the starting Dockerfile of a session (Ubuntu 24.04 with
@@ -47,13 +49,13 @@ const RepoDockerfile = ".session-workbench/Dockerfile"
 const Label = "io.session-workbench.session"
 
 // Name is the image, container and ssh alias of a session.
-func Name(id string) string { return "sw-" + id }
+func Name(id string) string { return "sw-" + profile.Tag("-") + id }
 
 // Volume is the ~/.claude volume of a session: the shared one, or with own
 // its own.
 func Volume(id string, own bool) string {
 	if own {
-		return SharedVolume + "-" + id
+		return SharedVolume + "-" + profile.Tag("-") + id
 	}
 	return SharedVolume
 }

@@ -26,7 +26,7 @@ import {
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
-    ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession,
+    ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
 // ---------------------------------------------------------------- keyboard
@@ -492,6 +492,10 @@ const app = {
     mru: store.get('mru', []), // session ids, most recent first
 
     async init() {
+        // A separate setup (-profile): its name follows the app's in the title.
+        const prof = await Profile().catch(() => '');
+        this.appName = prof ? `Session Workbench — ${prof}` : 'Session Workbench';
+        if (prof) store.prefix = `sw:${prof}:`;
         // Another instance uses this config: say so and start nothing.
         const problem = await InstanceProblem();
         if (problem) {
@@ -1002,8 +1006,9 @@ const app = {
     // badge, the app name and the active session's name.
     renderTitle() {
         const n = [...this.sessions.values()].filter(x => x.badge()).length;
-        let title = n ? `(${n}) Session Workbench` : 'Session Workbench';
-        if (this.active) title += ' — ' + this.active.data.name;
+        const name = this.appName ?? 'Session Workbench';
+        let title = n ? `(${n}) ${name}` : name;
+        if (this.active) title += (name.includes(' — ') ? ' · ' : ' — ') + this.active.data.name;
         if (title !== this.title) {
             this.title = title;
             WindowSetTitle(title);
@@ -1612,7 +1617,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     idEl.hidden = !editing;
     idEl.replaceChildren(...(editing ? ['Id: ', el('code', {textContent: s.data.id}),
         ` — names it in config.toml, its folders (notes/${s.data.id}/, qa/${s.data.id}.json, ` +
-        `working-copies/${s.data.id}/) and its tmux session cw-${s.data.id}; it cannot be changed.`] : []));
+        `working-copies/${s.data.id}/) and its tmux session ${s.data.tmux_name}; it cannot be changed.`] : []));
     f.elements.host.replaceChildren(...app.state.hosts.map(h => el('option', {value: h.name, textContent: `${h.name}  (${hostWhere(h)})`})));
     const lastHost = store.get('lastHost', '');
     f.elements.host.value = s?.data.host ?? presetHost ?? (app.state.hosts.some(h => h.name === lastHost) ? lastHost : app.state.hosts[0].name);
@@ -1922,7 +1927,7 @@ async function settingsDialog() {
     rows.push(el('tr', {}, el('td', {textContent: 'Session 1…9'}), el('td', {}, el('kbd', {textContent: keyHint('session_1').replace(/1$/, '1…9')})),
         el('td', {className: 'action', textContent: 'session_1 … session_9'})));
     dlg.querySelector('.shortcuts table').replaceChildren(...rows);
-    Version().then(v => dlg.querySelector('.about').textContent = `Session Workbench ${v}`);
+    Version().then(v => dlg.querySelector('.about').textContent = `${app.appName ?? 'Session Workbench'} ${v}`);
     dlg.querySelector('.shortcuts .hint').textContent =
         `Change shortcuts in the [keys] section of ${app.state.config_path}, e.g. next_session = "Ctrl+Tab"; "none" disables one. Restart the app after editing.`;
     const ok = await runDialog(dlg, () => SaveUI({

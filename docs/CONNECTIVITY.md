@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of November 2026 (v1.1.3).
+at your files, and what each choice means for security. Status as of November 2026 (v1.1.4).
 
 Everything described here is implemented.
 

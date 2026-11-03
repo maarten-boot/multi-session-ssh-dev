@@ -16,6 +16,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"session-workbench/internal/profile"
 )
 
 var idRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -23,8 +25,9 @@ var idRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 // ValidID reports whether id is safe to embed in a tmux session name.
 func ValidID(id string) bool { return idRE.MatchString(id) }
 
-// TmuxName is the tmux session name for a session id.
-func TmuxName(id string) string { return "cw-" + id }
+// TmuxName is the tmux session name for a session id: cw-<id>, with a
+// profile cw-<profile>-<id>.
+func TmuxName(id string) string { return "cw-" + profile.Tag("-") + id }
 
 // Quote returns s as a single-quoted POSIX shell word. The '\” idiom also
 // works in fish.
@@ -104,8 +107,9 @@ func paneCommand(cmd string) (string, error) {
 }
 
 // HistoryDir is where the agent host keeps sessions' private shell
-// histories (see historyEnv).
-const HistoryDir = "$HOME/.local/state/session-workbench/history"
+// history: $HOME/.local/state/session-workbench/history (the profile's
+// name instead of session-workbench with a profile).
+func HistoryDir() string { return "$HOME/.local/state/" + profile.Dir() + "/history" }
 
 // historyEnv gives the pane's shells the session's own history: HISTFILE
 // for bash and zsh, fish_history for fish (a name: letters, digits, _).
@@ -114,14 +118,21 @@ const HistoryDir = "$HOME/.local/state/session-workbench/history"
 // The folder is made private (chmod, as mkdir -m would only cover its last
 // part): the files hold what was typed.
 func historyEnv(id string) string {
-	return `mkdir -p "` + HistoryDir + `"; chmod 700 "` + HistoryDir + `"; ` +
+	return `mkdir -p "` + HistoryDir() + `"; chmod 700 "` + HistoryDir() + `"; ` +
 		`export HISTFILE="` + historyFile(id) + `"; export fish_history=` + fishHistory(id) + `; `
 }
 
-func historyFile(id string) string { return HistoryDir + "/" + id }
+func historyFile(id string) string { return HistoryDir() + "/" + id }
 
 // fishHistory is fish's history name for a session: letters, digits, _.
-func fishHistory(id string) string { return "session_" + strings.ReplaceAll(id, "-", "_") }
+func fishHistory(id string) string { return FishHistory(id) }
+
+// FishHistory is fish's history name for a session (fish keeps every name
+// in one folder): session_<id>, with a profile session_<profile>_<id>, "-"
+// as "_".
+func FishHistory(id string) string {
+	return "session_" + strings.ReplaceAll(profile.Tag("_")+id, "-", "_")
+}
 
 // ExitMissingDir is the exit status of an attach whose directory does not
 // exist on the agent host (for example a working copy not sent yet).

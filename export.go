@@ -362,7 +362,7 @@ func safeFileName(s string) string {
 // remoteHistoryScript prints the session's Remote history (exit 3 when
 // there is none).
 func remoteHistoryScript(id string) string {
-	f := remote.HistoryDir + "/" + id
+	f := remote.HistoryDir() + "/" + id
 	return `f="` + f + `"; [ -f "$f" ] || exit 3; cat "$f"`
 }
 
@@ -688,7 +688,7 @@ func (a *App) pushPendingHistory(r session.Resolved) {
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		dir := remote.HistoryDir
+		dir := remote.HistoryDir()
 		_, code, _, err := xfer.Run(ctx, r.Host.SSHTarget,
 			`mkdir -p "`+dir+`" && chmod 700 "`+dir+`" && cat >> "`+dir+"/"+r.ID+`"`, bytes.NewReader(b))
 		cancel()

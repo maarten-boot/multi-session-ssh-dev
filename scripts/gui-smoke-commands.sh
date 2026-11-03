@@ -4,8 +4,9 @@
 # command menu from the terminal's right-click menu and from Commands ▾ in
 # the bar, with the session's own commands first; a command with run = false
 # is only typed; groups are submenus (keys and mouse); a command with
-# where = "local" chosen on the Remote tab runs in the Local tab while the
-# Remote tab stays; the Local tab's menu starts with Back to the session
+# where = "local" chosen on the Remote tab runs in the Local tab (started
+# again after its shell ended) while the Remote tab stays, and the other way
+# round; the Local tab's menu starts with Back to the session
 # directory; Settings → Commands adds one; Prompts ▾ pastes the
 # session's own prompts (its notes' Prompts page) and those for all sessions,
 # as does a section of the terminal's right-click menu.
@@ -36,6 +37,10 @@ group = "claude"
 name = "push here"
 command = "echo where-\${SW_OUT:+local} >>$RAN"
 where = "local"
+[[ui.commands]]
+name = "remote here"
+command = "echo remote-\${SW_OUT:+local} >>$RAN"
+where = "remote"
 [[ui.start_commands]]
 name = "custom"
 command = "echo started-\$((2+3))"
@@ -96,10 +101,13 @@ expect "Esc closes only the submenu" "git-fetch|claude-compact|" "$(tr '\n' '|' 
 
 # A command with where = "local", chosen on the Remote tab: typed into the
 # Local tab (SW_OUT is only set there), and the Remote tab stays on screen.
+# The Local shell is ended first: the command starts it again.
+k ctrl+shift+1; sleep 1.5; xdotool type --delay 10 'exit'; k Return; sleep 1.5
+k ctrl+shift+3; sleep 1
 : >$RAN
 click ${CMDX:-747} 17; sleep 0.5; shot 3e-local-section; menu p   # "push here", in the Local tab section
 sleep 3
-expect "a Local command from the Remote tab ran in the Local tab" "where-local" "$(cat $RAN)"
+expect "a Local command from the Remote tab ran in the Local tab (started again)" "where-local" "$(cat $RAN)"
 xdotool type --delay 10 'echo still-on-remote'; k Return; sleep 1
 in_pane "the Remote tab stayed on screen" s-cmd 'still-on-remote'
 
@@ -122,6 +130,14 @@ xdotool type --delay 10 'cd /'; k Return
 click ${CMDX:-747} 17; sleep 0.5; shot 3d-local-commands; menu   # the first entry
 xdotool type --delay 10 'pwd > $SW_OUT/pwd.txt'; k Return; sleep 1
 expect "Local: back to the session directory" "$OUT" "$(cat $SW_OUT/pwd.txt 2>&1)"
+# The other way: a where = "remote" command chosen on the Local tab runs in
+# the Remote tab (no SW_OUT there), and the Local tab keeps the keys.
+: >$RAN
+click ${CMDX:-747} 17; sleep 0.5; shot 3f-remote-section; menu r   # "remote here", in the Remote tab section
+sleep 2
+expect "a Remote command from the Local tab ran in the Remote tab" "remote-" "$(cat $RAN)"
+xdotool type --delay 10 'echo kept > $SW_OUT/kept.txt'; k Return; sleep 1
+check "the Local tab kept the keys" test -s $SW_OUT/kept.txt
 k ctrl+shift+3; sleep 1
 
 # Settings → Commands: the lists, and a command added there.
@@ -129,7 +145,7 @@ k ctrl+shift+comma; sleep 1
 shot 4-settings-pages
 click 551 109; sleep 0.5                          # the Commands page
 shot 5-settings-commands
-click 347 414; sleep 0.5                          # + Add (command menu): the new row's name has focus
+click 347 450; sleep 0.5                          # + Add (command menu): the new row's name has focus
 xdotool type --delay 10 'where'; k Tab; xdotool type --delay 10 'pwd'
 k Return; sleep 1.5                               # Enter in a field saves
 expect "a command added in Settings is saved" 'name = "where"|command = "pwd"' "$(grep -A1 'name = "where"' $CFG | tr -d ' ' | sed 's/=/ = /' | paste -sd'|')"

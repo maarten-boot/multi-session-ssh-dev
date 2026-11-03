@@ -15,6 +15,7 @@ import (
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/instance"
+	"session-workbench/internal/profile"
 	"session-workbench/internal/session"
 	"session-workbench/internal/winstate"
 )
@@ -29,18 +30,31 @@ var icon []byte
 var version = "dev"
 
 func main() {
-	defPath, err := config.DefaultPath()
-	if err != nil {
-		defPath = "config.toml"
-	}
 	fs := flag.NewFlagSet("session-workbench", flag.ExitOnError)
-	cfgPath := fs.String("config", defPath, "config file")
+	cfgPath := fs.String("config", "", "config file (default <config dir>/session-workbench/config.toml, or the profile's folder)")
+	prof := fs.String("profile", "", "a separate setup: its own folders instead of session-workbench, "+
+		"its own tmux sessions and containers (also "+profile.EnvVar+"); letters, digits, - and _")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	attach := fs.String("container-attach", "", "(used by the app) connect a Remote tab to a session's container")
 	fs.Parse(os.Args[1:])
+	name := *prof
+	if name == "" {
+		name = os.Getenv(profile.EnvVar)
+	}
+	if err := profile.Set(name); err != nil {
+		fmt.Fprintln(os.Stderr, "session-workbench:", err)
+		os.Exit(2)
+	}
 	if *showVersion {
 		fmt.Println("session-workbench", version)
 		return
+	}
+	if *cfgPath == "" {
+		p, err := config.DefaultPath()
+		if err != nil {
+			p = "config.toml"
+		}
+		*cfgPath = p
 	}
 	if *attach != "" {
 		os.Exit(runContainerAttach(*attach))
@@ -85,7 +99,7 @@ func main() {
 	}
 
 	err = wails.Run(&options.App{
-		Title:            "Session Workbench",
+		Title:            profile.Title(),
 		Width:            win.Width,
 		Height:           win.Height,
 		WindowStartState: start,
@@ -95,8 +109,10 @@ func main() {
 		BackgroundColour: bg,
 		Menu:             appMenu(),
 		Linux: &linux.Options{
-			Icon:        icon,
-			ProgramName: "session-workbench", // WM_CLASS, matches the .desktop file
+			Icon: icon,
+			// WM_CLASS, matches the .desktop file (a profile's window is
+			// grouped on its own).
+			ProgramName: profile.Dir(),
 		},
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId:               instance.ID(*cfgPath),

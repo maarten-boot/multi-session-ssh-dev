@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"session-workbench/internal/profile"
 )
 
 func TestValidID(t *testing.T) {
@@ -405,5 +407,23 @@ func TestTargetOptions(t *testing.T) {
 	}
 	if a, _ := ScriptArgs("host", "true"); strings.Contains(strings.Join(a, " "), "Port=") {
 		t.Errorf("other target: %q", a)
+	}
+}
+
+// TestProfileNames: a profile's tmux sessions and histories on the agent
+// host are its own; the default keeps today's names.
+func TestProfileNames(t *testing.T) {
+	defer profile.Set("")
+	if TmuxName("s-1") != "cw-s-1" || HistoryDir() != "$HOME/.local/state/session-workbench/history" || FishHistory("s-1") != "session_s_1" {
+		t.Errorf("default: %s %s %s", TmuxName("s-1"), HistoryDir(), FishHistory("s-1"))
+	}
+	profile.Set("ssh-switcher")
+	if TmuxName("s-1") != "cw-ssh-switcher-s-1" || HistoryDir() != "$HOME/.local/state/ssh-switcher/history" ||
+		FishHistory("s-1") != "session_ssh_switcher_s_1" {
+		t.Errorf("profile: %s %s %s", TmuxName("s-1"), HistoryDir(), FishHistory("s-1"))
+	}
+	args, err := KillArgs("host", "s-1")
+	if err != nil || !strings.Contains(strings.Join(args, " "), "=cw-ssh-switcher-s-1") {
+		t.Errorf("kill: %v %v", args, err)
 	}
 }

@@ -90,6 +90,8 @@ export function OpenSaved(arg1:string):Promise<void>;
 
 export function PreviewSession(arg1:session.NewSession):Promise<session.Preview>;
 
+export function Profile():Promise<string>;
+
 export function QAAsk(arg1:string,arg2:string):Promise<qa.Turn>;
 
 export function QAChoose(arg1:string,arg2:string,arg3:string):Promise<void>;

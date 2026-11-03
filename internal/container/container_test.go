@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"session-workbench/internal/profile"
 )
 
 // TestMain lets the test binary stand in for an engine (SW_FAKE_ENGINE=1):
@@ -229,5 +231,15 @@ func TestEnsureDockerfile(t *testing.T) {
 	EnsureDockerfile(s)
 	if b, _ := os.ReadFile(filepath.Join(s.Dir, "Dockerfile")); string(b) != "FROM mine\n" {
 		t.Error("replaced an existing Dockerfile")
+	}
+}
+
+// TestProfileNames: a profile's containers and own volumes carry its name;
+// the shared login volume stays shared.
+func TestProfileNames(t *testing.T) {
+	defer profile.Set("")
+	profile.Set("ssh-switcher")
+	if Name("s-1") != "sw-ssh-switcher-s-1" || Volume("s-1", true) != "sw-claude-ssh-switcher-s-1" || Volume("s-1", false) != SharedVolume {
+		t.Errorf("%s %s %s", Name("s-1"), Volume("s-1", true), Volume("s-1", false))
 	}
 }

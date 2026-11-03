@@ -14,8 +14,8 @@ README.md "Development" lists the make targets.
 | Package     | SPEC items                                                              |
 |-------------|-------------------------------------------------------------------------|
 | session     | C1 (container host rules, resolving to sw-<id>, own volume kept), F0–F3, F5 (folder paths, subtrees), R2 start modes, L4, T5 (also where: local, remote, nothing else), W1 links, B6 reviewed repository, §4.7 config problems |
-| config      | §4.7 (file places, load errors, defaults, invalid values reset, README example); settings of F4, F7, F10, F12, N1b |
-| remote      | R1, R2, R4, R5, L4, C4 (container options for scripts and kill, not attach)                                                      |
+| config      | §4.7 (file places, load errors, defaults, invalid values reset, README example); settings of F4, F7, F10, F12, N1b; F14 (a profile's config and data folders) |
+| remote      | R1, R2, R4, R5, L4, C4 (container options for scripts and kill, not attach), F14 (tmux, history and fish names with a profile)                                                      |
 | terminal    | L1, L2, T4                                                              |
 | fsbrowse    | B1                                                                      |
 | opener      | B2, B3                                                                  |
@@ -25,9 +25,10 @@ README.md "Development" lists the make targets.
 | forge       | W1                                                                      |
 | qa          | Q1 (streaming, history sent back, refusals, errors, stop, store, log, model list; fake API; Claude Code and commands: arguments, resume, errors, stop, transcript, UTF-8) |
 | backup      | F7                                                                      |
-| container   | C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start; on Windows the tests that need a mountable path skip (container hosts are Linux/macOS; the session test checks Windows refuses them) |
+| container   | F14 (names with a profile; the shared volume stays), C2–C6 (build and run arguments, keys and pinned host key, extra CAs, Claude Code binary, which Dockerfile, state/port/stop/remove with a fake engine); with SW_CONTAINER_TEST=podman or docker a real build, ssh, ids, mount owner, stop/start; on Windows the tests that need a mountable path skip (container hosts are Linux/macOS; the session test checks Windows refuses them) |
 | instance    | F8                                                                      |
 | xfer        | F9                                                                      |
+| profile     | F14 (default names, a name's folder, tag and title, bad names refused and not taken) |
 | sessionarchive | F13 (.zip and .tar.gz round trip, existing files kept, empty directories back; hostile archives: "..", absolute names, symlinks, no manifest, newer format, not an archive; project files: tracked, untracked, .git with its directories, not ignored; without git all; executable bits kept, skipped on Windows) |
 | reclog      | F10                                                                     |
 | syncer      | F11, F12 (full transfers)                                               |
@@ -86,13 +87,14 @@ README.md "Development" lists the make targets.
 | gui-smoke-appnotes.sh     | N2, T2, T6 | notes for all sessions, prompts page, copy/paste             |
 | gui-smoke-web.sh          | W1         | Web tab links, build runs, tab order                         |
 | gui-smoke-qa.sh           | Q1         | Q&A against a fake API: answer, SVG, restart, Stop, log; model list, engine switch to a fake Claude Code (session resumed), right-click Copy/Paste; Markdown drawn, copied as Markdown (part of a bold word, Ctrl+C of everything); Settings → Q&A (Claude Code's model saved and used) |
-| gui-smoke-export.sh       | F13        | session menu → Export… (project ticked) → .zip via the save dialog: manifest, notes, Q&A and its log, recordings, both histories, project with .git, not git-ignored files, no keys; + → Import session… → new id, new directory with a working repository, notes, Q&A without Claude Code ids, recordings, Local history, own commands, local_init left out; the Remote history pushed when the Remote tab connects |
+| gui-smoke-profile.sh      | F14        | SESSION_WORKBENCH_PROFILE=ssh-switcher without -config: its own config folder, the title names it, its tmux session cw-ssh-switcher-<id>, window.json in its data folder, nothing in the session-workbench folders; -profile wins over the variable; a bad name exits 2 with the reason |
+| gui-smoke-export.sh       | F13        | also the same as .tar.gz (Format in the dialog) imported into a third directory (working repository, notes); session menu → Export… (project ticked) → .zip via the save dialog: manifest, notes, Q&A and its log, recordings, both histories, project with .git, not git-ignored files, no keys; + → Import session… → new id, new directory with a working repository, notes, Q&A without Claude Code ids, recordings, Local history, own commands, local_init left out; the Remote history pushed when the Remote tab connects |
 | gui-smoke-dockerwin.sh    | C6         | the Dockerfile window (no container made): dragging the heading moves it, the corner makes it larger, both kept when opened again; the right-click menu shows inside the modal window — Copy then Paste through it puts a line in twice, Save writes it |
 | gui-smoke-container.sh    | C1–C6      | real Podman/Docker: build in the Remote tab, you and the path inside, Claude Code there, ssh only on 127.0.0.1, own volume; Dockerfile window save, Save and rebuild, Stop and Reconnect, delete removes container, image, volume, files |
 | gui-smoke-terminal-extras.sh | T1, T2  | find bar, emoji widths, copy-on-select                       |
 | gui-smoke-colors.sh       | T3         | themes and color modes                                       |
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |
 | gui-smoke-switcher.sh     | §4.6       | quick switcher: MRU, fuzzy filter, descriptions, resize      |
-| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; a `where = "local"` command chosen on the Remote tab runs in the Local shell and the Remote tab keeps the keys; Settings → Commands (with Where); Local: Back to the session directory after `cd /` |
+| gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; a `where = "local"` command chosen on the Remote tab runs in the Local shell (started again after `exit`) and the Remote tab keeps the keys; a `where = "remote"` one chosen on the Local tab runs in the Remote shell and the Local tab keeps the keys; Settings → Commands (with Where); Local: Back to the session directory after `cd /` |
 
 When a feature is added, add or extend a test here and name the SPEC item it covers.

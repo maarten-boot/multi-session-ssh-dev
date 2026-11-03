@@ -16,6 +16,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
+
+	"session-workbench/internal/profile"
 )
 
 // Host is how to reach one agent host and how paths map onto it.
@@ -588,7 +590,8 @@ func ValidateUI(u UI) error {
 	return nil
 }
 
-// DefaultPath is <user config dir>/session-workbench/config.toml:
+// DefaultPath is <user config dir>/session-workbench/config.toml (the
+// profile's name instead of session-workbench with -profile):
 // $XDG_CONFIG_HOME or ~/.config on Linux, %AppData% on Windows,
 // ~/Library/Application Support on macOS. A relative $XDG_CONFIG_HOME is
 // ignored (as for DataDir), not taken as "the current directory".
@@ -604,10 +607,10 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "session-workbench", "config.toml"), nil
+	return filepath.Join(dir, profile.Dir(), "config.toml"), nil
 }
 
-// DataDir is <user data dir>/session-workbench, for data that is not
+// DataDir is <user data dir>/session-workbench (or the profile's name), for data that is not
 // configuration (Claude backups): $XDG_DATA_HOME or ~/.local/share on Linux
 // (where WebKit keeps the app's storage too), ~/Library/Application Support
 // on macOS, %LocalAppData% on Windows.
@@ -635,7 +638,7 @@ func DataDir() (string, error) {
 	if dir == "" {
 		return "", errors.New("no user data directory")
 	}
-	return filepath.Join(dir, "session-workbench"), nil
+	return filepath.Join(dir, profile.Dir()), nil
 }
 
 // Load reads path. A missing file yields Default() and no error.

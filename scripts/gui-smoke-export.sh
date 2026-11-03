@@ -9,7 +9,7 @@
 # host when the Remote tab connects. Needs `ssh localhost` without prompts,
 # tmux and git.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-export.sh <binary> <outdir>
-BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes $OUT/proj $OUT/proj2 $OUT/s.zip
+BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes $OUT/proj $OUT/proj2 $OUT/proj3 $OUT/*.zip $OUT/*.tar.gz
 . "$(dirname "$0")/smoke-lib.sh"
 PROJ=$OUT/proj; mkdir -p $PROJ
 git -C $PROJ init -q; printf 'build/\n' >$PROJ/.gitignore; echo 'package main' >$PROJ/main.go
@@ -88,6 +88,25 @@ check "its Local history" grep -q local-history $DATA/history/$NEW.history
 check "its own commands" bash -c "grep -A12 'name = \"imported\"' $CFG | grep -q 'command = \"make\"'"
 check "local_init not imported" bash -c "[ \$(grep -c should-not-come-along $CFG) = 1 ]"
 check "the Remote history waits for the connection" test -s $DATA/history/$NEW.remote
+# The same as .tar.gz: Format → the second choice; imported into proj3.
+xdotool mousemove 114 131 click 3; menu e              # "exported" (the first row): Export…
+k shift+Tab; k Down; k shift+Tab; k space; sleep 0.3   # Format: .tar.gz; the project ticked
+shot 9-tar-gz
+k Tab; k Tab; k Return; sleep 2                        # Export…: the save dialog
+k ctrl+a; xdotool type --delay 10 "$OUT/t.tar.gz"; k Return; sleep 3
+check "the .tar.gz archive was written" bash -c "tar -tzf $OUT/t.tar.gz | grep -qx manifest.json"
+xdotool mousemove 281 67 click 1; menu i; sleep 1
+k ctrl+l; xdotool type --delay 30 't.tar.gz'; sleep 0.5; k Return; sleep 2
+k ctrl+a; xdotool type --delay 10 "$OUT/proj3"
+k Tab; k Tab; k ctrl+a; xdotool type --delay 10 'from-tgz'
+k Return; sleep 3
+shot 10-imported-tgz
+NEW3=$(awk '/^ *id = "s-/{id=$3} /name = "from-tgz"/{gsub(/"/,"",id); print id}' $CFG | head -1)
+check "imported from .tar.gz: a new session" bash -c "[ -n '$NEW3' ] && [ '$NEW3' != s-ex ] && [ '$NEW3' != '$NEW' ]"
+check "imported from .tar.gz: a working repository" bash -c "test -s $OUT/proj3/main.go && git -C $OUT/proj3 rev-parse --git-dir"
+check "imported from .tar.gz: its notes" grep -q 'exported home' $OUT/notes/$NEW3/Home.md
+xdotool mousemove 114 174 click 1; sleep 1             # back to "imported" (the second row)
+
 # The Remote tab of the new session: the history goes to the agent host.
 k ctrl+shift+3; sleep 6
 shot 8-remote
@@ -96,5 +115,5 @@ check "and no longer waits here" test ! -e $DATA/history/$NEW.remote
 alive
 k Escape; k Escape                                     # no dialog left open: quitting waits for one
 kill $APP; wait $APP 2>/dev/null
-for id in s-ex $NEW; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; rm -f $RH/$id; done
+for id in s-ex $NEW $NEW3; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-$id'" 2>/dev/null; rm -f $RH/$id; done
 finish

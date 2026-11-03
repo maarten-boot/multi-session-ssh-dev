@@ -22,6 +22,7 @@ import (
 	"session-workbench/internal/config"
 	"session-workbench/internal/forge"
 	"session-workbench/internal/pathmap"
+	"session-workbench/internal/profile"
 	"session-workbench/internal/remote"
 )
 
@@ -246,7 +247,7 @@ func resolve(c *config.Config, s config.Session) (Resolved, error) {
 	if h.Kind == HostContainer {
 		// Its own container: the ssh alias of internal/container, the
 		// directory mounted at the same path.
-		r.Host.SSHTarget = "sw-" + s.ID
+		r.Host.SSHTarget = "sw-" + profile.Tag("-") + s.ID // container.Name
 		r.RemotePath = filepath.ToSlash(r.LocalPath)
 		return r, nil
 	}

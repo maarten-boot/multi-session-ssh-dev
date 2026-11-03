@@ -10,17 +10,20 @@ export const el = (tag, props = {}, ...children) => {
 };
 
 // Small per-machine UI memory (last session, collapsed groups). Optional.
+// prefix: a profile (-profile) gets its own keys ("sw:<profile>:"), as the
+// browser storage itself is shared.
 export const store = {
+    prefix: 'sw:',
     get(k, d) {
         try {
-            return JSON.parse(localStorage.getItem('sw:' + k)) ?? d;
+            return JSON.parse(localStorage.getItem(this.prefix + k)) ?? d;
         } catch {
             return d;
         }
     },
     set(k, v) {
         try {
-            localStorage.setItem('sw:' + k, JSON.stringify(v));
+            localStorage.setItem(this.prefix + k, JSON.stringify(v));
         } catch {
         }
     },

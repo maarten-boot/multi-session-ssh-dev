@@ -20,6 +20,7 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"session-workbench/internal/container"
+	"session-workbench/internal/profile"
 	"session-workbench/internal/qa"
 	"session-workbench/internal/remote"
 	"session-workbench/internal/session"
@@ -90,7 +91,7 @@ func (a *App) containerSession(id string) (session.Resolved, error) {
 // alias (remote.TargetOptions); nothing for other targets or a container
 // that does not run.
 func (a *App) containerSSHOptions(target string) []string {
-	id, ok := strings.CutPrefix(target, "sw-")
+	id, ok := strings.CutPrefix(target, container.Name(""))
 	if !ok {
 		return nil
 	}
@@ -147,7 +148,11 @@ func (a *App) containerHelper(r session.Resolved, sshArgs []string) (string, []s
 	if err != nil {
 		return "", nil, err
 	}
-	return self, []string{"-container-attach", file}, nil
+	args := []string{"-container-attach", file}
+	if p := profile.Name(); p != "" {
+		args = append([]string{"-profile", p}, args...) // container names carry it
+	}
+	return self, args, nil
 }
 
 // runContainerAttach is the helper: it makes the container run (building

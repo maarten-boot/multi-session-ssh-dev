@@ -1,0 +1,42 @@
+# Conversation 2026-11-03
+
+- **User:** "What is next ?" — PLAN "Next": echo/v4 (mid-November), output folding (postponed).
+  Offered small follow-ups: the Edit… dialog's command column (squeezed by Where), quitting
+  while a native file dialog is open, untested paths (.tar.gz import, a Remote command from
+  the Local tab, starting the other tab when it is not running).
+- **User:** "do the Edit… dialog layout and the extra tests"
+  - Edit… dialog: group, name, run, where and ↑ ↓ ✕ on one line, the command on its own full
+    line below (CSS grid areas; the dialog keeps its width, so no test coordinates move).
+  - gui-smoke-commands.sh: a `where = "remote"` command chosen on the Local tab runs in the
+    Remote shell and the Local tab keeps the keys; the Local shell is ended (`exit`) before a
+    Local command is chosen on the Remote tab, which starts it again. Settings' + Add moved one
+    row down (one more command in the test config).
+  - gui-smoke-export.sh: the same export as .tar.gz (Format in the dialog), imported into a
+    third directory. GTK's file dialogs complete paths while they are typed: names that
+    share a start with another file in the folder get garbled (`s.zip` next to `s.tar.gz`
+    became `s..zip`) — the test uses `t.tar.gz` and removes old archives first. 33 checks pass.
+- **User (while that ran):** "currently the app saves its data at: ~/.config/session-workbench,
+  what if i want to use the app for 2 complete separate experiences: the default for AI
+  supported development, but a second location for a simple ssh switcher for remote logins.
+  Could we add a cli option so save all data in a different name (default session-workbench)
+  but optional ssh-switcher ? Either via cli param or perhaps via a environment variabebel ?"
+  - Decided (questions): the name replaces session-workbench in the folder names; both
+    `-profile` and SESSION_WORKBENCH_PROFILE (the flag wins); on the agent hosts the tmux
+    sessions and the history folder carry the name; the title names the setup.
+  - Built (v1.1.4, SPEC F14): internal/profile; config folders, tmux `cw-NAME-<id>`, history
+    `~/.local/state/NAME/history`, fish history names, containers `sw-NAME-<id>` (the shared
+    login volume stays shared), the container helper gets `-profile`, the title and About,
+    Linux WM_CLASS. My additions beyond the answers: containers carry the name too (same
+    clash as tmux); the browser storage keys get a `sw:NAME:` prefix — on Linux WebKit's
+    storage folder does not follow Wails' program name (WebKit picks it before Wails sets
+    it), so the storage stays shared and the keys keep the setups apart (also on macOS and
+    Windows); I dropped a WebView2 folder option for Windows as unneeded.
+  - Tests: profile, remote, config and container unit tests; gui-smoke-profile.sh (variable,
+    flag wins, folders, title, tmux name, bad name exits 2) passes.
+- **User (while the profile was tested):** "note: when using the app only for ssh remote
+  sessions there is no need to share the local directory with the remote side so we should
+  probabely make it optional (defauly yes)" — decided (questions; in PLAN "Next"): per host
+  with a per-session override; the Remote tab starts in home or an optional remote folder;
+  tabs Remote, Notes, Web, Q&A; the name defaults to the host's name. Not built yet.
+- Regression after the profile: badges, window, sessions, history, instance, layout,
+  switcher, dockerwin and container GUI tests pass; 60 frontend tests, go test, cross vet.

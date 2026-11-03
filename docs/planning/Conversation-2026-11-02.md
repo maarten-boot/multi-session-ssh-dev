@@ -156,3 +156,5 @@
   with their tests in Tests.md. Fixed: the README's list of session menu entries lacked
   *Export…* (and the container sessions' *Dockerfile…* / *Stop container…*), the "+" menu lists
   in README and SPEC F1 lacked *Import session…*, SPEC F1's session menu lacked export.
+- **v1.1.3 CI** (tagged): success on linux-amd64, windows-amd64, macos-universal and release;
+  all five release files. Stopped for the day.

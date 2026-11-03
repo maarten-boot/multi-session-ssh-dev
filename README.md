@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.3: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.4: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -88,7 +88,8 @@ make smoke-ui        # themes/colors, switcher (descriptions, resizing), setting
                      # desktop notifications, notes for all sessions and copy/paste,
                      # Remote tab recordings, command menu (with groups), prompts menu and start
                      # commands, private shell history, lists and spelling in the notes,
-                     # badges, exporting and importing a session (~2 min)
+                     # badges, exporting and importing a session (.zip and .tar.gz),
+                     # a separate setup with -profile (~2 min)
 make smoke-container # a container host with real Podman (else Docker; SW_ENGINE=docker):
                      # build, connect, Dockerfile window, rebuild, stop, delete (first build: minutes);
                      # also the Dockerfile window itself: move, resize, right-click Copy and Paste
@@ -733,11 +734,25 @@ agent host needs `tmux` on the PATH of a login shell; the start command (`claude
 runs in an interactive login shell, so it is found on the same PATH as when you log in by hand
 (`~/.profile` and `~/.bashrc`).
 
+### Separate setups (`-profile`)
+
+To use the app for two unrelated things — say AI-assisted development as usual, and a simple
+ssh switcher for remote logins — start the second one with a profile name:
+`session-workbench -profile ssh-switcher` (or `SESSION_WORKBENCH_PROFILE=ssh-switcher`; the
+flag wins). It then keeps everything under that name instead of `session-workbench`:
+`~/.config/ssh-switcher/` (config, notes) and `~/.local/share/ssh-switcher/` (window size,
+recordings, Q&A, histories) on Linux, the same on macOS and Windows in their usual places.
+Its tmux sessions on the agent hosts are `cw-ssh-switcher-<id>`, its private histories there
+`~/.local/state/ssh-switcher/history`, its containers `sw-ssh-switcher-<id>`, so the two setups
+never meet; the window title says which one it is, and both can run at once. Names are
+lower-case letters, digits, `-` and `_`. Without a profile nothing changes. A launcher for
+the second setup: copy the `.desktop` file and add `-profile ssh-switcher` to its `Exec`.
+
 ### Config file
 
 `~/.config/session-workbench/config.toml` (Linux), `%AppData%\session-workbench\config.toml`
 (Windows), `~/Library/Application Support/session-workbench/config.toml` (macOS);
-override with `-config <file>`. The app reads it at start and rewrites it on every change;
+override with `-config <file>`, or use a separate setup with `-profile <name>` (see below). The app reads it at start and rewrites it on every change;
 hand edits are fine while it is not running (comments are not kept). Unknown keys are
 rejected: if the file cannot be parsed the app shows why and saves nothing, so your file
 is never overwritten; a value of the wrong type (`font_size = 13.5`, `auto_reconnect = "yes"`)
@@ -902,7 +917,8 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
-`-config`. Window state is what this computer remembers outside `config.toml`: the active
+`-config`; with `-profile <name>` every `session-workbench` folder here is `<name>` instead
+(WebKit's own storage stays where it is; the app keeps a profile's keys apart in it). Window state is what this computer remembers outside `config.toml`: the active
 session, the last tab per session, *Hidden files* and the sort order per session, collapsed headers, the sidebar width, the narrow sidebar, the switcher's
 recent order and size and the last host and start mode used for a new session. The window's size,
 position and whether it was maximised are saved in `window.json` when the window closes — also
@@ -941,6 +957,7 @@ internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking
 internal/sessionarchive  one session as a .zip or .tar.gz (export, import): manifest, parts, safe reading
+internal/profile       separate setups (-profile): folder, tmux, history and container names
 internal/instance      one instance per config file (lock)
 internal/winstate      window size and position across restarts (window.json in the data dir)
 internal/reclog        Remote tab recordings: readable text, hidden passwords, time segments

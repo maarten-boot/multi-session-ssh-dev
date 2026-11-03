@@ -2255,9 +2255,21 @@ body.sidebar-narrow #sidebar-resizer {
     grid-template-columns: 6.5rem 8rem 1fr auto auto auto auto auto;
 }
 
+/* The session dialog is too narrow for all of it on one line: group,
+   name, run, where and ↑ ↓ ✕ on the first, the command on its own full
+   line below. */
 #dlg-session .command-list.grouped.placed .command-row {
-    grid-template-columns: 4.5rem 5.5rem 1fr auto auto auto auto auto;
+    grid-template-columns: 6rem 1fr auto auto auto auto auto;
+    grid-template-areas: "group name run where . . ." "cmd cmd cmd cmd cmd cmd cmd";
+    row-gap: 4px;
+    margin-bottom: 10px;
 }
+
+#dlg-session .command-list.placed .cmd-group { grid-area: group; }
+#dlg-session .command-list.placed .cmd-name { grid-area: name; }
+#dlg-session .command-list.placed .cmd-run-label { grid-area: run; }
+#dlg-session .command-list.placed .cmd-where { grid-area: where; }
+#dlg-session .command-list.placed .cmd-command { grid-area: cmd; }
 
 dialog .command-row select.cmd-where {
     margin-top: 0;
