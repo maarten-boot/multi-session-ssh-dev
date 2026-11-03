@@ -61,3 +61,8 @@
 - **v1.1.4 CI** (tagged): failed on windows-amd64 (TestPlainLogin: "host "jump" has no path
   mapping and "C:\…\proj" is not a POSIX path" — a test bug, not the app); linux and macOS
   passed; no release. Fixed: the test host gets prefixes. **User:** bump to v1.1.5.
+- **v1.1.5 CI** (tagged): success on macos-universal, windows-amd64 (TestPlainLogin passes),
+  linux-amd64 and release; all five release files. The first release with -profile and
+  plain ssh logins.
+- **Cross-check after v1.1.5:** only the test fix and the version changed since the last
+  cross-check; 1.1.5 everywhere, PLAN explains v1.1.4. No differences.
