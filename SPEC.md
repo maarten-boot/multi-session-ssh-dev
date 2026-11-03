@@ -12,8 +12,9 @@ appending writes through the live share (§6), the command menu (T5), editable s
 (R2), Settings in pages (§4.6), private shell history per session (L4), lists, check lists and
 spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for working copies (F12)
 the Q&A tab (Q1; Claude Code and own commands without an API key), container hosts (C1–C6) and
-exporting a session as an archive / importing it as a new session (F13) and separate setups
-(`-profile`, F14).
+exporting a session as an archive / importing it as a new session (F13), separate setups
+(`-profile`, F14), plain ssh logins without a local directory (F2a) and sessions without tmux
+(F2b).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -371,8 +372,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   login shell so that PATH includes `~/.local/bin` (claude) or Homebrew (tmux). A missing remote
   directory exits 3 and the Remote tab says so (for a working copy it offers *Send to agent…*)
   instead of starting in `$HOME`.
-- R2. **tmux is mandatory on the agent host** — it makes sessions survive app restarts, closed
-  windows and network drops (not agent-host reboots). Reopening the tab re-attaches (`-A`); the
+- R2. **tmux is the default on the agent host** — it makes sessions survive app restarts, closed
+  windows and network drops (not agent-host reboots); a host or session with `tmux = false`
+  (F2b) runs without it, as a plain ssh login. Reopening the tab re-attaches (`-A`); the
   start command only runs when the tmux session is first created. The start commands are a list
   (`[[ui.start_commands]]`, Settings → Commands; name + one-line command, names unique
   ignoring case, at least one); a session's `start_mode` names one, and an unknown name is the
@@ -398,7 +400,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   a connection that lasted 30 s; on/off with `auto_reconnect`; Esc stops). tmux detach / session
   end (exit 0) and a user Disconnect do not.
 - R4. "End remote session" action (runs `tmux kill-session -t '=cw-<id>'` over ssh, exact match,
-  `BatchMode=yes`, 20 s timeout; a session that is not running counts as ended), with confirm.
+  `BatchMode=yes`, 20 s timeout; a session that is not running counts as ended), with confirm;
+  not offered for a session without tmux (F2b).
 - R5. Agent forwarding and X11 forwarding are **always forced off** — forwarding the agent would
   hand the isolated machine the host's git credentials.
 

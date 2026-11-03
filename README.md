@@ -543,7 +543,7 @@ the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*
 work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history; for a plain login its remote folder),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
-*Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* and *Delete session…* (optionally ending its tmux
+*Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
 session too, and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
 container sessions *Dockerfile…* and *Stop container…*. Drag sessions to reorder

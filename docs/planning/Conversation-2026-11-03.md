@@ -86,3 +86,8 @@
   - Tests: TestPlainArgs, TestNoTmux; gui-smoke-login.sh (16 checks) passes: a tmux = false
     host gives a plain login in /var/tmp with an empty $TMUX and no tmux session; Add host…
     saves tmux = false.
+- **Committed** 0968c94 and c235069 (v1.1.6); pushed, GitHub main = c235069.
+- **Cross-check after c235069:** version 1.1.6 everywhere; F2a/F2b match the code with their
+  tests. Fixed: SPEC R2 still said tmux is mandatory (now: the default, `tmux = false` runs
+  without), R4 (no End remote session without tmux), the SPEC status line (F2a, F2b), and the
+  README's session menu list (End remote session… not for sessions without tmux).
