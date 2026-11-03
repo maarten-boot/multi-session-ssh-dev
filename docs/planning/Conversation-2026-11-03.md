@@ -91,3 +91,7 @@
   tests. Fixed: SPEC R2 still said tmux is mandatory (now: the default, `tmux = false` runs
   without), R4 (no End remote session without tmux), the SPEC status line (F2a, F2b), and the
   README's session menu list (End remote session… not for sessions without tmux).
+- **v1.1.6 CI** (tagged): success on windows-amd64, macos-universal, linux-amd64 and release;
+  all five release files. The first release with sessions without tmux.
+- **Cross-check after the v1.1.6 release:** nothing changed since d0db5c4 (only this log);
+  1.1.6 everywhere, PLAN has its entries. No differences.
