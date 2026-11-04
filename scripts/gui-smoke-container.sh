@@ -85,7 +85,7 @@ for i in $(seq 60); do [ "$(state)" = running ] && break; sleep 1; done; sleep 8
 t 'echo rebuilt > rebuilt.txt'
 waitfile $PROJ/rebuilt.txt 10
 check "the Remote tab connects to the rebuilt container" test -s $PROJ/rebuilt.txt
-menu 220                                               # Stop container…
+menu 250                                               # Stop container… (after Services)
 k Return; sleep 10                                     # confirm
 check "Stop container stopped it" bash -c "[ \"$(state)\" != running ] && [ -n \"$(state)\" ]"
 shot 3-stopped
@@ -94,7 +94,7 @@ for i in $(seq 60); do [ "$(state)" = running ] && break; sleep 1; done; sleep 8
 t 'echo again > again.txt'
 waitfile $PROJ/again.txt 10
 check "Reconnect started the container again" test -s $PROJ/again.txt
-menu 577                                               # Delete session… (after Export…)
+menu 607                                               # Delete session… (after Export… and Services)
 shot 4-delete
 k Tab; k space; k Tab; k Return; sleep 8               # tick "remove its container", Delete
 check "the container is gone" bash -c "! $ENGINE ps -a --format '{{.Names}}' | grep -qx sw-$ID"

@@ -55,6 +55,8 @@ type exportSources struct {
 	copies     string // working-copies/<id>/
 	dockerfile string // "" without one
 	inRepo     bool
+	compose    string // the compose file (services), "" without one
+	composeIn  bool   // in the repository
 }
 
 func (a *App) exportSources(id string) (exportSources, error) {
@@ -83,6 +85,7 @@ func (a *App) exportSources(id string) (exportSources, error) {
 			s.dockerfile, s.inRepo = file, inRepo
 		}
 	}
+	s.compose, s.composeIn = spec.ComposeFile()
 	return s, nil
 }
 
@@ -148,6 +151,16 @@ func (a *App) ExportParts(id string) ([]ExportPart, error) {
 		p.Note = "the project's .session-workbench/Dockerfile"
 	default:
 		p.Note = "the app's copy"
+	}
+	if s.compose != "" {
+		n, size := fileStats(s.compose)
+		p.Files, p.Size = p.Files+n, p.Size+size
+		p.Label = "Dockerfile and services"
+		where := "the project's .session-workbench/compose.yaml"
+		if !s.composeIn {
+			where = "the app's compose.yaml"
+		}
+		p.Note = strings.TrimPrefix(p.Note+"; "+where, "; ")
 	}
 	parts = append(parts, p)
 	p = part(sessionarchive.PartQA, "Q&A conversation and log")
@@ -265,6 +278,15 @@ func (a *App) writeExport(s exportSources, parts []string, file string) (ExportR
 		}
 		m.DockerfileInRepo = s.inRepo
 		have(sessionarchive.PartDockerfile)
+	}
+	if s.compose != "" {
+		if err := w.AddFile("compose.yaml", s.compose); addErr(err) != nil {
+			return ExportResult{}, fmt.Errorf("compose file: %w", err)
+		}
+		m.ComposeInRepo = s.composeIn
+		if s.dockerfile == "" {
+			have(sessionarchive.PartDockerfile)
+		}
 	}
 	if want[sessionarchive.PartQA] {
 		if n, _ := fileStats(s.qaFile); n > 0 {
@@ -619,6 +641,11 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 			notes = append(notes, "the Dockerfile is kept only for container hosts: not imported")
 		case a.dataDir != "":
 			step("Dockerfile", a.importFile(arc, "Dockerfile", filepath.Join(a.dataDir, "containers", v.ID, "Dockerfile")))
+		}
+		// The services: likewise, unless the project brought its own.
+		_, composeErr := os.Stat(filepath.Join(local, filepath.FromSlash(container.RepoCompose)))
+		if composeErr != nil && r.Host.Kind == session.HostContainer && a.dataDir != "" {
+			step("compose file", a.importFile(arc, "compose.yaml", filepath.Join(a.dataDir, "containers", v.ID, "compose.yaml")))
 		}
 	}
 	return ImportResult{Session: v, Notes: notes}, nil

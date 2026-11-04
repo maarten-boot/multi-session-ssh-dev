@@ -176,6 +176,19 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.8 (2026-11-04): services next to a container session's dev container (SPEC C7; the
+  user: "would adding a docker compose edit window be helpful … specify the environment it
+  needs (postgres, nginx, etc.)"). Decided (questions): the app writes the dev service and the
+  session's file adds the rest; the file in the project (`.session-workbench/compose.yaml`,
+  like the Dockerfile); the services start and stop with the dev container; an own window with
+  service buttons. Found while building: the dev service's `environment` reaches only sshd, not
+  the logins (passed with sshd `-o SetEnv`); Podman's compose needs its API socket (the app
+  starts one when podman.socket does not run); Ubuntu 26.04's AppArmor refuses Podman's signal
+  to pasta when the last container of a network stops (Stop and Remove check and carry on).
+  Tests: container (TestComposeDoc, TestComposeFile, TestCheckDev, TestCheckCompose,
+  TestComposeEnv, TestComposeProject, TestSetEnv, TestNetnsDenied; TestRealCompose with Podman
+  and Docker), services.test.mjs, gui-smoke-compose.sh, gui-smoke-export.sh (the compose file
+  in the archive).
 - v1.1.7 (2026-11-03): Claude backups and ssh-only hosts (the user: "a vmware has no rsync so a
   remote backup can never be done and as it is a ssh only what would we need to replicate?" —
   nothing: no claude there). A host's *Back up Claude data from this host* (`backup`; off by

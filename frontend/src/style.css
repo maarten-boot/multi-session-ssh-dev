@@ -2506,7 +2506,7 @@ dialog .command-row select.cmd-where {
 
 /* It can be resized (the corner) and moved (the heading); the text takes
    what the other parts leave. */
-#dlg-dockerfile {
+#dlg-dockerfile, #dlg-services {
     resize: both;
     overflow: auto;
     min-width: 420px;
@@ -2517,12 +2517,12 @@ dialog .command-row select.cmd-where {
     padding-bottom: 14px; /* room for the resize corner */
 }
 
-#dlg-dockerfile[open], #dlg-dockerfile form {
+#dlg-dockerfile[open], #dlg-dockerfile form, #dlg-services[open], #dlg-services form {
     display: flex;
     flex-direction: column;
 }
 
-#dlg-dockerfile form {
+#dlg-dockerfile form, #dlg-services form {
     flex: 1 1 auto;
     min-height: 0;
 }
@@ -2533,7 +2533,7 @@ dialog .command-row select.cmd-where {
     resize: none;
 }
 
-#dlg-dockerfile .build-output {
+#dlg-dockerfile .build-output, #dlg-services .build-output {
     flex: 0 0 auto;
 }
 

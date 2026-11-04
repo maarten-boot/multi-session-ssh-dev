@@ -409,7 +409,12 @@ func (e Engine) Port(ctx context.Context, id string) (int, error) {
 
 // stream runs the engine with its output (both streams) to out.
 func (e Engine) stream(ctx context.Context, out io.Writer, args ...string) error {
-	cmd := e.command(ctx, args...)
+	return streamCmd(e.command(ctx, args...), out, e.Name+" "+args[0])
+}
+
+// streamCmd runs cmd with its output (both streams) to out; a failure
+// names what and the last line it wrote.
+func streamCmd(cmd *exec.Cmd, out io.Writer, what string) error {
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
 	var last string
@@ -430,7 +435,7 @@ func (e Engine) stream(ctx context.Context, out io.Writer, args ...string) error
 	pw.Close()
 	<-done
 	if err != nil {
-		return fmt.Errorf("%s %s failed (%v): %s", e.Name, args[0], err, last)
+		return fmt.Errorf("%s failed (%v): %s", what, err, last)
 	}
 	return nil
 }
@@ -449,6 +454,12 @@ func (e Engine) Build(ctx context.Context, s Spec, out io.Writer) error {
 func (e Engine) Up(ctx context.Context, s Spec, out io.Writer) (int, error) {
 	if err := Prepare(s); err != nil {
 		return 0, err
+	}
+	if user, _ := s.ComposeFile(); user != "" {
+		if err := e.upCompose(ctx, s, user, out); err != nil {
+			return 0, err
+		}
+		return e.waitPort(ctx, s.ID)
 	}
 	exists, running, err := e.State(ctx, s.ID)
 	if err != nil {
@@ -474,7 +485,12 @@ func (e Engine) Up(ctx context.Context, s Spec, out io.Writer) (int, error) {
 			return 0, err
 		}
 	}
-	port, err := e.Port(ctx, s.ID)
+	return e.waitPort(ctx, s.ID)
+}
+
+// waitPort is the running container's ssh port, once sshd answers.
+func (e Engine) waitPort(ctx context.Context, id string) (int, error) {
+	port, err := e.Port(ctx, id)
 	if err != nil {
 		return 0, err
 	}
@@ -492,24 +508,74 @@ func (e Engine) Replace(ctx context.Context, id string) error {
 		return err
 	}
 	_, err = e.output(ctx, "rm", "-f", Name(id))
+	if netnsDenied(err) {
+		if exists, _, err2 := e.State(ctx, id); err2 == nil && !exists {
+			return nil
+		}
+	}
 	return err
 }
 
-// Stop stops the session's container (its tmux sessions end).
+// Stop stops the session's container (its tmux sessions end) and the
+// services of its Compose project.
 func (e Engine) Stop(ctx context.Context, id string) error {
-	exists, running, err := e.State(ctx, id)
-	if err != nil || !exists || !running {
+	ids, err := e.projectIDs(ctx, id, "ps")
+	if err != nil {
 		return err
 	}
-	_, err = e.output(ctx, "stop", Name(id))
+	exists, running, err := e.State(ctx, id)
+	if err != nil {
+		return err
+	}
+	if exists && running {
+		ids = append(ids, Name(id))
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err = e.output(ctx, append([]string{"stop"}, ids...)...)
+	if netnsDenied(err) {
+		// Stopped all the same (see netnsDenied)?
+		left, err2 := e.projectIDs(ctx, id, "ps")
+		if _, running, err3 := e.State(ctx, id); err2 == nil && err3 == nil && len(left) == 0 && !running {
+			return nil
+		}
+	}
 	return err
 }
 
-// Remove deletes the session's container and image, and with volume its
-// own ~/.claude volume (never the shared one).
-func (e Engine) Remove(ctx context.Context, id string, volume bool) error {
+// Remove deletes the session's container and image, the services'
+// containers and networks of its Compose project, with volume its own
+// ~/.claude volume (never the shared one), and with data the volumes of
+// its Compose project (the services' data, e.g. a database).
+func (e Engine) Remove(ctx context.Context, id string, volume, data bool) error {
 	if err := e.Replace(ctx, id); err != nil {
 		return err
+	}
+	if ids, err := e.projectIDs(ctx, id, "ps", "-a"); err != nil {
+		return err
+	} else if len(ids) > 0 {
+		if _, err := e.output(ctx, append([]string{"rm", "-f"}, ids...)...); err != nil {
+			if left, err2 := e.projectIDs(ctx, id, "ps", "-a"); !netnsDenied(err) || err2 != nil || len(left) > 0 {
+				return err
+			}
+		}
+	}
+	if ids, err := e.projectIDs(ctx, id, "network", "ls"); err != nil {
+		return err
+	} else if len(ids) > 0 {
+		if _, err := e.output(ctx, append([]string{"network", "rm"}, ids...)...); err != nil {
+			return err
+		}
+	}
+	if data {
+		if ids, err := e.projectIDs(ctx, id, "volume", "ls"); err != nil {
+			return err
+		} else if len(ids) > 0 {
+			if _, err := e.output(ctx, append([]string{"volume", "rm"}, ids...)...); err != nil {
+				return err
+			}
+		}
 	}
 	if e.ImageExists(ctx, id) {
 		if _, err := e.output(ctx, "rmi", Name(id)); err != nil {

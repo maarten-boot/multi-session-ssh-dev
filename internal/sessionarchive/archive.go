@@ -66,6 +66,9 @@ type Manifest struct {
 	// DockerfileInRepo: the Dockerfile was the project's
 	// .session-workbench/Dockerfile (else the app's copy).
 	DockerfileInRepo bool `json:"dockerfile_in_repo,omitempty"`
+	// ComposeInRepo: the compose file (services next to a container,
+	// compose.yaml in the Dockerfile part) was the project's.
+	ComposeInRepo bool `json:"compose_in_repo,omitempty"`
 	// Skipped counts what could not go in: symlinks and special files.
 	Skipped int `json:"skipped,omitempty"`
 }

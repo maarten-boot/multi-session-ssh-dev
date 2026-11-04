@@ -9,11 +9,11 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.7: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.8: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
-auto-reconnect, containers on this computer as agent hosts (Podman or Docker, a Dockerfile per session), live share and working copies for hosts without a shared file system (Get
+auto-reconnect, containers on this computer as agent hosts (Podman or Docker, a Dockerfile per session, services such as PostgreSQL next to it with Compose), live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch; full save, take, send and restore, also without git),
 Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
 and macOS.
@@ -546,7 +546,7 @@ work); then *Edit…* (name, description, folder, start mode, colors, own comman
 *Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
 session too, and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
-container sessions *Dockerfile…* and *Stop container…*. Drag sessions to reorder
+container sessions *Dockerfile…*, *Services (compose)…* and *Stop container…*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
 right-click a host (or its ⋯) to add a session on it, edit it, back up or restore its
 Claude data, or delete it (once no session uses it). Right-click the empty space below (or
@@ -653,6 +653,41 @@ computer*; every session under it gets a container built from its own Dockerfile
   replaces the container: it asks first when it runs, since its tmux session ends. Drag the
   window's heading to move it and its lower-right corner to make it larger (it opens there
   again); right-click the text or the build output for Cut, Copy, Paste and Select all.
+- **Services next to it** (PostgreSQL, MySQL/MariaDB, Redis, MongoDB, nginx, or any other image):
+  session menu → **Services (compose)…** edits a [Compose](https://docs.docker.com/compose/)
+  file — `.session-workbench/compose.yaml` in the project (versioned with it; the default when
+  the project's Dockerfile is there) or `compose.yaml` in the app's data folder. The app writes
+  the dev container itself as the service **`dev`** (its image, the ssh port, the mounts); your
+  file adds the other services and may add to `dev` what it needs from them:
+  ```yaml
+  services:
+    dev:
+      environment:
+        DATABASE_URL: postgres://dev:dev@postgres:5432/dev
+      depends_on: [postgres]
+    postgres:
+      image: docker.io/library/postgres:17
+      environment: {POSTGRES_USER: dev, POSTGRES_PASSWORD: dev, POSTGRES_DB: dev}
+      volumes: [pgdata:/var/lib/postgresql/data]
+  volumes:
+    pgdata:
+  ```
+  Buttons add a ready-made block for each of the five above. The dev container reaches the
+  services by their names (`postgres:5432`); `dev`'s `environment` reaches the Remote tab's
+  shell too (the app passes it to sshd). Relative paths and a `.env` file count from the
+  compose file's folder. **Save** lets compose check the file first, and refuses a change to
+  what the app needs of `dev` (its image, name, ssh port, mounts, network; change the dev
+  container in the Dockerfile window). The services start with the container when the Remote
+  tab connects and stop with *Stop container…*; **Save and restart services** applies a change
+  while it runs (it asks: when you changed `dev`, the dev container is made again and its tmux
+  session ends). Deleting the session removes their containers and network too, and their data
+  volumes only when you tick it. Needs compose: Docker's compose plugin, or for Podman a
+  provider (`docker-compose` or `podman-compose`); with Podman on Linux the app starts Podman's
+  API service for compose itself when `podman.socket` does not run. On Ubuntu 26.04, Podman
+  reports *rootless netns: kill network process: permission denied* when the last container
+  of a Compose network stops (an AppArmor rule for `pasta` is missing; the app checks that the
+  containers did stop and carries on). To silence it, add `signal (receive) peer=podman,` to
+  `/etc/apparmor.d/local/usr.bin.pasta` and run `sudo apparmor_parser -r /etc/apparmor.d/usr.bin.pasta`.
 - **Claude Code** in the containers: on Linux the app puts **your own Claude Code** into the
   image (the same version, no download); elsewhere the official installer gets it. Its login
   and settings live in a volume, **`sw-claude`**, shared by all containers, so you log in once

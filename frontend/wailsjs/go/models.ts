@@ -485,6 +485,34 @@ export namespace gitstatus {
 
 export namespace main {
 	
+	export class ContainerComposeFile {
+	    path: string;
+	    text: string;
+	    exists: boolean;
+	    in_repo: boolean;
+	    state: string;
+	    compose: string;
+	    problem: string;
+	    services: string[];
+	    dockerfile_in_repo: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ContainerComposeFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.text = source["text"];
+	        this.exists = source["exists"];
+	        this.in_repo = source["in_repo"];
+	        this.state = source["state"];
+	        this.compose = source["compose"];
+	        this.problem = source["problem"];
+	        this.services = source["services"];
+	        this.dockerfile_in_repo = source["dockerfile_in_repo"];
+	    }
+	}
 	export class ContainerFile {
 	    path: string;
 	    text: string;
@@ -1235,6 +1263,7 @@ export namespace sessionarchive {
 	    parts: string[];
 	    missing?: string[];
 	    dockerfile_in_repo?: boolean;
+	    compose_in_repo?: boolean;
 	    skipped?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -1251,6 +1280,7 @@ export namespace sessionarchive {
 	        this.parts = source["parts"];
 	        this.missing = source["missing"];
 	        this.dockerfile_in_repo = source["dockerfile_in_repo"];
+	        this.compose_in_repo = source["compose_in_repo"];
 	        this.skipped = source["skipped"];
 	    }
 	

@@ -16,6 +16,7 @@ import {commandItems, homeItem} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, movable, showMenu, store, textMenu, toast} from './ui';
 import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
+import {SERVICES, addService, hasService} from './services';
 import {fmtSize} from './format';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
@@ -26,6 +27,7 @@ import {
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
+    ContainerCompose, SaveContainerCompose, ContainerComposeApply,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -1400,6 +1402,7 @@ function sessionMenu(s, x, y) {
             action: () => StopShare(s.id)}, '-'] : []),
         ...(s.data.files === 'container' ? [
             {label: 'Dockerfile…', action: () => dockerfileDialog(s)},
+            {label: 'Services (compose)…', action: () => servicesDialog(s)},
             {label: 'Stop container…', action: () => stopContainer(s)},
             '-'] : []),
         {label: 'Edit…', action: () => sessionDialog(s)},
@@ -2549,8 +2552,14 @@ async function deleteSession(s) {
     const tm = !!s.data.tmux;
     const check = tm ? [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`] : [];
     const box = s.data.files === 'container';
+    // A compose project: its services go with the container; their data
+    // (volumes, e.g. a database) only when ticked.
+    const compose = box ? await ContainerCompose(s.id).catch(() => null) : null;
+    const services = !!(compose?.exists || compose?.services?.length);
     if (box) {
-        check.push(`Also remove its container and image sw-${s.id}` + (s.data.own_claude_volume ? ', and its own Claude Code login volume' : ''));
+        check.push(`Also remove its container and image sw-${s.id}` + (services ? ' and its services\' containers' : '') +
+            (s.data.own_claude_volume ? ', and its own Claude Code login volume' : ''));
+        if (services) check.push('Also delete its services\' data volumes (databases and the like; needs the tick above)');
     }
     if (saved.exists) {
         const n = saved.copies.length;
@@ -2566,9 +2575,13 @@ async function deleteSession(s) {
             const o = tm ? 1 : 0;
             const kill = tm && ticks[0];
             const dropBox = box && ticks[o];
-            const dropSaved = saved.exists && ticks[o + (box ? 1 : 0)];
+            const dropData = dropBox && services && ticks[o + 1];
+            const dropSaved = saved.exists && ticks[o + (box ? 1 : 0) + (services ? 1 : 0)];
+            // First the terminals, so that no auto-reconnect makes the
+            // container (and its services) again while they are removed.
+            if (kill || dropBox) s.disconnect();
             if (kill) await KillRemote(s.id);
-            if (dropBox) await ContainerRemove(s.id, !!s.data.own_claude_volume);
+            if (dropBox) await ContainerRemove(s.id, !!s.data.own_claude_volume, dropData);
             await DeleteSession(s.id);
             if (dropSaved) await RemoveSaved(s.id);
         },
@@ -2584,8 +2597,8 @@ async function deleteSession(s) {
 async function stopContainer(s) {
     const ok = await confirmDialog({
         title: `Stop the container of “${s.data.name}”?`,
-        text: `Stops sw-${s.id}: its tmux session and what runs there (claude) end. Its files and the Claude Code login ` +
-            'stay; the Remote tab starts the container again when it connects.',
+        text: `Stops sw-${s.id} and its services (compose), if any: its tmux session and what runs there (claude) end. ` +
+            'Its files, the services\' data and the Claude Code login stay; the Remote tab starts them again when it connects.',
         ok: 'Stop container',
         action: async () => {
             await ContainerStop(s.id);
@@ -2685,6 +2698,118 @@ async function dockerfileDialog(s) {
     };
     await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text, () => dockerfileWindow.pin());
     if (building) ContainerStopBuild(s.id);
+}
+
+// servicesDialog edits a container session's compose file (SPEC C7): the
+// services next to its dev container. The add-on buttons, Save (compose
+// checks the file first), and Save and restart services with compose's
+// output. Moves and resizes like the Dockerfile window.
+let servicesWindow;
+async function servicesDialog(s) {
+    const dlg = $('#dlg-services');
+    if (dlg.open) return;
+    if (!servicesWindow) {
+        servicesWindow = movable(dlg);
+        for (const field of [dlg.querySelector('.dockerfile-text'), dlg.querySelector('.build-output')]) {
+            field.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                textMenu(e.clientX, e.clientY, field);
+            });
+        }
+    }
+    let file;
+    try {
+        file = await ContainerCompose(s.id);
+    } catch (err) {
+        return confirmDialog({title: 'Services', text: err?.message ?? String(err), ok: null});
+    }
+    const f = dlg.querySelector('form').elements;
+    const out = dlg.querySelector('.build-output');
+    const status = dlg.querySelector('.build-status');
+    const errBox = dlg.querySelector('.error');
+    dlg.querySelector('h2').textContent = `Services of “${s.data.name}”`;
+    f.text.value = file.text;
+    f.where.value = file.in_repo ? 'repo' : 'app';
+    const repoPath = `${s.data.local_path}/.session-workbench/compose.yaml`;
+    const where = () => dlg.querySelector('.where-hint').textContent = f.where.value === 'repo'
+        ? `Saved in the repository: ${repoPath} (versioned with the project; its relative paths and a .env file there count from that folder).`
+        : file.exists && file.in_repo
+            ? 'Saved in the app\'s data folder — but the repository\'s .session-workbench/compose.yaml is used while it exists.'
+            : 'Saved in the app\'s data folder (only for you).';
+    f.where.onchange = where;
+    where();
+    const describe = () => {
+        const svc = file.services?.length ? ` Service containers: ${file.services.join(', ')}.` : '';
+        status.textContent = file.problem ? `Compose cannot run: ${file.problem}`
+            : (file.exists ? `Container sw-${s.id}: ${file.state === 'none' ? 'not made yet' : file.state}.${svc}`
+                : 'No services yet: the container runs on its own. Saving makes it a Compose project with the dev container as service "dev".') +
+            ` (${file.compose})`;
+    };
+    describe();
+    out.textContent = '';
+    out.hidden = true;
+    errBox.textContent = '';
+    dlg.querySelector('.toolchains').replaceChildren(...Object.entries(SERVICES).map(([label, svc]) => {
+        const b = el('button', {type: 'button', textContent: '+ ' + label, title: svc.lines});
+        b.onclick = () => {
+            const name = svc.lines.split(':')[0];
+            if (hasService(f.text.value, name)) return toast(`There is a service “${name}” already`);
+            f.text.value = addService(f.text.value, label);
+            f.text.focus();
+        };
+        return b;
+    }));
+    const save = async () => {
+        errBox.textContent = '';
+        const p = await SaveContainerCompose(s.id, f.text.value, f.where.value === 'repo');
+        file.exists = true;
+        file.in_repo = f.where.value === 'repo';
+        return p;
+    };
+    let applying = false;
+    const apply = dlg.querySelector('button[name=apply]');
+    apply.onclick = async () => {
+        if (applying) return ContainerStopBuild(s.id);
+        try {
+            await save();
+        } catch (err) {
+            return errBox.textContent = err?.message ?? String(err);
+        }
+        if (file.state !== 'running') {
+            return status.textContent = 'Saved. The services start with the container when the Remote tab connects.';
+        }
+        if (!await confirmDialog({
+            title: 'Restart the services?',
+            text: 'Services that changed are made again and removed ones stop. When you changed the "dev" part, the dev ' +
+                `container sw-${s.id} is made again too: its tmux session and what runs there (claude) end.`,
+            ok: 'Restart services',
+        })) return status.textContent = 'Saved; the running services are unchanged until the container starts again.';
+        applying = true;
+        apply.textContent = 'Stop';
+        out.hidden = false;
+        out.textContent = '';
+        status.textContent = 'Starting the services…';
+        EventsOn(`container:compose:${s.id}`, chunk => {
+            out.textContent += chunk.replaceAll('\r\n', '\n');
+            out.scrollTop = out.scrollHeight;
+        });
+        try {
+            await ContainerComposeApply(s.id);
+            const now = await ContainerCompose(s.id).catch(() => null);
+            if (now) Object.assign(file, {state: now.state, services: now.services});
+            describe();
+            status.textContent = 'Services restarted. ' + status.textContent;
+        } catch (err) {
+            status.textContent = `Starting the services failed: ${err?.message ?? String(err)}`;
+        } finally {
+            EventsOff(`container:compose:${s.id}`);
+            applying = false;
+            apply.textContent = 'Save and restart services';
+        }
+    };
+    await runDialog(dlg, () => save().then(p => toast(`Saved ${p}`)), f.text, () => servicesWindow.pin());
+    if (applying) ContainerStopBuild(s.id);
 }
 
 // exportDialog asks which parts of the session go into an archive (notes,

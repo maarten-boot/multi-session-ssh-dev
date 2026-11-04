@@ -1,7 +1,7 @@
 # Connecting your workstation and the agent host
 
 How Session Workbench reaches the machine where Claude Code runs, the ways that machine can get
-at your files, and what each choice means for security. Status as of November 2026 (v1.1.7).
+at your files, and what each choice means for security. Status as of November 2026 (v1.1.8).
 
 Everything described here is implemented.
 
@@ -296,6 +296,11 @@ details, SPEC §4.2a the exact commands.
   rootless Podman keeps container root unprivileged on your computer. It shares your machine's
   CPU and memory, and the network.
 - Claude Code's login lives in a volume (`sw-claude`, or one per session); no backups needed.
+- Services next to it (a database, a web server): the session's compose file (session menu
+  *Services (compose)…*) runs them with the dev container as one Compose project. They share a
+  network of their own with the dev container only; a service's port reaches your computer
+  only when the file publishes it (the nginx button binds 127.0.0.1:8080). Their data stays in
+  named volumes until you delete the session with their data ticked.
 
 ### No files at all: plain ssh logins
 

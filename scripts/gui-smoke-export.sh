@@ -14,6 +14,7 @@ BIN=$1; OUT=$2; mkdir -p $OUT; rm -rf $OUT/notes $OUT/proj $OUT/proj2 $OUT/proj3
 PROJ=$OUT/proj; mkdir -p $PROJ
 git -C $PROJ init -q; printf 'build/\n' >$PROJ/.gitignore; echo 'package main' >$PROJ/main.go
 git -C $PROJ add .; echo untracked >$PROJ/new.txt; mkdir -p $PROJ/build; echo ignored >$PROJ/build/out
+mkdir -p $PROJ/.session-workbench; printf 'services:\n  db:\n    image: x\n' >$PROJ/.session-workbench/compose.yaml
 CFG=$OUT/config.toml
 cat >$CFG <<TOML
 [[hosts]]
@@ -59,13 +60,15 @@ shot 4-exported
 check "the archive was written" test -s $OUT/s.zip
 LIST=$(python3 -c "import zipfile,sys; print('\n'.join(zipfile.ZipFile(sys.argv[1]).namelist()))" $OUT/s.zip 2>&1)
 for f in manifest.json notes/Home.md qa/conversation.json qa/log/qa-2026-11-02.md recordings/20261102-1000.log \
-	history/local history/remote project/main.go project/new.txt project/.gitignore project/.git/HEAD; do
+	history/local history/remote project/main.go project/new.txt project/.gitignore project/.git/HEAD \
+	compose.yaml project/.session-workbench/compose.yaml; do
 	check "in the archive: $f" grep -qx "$f" <<<"$LIST"
 done
 check "not in it: the git-ignored build/out" bash -c "! grep -q 'build/out' <<<'$LIST'"
 check "not in it: keys" bash -c "! grep -qE 'id_ed25519|ssh_host' <<<'$LIST'"
 MAN=$(python3 -c "import zipfile,sys; print(zipfile.ZipFile(sys.argv[1]).read('manifest.json').decode())" $OUT/s.zip)
 check "the manifest names the session" grep -q '"name": "exported"' <<<"$MAN"
+check "the manifest: the services' compose file was the project's" grep -q '"compose_in_repo": true' <<<"$MAN"
 
 # Import: + → Import session…, the open dialog, then the import dialog.
 xdotool mousemove 281 67 click 1; menu i

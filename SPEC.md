@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.18 (2026-11-03, app v1.1.7) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.19 (2026-11-04, app v1.1.8) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -14,7 +14,8 @@ spelling in the notes (N1a, N1b), the prompts menu (T6), full transfers for work
 the Q&A tab (Q1; Claude Code and own commands without an API key), container hosts (C1–C6) and
 exporting a session as an archive / importing it as a new session (F13), separate setups
 (`-profile`, F14), plain ssh logins without a local directory (F2a), sessions without tmux
-(F2b) and per-host Claude backups with a fallback for agent hosts without rsync (F7).
+(F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
+next to a container session's dev container with Compose (C7).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -457,6 +458,43 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `<data dir>/containers/<id>/`. End remote session with no running container does nothing.
   No Claude backups for container hosts (the volume stays). The container's own files (outside
   the mount and the volume, e.g. the private history of L4) do not survive a rebuild.
+- C7. Services next to the dev container (Compose). A session with a compose file —
+  `.session-workbench/compose.yaml` in its directory, else `<data dir>/containers/<id>/compose.yaml`
+  — runs as the Compose project `sw-<id>`: `compose -p sw-<id> --project-directory <the file's
+  folder> -f <data dir>/containers/<id>/sw-compose.json -f <the file> [-f sw-compose-env.json]`.
+  The app's file (written before each use) is the dev service `dev`: image `sw-<id>` (built by
+  C2, `pull_policy: never`), `container_name`/hostname `sw-<id>`, the C2 label, ssh on
+  127.0.0.1 (random port), the C3 mounts, keep-id for rootless Podman, the login volume as
+  external (compose never makes or removes it). The user's file adds services and may add to
+  `dev`. `dev`'s merged `environment` reaches the ssh logins: sw-compose-env.json sets `dev`'s
+  command to the image's sshd command plus `-o SetEnv=…` (sorted; a quote, backslash or line
+  break is refused; an image whose command is not sshd keeps it, with a note).
+  - Up (C5) with a compose file: build the image if missing, make the login volume, then
+    `up -d --remove-orphans`; while the dev container runs `up -d --no-recreate` (a reconnection
+    never makes it again). Stop container stops the project's containers (label
+    `com.docker.compose.project=sw-<id>`) and the dev container. Delete removes the project's
+    containers and networks with the container, and its volumes only with their own tick.
+    Rebuild (C6) removes only the dev container; the next Up makes it again.
+  - Podman on Linux: compose (the docker-compose provider) needs Podman's API socket: its own
+    (`$XDG_RUNTIME_DIR/podman/podman.sock`) when it answers, else the app starts `podman system
+    service --time=60` on `$XDG_RUNTIME_DIR/sw-podman-<uid>.sock` (DOCKER_HOST); an existing
+    DOCKER_HOST is kept. Ubuntu 26.04's AppArmor refuses Podman's SIGTERM to pasta when the last
+    container of a user-defined network stops ("rootless netns: kill network process"): Stop and
+    Remove then check that the containers did stop or go, and succeed.
+  - Session menu *Services (compose)…*: the window of C6 (moves, resizes, right-click menu)
+    with buttons adding PostgreSQL, MySQL/MariaDB, Redis, MongoDB and nginx (full image names;
+    a named volume for the databases; a comment with the address); without a file it shows a
+    template (`services: {}` with comments). Save to the repository (default when the
+    Dockerfile is there) or the data folder. *Save* checks with `compose config` next to where
+    the file goes (compose's error names the file) and refuses a `dev` without its image,
+    `container_name`, label, ssh port on 127.0.0.1, mounts (project, ~/.claude, /etc/sw), or
+    with a `build` or `network_mode`. *Save and restart services* — asks when the container
+    runs — streams `up -d --remove-orphans`; when it does not run, the services start with the
+    next connection. The status line names compose's version or why it cannot run, and the
+    service containers there are.
+  - Export (E1) puts the compose file into the Dockerfile part (`compose.yaml`,
+    `compose_in_repo` in the manifest); import writes it to the data folder for a container
+    host unless the project brought its own.
 
 ### 4.3 Local tab
 - L1. Local login shell in a PTY with cwd = `local_path`. Shell from config (`[local] shell/args`),

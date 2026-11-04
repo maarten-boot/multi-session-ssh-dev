@@ -115,3 +115,7 @@
   fallback) matches the code with its tests. Fixed: CONNECTIVITY's agent-host requirements now
   say backups switch to tar without rsync on the agent host while working copies do not; the
   SPEC status line lists the per-host backups.
+- **Committed** d9436b0 (cross-check docs); pushed, GitHub main = d9436b0.
+- **v1.1.7 CI** (tagged): success on windows-amd64, linux-amd64, macos-universal and release;
+  all five release files. The first release with per-host Claude backups and the tar fallback
+  for agent hosts without rsync.

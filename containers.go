@@ -344,21 +344,135 @@ func (a *App) ContainerStop(id string) error {
 	return e.Stop(ctx, id)
 }
 
-// ContainerRemove deletes the session's container and image, and with
-// volume its own ~/.claude volume, and the app's files for it (keys; the
-// Dockerfile in the data folder). Used when the session is deleted.
-func (a *App) ContainerRemove(id string, volume bool) error {
+// ContainerRemove deletes the session's container and image and its
+// services' containers, with volume its own ~/.claude volume, with data
+// its services' volumes, and the app's files for it (keys; the Dockerfile
+// and compose file in the data folder). Used when the session is deleted.
+func (a *App) ContainerRemove(id string, volume, data bool) error {
 	e, err := a.containerEngine()
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	if err := e.Remove(ctx, id, volume); err != nil {
+	if err := e.Remove(ctx, id, volume, data); err != nil {
 		return err
 	}
 	if a.dataDir != "" && remote.ValidID(id) {
 		return os.RemoveAll(filepath.Join(a.dataDir, "containers", id))
+	}
+	return nil
+}
+
+// ContainerComposeFile is a session's compose file for the Services window.
+type ContainerComposeFile struct {
+	Path             string   `json:"path"`   // where it is (or is saved by default)
+	Text             string   `json:"text"`   // the file, or ComposeTemplate
+	Exists           bool     `json:"exists"` // else the container runs on its own
+	InRepo           bool     `json:"in_repo"`
+	State            string   `json:"state"`    // as ContainerFile.State
+	Compose          string   `json:"compose"`  // compose's version line
+	Problem          string   `json:"problem"`  // why compose cannot run, else ""
+	Services         []string `json:"services"` // the service containers there are (besides the dev container)
+	DockerfileInRepo bool     `json:"dockerfile_in_repo"`
+}
+
+// ContainerCompose returns the session's compose file, or the template
+// and where it would go: the repository when its Dockerfile is there.
+func (a *App) ContainerCompose(id string) (ContainerComposeFile, error) {
+	r, err := a.containerSession(id)
+	if err != nil {
+		return ContainerComposeFile{}, err
+	}
+	spec := a.containerSpec(r)
+	_, _, dockerInRepo := spec.Dockerfile()
+	c := ContainerComposeFile{Text: container.ComposeTemplate, InRepo: dockerInRepo, DockerfileInRepo: dockerInRepo,
+		State: a.containerState(id)}
+	if file, inRepo := spec.ComposeFile(); file != "" {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			return c, err
+		}
+		c.Path, c.Text, c.Exists, c.InRepo = file, string(b), true, inRepo
+	} else {
+		c.Path = spec.ComposePath(dockerInRepo)
+	}
+	e, err := a.containerEngine()
+	if err != nil {
+		c.Problem = err.Error()
+		return c, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if c.Compose, err = e.ComposeVersion(ctx); err != nil {
+		c.Problem = err.Error()
+	}
+	c.Services, _ = e.ComposeServices(ctx, id)
+	return c, nil
+}
+
+// SaveContainerCompose checks text with compose (CheckCompose) and writes
+// it as the session's compose file: with inRepo in the repository's
+// .session-workbench/, else in the app's data folder.
+func (a *App) SaveContainerCompose(id, text string, inRepo bool) (string, error) {
+	r, err := a.containerSession(id)
+	if err != nil {
+		return "", err
+	}
+	e, err := a.containerEngine()
+	if err != nil {
+		return "", err
+	}
+	spec := a.containerSpec(r)
+	if !strings.HasSuffix(text, "\n") {
+		text += "\n"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := e.CheckCompose(ctx, spec, text, inRepo); err != nil {
+		return "", err
+	}
+	file := spec.ComposePath(inRepo)
+	tmp := file + ".tmp"
+	if err := os.WriteFile(tmp, []byte(text), 0o644); err != nil {
+		return "", err
+	}
+	return file, os.Rename(tmp, file)
+}
+
+// ContainerComposeApply brings the running services in line with the
+// saved compose file, its output as "container:compose:<id>" events
+// (ContainerStopBuild stops it). The frontend asks first: the dev
+// container is made again when its part changed.
+func (a *App) ContainerComposeApply(id string) error {
+	r, err := a.containerSession(id)
+	if err != nil {
+		return err
+	}
+	e, err := a.containerEngine()
+	if err != nil {
+		return err
+	}
+	containerBuilds.Lock()
+	if containerBuilds.stop[id] != nil {
+		containerBuilds.Unlock()
+		return fmt.Errorf("%s is being built or its services started", r.Name)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	containerBuilds.stop[id] = cancel
+	containerBuilds.Unlock()
+	defer func() {
+		cancel()
+		containerBuilds.Lock()
+		delete(containerBuilds.stop, id)
+		containerBuilds.Unlock()
+	}()
+	out := eventWriter(func(s string) { wruntime.EventsEmit(a.ctx, "container:compose:"+id, s) })
+	if err := e.ComposeApply(ctx, a.containerSpec(r), out); err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("stopped")
+		}
+		return err
 	}
 	return nil
 }

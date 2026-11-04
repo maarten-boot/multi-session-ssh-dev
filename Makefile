@@ -142,9 +142,11 @@ smoke-ui: build
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first
 #   build downloads packages (minutes). SW_ENGINE=docker picks Docker. First the Dockerfile
-#   window alone (no container): move, resize, right-click menu.
+#   window alone (no container): move, resize, right-click menu. Then services next to it
+#   (compose): the Services window, Redis by name, restart, stop, delete with their data.
 smoke-container: build
 	$(XVFB) scripts/gui-smoke-dockerwin.sh build/bin/session-workbench $(SMOKE_OUT)-dockerwin
 	$(XVFB) scripts/gui-smoke-container.sh build/bin/session-workbench $(SMOKE_OUT)-container
+	$(XVFB) scripts/gui-smoke-compose.sh build/bin/session-workbench $(SMOKE_OUT)-compose
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui smoke-container

@@ -26,13 +26,17 @@ export function BrowseDirectory(arg1:string):Promise<string>;
 
 export function ClearNotification(arg1:string):Promise<void>;
 
+export function ContainerCompose(arg1:string):Promise<main.ContainerComposeFile>;
+
+export function ContainerComposeApply(arg1:string):Promise<void>;
+
 export function ContainerDockerfile(arg1:string):Promise<main.ContainerFile>;
 
 export function ContainerEngineInfo(arg1:string):Promise<string>;
 
 export function ContainerRebuild(arg1:string):Promise<void>;
 
-export function ContainerRemove(arg1:string,arg2:boolean):Promise<void>;
+export function ContainerRemove(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;
 
 export function ContainerStop(arg1:string):Promise<void>;
 
@@ -125,6 +129,8 @@ export function RepoCheck(arg1:string):Promise<gitstatus.Audit>;
 export function RestoreBackup(arg1:string):Promise<void>;
 
 export function RevealPath(arg1:string,arg2:string):Promise<void>;
+
+export function SaveContainerCompose(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 
 export function SaveContainerDockerfile(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 

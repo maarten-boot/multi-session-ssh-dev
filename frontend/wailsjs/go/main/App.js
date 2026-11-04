@@ -26,6 +26,14 @@ export function ClearNotification(arg1) {
   return window['go']['main']['App']['ClearNotification'](arg1);
 }
 
+export function ContainerCompose(arg1) {
+  return window['go']['main']['App']['ContainerCompose'](arg1);
+}
+
+export function ContainerComposeApply(arg1) {
+  return window['go']['main']['App']['ContainerComposeApply'](arg1);
+}
+
 export function ContainerDockerfile(arg1) {
   return window['go']['main']['App']['ContainerDockerfile'](arg1);
 }
@@ -38,8 +46,8 @@ export function ContainerRebuild(arg1) {
   return window['go']['main']['App']['ContainerRebuild'](arg1);
 }
 
-export function ContainerRemove(arg1, arg2) {
-  return window['go']['main']['App']['ContainerRemove'](arg1, arg2);
+export function ContainerRemove(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ContainerRemove'](arg1, arg2, arg3);
 }
 
 export function ContainerStop(arg1) {
@@ -224,6 +232,10 @@ export function RestoreBackup(arg1) {
 
 export function RevealPath(arg1, arg2) {
   return window['go']['main']['App']['RevealPath'](arg1, arg2);
+}
+
+export function SaveContainerCompose(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveContainerCompose'](arg1, arg2, arg3);
 }
 
 export function SaveContainerDockerfile(arg1, arg2, arg3) {

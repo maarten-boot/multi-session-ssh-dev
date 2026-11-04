@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -23,10 +24,31 @@ func TestMain(m *testing.M) {
 	f, _ := os.OpenFile(os.Getenv("SW_FAKE_ARGS"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	fmt.Fprintln(f, strings.Join(args, " "))
 	f.Close()
+	project := strings.Contains(strings.Join(args, " "), ComposeProjectLabel+"=sw-s-1")
 	switch args[0] {
-	case "ps":
-		fmt.Println("sw-s-1 running")
-		fmt.Println("sw-s-10 exited")
+	case "ps", "network", "volume":
+		switch {
+		case project && args[0] == "ps" && slices.Contains(args, "--format"):
+			fmt.Println("sw-s-1")
+			fmt.Println("sw-s-1-postgres-1")
+		case project && args[0] == "ps":
+			fmt.Println("c-postgres")
+		case project && args[1] == "ls":
+			fmt.Println(args[0][:1] + "-1") // n-1, v-1
+		case strings.Contains(strings.Join(args, " "), ComposeProjectLabel):
+		case args[0] == "ps":
+			fmt.Println("sw-s-1 running")
+			fmt.Println("sw-s-10 exited")
+		}
+	case "compose":
+		if slices.Contains(args, "config") {
+			if c := os.Getenv("SW_FAKE_CONFIG"); c != "" {
+				fmt.Println(c)
+			} else {
+				fmt.Fprintln(os.Stderr, "services.x additional properties 'imag' not allowed")
+				os.Exit(15)
+			}
+		}
 	case "port":
 		fmt.Println("127.0.0.1:41234")
 		fmt.Println("[::1]:41234")
@@ -189,11 +211,11 @@ func TestFakeEngine(t *testing.T) {
 	if err := e.Stop(ctx, "s-1"); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Remove(ctx, "s-10", true); err != nil {
+	if err := e.Remove(ctx, "s-10", true, false); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(argsFile)
-	for _, want := range []string{"stop sw-s-1", "rm -f sw-s-10", "volume rm sw-claude-s-10"} {
+	for _, want := range []string{"stop c-postgres sw-s-1\n", "rm -f sw-s-10", "volume rm sw-claude-s-10"} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("no %q in:\n%s", want, b)
 		}

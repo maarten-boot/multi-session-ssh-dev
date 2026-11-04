@@ -241,6 +241,29 @@
     </form>
 </dialog>
 
+<dialog id="dlg-services" class="wide">
+    <form method="dialog">
+        <h2></h2>
+        <p class="build-status"></p>
+        <div class="toolchains"></div>
+        <textarea name="text" class="dockerfile-text" rows="16" spellcheck="false" autocomplete="off"></textarea>
+        <label>Save to
+            <select name="where">
+                <option value="repo">the repository: .session-workbench/compose.yaml (versioned, shared)</option>
+                <option value="app">the app's data folder (only for you)</option>
+            </select>
+        </label>
+        <p class="hint where-hint"></p>
+        <pre class="build-output" hidden></pre>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button type="button" name="apply">Save and restart services</button>
+            <button value="cancel" formnovalidate>Close</button>
+        </div>
+    </form>
+</dialog>
+
 <dialog id="dlg-settings" class="wide">
     <!-- novalidate: a bad value on a hidden page would block Save without a word;
          SaveUI checks everything and its message shows below. -->
