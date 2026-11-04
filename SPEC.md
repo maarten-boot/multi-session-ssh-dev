@@ -327,7 +327,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - Export: session menu → *Export…* asks each time which parts go in, with what each holds
     now. Always: `manifest.json` (format 1, app version, time, the `[[sessions]]` entry and its
     host profile with the configured ssh target), notes (`notes/`), the Dockerfile (the
-    project's `.session-workbench/Dockerfile`, else the app's copy). Ticked: Q&A (`qa/`
+    project's `.session-workbench/Dockerfile`, else the app's copy) and the compose file of C7
+    (`compose.yaml`; `compose_in_repo` in the manifest). Ticked: Q&A (`qa/`
     conversation and its `qa-*.md` log), Remote tab recordings (`recordings/`), private shell
     history (`history/local`, and `history/remote` fetched over ssh — the container only when
     it runs; unreachable: listed under `missing`). Unticked: saved agent copies
@@ -349,8 +350,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     commands here or trust git hooks) and the dialog says so. Q&A loses Claude Code's session
     ids (they belong to the other computer). The Remote history waits in
     `history/<id>.remote` and is appended to the agent host's file when the Remote tab connects
-    (a container: retried while it starts). The Dockerfile goes to the app's copy only for a
-    container host whose project has none.
+    (a container: retried while it starts). The Dockerfile and the compose file go to the app's
+    copy only for a container host whose project has none.
   - Reading never trusts the archive: names must be local paths (no absolute names, no ".."),
     only regular files and directories are written, through `os.Root`; a newer format is
     refused.

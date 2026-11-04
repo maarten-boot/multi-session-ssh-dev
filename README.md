@@ -544,7 +544,7 @@ work); then *Edit…* (name, description, folder, start mode, colors, own comman
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
 *Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
-session too, and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
+session too, for a container session removing its container and its services — their data only with its own tick — and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
 container sessions *Dockerfile…*, *Services (compose)…* and *Stop container…*. Drag sessions to reorder
 them within their folder and host. Click a folder or host header to collapse it;
@@ -775,7 +775,7 @@ folder.
 **Export and import a session.** The session menu's **Export…** puts one session into a
 `.zip` or `.tar.gz` file, to keep it, move it to another computer or hand it over. The dialog
 asks what goes in, with how much each part holds: the session's settings, its notes and its
-Dockerfile always; the Q&A conversation and log, the Remote tab recordings and the private
+Dockerfile (and its services' compose file) always; the Q&A conversation and log, the Remote tab recordings and the private
 shell history (the Remote one is fetched from the agent host when it can be reached) ticked;
 the saved agent copies and the project directory itself (tracked and untracked files and
 `.git`, not what `.gitignore` excludes) unticked. Keys, logins and Claude backups never go in.

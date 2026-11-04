@@ -10,7 +10,8 @@
   ec )" — read as "edit window", "dev container", "etc."; yes, helpful.
   - Decided (questions): the app writes the dev service itself, the session's compose file adds
     the other services (and may add to `dev`); the file in the project
-    (`.session-workbench/compose.yaml`, the app's data folder when the Dockerfile is there);
+    (`.session-workbench/compose.yaml`; by default there when the project's Dockerfile is, else
+    in the app's data folder);
     the services start and stop with the dev container; its own window with service buttons.
   - Tried first by hand: compose with an app file and the user's file (`-f app -f yours`,
     the user's folder as project directory) gives the dev container a random 127.0.0.1 ssh
@@ -40,3 +41,9 @@
     failed ("image is in use"). Delete now disconnects the session's terminals first.
     gui-smoke-compose (21 checks), gui-smoke-container (19; menu rows moved one down),
     gui-smoke-export (36; the compose file in the archive) and gui-smoke-dockerwin (6) pass.
+- **Committed** b02e800 (v1.1.8: services with Compose); pushed, GitHub main = b02e800.
+- **Cross-check after b02e800:** version 1.1.8 everywhere; 39 GUI scripts in the Makefile and
+  Tests.md; C7 matches the code with its tests. Fixed: SPEC F13 (the compose file is part of
+  the always-included Dockerfile part, and how import places it), README's export paragraph
+  and session menu (Delete session… also removes a container's services, their data with its
+  own tick), and this log's description of where the compose file goes by default.
