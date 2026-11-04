@@ -12,6 +12,12 @@ import (
 	"testing"
 )
 
+// q is s as a JSON string (Windows paths have backslashes, which JSON escapes).
+func q(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
 // TestComposeDoc: the app's dev service is the container RunArgs makes.
 func TestComposeDoc(t *testing.T) {
 	s := spec(t)
@@ -19,8 +25,8 @@ func TestComposeDoc(t *testing.T) {
 	doc := string(b)
 	for _, want := range []string{`"name":"sw-s-1"`, `"container_name":"sw-s-1"`, `"image":"sw-s-1"`, `"pull_policy":"never"`,
 		`"host_ip":"127.0.0.1","target":22`, `"io.session-workbench.session":"s-1"`,
-		`"source":"` + s.LocalPath + `","target":"` + s.LocalPath + `"`, `"target":"/home/ann/.claude"`,
-		`"read_only":true,"source":"` + s.sshdDir() + `","target":"/etc/sw"`,
+		`"source":` + q(s.LocalPath) + `,"target":` + q(s.LocalPath), `"target":"/home/ann/.claude"`,
+		`"read_only":true,"source":` + q(s.sshdDir()) + `,"target":"/etc/sw"`,
 		`"claude":{"external":true,"name":"sw-claude"}`} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("no %s in %s", want, doc)
@@ -65,7 +71,7 @@ func TestComposeFile(t *testing.T) {
 func devConfig(s Spec) string {
 	return `{"services":{"dev":{"image":"sw-s-1","container_name":"sw-s-1","labels":{"` + Label + `":"s-1"},
 		"ports":[{"target":22,"host_ip":"127.0.0.1"},{"target":8080,"published":"8080"}],
-		"volumes":[{"type":"bind","source":"` + s.LocalPath + `","target":"` + s.LocalPath + `"},
+		"volumes":[{"type":"bind","source":` + q(s.LocalPath) + `,"target":` + q(s.LocalPath) + `},
 		{"type":"volume","source":"claude","target":"/home/ann/.claude"},{"type":"bind","source":"x","target":"/etc/sw"}]},
 		"postgres":{"image":"docker.io/library/postgres:17"}}}`
 }

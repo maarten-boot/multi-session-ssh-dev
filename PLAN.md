@@ -176,6 +176,10 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.9 (2026-11-05): v1.1.8's Windows build failed on two compose tests (TestComposeDoc,
+  TestCheckDev built expected JSON with Windows paths unescaped; container hosts are not on
+  Windows, the app was fine); the tests encode the paths. No release of v1.1.8; v1.1.9 is the
+  first release with services (Compose).
 - v1.1.8 (2026-11-04): services next to a container session's dev container (SPEC C7; the
   user: "would adding a docker compose edit window be helpful … specify the environment it
   needs (postgres, nginx, etc.)"). Decided (questions): the app writes the dev service and the
