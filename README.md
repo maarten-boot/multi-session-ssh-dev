@@ -551,7 +551,8 @@ shows ✓ or ✗ per line; *Switch host…* checks it on the new host.
 path, in italics). From then on it connects nothing — not when the app starts (also with
 `connect_on_start = "eager"`) and not when you open it: its Local and Remote tabs show a notice
 with an **Activate session** button instead. Its Notes, Files, Web and Q&A tabs work as usual;
-no live share is mounted and no notifications come. The dialog can also end its tmux session on
+no live share is mounted, no notifications come, and it offers no *Switch host…* or
+requirements check. The dialog can also end its tmux session on
 the agent host (which stops claude there) or, for a container session, stop its container and
 services; unticked, they keep running. Session menu → **Activate session** (or the button)
 connects it again. In `config.toml` it is `inactive = true` on the session.

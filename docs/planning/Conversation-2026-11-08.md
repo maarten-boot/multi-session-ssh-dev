@@ -66,3 +66,13 @@
     never writes ~/.claude.json). Container and compose (Delete one row lower), record, colors,
     inactive, switcher, hosts pass; export and sync failed once while the container builds ran
     alongside (the menu did not open in time) and pass on their own.
+
+## Cross-check v1.1.11 (user: "pushed, do a crosscheck")
+- SPEC F16, README, PLAN and the code agree, except for inactive sessions: SPEC said "not for an
+  inactive session", but the menu still offered *Switch host…* (the backend refused only at
+  the switch, after the dialog had checked the requirements over ssh), and CheckRequirements
+  went to the host of an inactive session (only the Requirements window guarded it), against
+  F15's "fetches nothing from its agent host".
+- Fixed: the menu hides *Switch host…* for an inactive session; CheckRequirements refuses it
+  (ErrInactive). SPEC F15/F16 and README (Inactive sessions) say so. go test, vet, frontend
+  tests, gui-smoke-inactive and gui-smoke-switch pass.

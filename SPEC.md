@@ -373,13 +373,12 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F16. One project on several agent hosts (internal/handover, internal/requirements, switch.go).
   `hosts` on a session lists the other agent hosts it worked on, the most recent first (`host`
   is the current one; renaming a host renames it there too). Session menu *Switch host…* (not
-  for container sessions or plain logins; targets neither): the other hosts, those it worked on
+  for container sessions, plain logins or an inactive session; targets neither): the other hosts, those it worked on
   first, each with the project's path there (the host's mapping) and its file mode, or why it
   cannot take the session (disabled); the requirements checked there; a tick, set, to end its
   tmux session on the old host first (claude there would go on writing). A working copy (sync)
   is first fetched with Get from agent (its own window), then asked "Switch now?"; on a sync
-  target the Remote tab offers Send to agent as for any missing copy. Not for an inactive
-  session.
+  target the Remote tab offers Send to agent as for any missing copy.
   - The switch (SwitchHost; output as `switch:<id>` events in the window): end tmux (if ticked),
     stop the old live share, make both paths absolute (`~` → the host's `$HOME` over ssh), fetch
     `~/.claude/projects/<path, every non-alphanumeric character as "-">/` and `~/.claude.json`
@@ -394,7 +393,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     toast says what was copied (conversations = `*.jsonl`, files, memory files, settings).
   - Session menu *Requirements…* (not for plain logins): edits `.session-workbench/requirements`
     in the project (the template when there is none; saving refuses lines it cannot read) and
-    *Check on <host>* runs it there. Format: one command per line, `# comments`, optionally
+    *Check on <host>* runs it there (not for an inactive session). Format: one command per line, `# comments`, optionally
     `>=`, `>`, `=` (only the given parts count: `= 3.12` accepts 3.12.4), `<=`, `<` and a version;
     command names `[A-Za-z0-9][A-Za-z0-9._+-]*`. The check is one ssh call: `command -v`, then
     the output of the first of `--version`, `version`, `-V` that succeeds; its first number
@@ -406,7 +405,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   why) — and show a notice with *Activate session* instead; Notes, Files, Web and Q&A work.
   The backend refuses StartLocal and StartRemote for it, mounts no live share (none at start,
   deactivating stops one), sends no notifications, and fetches nothing from its agent host
-  (export lists its Remote history as missing). Session menu: *Deactivate session…* (after
+  (export lists its Remote history as missing; no requirements check; no *Switch host…*). Session menu: *Deactivate session…* (after
   *Disconnect*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
   container session stop its container and services) and, for an inactive one, *Activate
   session* in place of both. The list marks it with ⏸ and "· inactive" after its path, in

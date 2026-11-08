@@ -189,7 +189,8 @@ implementation differs from the original plan.
   an action now shows as a message (it did nothing before). Tests: handover (TestEncode,
   TestChanges, TestMergeConfig, TestSSHSwitch via make test-ssh), requirements (TestParse,
   TestCompare, TestEvaluate, TestScript), session (TestSetHost), gui-smoke-switch.sh; the new
-  menu row moved Delete session… in gui-smoke-container and -compose.
+  menu row moved Delete session… in gui-smoke-container and -compose. Cross-check: no Switch host…
+  and no requirements check for an inactive session (F15).
 - v1.1.10 (2026-11-08): inactive sessions (SPEC F15; the user: "some sessions remain in this app
   but are there only for holding until further development is required … does not need to
   reconnect to the remote (and to claude) when the app is restarted"). Decided (questions):

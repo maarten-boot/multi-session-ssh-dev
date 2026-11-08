@@ -1495,7 +1495,7 @@ function sessionMenu(s, x, y) {
         {label: 'Open recordings folder', action: () => OpenLogFolder(s.id).catch(err => toast(err?.message ?? String(err), true))},
         {label: 'Export…', action: () => exportDialog(s)},
         ...(s.data.plain ? [] : [
-            ...(s.data.files === 'container' ? [] : [{label: 'Switch host…', action: () => switchDialog(s)}]),
+            ...(s.data.files === 'container' || s.data.inactive ? [] : [{label: 'Switch host…', action: () => switchDialog(s)}]),
             {label: 'Requirements…', action: () => requirementsDialog(s)},
         ]),
         '-',

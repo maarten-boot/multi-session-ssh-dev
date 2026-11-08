@@ -220,6 +220,9 @@ func (a *App) CheckRequirements(id, host, text string) (RequirementsCheck, error
 			return RequirementsCheck{}, err
 		}
 	}
+	if r.Inactive {
+		return RequirementsCheck{}, session.ErrInactive // it fetches nothing from its host (F15)
+	}
 	c := RequirementsCheck{Host: r.Host.Name}
 	if text == "" {
 		f, err := a.Requirements(id)
