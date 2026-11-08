@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMissingFileGivesDefaults(t *testing.T) {
@@ -381,5 +382,28 @@ func TestReadmeExample(t *testing.T) {
 	}
 	if len(c.Hosts) == 0 || len(c.Sessions) == 0 {
 		t.Errorf("README example: %d hosts, %d sessions", len(c.Hosts), len(c.Sessions))
+	}
+}
+
+func TestIdleStop(t *testing.T) {
+	for v, want := range map[string]time.Duration{"": 0, "off": 0, "5m": 5 * time.Minute, "1h30m": 90 * time.Minute, "24h": 24 * time.Hour} {
+		if d, err := ParseIdleStop(v); err != nil || d != want {
+			t.Errorf("%q: %v %v", v, d, err)
+		}
+	}
+	for _, v := range []string{"30s", "25h", "soon", "-5m"} {
+		if _, err := ParseIdleStop(v); err == nil {
+			t.Errorf("%q accepted", v)
+		}
+	}
+	u := UI{IdleStop: "10m"}
+	if IdleStop(u, Session{}) != 10*time.Minute || IdleStop(u, Session{IdleStop: "off"}) != 0 ||
+		IdleStop(u, Session{IdleStop: "2h"}) != 2*time.Hour || IdleStop(UI{}, Session{}) != 0 {
+		t.Error("session over global")
+	}
+	c := &Config{UI: UI{IdleStop: "1s"}}
+	c.applyDefaults()
+	if c.UI.IdleStop != "" {
+		t.Errorf("invalid global kept: %q", c.UI.IdleStop)
 	}
 }

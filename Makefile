@@ -55,7 +55,7 @@ test:
 # e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
-	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer ./internal/handover
+	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer ./internal/handover ./internal/idle
 	@echo "== again with the built-in transfer (as on Windows, without rsync)"
 	SW_NO_RSYNC=1 SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip' -v ./internal/syncer ./internal/backup
 
@@ -89,7 +89,7 @@ clean:
 #   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
 #   copy/paste, Remote tab recordings, command menu, prompts menu and start
 #   commands, private shell history, lists and spelling in the notes,
-#   activity badges (~2 minutes).
+#   activity badges (~2 minutes), stopping an idle claude (a fake claude, ~2 minutes).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -140,6 +140,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-login.sh build/bin/session-workbench $(SMOKE_OUT)-login
 	$(XVFB) scripts/gui-smoke-inactive.sh build/bin/session-workbench $(SMOKE_OUT)-inactive
 	$(XVFB) scripts/gui-smoke-switch.sh build/bin/session-workbench $(SMOKE_OUT)-switch
+	$(XVFB) scripts/gui-smoke-idle.sh build/bin/session-workbench $(SMOKE_OUT)-idle
 
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first

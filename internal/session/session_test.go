@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/remote"
@@ -1242,5 +1243,35 @@ func TestSetHost(t *testing.T) {
 	}
 	if why := CanSwitch(config.Host{Kind: HostContainer}, config.Session{}); why == "" {
 		t.Error("a container host can switch")
+	}
+}
+
+func TestUpdateIdleStop(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	if err := m.SaveHost("", config.Host{Name: "h", SSHTarget: "h", Files: FilesSync}); err != nil {
+		t.Fatal(err)
+	}
+	proj := filepath.Join(dir, "p")
+	os.MkdirAll(proj, 0o755)
+	v, err := m.Create(NewSession{Host: "h", LocalPath: proj, StartMode: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit := func(idle *string) error {
+		return m.Update(v.ID, Edit{Name: "p", StartMode: "claude", IdleStop: idle})
+	}
+	ten, bad := "10m", "10s"
+	if err := edit(&ten); err != nil {
+		t.Fatal(err)
+	}
+	if err := edit(&bad); err == nil {
+		t.Error("10s accepted")
+	}
+	if err := edit(nil); err != nil { // left out: kept
+		t.Fatal(err)
+	}
+	if r, _ := m.Resolve(v.ID); r.IdleStop != "10m" || config.IdleStop(m.Config().UI, r.Session) != 10*time.Minute {
+		t.Errorf("idle_stop %q", r.IdleStop)
 	}
 }

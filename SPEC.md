@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.21 (2026-11-08, app v1.1.12) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.22 (2026-11-08, app v1.1.13) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -16,7 +16,8 @@ exporting a session as an archive / importing it as a new session (F13), separat
 (`-profile`, F14), plain ssh logins without a local directory (F2a), sessions without tmux
 (F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
 next to a container session's dev container with Compose (C7), inactive sessions (F15), the
-Hosts heading above the folders (F5) and one project on several agent hosts (F16).
+Hosts heading above the folders (F5), one project on several agent hosts (F16) and stopping an
+idle claude (F17).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -411,6 +412,37 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   session* in place of both. The list marks it with ⏸ and "· inactive" after its path, in
   italics (black text); its balloon says so. Edit… keeps the setting; an import makes an
   active session.
+- F17. Stopping an idle claude (internal/idle, idlestop.go). `[ui] idle_stop` (Settings →
+  Terminals: never, 5 min … 2 h; any duration 1m–24h in config.toml; default never) and a
+  session's own `idle_stop` (Edit…: default, never, or a time) stop a session's claude that
+  waited that long for input, to free its memory on the agent host, and resume it when the
+  session is opened. Only sessions whose Remote tab runs in tmux on an ssh host (not container
+  hosts, not without tmux, not inactive) and whose start command runs `claude` (a command word
+  `claude` or `…/claude`).
+  - Detection: the app starts claude with hooks (`--settings '<json>'` added after every
+    `claude` of the start command; the user's own settings are untouched; only when a new tmux
+    session starts it): SessionStart, UserPromptSubmit, Stop, Notification (permission or form
+    questions only) and SessionEnd write `$HOME/.local/state/session-workbench/claude/<id>`
+    ("<time> <event> <claude's pid> <tmux pane>", then the hook's JSON). Every minute one ssh
+    call per host reads them, with the pane's last output (`#{window_activity}`), whether that
+    claude still runs and whether a Bash tool command runs under it (a descendant with
+    `shell-snapshots` in its arguments). Idle: last event Stop or SessionStart, nothing running
+    under it, its pane in the session's tmux session, and no event nor output for the idle
+    time; also not the session on screen, nor one that left the screen less than the idle time
+    ago.
+  - Stop: the same claude and quiet window checked again on the host; `<state>.stopped` keeps
+    "<conversation> <transcript exists> <pane>"; the shells between the pane and claude are
+    frozen (SIGSTOP, so the start command's `|| claude` cannot run), the pane is respawned with
+    the notice "[claude stopped after N min without input; it resumes when you open the session
+    in Session Workbench]" and a login shell, the frozen shells are killed and claude gets
+    SIGHUP (SIGTERM after 5 s). The list marks the session 💤 (balloon too).
+  - Resume, when the session is opened (or found stopped while on screen): the pane is
+    respawned with the first `claude` of the start command and its own options, those that pick
+    a conversation (`--continue`, `--resume`, `--session-id`, `--fork-session`) replaced by
+    `--resume <conversation>`, with the hooks; without a transcript (no prompt was sent) the
+    start command again. Not when something runs in the pane's shell (taken over by hand: the
+    mark goes, nothing is touched). A stale mark (its tmux session ended) is removed by the
+    next check. A toast says "claude resumes in …".
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

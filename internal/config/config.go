@@ -103,6 +103,9 @@ type Session struct {
 	RemoteDir string `toml:"remote_dir,omitempty" json:"remote_dir"`
 	// Tmux overrides the host's tmux.
 	Tmux *bool `toml:"tmux,omitempty" json:"tmux"`
+	// IdleStop overrides UI.IdleStop for this session: a duration (1m to
+	// 24h), "off", or "" to follow it.
+	IdleStop string `toml:"idle_stop,omitempty" json:"idle_stop"`
 }
 
 // Command is an entry of the command menu of the Local and Remote tabs:
@@ -198,6 +201,10 @@ type UI struct {
 	// readable text, see internal/reclog) unless the session says "off";
 	// RecordEvery (a Go duration, 5m to 24h) starts a new file per segment;
 	// RecordDir is where ("" = <data dir>/logs).
+	// IdleStop stops a session's claude that waited this long for input
+	// (a duration, 1m to 24h; "" = never) and resumes it when the session
+	// is opened (SPEC F17). Session.IdleStop overrides it.
+	IdleStop     string `toml:"idle_stop,omitempty" json:"idle_stop"`
 	RecordRemote bool   `toml:"record_remote,omitempty" json:"record_remote"`
 	RecordEvery  string `toml:"record_every,omitempty" json:"record_every"`
 	RecordDir    string `toml:"record_dir,omitempty" json:"record_dir"`
@@ -377,6 +384,9 @@ func (c *Config) applyDefaults() {
 	if _, err := RecordEvery(c.UI); err != nil {
 		c.UI.RecordEvery = "1h"
 	}
+	if d, err := ParseIdleStop(c.UI.IdleStop); err != nil || d == 0 {
+		c.UI.IdleStop = "" // never
+	}
 	if !validRecordDir(c.UI.RecordDir) {
 		c.UI.RecordDir = "" // the default folder
 	}
@@ -406,6 +416,30 @@ func RecordEvery(u UI) (time.Duration, error) {
 		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
 	}
 	return d, nil
+}
+
+// ParseIdleStop reads an idle time: "" or "off" is 0 (never), else a
+// duration from 1 minute to 24 hours.
+func ParseIdleStop(v string) (time.Duration, error) {
+	if v == "" || v == "off" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < time.Minute || d > 24*time.Hour {
+		return 0, fmt.Errorf("idle time %q: use 1m to 24h, e.g. 5m, or off", v)
+	}
+	return d, nil
+}
+
+// IdleStop is the idle time after which s's claude is stopped (0 =
+// never): its own setting, else the global one.
+func IdleStop(u UI, s Session) time.Duration {
+	v := s.IdleStop
+	if v == "" {
+		v = u.IdleStop
+	}
+	d, _ := ParseIdleStop(v)
+	return d
 }
 
 // SaveAgentCopiesEvery is the interval of the agent copy saves.

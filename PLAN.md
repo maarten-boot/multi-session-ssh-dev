@@ -176,6 +176,23 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.13 (2026-11-08): stopping an idle claude (SPEC F17; the user: "can we detect when the
+  claude process on the remote is ready for next input but no input is coming for a
+  configurable time (say 5 minuts) would it then make sense to halt the claude process and
+  resume when the user switches back to the session ?"). Measured: 7 idle claudes here took
+  320–400 MB each and ~1.5 % CPU: memory is the gain; pausing (SIGSTOP) keeps it, so claude
+  is ended and resumed with `--resume`. Decided (questions): global setting with a
+  per-session override, off by default, resumed when the session is opened, a 💤 mark in the
+  list. Detection by Claude Code hooks passed with `--settings` (checked first with a real
+  claude: $PPID is claude, $TMUX_PANE set, SessionStart carries the conversation, an idle
+  claude stops redrawing after ~25 s, respawning the pane ends it with SessionEnd). Found
+  while testing: the start command's interactive shell survives the respawn and runs its
+  `|| claude` fallback outside the pane — the shells are frozen before and killed after; and
+  a session that just left the screen was stopped at once — idle counts from leaving it.
+  Tests: idle (TestSettings, TestWithHooks, TestResumeCommand, TestParseAndIdle, TestScripts;
+  TestSSHIdle with a fake claude in real tmux via make test-ssh), config (TestIdleStop),
+  session (TestUpdateIdleStop), frontend idle.test.mjs, gui-smoke-idle.sh; once by hand with a
+  real claude (stop leaves nothing running, resume with --resume).
 - v1.1.12 (2026-11-08): v1.1.11's Windows build failed on TestSetHost (it added a container
   host, which SaveHost refuses on Windows; the app was fine); the test adds it only off Windows.
   No release of v1.1.11; v1.1.12 is the first release with Switch host… and Requirements….

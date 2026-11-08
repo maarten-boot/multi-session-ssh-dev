@@ -102,6 +102,7 @@ export namespace config {
 	    local_dir?: boolean;
 	    remote_dir: string;
 	    tmux?: boolean;
+	    idle_stop: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Session(source);
@@ -130,6 +131,7 @@ export namespace config {
 	        this.local_dir = source["local_dir"];
 	        this.remote_dir = source["remote_dir"];
 	        this.tmux = source["tmux"];
+	        this.idle_stop = source["idle_stop"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -181,6 +183,7 @@ export namespace config {
 	    claude_backup?: boolean;
 	    notifications?: boolean;
 	    claude_backup_every: string;
+	    idle_stop: string;
 	    record_remote: boolean;
 	    record_every: string;
 	    record_dir: string;
@@ -225,6 +228,7 @@ export namespace config {
 	        this.claude_backup = source["claude_backup"];
 	        this.notifications = source["notifications"];
 	        this.claude_backup_every = source["claude_backup_every"];
+	        this.idle_stop = source["idle_stop"];
 	        this.record_remote = source["record_remote"];
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
@@ -1178,6 +1182,7 @@ export namespace session {
 	    group: string;
 	    record: string;
 	    history: string;
+	    idle_stop?: string;
 	    own_claude_volume?: boolean;
 	    commands: config.Command[];
 	    remote_dir?: string;
@@ -1196,6 +1201,7 @@ export namespace session {
 	        this.group = source["group"];
 	        this.record = source["record"];
 	        this.history = source["history"];
+	        this.idle_stop = source["idle_stop"];
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.remote_dir = source["remote_dir"];
@@ -1283,6 +1289,7 @@ export namespace session {
 	    tmux_name: string;
 	    record: string;
 	    history: string;
+	    idle_stop: string;
 	    own_claude_volume: boolean;
 	    commands: config.Command[];
 	    plain: boolean;
@@ -1313,6 +1320,7 @@ export namespace session {
 	        this.tmux_name = source["tmux_name"];
 	        this.record = source["record"];
 	        this.history = source["history"];
+	        this.idle_stop = source["idle_stop"];
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.commands = this.convertValues(source["commands"], config.Command);
 	        this.plain = source["plain"];

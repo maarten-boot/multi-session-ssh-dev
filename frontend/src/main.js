@@ -18,6 +18,7 @@ import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
 import {SERVICES, addService, hasService} from './services';
 import {fmtSize} from './format';
+import {idleLabel, idleOptions} from './idle';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -28,7 +29,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
-    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -580,6 +581,16 @@ const app = {
             this.backups[host] = st;
             this.renderBackup(host);
         });
+        // Sessions whose claude was stopped for being idle (SPEC F17).
+        this.idleStopped = new Set(await IdleStopped().catch(() => []));
+        EventsOn('idle', ids => {
+            this.idleStopped = new Set(ids ?? []);
+            this.render();
+        });
+        EventsOn('idle:resumed', id => {
+            const s = this.sessions.get(id);
+            if (s) toast(`claude resumes in “${s.data.name}”`);
+        });
         await this.reload();
         const last = this.sessions.get(store.get('active', ''));
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
@@ -985,6 +996,8 @@ const app = {
                 el('div', {className: 'sub', textContent: '‎' + where(d) + (d.inactive ? ' · inactive' : '') + '‎'})),
             el('span', {className: 'inactive-mark', textContent: '⏸', hidden: !d.inactive,
                 title: 'Inactive: nothing connects (session menu → Activate session)'}),
+            el('span', {className: 'idle-mark', textContent: '💤', hidden: !this.idleStopped?.has(d.id),
+                title: 'claude was stopped after waiting for input; it resumes when you open the session'}),
             el('span', {className: 'todo-warn', textContent: '▲', hidden: !s.todoCount(), title: s.todoText()}),
             el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
                 title: 'Repository hooks or settings to review (see the Files tab)'}),
@@ -997,6 +1010,7 @@ const app = {
             el('div', {className: 'balloon-path', textContent: where(d)}),
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
             d.inactive ? el('div', {className: 'balloon-text', textContent: '⏸ Inactive: nothing connects until you activate it.'}) : '',
+            this.idleStopped?.has(d.id) ? el('div', {className: 'balloon-text', textContent: '💤 claude was stopped after waiting for input; it resumes when you open the session.'}) : '',
             s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
         item.dataset.id = d.id;
@@ -1193,6 +1207,7 @@ const app = {
         this.leaveNotesPage(); // picking a session leaves the notes page
         if (this.active && this.active !== s) this.active.hide();
         this.active = s;
+        SessionShown(s?.id ?? ''); // never stopped for being idle; resumed if it was
         this.renderMain(); // un-hides the pane area before the terminal measures itself
         if (s) {
             this.checkRepo(s);
@@ -1747,6 +1762,10 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.history.value = s?.data.history ?? '';
     f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
     f.elements.history.closest('label').hidden = !editing;
+    // Stopping an idle claude (SPEC F17): ssh hosts with tmux only.
+    fillIdleChoices(f.elements.idle_stop, s?.data.idle_stop ?? '',
+        `default (${idleLabel(app.state.ui.idle_stop)}, from Settings)`);
+    f.elements.idle_stop.closest('label').hidden = !editing || !s.data.tmux || s.data.files === 'container';
     // Container sessions: the ~/.claude volume (takes effect when the
     // container is made again: Dockerfile… → Rebuild).
     const inBox = editing && app.state.hosts.find(h => h.name === s.data.host)?.kind === 'container';
@@ -1848,6 +1867,7 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
                 name: f.elements.name.value || s.data.name, start_mode: f.elements.mode.value,
                 color_mode: f.elements.colors.value, group: f.elements.group.value, record: f.elements.record.value,
                 history: f.elements.history.value, commands: cmdList.value, description: f.elements.description.value,
+                idle_stop: f.elements.idle_stop.value,
                 ...(inBox ? {own_claude_volume: f.elements.claude_volume.value === 'own'} : {}),
                 ...(s.data.plain ? {remote_dir: f.elements.remotedir.value} : {}),
                 tmux: f.elements.tmux.value,
@@ -2027,6 +2047,7 @@ async function settingsDialog() {
     f.notifications.checked = ui.notifications !== false;
     f.ctrl_copy_paste.checked = ui.ctrl_copy_paste !== false;
     f.private_history.checked = ui.private_history !== false;
+    fillIdleChoices(f.idle_stop, ui.idle_stop ?? '', 'never');
     f.ctrl_copy_paste.closest('label').hidden = isMac; // Cmd+C/V there
     f.private_history.closest('label').title = navigator.platform.startsWith('Win')
         ? 'On Windows only the Remote tab: PowerShell and cmd keep their own history' : '';
@@ -2108,6 +2129,7 @@ async function settingsDialog() {
         font_size: Number(f.font_size.value),
         description_delay: f.description_delay.value === '' ? 1 : Number(f.description_delay.value), // empty: the default
         connect_on_start: f.connect_on_start.value,
+        idle_stop: f.idle_stop.value,
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
@@ -2753,6 +2775,12 @@ async function switchDialog(s) {
     if (!ok) return;
     await app.reload();
     if (app.active === s) s.show();
+}
+
+// fillIdleChoices fills an idle time select (SPEC F17; see idle.js).
+function fillIdleChoices(sel, value, first) {
+    sel.replaceChildren(...idleOptions(value, first, first !== 'never').map(o => el('option', {value: o.value, textContent: o.text})));
+    sel.value = value;
 }
 
 // setSessionActive activates or deactivates a session (no questions).

@@ -98,6 +98,10 @@ export function GitStatus(arg1) {
   return window['go']['main']['App']['GitStatus'](arg1);
 }
 
+export function IdleStopped() {
+  return window['go']['main']['App']['IdleStopped']();
+}
+
 export function ImportOpen() {
   return window['go']['main']['App']['ImportOpen']();
 }
@@ -272,6 +276,10 @@ export function SaveUI(arg1) {
 
 export function SavedCopy(arg1) {
   return window['go']['main']['App']['SavedCopy'](arg1);
+}
+
+export function SessionShown(arg1) {
+  return window['go']['main']['App']['SessionShown'](arg1);
 }
 
 export function SetLinks(arg1, arg2) {

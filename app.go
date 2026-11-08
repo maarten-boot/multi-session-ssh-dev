@@ -26,6 +26,7 @@ import (
 	"session-workbench/internal/forge"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
+	"session-workbench/internal/idle"
 	"session-workbench/internal/instance"
 	"session-workbench/internal/notes"
 	"session-workbench/internal/opener"
@@ -63,6 +64,7 @@ type App struct {
 	placed         sync.Once        // the window was put back where it was (domReady)
 	closing        atomic.Bool      // the page was asked to save before quitting (beforeClose)
 	notify         notifier
+	idle           idleState // claude stopped for being idle (idlestop.go)
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
 	running error
@@ -85,6 +87,7 @@ func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
 	a := &App{sessions: sessions, notes: notes.Store{Dir: notesDir}, dataDir: dataDir,
 		dictDir: filepath.Join(filepath.Dir(notesDir), "dictionaries")}
 	a.rec = &reclog.Recorder{Settings: a.recordSettings}
+	a.idle.stopped, a.idle.working, a.idle.left = map[string]idle.State{}, map[string]bool{}, map[string]time.Time{}
 	return a
 }
 
@@ -174,6 +177,7 @@ func (a *App) startup(ctx context.Context) {
 		a.saves.Start(ctx)
 	}
 	a.notify.start(ctx)
+	go a.idleLoop(ctx)
 }
 
 // shutdown drops all connections; remote tmux sessions keep running.
@@ -1019,6 +1023,11 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	}
 	if r.Inactive {
 		return "", session.ErrInactive
+	}
+	if idleApplies(r) && config.IdleStop(a.sessions.Config().UI, r.Session) > 0 {
+		// Hooks tell when claude waits for input (only used when a new
+		// tmux session starts it).
+		r.StartCommand = idle.WithHooks(r.StartCommand, r.ID)
 	}
 	if session.FilesMode(r.Host) == session.FilesSSHFS && !r.Plain {
 		if err := a.ensureShare(id, 25*time.Second); err != nil {

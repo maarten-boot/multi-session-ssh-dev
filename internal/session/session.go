@@ -40,8 +40,9 @@ type View struct {
 	Files       string `json:"files"` // the host's file access mode; "container" for a container host
 	RemotePath  string `json:"remote_path"`
 	TmuxName    string `json:"tmux_name"`
-	Record      string `json:"record"`  // "on", "off", "" = follow the global setting
-	History     string `json:"history"` // "on", "off", "" = follow private_history
+	Record      string `json:"record"`    // "on", "off", "" = follow the global setting
+	History     string `json:"history"`   // "on", "off", "" = follow private_history
+	IdleStop    string `json:"idle_stop"` // a duration, "off", "" = follow idle_stop
 	// OwnClaudeVolume: a container session's own ~/.claude volume.
 	OwnClaudeVolume bool `json:"own_claude_volume"`
 	// Commands is the session's own command menu (before the global one).
@@ -145,6 +146,9 @@ type Edit struct {
 	Group       string  `json:"group"`
 	Record      string  `json:"record"`
 	History     string  `json:"history"` // "on", "off", "" = follow private_history
+	// IdleStop: a duration, "off", "" = follow idle_stop; null (left out)
+	// keeps it.
+	IdleStop *string `json:"idle_stop"`
 	// OwnClaudeVolume: a container session's own ~/.claude volume; null
 	// (left out) keeps it.
 	OwnClaudeVolume *bool `json:"own_claude_volume"`
@@ -224,7 +228,7 @@ func (m *Manager) State() State {
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
-			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir,
+			History: se.History, IdleStop: se.IdleStop, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir,
 			Inactive: se.Inactive, Hosts: se.Hosts}
 		v.TmuxOwn = se.Tmux
 		if h, ok := findHost(m.cfg, se.Host); ok {
@@ -434,6 +438,9 @@ func Problems(c *config.Config) []string {
 		}
 		if err := validOnOff("history", s.History); err != nil {
 			out = append(out, fmt.Sprintf("session %q: %v; the global setting is used", label, err))
+		}
+		if _, err := config.ParseIdleStop(s.IdleStop); err != nil {
+			out = append(out, fmt.Sprintf("session %q: %v; claude is not stopped", label, err))
 		}
 		if err := config.ValidateCommands(s.Commands); err != nil {
 			out = append(out, fmt.Sprintf("session %q: commands: %v", label, err))
@@ -731,6 +738,11 @@ func (m *Manager) Update(id string, e Edit) error {
 	if err := validOnOff("history", e.History); err != nil {
 		return err
 	}
+	if e.IdleStop != nil {
+		if _, err := config.ParseIdleStop(*e.IdleStop); err != nil {
+			return err
+		}
+	}
 	if err := config.ValidateCommands(e.Commands); err != nil {
 		return err
 	}
@@ -765,6 +777,9 @@ func (m *Manager) Update(id string, e Edit) error {
 		c.Sessions[i].Group = e.Group
 		c.Sessions[i].Record = e.Record
 		c.Sessions[i].History = e.History
+		if e.IdleStop != nil { // left out: unchanged
+			c.Sessions[i].IdleStop = *e.IdleStop
+		}
 		if e.OwnClaudeVolume != nil {
 			c.Sessions[i].OwnClaudeVolume = *e.OwnClaudeVolume
 		}

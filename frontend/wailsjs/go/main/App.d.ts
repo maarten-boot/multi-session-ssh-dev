@@ -63,6 +63,8 @@ export function ExportSession(arg1:string,arg2:Array<string>,arg3:string):Promis
 
 export function GitStatus(arg1:string):Promise<gitstatus.Status>;
 
+export function IdleStopped():Promise<Array<string>>;
+
 export function ImportOpen():Promise<main.ImportInfo>;
 
 export function ImportSession(arg1:main.ImportRequest):Promise<main.ImportResult>;
@@ -150,6 +152,8 @@ export function SaveRequirements(arg1:string,arg2:string):Promise<string>;
 export function SaveUI(arg1:config.UI):Promise<void>;
 
 export function SavedCopy(arg1:string):Promise<main.SavedInfo>;
+
+export function SessionShown(arg1:string):Promise<void>;
 
 export function SetLinks(arg1:string,arg2:Array<config.Link>):Promise<void>;
 

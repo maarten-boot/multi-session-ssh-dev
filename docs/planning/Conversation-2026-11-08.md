@@ -86,3 +86,32 @@
 - CI: linux and macOS passed, windows failed (TestSetHost), release skipped: no v1.1.11 release.
 - User: "yes bump to v1.1.12, commit, i push" — version 1.1.12 (wails.json, SPEC, README,
   CONNECTIVITY, PLAN).
+
+## CI v1.1.12 (user: "pushed and tagged v1.1.12, check the CI build")
+- The tag points at 00a620e. Run 42519959124: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip).
+
+## Stopping an idle claude (v1.1.13, SPEC F17)
+- User: "can we detect when the claude process on the remote is ready for next input but no
+  input is coming for a configurable time (say 5 minuts) would it then make sense to halt the
+  claude process and resume when the user switches back to the session ?"
+- Answer: yes, by Claude Code hooks; pausing (SIGSTOP) gains nothing (memory stays), ending and
+  `claude --resume` frees ~300–400 MB per claude (measured: 7 here). Recommended opt-in.
+- User: "yes build it, ask the questions". Answers: global with a per-session override; off by
+  default; resume when the session is opened; a 💤 mark in the list.
+- Checked first with a real claude in a private tmux server: hooks via --settings fire, $PPID is
+  claude, $TMUX_PANE set, SessionStart carries the conversation id, an idle claude stops
+  redrawing after ~25 s, respawning the pane ends it (SessionEnd); without a prompt there is no
+  transcript (nothing to --resume: the start command again).
+- Built: internal/idle (hooks, start command rewrite, check/stop/resume scripts), idlestop.go
+  (a check per host every minute, SessionShown, IdleStopped, events), config `idle_stop` (ui and
+  session), Settings → Terminals, Edit…, the 💤 mark, frontend/src/idle.js.
+- Found while testing: (1) after the respawn the start command's interactive shell survived
+  and ran `|| claude` outside the pane (an orphan claude) — the shells are frozen before the
+  respawn and killed after; (2) a session that had been on screen for a long time was stopped
+  as soon as another was opened — idle now counts from leaving the screen too.
+- Tests: idle unit tests and TestSSHIdle (fake claude, real tmux; 6 runs in a row), config and
+  session tests, idle.test.mjs, gui-smoke-idle.sh (18 checks); settings, inactive, commands,
+  layout, listmenu, switch GUI tests pass. Once by hand with a real claude: stop left nothing
+  running, resume with --resume worked (its `--continue` picked this very conversation in the
+  repo folder; no prompt was sent).

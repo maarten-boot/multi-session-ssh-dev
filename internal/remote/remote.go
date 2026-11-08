@@ -106,6 +106,9 @@ func paneCommand(cmd string) (string, error) {
 	return `"$SHELL" -lic ` + Quote(cmd) + `; exec "$SHELL" -l`, nil
 }
 
+// PaneCommand is paneCommand for other packages (a respawned pane).
+func PaneCommand(cmd string) (string, error) { return paneCommand(cmd) }
+
 // HistoryDir is where the agent host keeps sessions' private shell
 // history: $HOME/.local/state/session-workbench/history (the profile's
 // name instead of session-workbench with a profile).

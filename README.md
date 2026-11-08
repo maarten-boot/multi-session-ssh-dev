@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.12: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.13: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -546,6 +546,19 @@ make
 *Check on <host>* runs it there over ssh (`command -v`, then `--version`, `version` or `-V`) and
 shows ✓ or ✗ per line; *Switch host…* checks it on the new host.
 
+**Stopping an idle claude.** Every claude takes some 300–400 MB on its agent host, also while
+it only waits for you. Settings → Terminals → *Stop claude when it waited for input* (never by
+default; 5 minutes to 2 hours) stops a session's claude that finished its turn and got no input
+for that long, and resumes it (`claude --resume`, the same conversation) when you open the
+session; *Edit…* sets a session's own time or *never*. The list marks a stopped session with 💤
+and its Remote tab says "claude stopped after … without input". It is never the session on
+screen, nor one you looked at within that time, nor a claude that asks a question or runs a
+command. The app learns this from Claude Code hooks it passes with `--settings` when it starts
+claude (your own Claude settings stay as they are), so it applies to claude started after you
+set it, in sessions with tmux on an ssh host (not container hosts) whose start command runs
+`claude`. What is lost: text typed into claude but not sent, and choices made in that claude
+such as a permission mode switched with Shift+Tab (start options like `--model` stay).
+
 **Inactive sessions.** A session you keep only for later can be parked: session menu →
 **Deactivate session…** disconnects its tabs and marks it inactive (⏸, "inactive" after its
 path, in italics). From then on it connects nothing — not when the app starts (also with
@@ -889,6 +902,7 @@ spell_words = ["kubectl", "Zim"]          # your words (Add to dictionary)
 ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pastes (Linux/Windows)
 notifications = true                      # desktop notification when claude waits (bell)
 private_history = true                    # each session's shells keep their own history
+# idle_stop = "5m"                        # stop a claude that waited this long for input (1m … 24h); resumed when opened
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
 save_agent_copies = true                  # save working copies' agent copies here (Full ▾ → Save)
@@ -986,6 +1000,7 @@ group = "Work"                            # optional: sidebar folder (listed in 
 color_mode = "mono"                       # optional: overrides [ui] color_mode
 record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
 history = "off"                           # optional: "on" / "off" overrides [ui] private_history
+# idle_stop = "off"                       # optional: "off" or a time, overrides [ui] idle_stop
 # own_claude_volume = true                # a container session's own Claude Code login (default: the shared sw-claude)
 # inactive = true                         # kept for later: connects nothing until activated (session menu)
 # hosts = ["work"]                        # the other agent hosts it worked on (Switch host…), most recent first

@@ -2492,7 +2492,7 @@ dialog .command-row select.cmd-where {
 }
 
 /* Settings → Q&A: the notes under the fields use the whole width. */
-.settings-page[data-page="qa"] .hint {
+.settings-page[data-page="qa"] .hint, .settings-page .wide-hint {
     grid-column: 1 / -1;
 }
 
@@ -2582,6 +2582,12 @@ dialog h2.drag-handle {
 /* Inactive sessions (kept for later, nothing connects): a ⏸ mark and
    italics in the list; text stays in the normal (black) colour. */
 .session .inactive-mark {
+    flex: none;
+    font-size: 0.923rem;
+}
+
+/* claude stopped for being idle (SPEC F17). */
+.session .idle-mark {
     flex: none;
     font-size: 0.923rem;
 }
