@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.19 (2026-11-04, app v1.1.9) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.20 (2026-11-08, app v1.1.10) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -15,7 +15,8 @@ the Q&A tab (Q1; Claude Code and own commands without an API key), container hos
 exporting a session as an archive / importing it as a new session (F13), separate setups
 (`-profile`, F14), plain ssh logins without a local directory (F2a), sessions without tmux
 (F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
-next to a container session's dev container with Compose (C7).
+next to a container session's dev container with Compose (C7), inactive sessions (F15) and the
+Hosts heading above the folders (F5).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -175,7 +176,10 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - F5. Folders: sessions can be put in folders (e.g. "Work", "Private"); `groups` in the config
   gives their order, `group` on a session its folder. Folders nest by path: "Work/Client A" is
   the folder Client A in Work (parts trimmed, none empty; siblings in the order of `groups`).
-  The sidebar shows ungrouped sessions first, then each folder (collapsible, indented by depth,
+  The sidebar shows ungrouped sessions first — when there are folders, under one heading
+  *Hosts* (collapsible like a folder, with the count of its sessions; dropping a session on it
+  takes the session out of its folder; right-click gives the list menu; nothing is stored) —
+  then each folder (collapsible, indented by depth,
   with a count that includes its subfolders), each with its own sessions split by host and
   then its subfolders. Folders can be created (also as a subfolder, or as a path: missing
   folders on the way are added), renamed (sessions and subfolders follow), reordered among
@@ -366,6 +370,18 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   shared `sw-claude` stays shared); the browser storage's keys `sw:NAME:` (the storage itself
   is shared); the window title and About say "Session Workbench — NAME"; the Linux WM_CLASS is
   NAME. The container helper gets `-profile NAME`. Without a profile every name stays as before.
+- F15. Inactive sessions: `inactive = true` on a session keeps it for later. Its Local and Remote
+  tabs start nothing — not with `connect_on_start = "eager"`, not when it is the last session
+  open at start, not when it is opened, not for a command or prompt sent to them (they say
+  why) — and show a notice with *Activate session* instead; Notes, Files, Web and Q&A work.
+  The backend refuses StartLocal and StartRemote for it, mounts no live share (none at start,
+  deactivating stops one), sends no notifications, and fetches nothing from its agent host
+  (export lists its Remote history as missing). Session menu: *Deactivate session…* (after
+  *Disconnect*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
+  container session stop its container and services) and, for an inactive one, *Activate
+  session* in place of both. The list marks it with ⏸ and "· inactive" after its path, in
+  italics (black text); its balloon says so. Edit… keeps the setting; an import makes an
+  active session.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

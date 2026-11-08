@@ -27,7 +27,7 @@ import {
     SyncInfo, SyncSave, SyncTakeFiles, SyncSendAll, OpenSaved, SavedCopy, RemoveSaved,
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
-    ContainerCompose, SaveContainerCompose, ContainerComposeApply,
+    ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -93,6 +93,7 @@ class Tab {
     // its activity badge shows what it prints). Waits up to 20 s for it.
     async typeInBackground(text) {
         const v = this.ensureView();
+        if (!v) throw new Error('the session is inactive');
         if (v.exited) v.spawn(); // ended earlier: start it again
         for (let i = 0; i < 200 && !v.id; i++) {
             if (v.exited && i > 0) break;
@@ -124,7 +125,10 @@ class Tab {
         this.view = null;
     }
 
+    // ensureView starts the terminal (null for an inactive session: it
+    // connects nothing).
     ensureView() {
+        if (this.session.data.inactive) return null;
         if (!this.view) {
             this.view = new TermView(this.pane, {
                 start: this.start, exitHint: this.exitHint, ui: app.state.ui,
@@ -141,9 +145,36 @@ class Tab {
 
     show() {
         this.pane.hidden = false;
+        if (this.session.data.inactive) return this.showInactive();
+        this.inactiveNote?.remove();
+        this.inactiveNote = null;
         this.ensureView().focus();
         this.setBadge(null);
         app.clearWaiting(this.session);
+    }
+
+    // showInactive puts a notice with an Activate button where the
+    // terminal would be.
+    showInactive() {
+        if (!this.inactiveNote) {
+            const btn = el('button', {type: 'button', className: 'primary', textContent: 'Activate session'});
+            btn.onclick = () => setSessionActive(this.session, true);
+            this.inactiveNote = el('div', {className: 'inactive-note'},
+                el('p', {textContent: `“${this.session.data.name}” is inactive: kept for later, so its ${this.label} tab ` +
+                    'connects nothing — not when the app starts and not when you open it. Notes, Files, Web and Q&A work as usual.'}),
+                btn);
+            this.pane.append(this.inactiveNote);
+        }
+        this.inactiveNote.querySelector('button').focus();
+    }
+
+    // dropView ends and removes the terminal (deactivating the session).
+    dropView() {
+        this.view?.dispose();
+        this.view = null;
+        this.pane.replaceChildren();
+        this.inactiveNote = null;
+        this.setBadge(null);
     }
 
     // visible: on screen and looked at (the notes page covers the terminals).
@@ -448,6 +479,13 @@ class SessionUI {
         this.tabs.forEach(t => t.view?.disconnect?.());
     }
 
+    // dropTerminals ends and removes the Local and Remote terminals (the
+    // session was deactivated); show() puts the inactive notice there.
+    dropTerminals() {
+        this.tabs.forEach(t => t.dropView?.());
+        this.setRemoteState('idle');
+    }
+
     dispose() {
         this.tabs.forEach(t => t.dispose());
         this.container.remove();
@@ -607,6 +645,7 @@ const app = {
         if (!s) return 'No session';
         if ((this.state.ui.hidden_tabs ?? []).includes('remote')) return 'The Remote tab is hidden (Settings → Appearance)';
         if (s.data.error) return `The session has a problem: ${s.data.error}`;
+        if (s.data.inactive) return 'The session is inactive (session menu → Activate session)';
         return null;
     },
 
@@ -635,6 +674,7 @@ const app = {
         if (!tab) return;
         this.selectTab(key);
         const v = tab.ensureView();
+        if (!v) return toast('The session is inactive; the prompt was not pasted.', true);
         if (v.exited && !v.reconnectTimer) v.restart();
         const wait = async (ok, ms) => {
             for (let t = 0; t < ms && !ok(); t += 100) await new Promise(r => setTimeout(r, 100));
@@ -817,6 +857,31 @@ const app = {
     // renderFolder adds folder f's sessions (by host) and then its
     // subfolders to parent; depth indents them.
     renderFolder(f, parent, depth) {
+        // With folders, the top's sessions (in no folder), by host, go under
+        // one "Hosts" heading above them; it collapses like a folder and
+        // takes dropped sessions out of their folder. The list only: nothing
+        // moves in config.toml. Without folders the whole list is hosts.
+        if (depth === 0 && f.hosts.length && f.children.length) {
+            const folder = el('div', {className: 'folder hosts-folder', style: '--depth: 0'});
+            const n = f.hosts.reduce((a, g) => a + g.sessions.length, 0);
+            const head = el('div', {className: 'folder-head', title: 'Sessions that are in no folder, by host'},
+                el('span', {className: 'caret', textContent: '▾'}),
+                el('span', {className: 'label', textContent: 'Hosts'}),
+                el('span', {className: 'count', textContent: n}));
+            const toggle = this.collapsible(folder, 'hosts');
+            head.onclick = toggle;
+            head.oncontextmenu = e => {
+                e.preventDefault();
+                listMenu(e.clientX, e.clientY);
+            };
+            enableFolderDrop(head, '');
+            const body = el('div', {className: 'folder-body', style: '--indent: 14px'});
+            folder.append(head, body);
+            parent.append(folder);
+            this.renderFolder({...f, children: []}, body, 1); // the host groups, one step in
+            this.renderFolder({...f, hosts: []}, parent, 0); // then the folders as before
+            return;
+        }
         for (const g of f.hosts) {
             const group = el('div', {className: 'host-group'});
             const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
@@ -912,7 +977,9 @@ const app = {
             el('span', {className: 'abbr', textContent: initials(d.name)}),
             el('div', {className: 'text'},
                 el('div', {className: 'name', textContent: d.name}),
-                el('div', {className: 'sub', textContent: '‎' + where(d) + '‎'})),
+                el('div', {className: 'sub', textContent: '‎' + where(d) + (d.inactive ? ' · inactive' : '') + '‎'})),
+            el('span', {className: 'inactive-mark', textContent: '⏸', hidden: !d.inactive,
+                title: 'Inactive: nothing connects (session menu → Activate session)'}),
             el('span', {className: 'todo-warn', textContent: '▲', hidden: !s.todoCount(), title: s.todoText()}),
             el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
                 title: 'Repository hooks or settings to review (see the Files tab)'}),
@@ -924,9 +991,11 @@ const app = {
             el('div', {className: 'balloon-name', textContent: d.name}),
             el('div', {className: 'balloon-path', textContent: where(d)}),
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
+            d.inactive ? el('div', {className: 'balloon-text', textContent: '⏸ Inactive: nothing connects until you activate it.'}) : '',
             s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
         item.dataset.id = d.id;
+        item.classList.toggle('inactive', !!d.inactive);
         item.dataset.host = d.host;
         item.dataset.group = d.group;
         if (s === this.active) item.classList.add('active');
@@ -1421,7 +1490,10 @@ function sessionMenu(s, x, y) {
         {label: 'Open recordings folder', action: () => OpenLogFolder(s.id).catch(err => toast(err?.message ?? String(err), true))},
         {label: 'Export…', action: () => exportDialog(s)},
         '-',
-        {label: 'Disconnect', action: () => s.disconnect()},
+        ...(s.data.inactive ? [{label: 'Activate session', action: () => setSessionActive(s, true)}] : [
+            {label: 'Disconnect', action: () => s.disconnect()},
+            {label: 'Deactivate session…', action: () => deactivateSession(s)},
+        ]),
         ...(s.data.tmux ? [{label: 'End remote session…', danger: true, action: () => endRemote(s)}] : []),
         {label: 'Delete session…', danger: true, action: () => deleteSession(s)},
     ]);
@@ -2534,6 +2606,46 @@ async function deleteFolder(f) {
         action: () => DeleteGroup(f.group),
     });
     if (ok) await app.reload();
+}
+
+// setSessionActive activates or deactivates a session (no questions).
+async function setSessionActive(s, active) {
+    try {
+        await SetSessionActive(s.id, active);
+    } catch (err) {
+        return toast(err?.message ?? String(err), true);
+    }
+    if (!active) s.dropTerminals();
+    await app.reload();
+    if (active) toast(`“${s.data.name}” is active again`);
+}
+
+// deactivateSession keeps a session for later: its tabs disconnect and it
+// connects nothing until it is activated. It asks whether to end what runs
+// for it (tmux and claude on the agent host, or its container).
+async function deactivateSession(s) {
+    const box = s.data.files === 'container';
+    const tm = !box && !!s.data.tmux;
+    const check = box ? [`Also stop its container sw-${s.id} and its services (its tmux session and claude end)`]
+        : tm ? [`Also end tmux session ${s.data.tmux_name} on ${s.data.host} (stops claude there)`] : [];
+    const ok = await confirmDialog({
+        title: `Deactivate session “${s.data.name}”?`,
+        text: 'It stays in the list, marked inactive, and connects nothing — not when the app starts and not when you ' +
+            'open it — until you activate it again (session menu → Activate session). Its tabs disconnect now; ' +
+            'Notes, Files, Web and Q&A keep working, but no live share is mounted and no notifications come.' +
+            (check.length ? ' What runs for it keeps running unless you tick below.' : ''),
+        ok: 'Deactivate',
+        check,
+        action: async ticks => {
+            await SetSessionActive(s.id, false);
+            s.dropTerminals();
+            if (tm && ticks[0]) await KillRemote(s.id);
+            if (box && ticks[0]) await ContainerStop(s.id);
+        },
+    });
+    if (!ok) return;
+    await app.reload();
+    toast(`“${s.data.name}” is inactive`);
 }
 
 async function endRemote(s) {

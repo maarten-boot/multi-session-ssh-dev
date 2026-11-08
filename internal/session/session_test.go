@@ -1138,3 +1138,46 @@ func TestNoTmux(t *testing.T) {
 		t.Error("tmux = maybe accepted")
 	}
 }
+
+// TestInactive: a session is deactivated and activated again; the state
+// shows it, Resolve carries it, the file keeps it, and Edit… leaves it.
+func TestInactive(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "config.toml")
+	m := Open(file)
+	no := false
+	if err := m.SaveHost("", config.Host{Name: "esx", SSHTarget: "root@esx", LocalDir: &no}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := m.Create(NewSession{Host: "esx", StartMode: "shell"})
+	if err != nil || v.Inactive {
+		t.Fatalf("new: %+v %v", v, err)
+	}
+	if err := m.SetActive(v.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := m.Resolve(v.ID); !r.Inactive {
+		t.Error("Resolve: not inactive")
+	}
+	if !m.State().Sessions[0].Inactive {
+		t.Error("State: not inactive")
+	}
+	if b, _ := os.ReadFile(file); !strings.Contains(string(b), "inactive = true") {
+		t.Errorf("not in the file:\n%s", b)
+	}
+	if err := m.Update(v.ID, Edit{Name: "renamed", StartMode: "shell"}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := Open(file).Resolve(v.ID); !r.Inactive || r.Name != "renamed" {
+		t.Errorf("after Edit and reopening: %+v", r.Session)
+	}
+	if err := m.SetActive(v.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(file); strings.Contains(string(b), "inactive") {
+		t.Errorf("active again, still in the file:\n%s", b)
+	}
+	if err := m.SetActive("nope", false); err == nil {
+		t.Error("unknown session accepted")
+	}
+}

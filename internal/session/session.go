@@ -55,7 +55,9 @@ type View struct {
 	// the host's).
 	Tmux    bool   `json:"tmux"`
 	TmuxOwn *bool  `json:"tmux_own"`
-	Error   string `json:"error"` // why the Remote tab cannot work, if it cannot
+	// Inactive: kept for later; nothing connects (config Session.Inactive).
+	Inactive bool   `json:"inactive"`
+	Error    string `json:"error"` // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -89,6 +91,10 @@ type Resolved struct {
 
 // ErrNoLocalDir: a plain login session has no local directory.
 var ErrNoLocalDir = errors.New("this session is a plain login: it has no local directory")
+
+// ErrInactive: the session is deactivated; nothing connects until it is
+// activated again.
+var ErrInactive = errors.New("this session is inactive (session menu → Activate session)")
 
 // Dir is the session's local directory, or ErrNoLocalDir for a plain
 // login (so nothing runs in the app's own folder by mistake).
@@ -216,7 +222,8 @@ func (m *Manager) State() State {
 	for _, se := range m.cfg.Sessions {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
-			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir}
+			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir,
+			Inactive: se.Inactive}
 		v.TmuxOwn = se.Tmux
 		if h, ok := findHost(m.cfg, se.Host); ok {
 			v.Plain = !config.HasLocalDir(h, se)
@@ -832,6 +839,20 @@ func (m *Manager) TrustGit(id, fingerprint string) error {
 			return fmt.Errorf("unknown session %q", id)
 		}
 		c.Sessions[i].TrustedGit = fingerprint
+		return nil
+	})
+}
+
+// SetActive activates or deactivates a session (config Session.Inactive).
+func (m *Manager) SetActive(id string, active bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		i := indexOf(c, id)
+		if i < 0 {
+			return fmt.Errorf("unknown session %q", id)
+		}
+		c.Sessions[i].Inactive = !active
 		return nil
 	})
 }

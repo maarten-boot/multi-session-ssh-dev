@@ -97,6 +97,7 @@ export namespace config {
 	    commands: Command[];
 	    history: string;
 	    own_claude_volume: boolean;
+	    inactive: boolean;
 	    local_dir?: boolean;
 	    remote_dir: string;
 	    tmux?: boolean;
@@ -123,6 +124,7 @@ export namespace config {
 	        this.commands = this.convertValues(source["commands"], Command);
 	        this.history = source["history"];
 	        this.own_claude_volume = source["own_claude_volume"];
+	        this.inactive = source["inactive"];
 	        this.local_dir = source["local_dir"];
 	        this.remote_dir = source["remote_dir"];
 	        this.tmux = source["tmux"];
@@ -1153,6 +1155,7 @@ export namespace session {
 	    remote_dir: string;
 	    tmux: boolean;
 	    tmux_own?: boolean;
+	    inactive: boolean;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1181,6 +1184,7 @@ export namespace session {
 	        this.remote_dir = source["remote_dir"];
 	        this.tmux = source["tmux"];
 	        this.tmux_own = source["tmux_own"];
+	        this.inactive = source["inactive"];
 	        this.error = source["error"];
 	    }
 	

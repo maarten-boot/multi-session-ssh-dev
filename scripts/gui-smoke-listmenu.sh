@@ -55,7 +55,7 @@ xdotool type --delay 10 'Work'; k Return; sleep 1
 check "New folder… from the list menu" grep -q '"Work"' $CFG
 
 # Between the hosts and folders too: the empty folder's line.
-click 100 161 3; shot 4-folder-line; menu n
+click 100 192 3; shot 4-folder-line; menu n   # (below the Hosts heading, once there is a folder)
 xdotool type --delay 10 'Private'; k Return; sleep 1
 check "the list menu on an empty folder's line" grep -q '"Private"' $CFG
 

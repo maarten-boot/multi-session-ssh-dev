@@ -87,7 +87,7 @@ check "no git: and the deletion (ticked by default)" test ! -e $P/notes.txt
 
 # Deleting the working-copy session can take its saved agent copy along (ticked here).
 k ctrl+alt+1; sleep 1
-click 120 90 3; menu d d; sleep 1               # Delete session… (after Disconnect)
+click 120 90 3; menu d d d; sleep 1             # Delete session… (after Disconnect, Deactivate)
 shot 10-delete-dialog; k Tab; k space; k shift+Tab; k Return; sleep 2   # tick the second box
 check "the saved copy went with the session" test ! -e $XDG_DATA_HOME/session-workbench/working-copies/s-sync
 check "the session is gone" test -z "$(grep 's-sync' $CFG)"

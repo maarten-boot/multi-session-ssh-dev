@@ -115,7 +115,7 @@ func (a *App) startup(ctx context.Context) {
 	// claude may still be running in tmux on the agent host from an earlier
 	// run: give it its files back without waiting for the Remote tab.
 	for _, v := range a.sessions.State().Sessions {
-		if v.Files == session.FilesSSHFS {
+		if v.Files == session.FilesSSHFS && !v.Inactive {
 			go a.ensureShare(v.ID, 0)
 		}
 	}
@@ -346,6 +346,19 @@ func (a *App) UpdateSession(id string, e session.Edit) error {
 		return err
 	}
 	a.rec.Refresh() // recording on or off from now
+	return nil
+}
+
+// SetSessionActive activates or deactivates a session. Deactivating stops
+// its live share; the frontend disconnects its tabs (and ends tmux or
+// stops the container when asked to).
+func (a *App) SetSessionActive(id string, active bool) error {
+	if err := a.sessions.SetActive(id, active); err != nil {
+		return err
+	}
+	if !active {
+		a.shares.Stop(id)
+	}
 	return nil
 }
 
@@ -935,6 +948,9 @@ func (a *App) StartLocal(id string, cols, rows int) (string, error) {
 	if r.Plain {
 		return "", session.ErrNoLocalDir // the frontend shows no Local tab for it
 	}
+	if r.Inactive {
+		return "", session.ErrInactive
+	}
 	cfg := a.sessions.Config()
 	sh, args := terminal.DefaultShell()
 	if cfg.Local.Shell != "" {
@@ -979,6 +995,9 @@ func (a *App) ensureShare(id string, timeout time.Duration) error {
 	if r.Plain {
 		return session.ErrNoLocalDir
 	}
+	if r.Inactive {
+		return session.ErrInactive
+	}
 	return a.shares.Ensure(id, share.Spec{Target: r.Host.SSHTarget, LocalPath: r.LocalPath, RemotePath: r.RemotePath}, timeout)
 }
 
@@ -997,6 +1016,9 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	r, err := a.sessions.Resolve(id)
 	if err != nil {
 		return "", err
+	}
+	if r.Inactive {
+		return "", session.ErrInactive
 	}
 	if session.FilesMode(r.Host) == session.FilesSSHFS && !r.Plain {
 		if err := a.ensureShare(id, 25*time.Second); err != nil {

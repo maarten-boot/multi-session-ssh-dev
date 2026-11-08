@@ -113,7 +113,7 @@ expect "Reconnect started dev and its services" "$P $P-cache2-1 $P-redis-1 " "$(
 t 'echo again > again.txt'
 waitfile $PROJ/again.txt 10
 check "and the Remote tab works again" test -s $PROJ/again.txt
-menu 607                                               # Delete session…
+menu 637                                               # Delete session… (after Deactivate)
 shot 6-delete
 k Tab; k space; k Tab; k space; k Tab; k Return        # tick container+services, their data; Delete
 for i in $(seq 60); do grep -q $ID $CFG || break; sleep 1; done; sleep 1

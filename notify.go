@@ -54,6 +54,9 @@ func (n *notifier) stop(ctx context.Context) {
 
 // Notify shows (or replaces) the notification for a session.
 func (a *App) Notify(session, title, body string) error {
+	if r, _ := a.sessions.Resolve(session); r.Inactive {
+		return nil // an inactive session rings no bell
+	}
 	n := &a.notify
 	n.mu.Lock()
 	defer n.mu.Unlock()

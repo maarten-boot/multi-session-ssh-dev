@@ -87,6 +87,10 @@ type Session struct {
 	// OwnClaudeVolume gives a container session its own ~/.claude volume
 	// (its own Claude Code login) instead of the shared one.
 	OwnClaudeVolume bool `toml:"own_claude_volume,omitempty" json:"own_claude_volume"`
+	// Inactive: kept for later, not connected — its Remote and Local tabs
+	// start nothing, no live share, no notifications (session menu →
+	// Deactivate session… / Activate session).
+	Inactive bool `toml:"inactive,omitempty" json:"inactive"`
 	// LocalDir overrides the host's local_dir: false is a plain login
 	// (no local_path), true a session with a directory on a host whose
 	// sessions are logins by default.

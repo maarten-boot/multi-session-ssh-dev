@@ -396,6 +396,9 @@ func remoteHistoryScript(id string) string {
 // fetchRemoteHistory reads the Remote tab's history from the agent host;
 // why says why it could not ("" with no data: there is none).
 func (a *App) fetchRemoteHistory(r session.Resolved) ([]byte, string) {
+	if r.Inactive {
+		return nil, "the session is inactive (nothing is fetched from its agent host)"
+	}
 	if r.Host.Kind == session.HostContainer && a.containerState(r.ID) != "running" {
 		return nil, "the container is not running"
 	}

@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.9: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.10: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -525,6 +525,16 @@ Esc stops it; off with *Reconnect dropped connections automatically* in Settings
 Detaching tmux, ending the remote session or *Disconnect* does not reconnect; press Enter
 when you want to.
 
+**Inactive sessions.** A session you keep only for later can be parked: session menu →
+**Deactivate session…** disconnects its tabs and marks it inactive (⏸, "inactive" after its
+path, in italics). From then on it connects nothing — not when the app starts (also with
+`connect_on_start = "eager"`) and not when you open it: its Local and Remote tabs show a notice
+with an **Activate session** button instead. Its Notes, Files, Web and Q&A tabs work as usual;
+no live share is mounted and no notifications come. The dialog can also end its tmux session on
+the agent host (which stops claude there) or, for a container session, stop its container and
+services; unticked, they keep running. Session menu → **Activate session** (or the button)
+connects it again. In `config.toml` it is `inactive = true` on the session.
+
 **Folders.** Group sessions into folders such as *Work* and *Private*: "+" →
 *New folder…*, then put sessions in it from the session dialog, with *Move to
 folder…*, or by dragging a session onto the folder header; *Move to folder…* →
@@ -533,7 +543,8 @@ for *New session in this folder…*, *New subfolder…*, rename, move up/down (a
 neighbours), *Move folder to…* (the top or another folder; its subfolders and sessions go
 along) or delete (deleting keeps its sessions: they go to the folder above, and its
 subfolders go too). In a folder, its own sessions come first, then its subfolders; sessions
-without a folder are listed first of all. A `/` in a folder name makes subfolders
+without a folder are listed first of all, under the heading **Hosts** once there are folders
+(it collapses like a folder; drop a session on it to take it out of its folder). A `/` in a folder name makes subfolders
 (*Clients/Acme* adds *Clients* too if needed). In `config.toml` a subfolder is a path:
 `groups = ["Work", "Work/Client A"]`.
 
@@ -543,7 +554,7 @@ the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*
 work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history; for a plain login its remote folder),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
-*Export…* (see *Export and import a session*), *Disconnect*, *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
+*Export…* (see *Export and import a session*), *Disconnect*, *Deactivate session…* (see *Inactive sessions*), *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
 session too, for a container session removing its container and its services — their data only with its own tick — and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
 container sessions *Dockerfile…*, *Services (compose)…* and *Stop container…*. Drag sessions to reorder
@@ -952,6 +963,7 @@ color_mode = "mono"                       # optional: overrides [ui] color_mode
 record = "on"                             # optional: "on" / "off" overrides [ui] record_remote
 history = "off"                           # optional: "on" / "off" overrides [ui] private_history
 # own_claude_volume = true                # a container session's own Claude Code login (default: the shared sw-claude)
+# inactive = true                         # kept for later: connects nothing until activated (session menu)
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 commands = [{ name = "test", command = "make test" }]                 # optional: before [[ui.commands]] in the menu

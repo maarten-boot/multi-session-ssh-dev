@@ -36,7 +36,7 @@ shot 04-menu
 menu m m                               # "Move down" -> var, tmp, usr
 sleep 1; shot 05-moved
 click 120 133 3                        # right-click the second row (now tmp)
-menu d d                               # Disconnect, Delete session…
+menu d d d                             # Disconnect, Deactivate session…, Delete session…
 sleep 0.5; k space                     # the checkbox has focus: tick "also end tmux session"
 shot 06-delete-dialog
 k Tab; k Return; sleep 3               # Delete

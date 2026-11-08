@@ -2578,3 +2578,28 @@ dialog h2.drag-handle {
     margin-left: 24px;
     font-size: 0.923rem;
 }
+
+/* Inactive sessions (kept for later, nothing connects): a ⏸ mark and
+   italics in the list; text stays in the normal (black) colour. */
+.session .inactive-mark {
+    flex: none;
+    font-size: 0.923rem;
+}
+
+.session.inactive .name, .session.inactive .sub {
+    font-style: italic;
+}
+
+/* The Local and Remote tabs of an inactive session: a notice and the
+   Activate button where the terminal would be. */
+.inactive-note {
+    max-width: 44em;
+    margin: 24px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel);
+}
+
+.inactive-note p {
+    margin: 0 0 12px;
+}
