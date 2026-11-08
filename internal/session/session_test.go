@@ -1190,12 +1190,15 @@ func TestSetHost(t *testing.T) {
 	dir := t.TempDir()
 	m := Open(filepath.Join(dir, "config.toml"))
 	no := false
-	for _, h := range []config.Host{
+	hosts := []config.Host{
 		{Name: "work", SSHTarget: "work", Files: FilesSync},
 		{Name: "home", SSHTarget: "home", Files: FilesSync, RemoteWorkdir: "/srv/dev"},
 		{Name: "esx", SSHTarget: "root@esx", LocalDir: &no},
-		{Name: "box", Kind: HostContainer},
-	} {
+	}
+	if runtime.GOOS != "windows" { // no container hosts there (then "box" is unknown)
+		hosts = append(hosts, config.Host{Name: "box", Kind: HostContainer})
+	}
+	for _, h := range hosts {
 		if err := m.SaveHost("", h); err != nil {
 			t.Fatal(err)
 		}

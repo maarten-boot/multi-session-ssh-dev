@@ -176,6 +176,9 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.12 (2026-11-08): v1.1.11's Windows build failed on TestSetHost (it added a container
+  host, which SaveHost refuses on Windows; the app was fine); the test adds it only off Windows.
+  No release of v1.1.11; v1.1.12 is the first release with Switch host… and Requirements….
 - v1.1.11 (2026-11-08): one project on several agent hosts (SPEC F16; the user: "i work on one host
   at work and on another at home, is the current backup restore sufficient for that?" — no).
   Decided (questions): one laptop with the app; one session, several hosts, *Switch host…*;

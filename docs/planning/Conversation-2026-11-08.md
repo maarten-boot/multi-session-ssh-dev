@@ -76,3 +76,13 @@
 - Fixed: the menu hides *Switch host…* for an inactive session; CheckRequirements refuses it
   (ErrInactive). SPEC F15/F16 and README (Inactive sessions) say so. go test, vet, frontend
   tests, gui-smoke-inactive and gui-smoke-switch pass.
+
+## CI v1.1.11 (user: "pushed and tagged v1.1.11, check the CI build")
+- The tag points at 693df14. The main build of 75f29db failed on Windows: TestSetHost added a
+  container host, which SaveHost refuses there ("containers as agent hosts need Linux or macOS
+  for now"); the tag build runs the same test.
+- Fixed in the test: the container host only off Windows (there "box" is an unknown host, still
+  refused). go test passes; the test package builds for Windows.
+- CI: linux and macOS passed, windows failed (TestSetHost), release skipped: no v1.1.11 release.
+- User: "yes bump to v1.1.12, commit, i push" — version 1.1.12 (wails.json, SPEC, README,
+  CONNECTIVITY, PLAN).
