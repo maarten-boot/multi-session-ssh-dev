@@ -28,6 +28,7 @@ local_path = "$PROJ"
 start_mode = "shell"
 commands = [{ name = "own", command = "make" }]
 local_init = "echo should-not-come-along"
+idle_stop = "45m"
 TOML
 DATA=$XDG_DATA_HOME/session-workbench
 mkdir -p -m 700 $OUT/notes/s-ex $DATA/qa $DATA/history "$DATA/logs/local$PROJ"
@@ -89,6 +90,7 @@ check "its Q&A, without Claude Code's session id" bash -c "grep -q '\"q?\"' $DAT
 check "its recordings and Q&A log" test -s "$DATA/logs/local$OUT/proj2/20261102-1000.log" -a -s "$DATA/logs/local$OUT/proj2/qa-2026-11-02.md"
 check "its Local history" grep -q local-history $DATA/history/$NEW.history
 check "its own commands" bash -c "grep -A12 'name = \"imported\"' $CFG | grep -q 'command = \"make\"'"
+check "its own idle time" bash -c "grep -A14 'name = \"imported\"' $CFG | grep -q 'idle_stop = \"45m\"'"
 check "local_init not imported" bash -c "[ \$(grep -c should-not-come-along $CFG) = 1 ]"
 check "the Remote history waits for the connection" test -s $DATA/history/$NEW.remote
 # The same as .tar.gz: Format → the second choice; imported into proj3.

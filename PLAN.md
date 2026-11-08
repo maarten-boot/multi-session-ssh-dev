@@ -192,7 +192,8 @@ implementation differs from the original plan.
   Tests: idle (TestSettings, TestWithHooks, TestResumeCommand, TestParseAndIdle, TestScripts;
   TestSSHIdle with a fake claude in real tmux via make test-ssh), config (TestIdleStop),
   session (TestUpdateIdleStop), frontend idle.test.mjs, gui-smoke-idle.sh; once by hand with a
-  real claude (stop leaves nothing running, resume with --resume).
+  real claude (stop leaves nothing running, resume with --resume). Cross-check: an import keeps
+  the session's own idle time (F13).
 - v1.1.12 (2026-11-08): v1.1.11's Windows build failed on TestSetHost (it added a container
   host, which SaveHost refuses on Windows; the app was fine); the test adds it only off Windows.
   No release of v1.1.11; v1.1.12 is the first release with Switch host… and Requirements….

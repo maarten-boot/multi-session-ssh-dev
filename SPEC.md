@@ -349,8 +349,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     existing is replaced. The dialog: the host (the archive's preselected when it exists, else
     *Add “name” from the archive*), the directory (the original suggested; project files only
     into an empty or new one; without them an existing directory is used, a new one made), the
-    name. Settings come along (description, colors, record, history, own Claude volume, own
-    commands, links); a start mode or folder that does not exist here is replaced by the
+    name. Settings come along (description, colors, record, history, idle time, own Claude volume,
+    own commands, links); a start mode or folder that does not exist here is replaced by the
     default (and said); `env`, `local_init` and `trusted_git` are not imported (they run
     commands here or trust git hooks) and the dialog says so. Q&A loses Claude Code's session
     ids (they belong to the other computer). The Remote history waits in

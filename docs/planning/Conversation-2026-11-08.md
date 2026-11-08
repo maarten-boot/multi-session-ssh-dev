@@ -115,3 +115,10 @@
   layout, listmenu, switch GUI tests pass. Once by hand with a real claude: stop left nothing
   running, resume with --resume worked (its `--continue` picked this very conversation in the
   repo folder; no prompt was sent).
+
+## Cross-check v1.1.13 (user: "pushed, do a crosscheck")
+- SPEC F17, README, Settings and Edit… agree with the code (hooks, the idle rules, the session
+  on screen and the one that left it, stop, resume, the 💤 mark, the limits).
+- Gap: importing a session (F13) did not carry its own `idle_stop`, while record and history
+  come along. Fixed in export.go (an invalid value is dropped with a note); SPEC F13 lists the
+  idle time; gui-smoke-export.sh checks it (37 checks pass).

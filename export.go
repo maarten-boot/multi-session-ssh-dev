@@ -576,6 +576,11 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 		return ImportResult{}, err
 	}
 	own := src.OwnClaudeVolume
+	idleStop := src.IdleStop
+	if _, err := config.ParseIdleStop(idleStop); err != nil {
+		notes = append(notes, err.Error()+": the global setting is used")
+		idleStop = ""
+	}
 	cmds := src.Commands
 	if cmds == nil {
 		cmds = []config.Command{}
@@ -583,7 +588,7 @@ func (a *App) ImportSession(req ImportRequest) (ImportResult, error) {
 	desc := v.Description
 	if err := a.sessions.Update(v.ID, session.Edit{Name: v.Name, Description: &desc, StartMode: v.StartMode,
 		ColorMode: v.ColorMode, Group: v.Group, Record: src.Record, History: src.History,
-		OwnClaudeVolume: &own, Commands: cmds}); err != nil {
+		IdleStop: &idleStop, OwnClaudeVolume: &own, Commands: cmds}); err != nil {
 		notes = append(notes, "settings: "+err.Error())
 	}
 	if len(src.Links) > 0 {
