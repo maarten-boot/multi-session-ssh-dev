@@ -115,7 +115,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   under their host. The session menu (right-click or ⋯) starts with the host's file mode
   (shared folder / live share (sshfs), mounted or not / working copy (sync)). Drag (or menu Move up/down) to reorder within its folder and host. Edit
   (shows the session id, read-only, with the config entry, folders and tmux session it names;
-  rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), export (F13), disconnect, end remote session, delete (optionally ending
+  rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), export (F13), disconnect, deactivate / activate (F15), end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
   A red ▲ marks a session whose notes have TODO lines (N1c).
   Resting the mouse on a session shows a balloon with its name, local path and description
@@ -160,7 +160,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   remote session… is not offered, deleting the session does not offer ending tmux, and a new
   start mode needs no restart offer. The path line says "no tmux". Any session can use it.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
-  on first view, or eagerly — configurable).
+  on first view, or eagerly — configurable; never for an inactive session, F15).
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal
   while the window is in the background) rings the bell, or produces output after 10 s idle (at
   least max(512 bytes, 2 × columns) within 2 s; redraws within 1.5 s of a resize don't count). The

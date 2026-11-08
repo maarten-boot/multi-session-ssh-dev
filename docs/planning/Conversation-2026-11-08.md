@@ -35,3 +35,9 @@
   the project's path, one-way). Decided (questions): one laptop, two agent hosts; move this
   project's Claude conversations and memory, and the code by git; a requirements list per
   project checked on the host. In PLAN "Next" with the open points; not built yet.
+- **Committed** 2ba3c15 (v1.1.10); pushed, GitHub main = 2ba3c15.
+- **Cross-check after 2ba3c15:** version 1.1.10 everywhere; 40 GUI scripts in the Makefile and
+  Tests.md; F15 and the Hosts heading (F5) match the code with their tests. Fixed: SPEC F1's
+  session menu list (deactivate / activate), F3 (inactive sessions never connect at start),
+  README's connect_on_start comment and Settings' "all at startup" option (not inactive
+  sessions).
