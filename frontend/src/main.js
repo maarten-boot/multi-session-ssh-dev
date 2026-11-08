@@ -28,6 +28,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -587,6 +588,10 @@ const app = {
         this.checkTodos();
         this.select(last || this.order[0] || null);
 
+        // An action that fails unexpectedly (a menu item, a button) says so
+        // instead of doing nothing.
+        window.addEventListener('unhandledrejection', e => toast(`Error: ${e.reason?.message ?? e.reason}`, true));
+        window.addEventListener('error', e => toast(`Error: ${e.message}`, true));
         window.addEventListener('keydown', e => this.onKey(e));
         window.addEventListener('mousedown', e => {
             if (!$('#menu').contains(e.target)) hideMenu();
@@ -1489,6 +1494,10 @@ function sessionMenu(s, x, y) {
         },
         {label: 'Open recordings folder', action: () => OpenLogFolder(s.id).catch(err => toast(err?.message ?? String(err), true))},
         {label: 'Export…', action: () => exportDialog(s)},
+        ...(s.data.plain ? [] : [
+            ...(s.data.files === 'container' ? [] : [{label: 'Switch host…', action: () => switchDialog(s)}]),
+            {label: 'Requirements…', action: () => requirementsDialog(s)},
+        ]),
         '-',
         ...(s.data.inactive ? [{label: 'Activate session', action: () => setSessionActive(s, true)}] : [
             {label: 'Disconnect', action: () => s.disconnect()},
@@ -2606,6 +2615,144 @@ async function deleteFolder(f) {
         action: () => DeleteGroup(f.group),
     });
     if (ok) await app.reload();
+}
+
+// renderRequirements shows a requirements check (CheckRequirements) in box.
+function renderRequirements(box, c) {
+    if (!c.exists) {
+        box.replaceChildren(el('p', {className: 'hint', textContent:
+            'The project has no requirements list (session menu → Requirements…).'}));
+        return;
+    }
+    const rows = (c.results ?? []).map(r => el('li', {className: r.ok ? 'req-ok' : 'req-bad'},
+        el('span', {className: 'req-mark', textContent: r.ok ? '✓ ' : '✗ '}),
+        `${r.name}${r.op ? ` ${r.op} ${r.version}` : ''}: ` +
+        (r.ok ? (r.have ? `has ${r.have}` : 'installed') : r.problem)));
+    const head = c.results?.length
+        ? (c.missing ? `On ${c.host}, ${c.missing} of ${c.results.length} missing or too old:` : `On ${c.host}, all ${c.results.length} present:`)
+        : 'The list has no requirements.';
+    box.replaceChildren(el('p', {textContent: head}), el('ul', {className: 'req-list'}, ...rows),
+        ...(c.errors ?? []).map(e => el('p', {className: 'error-text', textContent: e})));
+}
+
+// requirementsDialog edits the project's .session-workbench/requirements
+// (SPEC F16) and checks it on the session's agent host.
+async function requirementsDialog(s) {
+    const dlg = $('#dlg-reqs');
+    if (dlg.open) return;
+    let file;
+    try {
+        file = await Requirements(s.id);
+    } catch (err) {
+        return confirmDialog({title: 'Requirements', text: err?.message ?? String(err), ok: null});
+    }
+    const f = dlg.querySelector('form').elements;
+    const results = dlg.querySelector('.req-results');
+    dlg.querySelector('h2').textContent = `Requirements of “${s.data.name}”`;
+    dlg.querySelector('.reqs-where').textContent = `${file.path}${file.exists ? '' : ' (not made yet: saving makes it)'} — ` +
+        'one command per line, optionally with a version (go >= 1.26). It goes with the project (git), and Switch host… checks it on the new host.';
+    f.text.value = file.text;
+    results.replaceChildren();
+    const check = dlg.querySelector('button[name=check]');
+    check.textContent = `Check on ${s.data.host}`;
+    check.onclick = async () => {
+        if (s.data.inactive) return results.replaceChildren(el('p', {textContent: 'The session is inactive: nothing is checked on its host.'}));
+        check.disabled = true;
+        results.replaceChildren(el('p', {textContent: `Checking on ${s.data.host}…`}));
+        try {
+            renderRequirements(results, await CheckRequirements(s.id, '', f.text.value));
+        } catch (err) {
+            results.replaceChildren(el('p', {className: 'error-text', textContent: err?.message ?? String(err)}));
+        } finally {
+            check.disabled = false;
+        }
+    };
+    await runDialog(dlg, () => SaveRequirements(s.id, f.text.value).then(p => toast(`Saved ${p}`)), f.text);
+}
+
+// switchDialog moves a session to another agent host (SPEC F16): its
+// Claude Code conversations and memory go along (newer wins, nothing is
+// deleted); the requirements are checked there first. A working copy is
+// fetched from the old host first (Get from agent); the new host's Remote
+// tab then offers Send to agent.
+async function switchDialog(s) {
+    const dlg = $('#dlg-hostswitch');
+    if (dlg.open) return;
+    let targets;
+    try {
+        targets = await SwitchTargets(s.id);
+    } catch (err) {
+        return confirmDialog({title: 'Switch host', text: err?.message ?? String(err), ok: null});
+    }
+    const f = dlg.querySelector('form').elements;
+    const results = dlg.querySelector('.req-results');
+    const out = dlg.querySelector('.build-output');
+    const old = s.data.host;
+    dlg.querySelector('h2').textContent = `Switch “${s.data.name}” to another host`;
+    dlg.querySelector('.switch-intro').textContent = `It is on ${old} now. Its Claude Code conversations and memory for this ` +
+        'project go along (files the new host lacks or has older; nothing is deleted there), and so do its trust and allowed ' +
+        'tools. Notes, Q&A and recordings stay as they are (they are on this computer).';
+    const usable = targets.filter(t => !t.problem);
+    f.host.replaceChildren(...targets.map(t => el('option', {value: t.name, disabled: !!t.problem,
+        textContent: t.name + (t.previous ? '  (worked there before)' : '') + (t.problem ? `  — ${t.problem}` : '')})));
+    f.host.value = usable[0]?.name ?? '';
+    dlg.querySelector('.endold-text').textContent = s.data.tmux
+        ? `End tmux session ${s.data.tmux_name} on ${old} first (stops claude there, which would go on writing)` : '';
+    f.endold.closest('label').hidden = !s.data.tmux;
+    f.endold.checked = !!s.data.tmux;
+    const sync = s.data.files === 'sync';
+    dlg.querySelector('.getfirst').hidden = !sync;
+    dlg.querySelector('.getfirst-text').textContent = `Get the working copy's changes from ${old} first (Get from agent)`;
+    f.getfirst.checked = sync;
+    out.hidden = true;
+    out.textContent = '';
+    const where = dlg.querySelector('.switch-where');
+    let seq = 0;
+    const show = async () => {
+        const t = targets.find(t => t.name === f.host.value);
+        if (!t) {
+            where.textContent = 'No other host can take this session (Add host… first).';
+            return results.replaceChildren();
+        }
+        const mode = {shared: 'shared folder', sshfs: 'live share', sync: 'working copy'}[t.files] ?? t.files;
+        where.textContent = `There: ${t.remote_path} (${mode})` +
+            (t.files === 'sync' ? ' — the Remote tab offers Send to agent when the copy is not there yet.' : '.');
+        const n = ++seq;
+        results.replaceChildren(el('p', {textContent: `Checking the requirements on ${t.name}…`}));
+        const c = await CheckRequirements(s.id, t.name, '').catch(err => ({error: err?.message ?? String(err)}));
+        if (n !== seq) return;
+        if (c.error) results.replaceChildren(el('p', {className: 'error-text', textContent: `Requirements not checked: ${c.error}`}));
+        else renderRequirements(results, c);
+    };
+    f.host.onchange = show;
+    show();
+    const ok = await runDialog(dlg, async () => {
+        const host = f.host.value;
+        if (!host) throw new Error('There is no host to switch to.');
+        if (sync && f.getfirst.checked) {
+            await getFromAgent(s); // its own window, on top of this one
+            if (!await confirmDialog({title: `Switch to ${host} now?`, text: `The working copy's changes from ${old} are taken (or ` +
+                'you chose not to). Switch the session now?', ok: 'Switch'})) throw new Error('Not switched.');
+        }
+        s.tab('remote')?.dropView(); // its terminal is on the old host
+        out.hidden = false;
+        out.textContent = '';
+        EventsOn(`switch:${s.id}`, chunk => {
+            out.textContent += chunk.replaceAll('\r\n', '\n');
+            out.scrollTop = out.scrollHeight;
+        });
+        try {
+            const rep = await SwitchHost(s.id, host, f.endold.checked);
+            const what = rep.found ? `${rep.conversations} conversations, ${rep.files} files (${rep.memory} memory)` +
+                (rep.config ? ', settings merged' : '') : 'no Claude state to copy';
+            toast(`“${s.data.name}” is on ${host} now: ${what}` + (rep.notes?.length ? ` — ${rep.notes.join('; ')}` : ''));
+        } finally {
+            EventsOff(`switch:${s.id}`);
+        }
+    }, f.host);
+    if (!ok) return;
+    await app.reload();
+    if (app.active === s) s.show();
 }
 
 // setSessionActive activates or deactivates a session (no questions).

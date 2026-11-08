@@ -41,3 +41,28 @@
   session menu list (deactivate / activate), F3 (inactive sessions never connect at start),
   README's connect_on_start comment and Settings' "all at startup" option (not inactive
   sessions).
+- **Committed** e57ac67 (cross-check docs); pushed and tagged v1.1.10.
+- **v1.1.10 CI** (tagged on e57ac67): success on windows-amd64, macos-universal, linux-amd64
+  and release; all five release files. The first release with inactive sessions and the Hosts
+  heading.
+- **User:** "start the two hosts feature, ask the questions" — checked first: Claude Code files a
+  project's conversations and memory in `~/.claude/projects/<path with every non-alphanumeric
+  character as ->/`, its trust and allowed tools under `projects["<path>"]` in ~/.claude.json;
+  and since the app runs on one laptop, the project directory is there: shared folder and live
+  share hosts need no code copied (a correction to the earlier "by git" answer, which the user
+  accepted). Decided (questions): one session, several hosts (*Switch host…*); the code by the
+  file mode; Claude state merged, newer wins; a requirements list with optional versions,
+  checked on demand and before a switch.
+  - Built (v1.1.11, SPEC F16): internal/handover (both sides fetched with the built-in
+    transfer, newer files sent, the folder renamed for the new path, ~/.claude.json merged and
+    replaced only if unchanged since fetched), internal/requirements, session.SetHost /
+    ResolveOn / CanSwitch and `hosts`, switch.go, the Switch host… and Requirements… windows.
+  - Found: `go --version` prints a usage error and `tmux` wants `-V` — the check now takes the
+    first of --version, version, -V that succeeds, never an error text. My new window's id
+    `dlg-switch` clashed with the quick switcher's: the window did not open and nothing said
+    so; renamed, and unexpected errors in actions now show as a message.
+  - Tests: TestSSHSwitch (two homes on localhost), the requirements and session tests,
+    gui-smoke-switch.sh (9 checks; it touches only its own folders in ~/.claude/projects and
+    never writes ~/.claude.json). Container and compose (Delete one row lower), record, colors,
+    inactive, switcher, hosts pass; export and sync failed once while the container builds ran
+    alongside (the menu did not open in time) and pass on their own.

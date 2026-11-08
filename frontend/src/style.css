@@ -2603,3 +2603,24 @@ dialog h2.drag-handle {
 .inactive-note p {
     margin: 0 0 12px;
 }
+
+/* Requirements checked on a host (Requirements…, Switch host…): one line
+   each, ✓ or ✗ before it; the text stays black. */
+.req-list {
+    margin: 4px 0 8px;
+    padding-left: 1.2em;
+    list-style: none;
+}
+
+.req-bad .req-mark {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.req-ok .req-mark {
+    font-weight: 600;
+}
+
+.error-text {
+    color: var(--danger);
+}

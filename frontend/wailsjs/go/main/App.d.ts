@@ -11,6 +11,7 @@ import {qa} from '../models';
 import {config} from '../models';
 import {share} from '../models';
 import {spell} from '../models';
+import {handover} from '../models';
 import {syncer} from '../models';
 import {forge} from '../models';
 
@@ -23,6 +24,8 @@ export function BackupNow(arg1:string):Promise<void>;
 export function BackupStatus():Promise<Record<string, backup.Status>>;
 
 export function BrowseDirectory(arg1:string):Promise<string>;
+
+export function CheckRequirements(arg1:string,arg2:string,arg3:string):Promise<main.RequirementsCheck>;
 
 export function ClearNotification(arg1:string):Promise<void>;
 
@@ -126,6 +129,8 @@ export function RenamePage(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RepoCheck(arg1:string):Promise<gitstatus.Audit>;
 
+export function Requirements(arg1:string):Promise<main.RequirementsFile>;
+
 export function RestoreBackup(arg1:string):Promise<void>;
 
 export function RevealPath(arg1:string,arg2:string):Promise<void>;
@@ -139,6 +144,8 @@ export function SaveGroup(arg1:string,arg2:string):Promise<void>;
 export function SaveHost(arg1:string,arg2:config.Host):Promise<void>;
 
 export function SavePage(arg1:string,arg2:string,arg3:string):Promise<notes.Note>;
+
+export function SaveRequirements(arg1:string,arg2:string):Promise<string>;
 
 export function SaveUI(arg1:config.UI):Promise<void>;
 
@@ -163,6 +170,10 @@ export function StartRemote(arg1:string,arg2:number,arg3:number):Promise<string>
 export function State():Promise<session.State>;
 
 export function StopShare(arg1:string):Promise<void>;
+
+export function SwitchHost(arg1:string,arg2:string,arg3:boolean):Promise<handover.Report>;
+
+export function SwitchTargets(arg1:string):Promise<Array<main.SwitchTarget>>;
 
 export function SyncGet(arg1:string):Promise<syncer.Fetched>;
 

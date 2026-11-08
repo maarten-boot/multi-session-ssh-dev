@@ -98,6 +98,7 @@ export namespace config {
 	    history: string;
 	    own_claude_volume: boolean;
 	    inactive: boolean;
+	    hosts: string[];
 	    local_dir?: boolean;
 	    remote_dir: string;
 	    tmux?: boolean;
@@ -125,6 +126,7 @@ export namespace config {
 	        this.history = source["history"];
 	        this.own_claude_volume = source["own_claude_volume"];
 	        this.inactive = source["inactive"];
+	        this.hosts = source["hosts"];
 	        this.local_dir = source["local_dir"];
 	        this.remote_dir = source["remote_dir"];
 	        this.tmux = source["tmux"];
@@ -485,6 +487,33 @@ export namespace gitstatus {
 
 }
 
+export namespace handover {
+	
+	export class Report {
+	    found: boolean;
+	    conversations: number;
+	    files: number;
+	    memory: number;
+	    config: boolean;
+	    notes: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.found = source["found"];
+	        this.conversations = source["conversations"];
+	        this.files = source["files"];
+	        this.memory = source["memory"];
+	        this.config = source["config"];
+	        this.notes = source["notes"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class ContainerComposeFile {
@@ -745,6 +774,60 @@ export namespace main {
 	        this.recording = source["recording"];
 	    }
 	}
+	export class RequirementsCheck {
+	    host: string;
+	    exists: boolean;
+	    results: requirements.Result[];
+	    errors: string[];
+	    missing: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequirementsCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.exists = source["exists"];
+	        this.results = this.convertValues(source["results"], requirements.Result);
+	        this.errors = source["errors"];
+	        this.missing = source["missing"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequirementsFile {
+	    path: string;
+	    text: string;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequirementsFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.text = source["text"];
+	        this.exists = source["exists"];
+	    }
+	}
 	export class SavedInfo {
 	    base: string;
 	    exists: boolean;
@@ -780,6 +863,26 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class SwitchTarget {
+	    name: string;
+	    files: string;
+	    remote_path: string;
+	    previous: boolean;
+	    problem: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SwitchTarget(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.files = source["files"];
+	        this.remote_path = source["remote_path"];
+	        this.previous = source["previous"];
+	        this.problem = source["problem"];
+	    }
 	}
 	export class SyncInfo {
 	    git: boolean;
@@ -1007,6 +1110,37 @@ export namespace qa {
 
 }
 
+export namespace requirements {
+	
+	export class Result {
+	    line: number;
+	    name: string;
+	    op: string;
+	    version: string;
+	    found: boolean;
+	    have: string;
+	    ok: boolean;
+	    problem: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.line = source["line"];
+	        this.name = source["name"];
+	        this.op = source["op"];
+	        this.version = source["version"];
+	        this.found = source["found"];
+	        this.have = source["have"];
+	        this.ok = source["ok"];
+	        this.problem = source["problem"];
+	    }
+	}
+
+}
+
 export namespace savedcopy {
 	
 	export class Copy {
@@ -1156,6 +1290,7 @@ export namespace session {
 	    tmux: boolean;
 	    tmux_own?: boolean;
 	    inactive: boolean;
+	    hosts: string[];
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1185,6 +1320,7 @@ export namespace session {
 	        this.tmux = source["tmux"];
 	        this.tmux_own = source["tmux_own"];
 	        this.inactive = source["inactive"];
+	        this.hosts = source["hosts"];
 	        this.error = source["error"];
 	    }
 	

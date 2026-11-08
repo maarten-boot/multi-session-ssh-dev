@@ -264,6 +264,41 @@
     </form>
 </dialog>
 
+<dialog id="dlg-hostswitch" class="wide">
+    <form method="dialog">
+        <h2></h2>
+        <p class="switch-intro"></p>
+        <label>Move to
+            <select name="host"></select>
+        </label>
+        <p class="hint switch-where"></p>
+        <div class="req-results"></div>
+        <label class="check"><input type="checkbox" name="endold"> <span class="endold-text"></span></label>
+        <label class="check getfirst"><input type="checkbox" name="getfirst"> <span class="getfirst-text"></span></label>
+        <pre class="build-output" hidden></pre>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Switch</button>
+            <button value="cancel" formnovalidate>Close</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-reqs" class="wide">
+    <form method="dialog">
+        <h2></h2>
+        <p class="hint reqs-where"></p>
+        <textarea name="text" class="dockerfile-text" rows="10" spellcheck="false" autocomplete="off"></textarea>
+        <div class="req-results"></div>
+        <div class="error"></div>
+        <div class="buttons">
+            <button value="ok" class="primary">Save</button>
+            <button type="button" name="check">Check on the host</button>
+            <button value="cancel" formnovalidate>Close</button>
+        </div>
+    </form>
+</dialog>
+
 <dialog id="dlg-settings" class="wide">
     <!-- novalidate: a bad value on a hidden page would block Save without a word;
          SaveUI checks everything and its message shows below. -->

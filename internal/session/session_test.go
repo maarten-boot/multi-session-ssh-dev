@@ -1181,3 +1181,63 @@ func TestInactive(t *testing.T) {
 		t.Error("unknown session accepted")
 	}
 }
+
+// TestSetHost: a session moves to another agent host; the old one goes to
+// the front of Hosts; ResolveOn gives the path there without saving;
+// container and plain-login hosts are refused; renaming a host renames it
+// in Hosts too.
+func TestSetHost(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	no := false
+	for _, h := range []config.Host{
+		{Name: "work", SSHTarget: "work", Files: FilesSync},
+		{Name: "home", SSHTarget: "home", Files: FilesSync, RemoteWorkdir: "/srv/dev"},
+		{Name: "esx", SSHTarget: "root@esx", LocalDir: &no},
+		{Name: "box", Kind: HostContainer},
+	} {
+		if err := m.SaveHost("", h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	proj := filepath.Join(dir, "app")
+	os.MkdirAll(proj, 0o755)
+	v, err := m.Create(NewSession{Host: "work", LocalPath: proj, StartMode: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := m.ResolveOn(v.ID, "home")
+	if err != nil || r.Host.Name != "home" || r.RemotePath != "/srv/dev/app-"+v.ID {
+		t.Fatalf("ResolveOn: %+v %v", r.RemotePath, err)
+	}
+	if cur, _ := m.Resolve(v.ID); cur.Host.Name != "work" {
+		t.Error("ResolveOn changed the host")
+	}
+	for _, bad := range []string{"esx", "box", "nope"} {
+		if err := m.SetHost(v.ID, bad); err == nil {
+			t.Errorf("moved to %s", bad)
+		}
+	}
+	if err := m.SetHost(v.ID, "home"); err != nil {
+		t.Fatal(err)
+	}
+	cur, _ := m.Resolve(v.ID)
+	if cur.Host.Name != "home" || strings.Join(cur.Hosts, ",") != "work" {
+		t.Errorf("after the switch: %s %v", cur.Host.Name, cur.Hosts)
+	}
+	if err := m.SetHost(v.ID, "work"); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ = m.Resolve(v.ID); cur.Host.Name != "work" || strings.Join(cur.Hosts, ",") != "home" {
+		t.Errorf("back: %s %v", cur.Host.Name, cur.Hosts)
+	}
+	if err := m.SaveHost("home", config.Host{Name: "house", SSHTarget: "home", Files: FilesSync}); err != nil {
+		t.Fatal(err)
+	}
+	if cur, _ = m.Resolve(v.ID); strings.Join(cur.Hosts, ",") != "house" || strings.Join(m.State().Sessions[0].Hosts, ",") != "house" {
+		t.Errorf("renamed host: %v", cur.Hosts)
+	}
+	if why := CanSwitch(config.Host{Kind: HostContainer}, config.Session{}); why == "" {
+		t.Error("a container host can switch")
+	}
+}

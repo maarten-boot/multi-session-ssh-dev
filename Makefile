@@ -55,7 +55,7 @@ test:
 # e.g. localhost).
 SSH_TARGET ?= localhost
 test-ssh:
-	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer
+	SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip|LiveShare' -v ./internal/remote ./internal/syncer ./internal/share ./internal/backup ./internal/xfer ./internal/handover
 	@echo "== again with the built-in transfer (as on Windows, without rsync)"
 	SW_NO_RSYNC=1 SW_SSH_TARGET=$(SSH_TARGET) go test -count=1 -run 'SSH|RoundTrip' -v ./internal/syncer ./internal/backup
 
@@ -139,6 +139,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-profile.sh build/bin/session-workbench $(SMOKE_OUT)-profile
 	$(XVFB) scripts/gui-smoke-login.sh build/bin/session-workbench $(SMOKE_OUT)-login
 	$(XVFB) scripts/gui-smoke-inactive.sh build/bin/session-workbench $(SMOKE_OUT)-inactive
+	$(XVFB) scripts/gui-smoke-switch.sh build/bin/session-workbench $(SMOKE_OUT)-switch
 
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first

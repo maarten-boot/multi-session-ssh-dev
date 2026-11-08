@@ -53,11 +53,13 @@ type View struct {
 	// Tmux: the Remote tab runs in tmux (else a plain ssh login that ends
 	// with the connection); TmuxOwn: the session's own setting (null:
 	// the host's).
-	Tmux    bool   `json:"tmux"`
-	TmuxOwn *bool  `json:"tmux_own"`
+	Tmux    bool  `json:"tmux"`
+	TmuxOwn *bool `json:"tmux_own"`
 	// Inactive: kept for later; nothing connects (config Session.Inactive).
-	Inactive bool   `json:"inactive"`
-	Error    string `json:"error"` // why the Remote tab cannot work, if it cannot
+	Inactive bool `json:"inactive"`
+	// Hosts: the other agent hosts it has worked on, the most recent first.
+	Hosts []string `json:"hosts"`
+	Error string   `json:"error"` // why the Remote tab cannot work, if it cannot
 }
 
 // State is everything the frontend needs to render.
@@ -223,7 +225,7 @@ func (m *Manager) State() State {
 		v := View{ID: se.ID, Name: se.Name, Description: se.Description, Host: se.Host, LocalPath: se.LocalPath, StartMode: se.StartMode,
 			ColorMode: se.ColorMode, Group: se.Group, TrustedGit: se.TrustedGit, TmuxName: remote.TmuxName(se.ID), Record: se.Record,
 			History: se.History, Commands: se.Commands, OwnClaudeVolume: se.OwnClaudeVolume, RemoteDir: se.RemoteDir,
-			Inactive: se.Inactive}
+			Inactive: se.Inactive, Hosts: se.Hosts}
 		v.TmuxOwn = se.Tmux
 		if h, ok := findHost(m.cfg, se.Host); ok {
 			v.Plain = !config.HasLocalDir(h, se)
@@ -843,6 +845,68 @@ func (m *Manager) TrustGit(id, fingerprint string) error {
 	})
 }
 
+// CanSwitch says why a session cannot move to another agent host, or ""
+// (SPEC F16): it needs a local directory, and neither side a container
+// host or a plain-login one.
+func CanSwitch(h config.Host, s config.Session) string {
+	switch {
+	case h.Kind == HostContainer:
+		return "a container host keeps Claude Code's data in a volume on this computer"
+	case !config.HasLocalDir(h, s):
+		return "its sessions are plain logins (no project directory)"
+	}
+	return ""
+}
+
+// ResolveOn resolves the session as if host were its agent host (for a
+// switch: the project's path there), without changing anything.
+func (m *Manager) ResolveOn(id, host string) (Resolved, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	i := indexOf(m.cfg, id)
+	if i < 0 {
+		return Resolved{}, fmt.Errorf("unknown session %q", id)
+	}
+	s := m.cfg.Sessions[i]
+	h, ok := findHost(m.cfg, host)
+	if !ok {
+		return Resolved{}, fmt.Errorf("host %q is not configured", host)
+	}
+	if why := CanSwitch(h, s); why != "" {
+		return Resolved{}, fmt.Errorf("host %s: %s", host, why)
+	}
+	s.Host = host
+	return resolve(m.cfg, s)
+}
+
+// SetHost moves a session to another agent host; the old one goes first
+// into Hosts (the new one leaves it).
+func (m *Manager) SetHost(id, host string) error {
+	if _, err := m.ResolveOn(id, host); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update(func(c *config.Config) error {
+		i := indexOf(c, id)
+		if i < 0 {
+			return fmt.Errorf("unknown session %q", id)
+		}
+		s := &c.Sessions[i]
+		if s.Host == host {
+			return nil
+		}
+		hosts := []string{s.Host}
+		for _, h := range s.Hosts {
+			if h != host && !slices.Contains(hosts, h) {
+				hosts = append(hosts, h)
+			}
+		}
+		s.Host, s.Hosts = host, hosts
+		return nil
+	})
+}
+
 // SetActive activates or deactivates a session (config Session.Inactive).
 func (m *Manager) SetActive(id string, active bool) error {
 	m.mu.Lock()
@@ -1143,6 +1207,11 @@ func (m *Manager) SaveHost(oldName string, h config.Host) error {
 		}
 		c.Hosts[i] = h
 		for j := range c.Sessions {
+			for k, o := range c.Sessions[j].Hosts { // the hosts it worked on before
+				if o == oldName {
+					c.Sessions[j].Hosts[k] = h.Name
+				}
+			}
 			if c.Sessions[j].Host == oldName {
 				c.Sessions[j].Host = h.Name
 			}

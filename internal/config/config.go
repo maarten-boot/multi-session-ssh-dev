@@ -91,6 +91,9 @@ type Session struct {
 	// start nothing, no live share, no notifications (session menu →
 	// Deactivate session… / Activate session).
 	Inactive bool `toml:"inactive,omitempty" json:"inactive"`
+	// Hosts are the other agent hosts the session has worked on, the most
+	// recent first (session menu → Switch host…); Host is the current one.
+	Hosts []string `toml:"hosts,omitempty" json:"hosts"`
 	// LocalDir overrides the host's local_dir: false is a plain login
 	// (no local_path), true a session with a directory on a host whose
 	// sessions are logins by default.

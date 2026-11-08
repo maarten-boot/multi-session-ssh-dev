@@ -22,6 +22,10 @@ export function BrowseDirectory(arg1) {
   return window['go']['main']['App']['BrowseDirectory'](arg1);
 }
 
+export function CheckRequirements(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CheckRequirements'](arg1, arg2, arg3);
+}
+
 export function ClearNotification(arg1) {
   return window['go']['main']['App']['ClearNotification'](arg1);
 }
@@ -226,6 +230,10 @@ export function RepoCheck(arg1) {
   return window['go']['main']['App']['RepoCheck'](arg1);
 }
 
+export function Requirements(arg1) {
+  return window['go']['main']['App']['Requirements'](arg1);
+}
+
 export function RestoreBackup(arg1) {
   return window['go']['main']['App']['RestoreBackup'](arg1);
 }
@@ -252,6 +260,10 @@ export function SaveHost(arg1, arg2) {
 
 export function SavePage(arg1, arg2, arg3) {
   return window['go']['main']['App']['SavePage'](arg1, arg2, arg3);
+}
+
+export function SaveRequirements(arg1, arg2) {
+  return window['go']['main']['App']['SaveRequirements'](arg1, arg2);
 }
 
 export function SaveUI(arg1) {
@@ -300,6 +312,14 @@ export function State() {
 
 export function StopShare(arg1) {
   return window['go']['main']['App']['StopShare'](arg1);
+}
+
+export function SwitchHost(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SwitchHost'](arg1, arg2, arg3);
+}
+
+export function SwitchTargets(arg1) {
+  return window['go']['main']['App']['SwitchTargets'](arg1);
 }
 
 export function SyncGet(arg1) {

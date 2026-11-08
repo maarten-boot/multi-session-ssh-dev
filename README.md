@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.10: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.11: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -525,6 +525,27 @@ Esc stops it; off with *Reconnect dropped connections automatically* in Settings
 Detaching tmux, ending the remote session or *Disconnect* does not reconnect; press Enter
 when you want to.
 
+**One project on two agent hosts** (say a machine at work and one at home, the app on your
+laptop). Session menu → **Switch host…** moves the session to another host: pick it (hosts it
+worked on before come first), see the project's path there and whether the project's
+requirements are met, and switch. Claude Code's conversations and memory for the project go
+along — `claude --resume` finds them there — and so do its trust and allowed tools; files the
+new host already has in a newer version are kept, nothing is deleted. The dialog ends the tmux
+session on the old host first (ticked), so claude there stops writing. The code: with a shared
+folder or a live share both hosts work on the directory on your laptop; a working copy is first
+fetched from the old host (*Get from agent*), and the new host's Remote tab offers *Send to
+agent*. Notes, Q&A and recordings are on your laptop and stay one set.
+
+**Requirements.** Session menu → **Requirements…** keeps a list of the software the project
+needs on its agent host in `.session-workbench/requirements` (it goes with the project):
+```
+go >= 1.26
+node >= 20
+make
+```
+*Check on <host>* runs it there over ssh (`command -v`, then `--version`, `version` or `-V`) and
+shows ✓ or ✗ per line; *Switch host…* checks it on the new host.
+
 **Inactive sessions.** A session you keep only for later can be parked: session menu →
 **Deactivate session…** disconnects its tabs and marks it inactive (⏸, "inactive" after its
 path, in italics). From then on it connects nothing — not when the app starts (also with
@@ -554,7 +575,7 @@ the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*
 work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history; for a plain login its remote folder),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
-*Export…* (see *Export and import a session*), *Disconnect*, *Deactivate session…* (see *Inactive sessions*), *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
+*Export…* (see *Export and import a session*), *Switch host…* and *Requirements…* (see *One project on two agent hosts*), *Disconnect*, *Deactivate session…* (see *Inactive sessions*), *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
 session too, for a container session removing its container and its services — their data only with its own tick — and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
 container sessions *Dockerfile…*, *Services (compose)…* and *Stop container…*. Drag sessions to reorder
@@ -719,7 +740,9 @@ computer*; every session under it gets a container built from its own Dockerfile
   `sw-<session id>`. Rootless Docker is not supported (your files would belong to root
   inside); Windows is not supported yet.
 
-**Claude backups.** The app copies each agent host's Claude Code data — `~/.claude`
+**Claude backups.** (They are for a crashed or reinstalled host: a restore puts a host's
+whole Claude data back. To take one project to another host, use *Switch host…*.) The app
+copies each agent host's Claude Code data — `~/.claude`
 (settings, CLAUDE.md, memory, conversations, skills, agents, history, checkpoints) and
 `~/.claude.json` — to this computer with rsync over ssh. It checks a minute after it
 starts and then every minute; a host is backed up when `claude_backup_every` (default an
@@ -964,6 +987,7 @@ record = "on"                             # optional: "on" / "off" overrides [ui
 history = "off"                           # optional: "on" / "off" overrides [ui] private_history
 # own_claude_volume = true                # a container session's own Claude Code login (default: the shared sw-claude)
 # inactive = true                         # kept for later: connects nothing until activated (session menu)
+# hosts = ["work"]                        # the other agent hosts it worked on (Switch host…), most recent first
 local_init = "git status"                 # optional: typed into the Local tab
 links = [{ name = "Staging", url = "https://staging.example.com" }]   # optional: Web tab
 commands = [{ name = "test", command = "make test" }]                 # optional: before [[ui.commands]] in the menu

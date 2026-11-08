@@ -176,6 +176,20 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.11 (2026-11-08): one project on several agent hosts (SPEC F16; the user: "i work on one host
+  at work and on another at home, is the current backup restore sufficient for that?" — no).
+  Decided (questions): one laptop with the app; one session, several hosts, *Switch host…*;
+  the code by the file mode (shared folder and live share: nothing to copy; a working copy: Get
+  from agent first, Send on the new host), no git by the app; Claude's conversations and memory
+  merged with newer wins, nothing deleted; a requirements list per project
+  (`.session-workbench/requirements`, commands with optional versions) checked on demand and
+  before a switch. My choices: the switch ends the old host's tmux session (ticked by default),
+  container hosts and plain logins take no part, the project's `~/.claude.json` entry is merged
+  and the file replaced only if claude did not change it meanwhile. Also: an unexpected error in
+  an action now shows as a message (it did nothing before). Tests: handover (TestEncode,
+  TestChanges, TestMergeConfig, TestSSHSwitch via make test-ssh), requirements (TestParse,
+  TestCompare, TestEvaluate, TestScript), session (TestSetHost), gui-smoke-switch.sh; the new
+  menu row moved Delete session… in gui-smoke-container and -compose.
 - v1.1.10 (2026-11-08): inactive sessions (SPEC F15; the user: "some sessions remain in this app
   but are there only for holding until further development is required … does not need to
   reconnect to the remote (and to claude) when the app is restarted"). Decided (questions):
@@ -288,17 +302,6 @@ implementation differs from the original plan.
   Settings name a Claude Code model.
 
 ## Next (ideas, not started)
-- **One project on two agent hosts** (asked 2026-11-08: "i work on one host at work and on
-  another at home, is the current backup restore sufficient for that?" — no: a Claude backup is
-  the whole host's ~/.claude, a restore overwrites the other host's state for all projects,
-  transcripts and project memory are filed by the project's path, and it is one-way). Decided
-  (questions): one laptop with the app, two agent hosts; a per-session move to another host
-  that copies this project's Claude Code conversations and memory (`~/.claude/projects/<path>/`,
-  the path adjusted when it differs) and handles the code by git (check for uncommitted or
-  unpushed work on the old host, pull on the new one; asks, never forces); a requirements list
-  per project (`.session-workbench/requirements`) checked over ssh on a host, showing what is
-  missing. Open: the dialog, whether the session keeps both hosts (switch back and forth) or
-  moves, and the requirements format.
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
   between interactive prompts.
   - Frontend: hook into `frontend/src/terminal.js`. Explore xterm.js markers
