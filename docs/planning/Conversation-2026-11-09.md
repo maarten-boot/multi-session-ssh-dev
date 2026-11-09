@@ -26,3 +26,11 @@
   gui-smoke-startmode expected the start command literally ("claude --continue || claude"),
   which now carries the hooks after each claude — the check looks for
   "--continue || claude --settings" (4 checks pass).
+
+## Cross-check v1.1.14 (user: "pushed, do a crosscheck")
+- SPEC F17, README, the Settings hint and the code agree (menu items, the question for a busy
+  claude, containers while running, the first check at start, /proc without ps).
+- Gaps, documentation only: SPEC F15 described the inactive session's menu as Activate in
+  place of "both" (Disconnect, Deactivate) — now also Stop claude now / Resume claude, which an
+  inactive session does not offer; the template Dockerfile's description (SPEC C2, README)
+  lacked procps. Fixed; no code change.

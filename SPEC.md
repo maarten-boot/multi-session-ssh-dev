@@ -406,10 +406,11 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   why) — and show a notice with *Activate session* instead; Notes, Files, Web and Q&A work.
   The backend refuses StartLocal and StartRemote for it, mounts no live share (none at start,
   deactivating stops one), sends no notifications, and fetches nothing from its agent host
-  (export lists its Remote history as missing; no requirements check; no *Switch host…*). Session menu: *Deactivate session…* (after
-  *Disconnect*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
+  (export lists its Remote history as missing; no requirements check; no *Switch host…*, no
+  *Stop claude now*). Session menu: *Deactivate session…* (after *Disconnect* and, for a session
+  running claude, *Stop claude now* / *Resume claude*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
   container session stop its container and services) and, for an inactive one, *Activate
-  session* in place of both. The list marks it with ⏸ and "· inactive" after its path, in
+  session* in place of those. The list marks it with ⏸ and "· inactive" after its path, in
   italics (black text); its balloon says so. Edit… keeps the setting; an import makes an
   active session.
 - F17. Stopping claude (internal/idle, idlestop.go). `[ui] idle_stop` (Settings →
@@ -514,7 +515,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - C2. Image, container, hostname and ssh alias `sw-<id>`, labelled `io.session-workbench.session=<id>`.
   Built from `.session-workbench/Dockerfile` in the session directory (context: that folder),
   else `<data dir>/containers/<id>/Dockerfile` (context: that folder; written from the template
-  the first time: Ubuntu 24.04, openssh-server, tmux, git, build tools, Claude Code), with
+  the first time: Ubuntu 24.04, openssh-server, tmux, procps, git, build tools, Claude Code), with
   `--build-arg SW_USER/SW_UID/SW_GID` (your name — when Linux accepts it, else `dev` — and ids),
   `--build-context sw-certs=<the PEM files of /usr/local/share/ca-certificates and
   /etc/pki/ca-trust/source/anchors>` and `--build-context sw-tools=<your Claude Code, Linux only,

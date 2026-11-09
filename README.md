@@ -694,7 +694,7 @@ computer*; every session under it gets a container built from its own Dockerfile
 - **The Dockerfile**: session menu → **Dockerfile…** edits it — `.session-workbench/Dockerfile`
   in the session directory (versioned with the project, shared with your team) or, when the
   project has none, a copy in the app's data folder (the project's file wins while it exists). The first one comes from a template:
-  Ubuntu 24.04 with sshd, tmux, git, build tools and Claude Code. Buttons add **Go, Node.js,
+  Ubuntu 24.04 with sshd, tmux, ps, git, build tools and Claude Code. Buttons add **Go, Node.js,
   Python, Rust, Java** or more build tools as their own block; add whatever else the project
   needs above the part marked *Needed by Session Workbench* (the user, sshd and Claude Code;
   keep it). **Save and rebuild** builds the image again (the output shows in the window) and

@@ -187,7 +187,8 @@ implementation differs from the original plan.
   (ubuntu has none; the template now installs procps). Tests: idle TestProcsWithoutPS,
   container TestRealIdle (a real Podman container, fake claude via sed), gui-smoke-idle.sh
   (29 checks: Stop claude now on screen, Resume claude, the question for a busy claude);
-  gui-smoke-startmode expects the hooks after each claude.
+  gui-smoke-startmode expects the hooks after each claude. Cross-check: SPEC F15 (the inactive
+  menu) and the template's package list (procps) updated.
 - v1.1.13 (2026-11-08): stopping an idle claude (SPEC F17; the user: "can we detect when the
   claude process on the remote is ready for next input but no input is coming for a
   configurable time (say 5 minuts) would it then make sense to halt the claude process and
