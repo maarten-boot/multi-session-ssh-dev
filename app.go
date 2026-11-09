@@ -1024,9 +1024,9 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if r.Inactive {
 		return "", session.ErrInactive
 	}
-	if idleApplies(r) && config.IdleStop(a.sessions.Config().UI, r.Session) > 0 {
-		// Hooks tell when claude waits for input (only used when a new
-		// tmux session starts it).
+	if idleApplies(r) {
+		// Hooks tell when claude waits for input, for stopping it (only
+		// used when a new tmux session starts it).
 		r.StartCommand = idle.WithHooks(r.StartCommand, r.ID)
 	}
 	if session.FilesMode(r.Host) == session.FilesSSHFS && !r.Plain {

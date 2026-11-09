@@ -9,7 +9,7 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
-Status: v1.1.13: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.14: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
@@ -546,17 +546,19 @@ make
 *Check on <host>* runs it there over ssh (`command -v`, then `--version`, `version` or `-V`) and
 shows ✓ or ✗ per line; *Switch host…* checks it on the new host.
 
-**Stopping an idle claude.** Every claude takes some 300–400 MB on its agent host, also while
-it only waits for you. Settings → Terminals → *Stop claude when it waited for input* (never by
-default; 5 minutes to 2 hours) stops a session's claude that finished its turn and got no input
-for that long, and resumes it (`claude --resume`, the same conversation) when you open the
-session; *Edit…* sets a session's own time or *never*. The list marks a stopped session with 💤
-and its Remote tab says "claude stopped after … without input". It is never the session on
+**Stopping claude.** Every claude takes some 300–400 MB on its agent host (in a container: on
+your computer), also while it only waits for you. Settings → Terminals → *Stop claude when it
+waited for input* (never by default; 5 minutes to 2 hours) stops a session's claude that
+finished its turn and got no input for that long, and resumes it (`claude --resume`, the same
+conversation) when you open the session; *Edit…* sets a session's own time or *never*. Session
+menu → **Stop claude now** stops it at once (when claude is busy it asks first), **Resume
+claude** brings it back (or open the session again later). The list marks a stopped session
+with 💤 and its Remote tab says how it was stopped. An idle stop is never the session on
 screen, nor one you looked at within that time, nor a claude that asks a question or runs a
-command. The app learns this from Claude Code hooks it passes with `--settings` when it starts
-claude (your own Claude settings stay as they are), so it applies to claude started after you
-set it, in sessions with tmux on an ssh host (not container hosts) whose start command runs
-`claude`. What is lost: text typed into claude but not sent, and choices made in that claude
+command; a container keeps running, only claude stops. The app learns this from Claude Code
+hooks it passes with `--settings` when it starts claude (your own Claude settings stay as they
+are), in sessions with tmux (on an ssh host or in a container) whose start command runs
+`claude`; a claude started before v1.1.14 has none: end the remote session once. What is lost: text typed into claude but not sent, and choices made in that claude
 such as a permission mode switched with Shift+Tab (start options like `--model` stay).
 
 **Inactive sessions.** A session you keep only for later can be parked: session menu →
@@ -589,7 +591,7 @@ the files (*Files: shared folder*, *live share (sshfs), mounted* / *not mounted*
 work); then *Edit…* (name, description, folder, start mode, colors, own commands, recording, shell history; for a plain login its remote folder),
 *Move up*, *Move down*, *Move to folder…*, *Use mono colors (no colors)* / *Use full colors*,
 *Record the Remote tab* / *Stop recording the Remote tab*, *Open recordings folder*,
-*Export…* (see *Export and import a session*), *Switch host…* and *Requirements…* (see *One project on two agent hosts*), *Disconnect*, *Deactivate session…* (see *Inactive sessions*), *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
+*Export…* (see *Export and import a session*), *Switch host…* and *Requirements…* (see *One project on two agent hosts*), *Disconnect*, *Stop claude now* / *Resume claude* (see *Stopping claude*), *Deactivate session…* (see *Inactive sessions*), *End remote session…* (not for a session without tmux) and *Delete session…* (optionally ending its tmux
 session too, for a container session removing its container and its services — their data only with its own tick — and for a working copy deleting its saved agent copy; its notes are kept). Working-copy sessions also have *Send to agent…*,
 *Get from agent…* and the full transfers (see *Working copies*), live-share sessions *Stop sharing*,
 container sessions *Dockerfile…*, *Services (compose)…* and *Stop container…*. Drag sessions to reorder

@@ -29,7 +29,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
-    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -1516,6 +1516,9 @@ function sessionMenu(s, x, y) {
         '-',
         ...(s.data.inactive ? [{label: 'Activate session', action: () => setSessionActive(s, true)}] : [
             {label: 'Disconnect', action: () => s.disconnect()},
+            ...(!s.data.claude ? [] : app.idleStopped?.has(s.id)
+                ? [{label: 'Resume claude', action: () => resumeClaude(s)}]
+                : [{label: 'Stop claude now', action: () => stopClaude(s)}]),
             {label: 'Deactivate session…', action: () => deactivateSession(s)},
         ]),
         ...(s.data.tmux ? [{label: 'End remote session…', danger: true, action: () => endRemote(s)}] : []),
@@ -1762,10 +1765,10 @@ async function sessionDialog(s = null, presetHost = null, presetGroup = null) {
     f.elements.history.value = s?.data.history ?? '';
     f.elements.history.options[0].textContent = `default (${app.state.ui.private_history !== false ? 'its own' : 'shared'}, from Settings)`;
     f.elements.history.closest('label').hidden = !editing;
-    // Stopping an idle claude (SPEC F17): ssh hosts with tmux only.
+    // Stopping an idle claude (SPEC F17): sessions running claude in tmux.
     fillIdleChoices(f.elements.idle_stop, s?.data.idle_stop ?? '',
         `default (${idleLabel(app.state.ui.idle_stop)}, from Settings)`);
-    f.elements.idle_stop.closest('label').hidden = !editing || !s.data.tmux || s.data.files === 'container';
+    f.elements.idle_stop.closest('label').hidden = !editing || !s.data.claude;
     // Container sessions: the ~/.claude volume (takes effect when the
     // container is made again: Dockerfile… → Rebuild).
     const inBox = editing && app.state.hosts.find(h => h.name === s.data.host)?.kind === 'container';
@@ -2775,6 +2778,26 @@ async function switchDialog(s) {
     if (!ok) return;
     await app.reload();
     if (app.active === s) s.show();
+}
+
+// stopClaude stops the session's claude now (SPEC F17), after asking when
+// it is busy; it resumes when the session is opened again, or with Resume
+// claude.
+async function stopClaude(s) {
+    let res = await StopClaude(s.id, false).catch(err => toast(err?.message ?? String(err), true));
+    if (!res) return;
+    if (res.busy) {
+        if (!await confirmDialog({title: `Stop claude in “${s.data.name}”?`,
+            text: `${res.busy}. Stopping ends that; what it was doing is lost (the conversation so far is kept).`,
+            ok: 'Stop claude'})) return;
+        res = await StopClaude(s.id, true).catch(err => toast(err?.message ?? String(err), true));
+    }
+    if (res?.stopped) toast(`claude stopped in “${s.data.name}” (Resume claude, or open the session again)`);
+}
+
+// resumeClaude resumes a stopped claude (SPEC F17).
+async function resumeClaude(s) {
+    await ResumeClaude(s.id).catch(err => toast(err?.message ?? String(err), true));
 }
 
 // fillIdleChoices fills an idle time select (SPEC F17; see idle.js).

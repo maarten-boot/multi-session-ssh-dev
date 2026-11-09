@@ -135,6 +135,8 @@ export function Requirements(arg1:string):Promise<main.RequirementsFile>;
 
 export function RestoreBackup(arg1:string):Promise<void>;
 
+export function ResumeClaude(arg1:string):Promise<void>;
+
 export function RevealPath(arg1:string,arg2:string):Promise<void>;
 
 export function SaveContainerCompose(arg1:string,arg2:string,arg3:boolean):Promise<string>;
@@ -172,6 +174,8 @@ export function StartLocal(arg1:string,arg2:number,arg3:number):Promise<string>;
 export function StartRemote(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function State():Promise<session.State>;
+
+export function StopClaude(arg1:string,arg2:boolean):Promise<main.StopResult>;
 
 export function StopShare(arg1:string):Promise<void>;
 

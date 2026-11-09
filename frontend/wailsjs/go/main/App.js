@@ -242,6 +242,10 @@ export function RestoreBackup(arg1) {
   return window['go']['main']['App']['RestoreBackup'](arg1);
 }
 
+export function ResumeClaude(arg1) {
+  return window['go']['main']['App']['ResumeClaude'](arg1);
+}
+
 export function RevealPath(arg1, arg2) {
   return window['go']['main']['App']['RevealPath'](arg1, arg2);
 }
@@ -316,6 +320,10 @@ export function StartRemote(arg1, arg2, arg3) {
 
 export function State() {
   return window['go']['main']['App']['State']();
+}
+
+export function StopClaude(arg1, arg2) {
+  return window['go']['main']['App']['StopClaude'](arg1, arg2);
 }
 
 export function StopShare(arg1) {

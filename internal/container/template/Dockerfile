@@ -19,7 +19,7 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # ---- The project's software ----
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        openssh-server tmux git ca-certificates curl less nano sudo \
+        openssh-server tmux procps git ca-certificates curl less nano sudo \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
 

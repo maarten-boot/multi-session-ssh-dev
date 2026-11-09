@@ -107,7 +107,7 @@ func TestSSHIdle(t *testing.T) {
 
 	stop := func(st State) {
 		t.Helper()
-		s, err := StopScript(st, tn, dir, time.Second)
+		s, err := StopScript(st, tn, dir, time.Second, IdleNotice(time.Second))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,6 +157,27 @@ func TestSSHIdle(t *testing.T) {
 	if last := lines[len(lines)-1]; len(lines) != 2 || !strings.Contains(last, "--resume conv-xyz") || strings.Contains(last, "--continue") {
 		t.Errorf("args: %q", args)
 	}
+
+	// Stopped now while busy (forced): the command it ran ends too.
+	os.WriteFile(filepath.Join(dir, "busy"), nil, 0o644)
+	st = waitFor("busy again", func(s State) bool { return s.Busy > 0 })
+	s, err := StopScript(st, tn, dir, 0, NowNotice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, code := run(s); code != 0 {
+		t.Fatalf("stop now: exit %d", code)
+	}
+	os.Remove(filepath.Join(dir, "busy"))
+	st = waitFor("stopped now", func(s State) bool { return s.Stopped && !s.Alive })
+	left()
+	if out, _ := run(`ps -A -o args= | grep -c '[:] shell-snapshots'`); strings.TrimSpace(out) != "0" {
+		t.Errorf("its command still runs: %s", out)
+	}
+	if code := resume(st); code != 0 {
+		t.Fatalf("resume after stop now: exit %d", code)
+	}
+	waitFor("resumed again", func(s State) bool { return !s.Stopped && s.Alive })
 
 	// Taken over by hand: something runs in the shell of the stopped pane.
 	time.Sleep(1100 * time.Millisecond)

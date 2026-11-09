@@ -868,6 +868,20 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class StopResult {
+	    stopped: boolean;
+	    busy: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StopResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.stopped = source["stopped"];
+	        this.busy = source["busy"];
+	    }
+	}
 	export class SwitchTarget {
 	    name: string;
 	    files: string;
@@ -1297,6 +1311,7 @@ export namespace session {
 	    tmux: boolean;
 	    tmux_own?: boolean;
 	    inactive: boolean;
+	    claude: boolean;
 	    hosts: string[];
 	    error: string;
 	
@@ -1328,6 +1343,7 @@ export namespace session {
 	        this.tmux = source["tmux"];
 	        this.tmux_own = source["tmux_own"];
 	        this.inactive = source["inactive"];
+	        this.claude = source["claude"];
 	        this.hosts = source["hosts"];
 	        this.error = source["error"];
 	    }

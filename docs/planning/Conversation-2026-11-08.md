@@ -122,3 +122,7 @@
 - Gap: importing a session (F13) did not carry its own `idle_stop`, while record and history
   come along. Fixed in export.go (an invalid value is dropped with a note); SPEC F13 lists the
   idle time; gui-smoke-export.sh checks it (37 checks pass).
+
+## CI v1.1.13 (user: "pushed and tagged v1.1.13, check the CI build")
+- The tag points at 925aab9. Run 42528238582: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip).

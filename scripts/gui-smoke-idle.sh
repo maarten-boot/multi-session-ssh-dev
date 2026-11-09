@@ -7,6 +7,9 @@
 # the session on screen ("shown", same start command) is not stopped.
 # Opening "fake" resumes it with --resume <conversation>; the mark goes;
 # "shown", which left the screen then, counts as idle from then on.
+# Session menu → Stop claude now on the session on screen: stopped at
+# once and it stays so (not resumed while on screen); Resume claude brings
+# it back. A busy claude (a command runs) is stopped after a question.
 # Edit… offers the session's own idle time; Settings the global one
 # (set to never and saved).
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-idle.sh <binary> <outdir>
@@ -23,7 +26,11 @@ while [ $# -gt 0 ]; do [ "$1" = --settings ] && { settings=$2; shift; }; shift; 
 cmd=$(printf '%s' "$settings" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hooks"]["SessionStart"][0]["hooks"][0]["command"])')
 printf '{"session_id":"conv-%s","transcript_path":"%s/tx.jsonl"}' "$(basename "$here")" "$here" | sh -c "$cmd"
 echo "fake claude ready"
-while :; do sleep 1; done
+while :; do
+	# busy: "a Bash tool command" runs (shell-snapshots in its arguments)
+	if [ -f "$here/busy" ]; then sh -c ': shell-snapshots; sleep 2'; fi
+	sleep 1
+done
 SH
 chmod +x $OUT/bin/claude
 echo '{}' >$OUT/p1/tx.jsonl; echo '{}' >$OUT/p2/tx.jsonl
@@ -101,14 +108,42 @@ sleep 8
 check "the session that left the screen is not stopped at once" test ! -f $ST/$B.stopped
 check "its claude still runs" fake_runs $B
 
-# Edit…: the session's own idle time.
 menu() { sleep 0.3; for c in "$@"; do xdotool key "$c"; sleep 0.15; done; xdotool key Return; sleep 1.5; }
+# Stop claude now ("fake" is on screen): S → Switch host…, Stop claude now.
+xdotool mousemove 114 175 click 3; menu s s
+sleep 3
+shot 4-stopped-now
+check "Stop claude now: stopped at once" stopped
+check "its claude ended" fake_gone $A
+in_pane "the pane says how it comes back" $A "claude stopped from Session Workbench"
+sleep 8
+check "on screen it stays stopped" stopped
+# Resume claude: R → Record the Remote tab, Requirements…, Resume claude.
+xdotool mousemove 114 175 click 3; menu r r r
+sleep 4
+check "Resume claude: running again" fake_runs $A
+check "not stopped any more" not_stopped
+check "resumed with --resume" grep -q -- "--resume conv-p1" <(tail -1 $OUT/p1/args)
+# Busy: a command runs under claude.
+touch $OUT/p1/busy; sleep 3
+xdotool mousemove 114 175 click 3; menu s s
+sleep 2
+shot 5-busy-question
+check "a busy claude is not stopped without asking" fake_runs $A
+k Return; sleep 4                                         # Stop claude
+check "after the question it is stopped" stopped
+check "and the command it ran ended too" sh -c "! pgrep -f '[:] shell-snapshots' >/dev/null"
+rm -f $OUT/p1/busy
+xdotool mousemove 114 175 click 3; menu r r r; sleep 4
+check "and resumed again" fake_runs $A
+
+# Edit…: the session's own idle time.
 xdotool mousemove 114 175 click 3; menu                   # Edit… (focused first)
-shot 4-edit
+shot 6-edit
 k Escape
 k ctrl+shift+comma; sleep 1                                    # Settings
 xdotool mousemove 510 159 click 1; sleep 1                # → Terminals
-shot 5-settings
+shot 7-settings
 xdotool mousemove 535 289 click 1; sleep 0.8; k Home; k Return   # the idle time: never
 xdotool mousemove 990 574 click 1; sleep 2                # Save
 check "Settings saves it (never: no idle_stop left)" sh -c "! grep -q idle_stop $CFG"

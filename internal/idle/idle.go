@@ -228,6 +228,22 @@ func (s State) Idle(tmuxName string, d time.Duration) bool {
 		(s.Event == "Stop" || s.Event == "SessionStart") && s.Now-max(s.At, s.Activity) >= int64(d/time.Second)
 }
 
+// procs defines $procs, every process as "pid ppid args" (ps, else /proc
+// for systems without ps such as a plain ubuntu container), and helpers
+// on it: args_of, ppid_of, desc_of (all descendants).
+const procs = `plist() {
+  if command -v ps >/dev/null 2>&1; then ps -A -o pid= -o ppid= -o args= 2>/dev/null; return; fi
+  for d in /proc/[0-9]*; do
+    pp=$(sed 's/.*) //' "$d/stat" 2>/dev/null | cut -d' ' -f2)
+    [ -n "$pp" ] && printf '%s %s %s\n' "${d#/proc/}" "$pp" "$(tr '\000' ' ' < "$d/cmdline" 2>/dev/null)"
+  done
+}
+procs=$(plist)
+args_of() { printf '%s\n' "$procs" | awk -v p="$1" '$1==p {sub(/^ *[0-9]+ +[0-9]+ */, ""); print; exit}'; }
+ppid_of() { printf '%s\n' "$procs" | awk -v p="$1" '$1==p {print $2; exit}'; }
+desc_of() { printf '%s\n' "$procs" | awk -v root="$1" '{p[$1]=$2; a[$1]=$0} END {for (q in p) {x=q; k=0; while (x in p && x!=root && k<64) {x=p[x]; k++}; if (x==root && q!=root) print q}}'; }
+`
+
 // ids checks the session ids before they go into a script.
 func ids(list []string) error {
 	for _, id := range list {
@@ -243,8 +259,7 @@ func CheckScript(list []string) (string, error) {
 	if err := ids(list); err != nil {
 		return "", err
 	}
-	return `d="` + Dir() + `"; now=$(date +%s)
-pstree=$(ps -A -o pid= -o ppid= -o args= 2>/dev/null)
+	return procs + `d="` + Dir() + `"; now=$(date +%s)
 for id in ` + strings.Join(list, " ") + `; do
   f="$d/$id"; line=; conv=; tx=0
   if [ -f "$f" ]; then
@@ -260,9 +275,10 @@ for id in ` + strings.Join(list, " ") + `; do
     sess=$(tmux display -p -t "$pane" '#{session_name}' 2>/dev/null)
     act=$(tmux display -p -t "$pane" '#{window_activity}' 2>/dev/null)
   fi
-  if [ "$pid" -gt 1 ] 2>/dev/null && ps -o args= -p "$pid" 2>/dev/null | grep -qF "$id.tmp"; then
+  if [ "$pid" -gt 1 ] 2>/dev/null && args_of "$pid" | grep -qF "$id.tmp"; then
     alive=1
-    busy=$(printf '%s\n' "$pstree" | awk -v root="$pid" '{p[$1]=$2; a[$1]=$0} END {n=0; for (q in p) {x=q; k=0; while (x in p && x!=root && k<64) {x=p[x]; k++}; if (x==root && q!=root && index(a[q], "shell-snapshots")) n++}; print n}')
+    busy=0
+    for q in $(desc_of "$pid"); do args_of "$q" | grep -q shell-snapshots && busy=$((busy+1)); done
   fi
   st=0; sc=; stx=0; sp=
   if [ -f "$f.stopped" ]; then
@@ -307,13 +323,22 @@ var convOK = func(c string) bool {
 	}) < 0
 }
 
+// IdleNotice is what the pane shows after an idle stop.
+func IdleNotice(d time.Duration) string {
+	return fmt.Sprintf("[claude stopped after %s without input; it resumes when you open the session in Session Workbench]", Human(d))
+}
+
+// NowNotice is what the pane shows after Stop claude now.
+const NowNotice = "[claude stopped from Session Workbench; it resumes when you open the session again, or with Resume claude in its menu]"
+
 // StopScript stops the session's claude (s from a check): it checks
-// again that it is the same claude and that its window stayed quiet for d,
-// marks it stopped, respawns the pane with a notice and a login shell in
-// dir, ends the shells between the pane and claude, and claude (SIGHUP as
-// for a closed terminal, SIGTERM after 5 s). Exit 3: not that claude any
+// again that it is the same claude and that its window stayed quiet for
+// quiet (0: not checked), marks it stopped, respawns the pane with notice
+// and a login shell in dir, ends the shells between the pane and claude,
+// claude (SIGHUP as for a closed terminal, SIGTERM after 5 s) and what
+// still runs under it (a command it ran). Exit 3: not that claude any
 // more; 4: the window was used.
-func StopScript(s State, tmuxName, dir string, d time.Duration) (string, error) {
+func StopScript(s State, tmuxName, dir string, quiet time.Duration, notice string) (string, error) {
 	if err := ids([]string{s.ID}); err != nil {
 		return "", err
 	}
@@ -328,32 +353,34 @@ func StopScript(s State, tmuxName, dir string, d time.Duration) (string, error) 
 	if s.Transcript {
 		tx = "1"
 	}
-	notice := fmt.Sprintf("echo; echo %s; exec \"$SHELL\" -l", remote.Quote(fmt.Sprintf(
-		"[claude stopped after %s without input; it resumes when you open the session in Session Workbench]", Human(d))))
-	return `f="` + Dir() + `/` + s.ID + `"
-ps -o args= -p ` + strconv.Itoa(s.PID) + ` 2>/dev/null | grep -qF ` + remote.Quote(marker(s.ID)) + ` || exit 3
+	show := "echo; echo " + remote.Quote(notice) + `; exec "$SHELL" -l`
+	return procs + `f="` + Dir() + `/` + s.ID + `"
+args_of ` + strconv.Itoa(s.PID) + ` | grep -qF ` + remote.Quote(marker(s.ID)) + ` || exit 3
 [ "$(tmux display -p -t ` + s.Pane + ` '#{session_name}' 2>/dev/null)" = ` + remote.Quote(tmuxName) + ` ] || exit 3
 act=$(tmux display -p -t ` + s.Pane + ` '#{window_activity}')
-[ $(( $(date +%s) - act )) -ge ` + strconv.FormatInt(int64(d/time.Second), 10) + ` ] || exit 4
+[ $(( $(date +%s) - act )) -ge ` + strconv.FormatInt(int64(quiet/time.Second), 10) + ` ] || exit 4
 # The shells from the pane down to claude: the start command's own would
 # outlive the respawn and run what follows claude in it ("|| claude").
 pid=` + strconv.Itoa(s.PID) + `; old=$(tmux display -p -t ` + s.Pane + ` '#{pane_pid}')
 chain=; p=$pid; n=0
 while [ "$p" != "$old" ] && [ $n -lt 16 ]; do
-  p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); n=$((n+1))
+  p=$(ppid_of "$p"); n=$((n+1))
   [ -n "$p" ] && [ "$p" -gt 1 ] || { chain=; break; }
   chain="$chain $p"
 done
 [ "$p" = "$old" ] || chain=
+desc=$(desc_of "$pid")
 echo ` + remote.Quote(conv+" "+tx+" "+s.Pane) + ` > "$f.stopped"
 # Frozen first: once claude ends they could start the fallback before
 # they are killed.
 [ -n "$chain" ] && kill -STOP $chain 2>/dev/null
-tmux respawn-pane -k -t ` + s.Pane + ` -c ` + remote.ShellPath(dir) + ` ` + remote.Quote(notice) + ` || { [ -n "$chain" ] && kill -CONT $chain; exit 1; }
+tmux respawn-pane -k -t ` + s.Pane + ` -c ` + remote.ShellPath(dir) + ` ` + remote.Quote(show) + ` || { [ -n "$chain" ] && kill -CONT $chain; exit 1; }
 [ -n "$chain" ] && kill -KILL $chain 2>/dev/null
 kill -HUP "$pid" 2>/dev/null
-for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || exit 0; sleep 0.5; done
+for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
 kill -TERM "$pid" 2>/dev/null
+# What it ran (a command claude was running when stopped now).
+[ -n "$desc" ] && kill -TERM $desc 2>/dev/null
 exit 0
 `, nil
 }
@@ -370,11 +397,11 @@ func ResumeScript(s State, tmuxName, dir, paneCmd string) (string, error) {
 		return "", fmt.Errorf("idle: unexpected state for %s", s.ID)
 	}
 	p := s.StoppedPane
-	return `f="` + Dir() + `/` + s.ID + `"
+	return procs + `f="` + Dir() + `/` + s.ID + `"
 [ -f "$f.stopped" ] || exit 3
 if [ "$(tmux display -p -t ` + p + ` '#{session_name}' 2>/dev/null)" != ` + remote.Quote(tmuxName) + ` ]; then rm -f "$f.stopped"; exit 3; fi
 pp=$(tmux display -p -t ` + p + ` '#{pane_pid}')
-if ps -A -o ppid= 2>/dev/null | grep -q "^ *$pp\$"; then rm -f "$f.stopped"; exit 4; fi
+if [ -n "$(desc_of "$pp")" ]; then rm -f "$f.stopped"; exit 4; fi
 rm -f "$f.stopped"
 exec tmux respawn-pane -k -t ` + p + ` -c ` + remote.ShellPath(dir) + ` ` + remote.Quote(paneCmd) + `
 `, nil

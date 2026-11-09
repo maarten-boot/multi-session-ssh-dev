@@ -21,6 +21,7 @@ import (
 
 	"session-workbench/internal/config"
 	"session-workbench/internal/forge"
+	"session-workbench/internal/idle"
 	"session-workbench/internal/pathmap"
 	"session-workbench/internal/profile"
 	"session-workbench/internal/remote"
@@ -58,6 +59,8 @@ type View struct {
 	TmuxOwn *bool `json:"tmux_own"`
 	// Inactive: kept for later; nothing connects (config Session.Inactive).
 	Inactive bool `json:"inactive"`
+	// Claude: its start command runs claude in tmux (Stop claude now).
+	Claude bool `json:"claude"`
 	// Hosts: the other agent hosts it has worked on, the most recent first.
 	Hosts []string `json:"hosts"`
 	Error string   `json:"error"` // why the Remote tab cannot work, if it cannot
@@ -239,6 +242,7 @@ func (m *Manager) State() State {
 			v.Error = err.Error()
 		} else {
 			v.RemotePath = r.RemotePath
+			v.Claude = r.Tmux && idle.Runs(r.StartCommand)
 			v.Files = viewFiles(r.Host)
 			if r.Plain {
 				v.Files = FilesLogin
@@ -535,7 +539,8 @@ func (m *Manager) Create(in NewSession) (View, error) {
 	}
 	v := View{ID: s.ID, Name: s.Name, Description: s.Description, Host: s.Host, LocalPath: s.LocalPath, StartMode: s.StartMode,
 		ColorMode: s.ColorMode, Group: s.Group, Files: viewFiles(r.Host), RemotePath: r.RemotePath,
-		TmuxName: remote.TmuxName(s.ID), Plain: r.Plain, RemoteDir: s.RemoteDir, Tmux: r.Tmux, TmuxOwn: s.Tmux}
+		TmuxName: remote.TmuxName(s.ID), Plain: r.Plain, RemoteDir: s.RemoteDir, Tmux: r.Tmux, TmuxOwn: s.Tmux,
+		Claude: r.Tmux && idle.Runs(r.StartCommand)}
 	if r.Plain {
 		v.Files = FilesLogin
 	}

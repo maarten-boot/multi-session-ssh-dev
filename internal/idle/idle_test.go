@@ -127,13 +127,13 @@ func TestScripts(t *testing.T) {
 		t.Error("bad id accepted")
 	}
 	st := State{ID: "s1", PID: 42, Pane: "%3", Conv: "c-1", Transcript: true}
-	s, err := StopScript(st, "cw-s1", "~/proj", 5*time.Minute)
+	s, err := StopScript(st, "cw-s1", "~/proj", 5*time.Minute, IdleNotice(5*time.Minute))
 	if err != nil || !strings.Contains(s, "respawn-pane -k -t %3 -c \"$HOME\"/") && strings.Contains(s, "pid=42;") || !strings.Contains(s, "-ge 300 ]") ||
 		!strings.Contains(s, "'c-1 1 %3'") || !strings.Contains(s, "after 5 min without input") {
 		t.Errorf("%v\n%s", err, s)
 	}
 	for _, bad := range []State{{ID: "s1", PID: 42, Pane: "3"}, {ID: "s1", PID: 0, Pane: "%3"}, {ID: "s1", PID: 42, Pane: "%3", Conv: "a;b"}} {
-		if _, err := StopScript(bad, "cw-s1", "/p", time.Minute); err == nil {
+		if _, err := StopScript(bad, "cw-s1", "/p", time.Minute, NowNotice); err == nil {
 			t.Errorf("accepted %+v", bad)
 		}
 	}

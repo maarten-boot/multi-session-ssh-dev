@@ -41,7 +41,8 @@ shot 2-restart-offered
 expect "new start mode saved" "claude-continue" "$(field $CFG mode 4)"
 k Return; sleep 5                               # Restart now
 shot 3-restarted
-check "the new tmux session starts claude --continue, else claude" grep -qF 'claude --continue || claude' <<<"$(started)"
+# Each claude gets the app's hooks (--settings, SPEC F17) after its name.
+check "the new tmux session starts claude --continue, else claude" grep -qF -- "--continue || claude --settings" <<<"$(started)"
 alive
 kill $APP; wait $APP 2>/dev/null
 ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-mode'" 2>/dev/null

@@ -176,6 +176,18 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.14 (2026-11-09): *Stop claude now* and idle stop in containers (SPEC F17; the user:
+  "start Stop claude now, ask the questions; also add the idle stop for containers").
+  Decided (questions): hooks in every claude session (the idle time only decides the
+  automatic stop); a busy claude is stopped after a question; *Resume claude* in the menu and
+  the next open bring it back; in a container only claude stops. My choices: a first check at
+  start finds claudes stopped earlier (a manual stop with no idle time keeps its mark); the
+  session on screen is resumed automatically only by that first check, so one stopped by hand
+  stays stopped; a forced stop also ends what claude ran; `/proc` when an image has no `ps`
+  (ubuntu has none; the template now installs procps). Tests: idle TestProcsWithoutPS,
+  container TestRealIdle (a real Podman container, fake claude via sed), gui-smoke-idle.sh
+  (29 checks: Stop claude now on screen, Resume claude, the question for a busy claude);
+  gui-smoke-startmode expects the hooks after each claude.
 - v1.1.13 (2026-11-08): stopping an idle claude (SPEC F17; the user: "can we detect when the
   claude process on the remote is ready for next input but no input is coming for a
   configurable time (say 5 minuts) would it then make sense to halt the claude process and
@@ -352,7 +364,7 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 38
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 43
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository
