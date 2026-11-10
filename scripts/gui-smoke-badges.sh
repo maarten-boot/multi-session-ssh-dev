@@ -25,13 +25,13 @@ k ctrl+alt+1; k ctrl+shift+3; sleep 2; t 'sleep 5; printf "\a"; echo rang'     #
 k ctrl+alt+2; sleep 2; k ctrl+shift+1; sleep 1.5
 t 'sleep 12; seq 1 3000'                                        # beta Local: output after 12 s idle
 k ctrl+alt+3; sleep 16
-shot 1-bell-and-activity "(2) Session Workbench — gamma"  # alpha bell, beta activity
+shot 1-bell-and-activity "(2) gamma — Session Workbench"  # alpha bell, beta activity
 k ctrl+alt+2; sleep 1
-shot 2-beta-viewed "(1) Session Workbench — beta"  # beta cleared
+shot 2-beta-viewed "(1) beta — Session Workbench"  # beta cleared
 k ctrl+alt+3; sleep 70                                          # tmux clock redraws in hidden sessions
-shot 3-after-status-redraw "(1) Session Workbench — gamma"  # still only alpha
+shot 3-after-status-redraw "(1) gamma — Session Workbench"  # still only alpha
 k ctrl+alt+1; sleep 1
-shot 4-all-cleared "Session Workbench — alpha"
+shot 4-all-cleared "alpha — Session Workbench"
 alive
 kill $APP; wait $APP 2>/dev/null
 for n in alpha beta gamma; do ssh -o BatchMode=yes localhost "tmux kill-session -t '=cw-s-b$n'" 2>/dev/null; done

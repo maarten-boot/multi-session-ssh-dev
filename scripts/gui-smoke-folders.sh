@@ -55,13 +55,13 @@ click 120 119 3; menu m m m                    # loose (under Hosts): Move to fo
 menu c                                         # -> Clients
 shot 3-moved
 if [ -n "$MEASURE" ]; then kill $APP; exit 0; fi
-# Folder headers are now at y=56 (Work), 209 (Private), 319 (Clients).
+# Folder headers are now at y=87 (Work), 240 (Private), 350 (Clients), under Groups.
 k ctrl+alt+4; sleep 1
 shot 4-ctrl-alt-4                              # "loose", numbered last
-click 100 209 3; menu r                        # Private: Rename folder…
+click 100 240 3; menu r                        # Private: Rename folder…
 k ctrl+a; xdotool type --delay 20 "Home"; k Return; sleep 0.8
-click 100 319 3; menu m                        # Clients: Move folder up
-click 100 56 3; menu d; k Return; sleep 1      # Work: Delete folder… (sessions stay)
+click 100 350 3; menu m                        # Clients: Move folder up
+click 100 87 3; menu d; k Return; sleep 1      # Work: Delete folder… (sessions stay)
 shot 5-renamed-moved-deleted
 alive
 kill $APP; wait $APP 2>/dev/null

@@ -176,6 +176,15 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.16 (2026-11-10): sidebar headings Groups, Active and Inactive (SPEC F5; the user: "group
+  all other groups the user creates ins a Groups tab and add a Active Tab and a Disabled Tab
+  … without the group path, we can show the group path on mouse hover there"). Decided
+  (questions): headings in the one list, not tabs that switch the view; "Inactive", the app's
+  word (Deactivate session…, ⏸); by name; Active and Inactive start collapsed, empty headings
+  hidden. My choices: without folders the hosts keep no heading (as before; the GUI tests'
+  positions stay); the rows below have no numbers, the balloon adds host and folder; every
+  row of a session is updated (dot, badges, marks). Tests: gui-smoke-lists.sh; all GUI tests
+  run again (the Groups heading moves folders down one row).
 - v1.1.15 (2026-11-10): what claude cost at API prices (SPEC F18; the user: "could we
   monitor the cost and show that at regular intervals", then: API dollars (a subscription now,
   an API key later), a total first and per session as an option, "today: xxx, total: yyy",
@@ -380,7 +389,7 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 44
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 45
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository

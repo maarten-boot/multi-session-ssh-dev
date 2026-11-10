@@ -504,7 +504,7 @@ terminals rings the bell, and a blue ring when it starts printing again after 10
 quiet (tmux's clock redraw does not count). The same happens to the visible session while
 the window is in the background. The tab that caused it is marked too; the mark clears
 when you look at it, and the window title shows how many sessions want attention, then the
-name of the session you are looking at: `(2) Session Workbench — alpha`. A bell in
+name of the session you are looking at: `(2) alpha — Session Workbench`. A bell in
 a session you are not looking at (or while the window is in the background) also shows a
 desktop notification — *Claude is waiting* for the Remote tab — at most once a minute per
 session (`<name> · <host>`; "Bell in Local" etc. for other tabs); clicking it opens that session
@@ -601,7 +601,11 @@ neighbours), *Move folder to…* (the top or another folder; its subfolders and 
 along) or delete (deleting keeps its sessions: they go to the folder above, and its
 subfolders go too). In a folder, its own sessions come first, then its subfolders; sessions
 without a folder are listed first of all, under the heading **Hosts** once there are folders
-(it collapses like a folder; drop a session on it to take it out of its folder). A `/` in a folder name makes subfolders
+(it collapses like a folder; drop a session on it to take it out of its folder), and the
+folders under the heading **Groups**. Below them, **Active** and **Inactive** list every active
+and every inactive session once more, by name and without folders (closed at first; open them
+with a click, the app remembers it): handy to find a session or to see what is parked. Hover a
+session there to see its host and folder. A `/` in a folder name makes subfolders
 (*Clients/Acme* adds *Clients* too if needed). In `config.toml` a subfolder is a path:
 `groups = ["Work", "Work/Client A"]`.
 

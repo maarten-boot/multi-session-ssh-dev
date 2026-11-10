@@ -409,6 +409,7 @@ button.link:hover {
 /* What claude cost (SPEC F18): text-coloured, a button to reset the total. */
 #cost {
     flex: none;
+    margin-left: auto; /* at the end of the bar; after an error text that takes the room */
     background: none;
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -421,6 +422,10 @@ button.link:hover {
 
 #cost:hover {
     background: var(--panel-2);
+}
+
+#session-path:not([hidden]) + #cost {
+    margin-left: 0;
 }
 
 #session-path.error {

@@ -852,11 +852,14 @@ const app = {
         return root;
     },
 
-    collapsible(el, key) {
-        if (this.collapsed.has(key)) el.classList.add('collapsed');
+    // collapsible remembers whether el is collapsed; one that starts
+    // collapsed (closed) is remembered when opened ("+key").
+    collapsible(el, key, closed = false) {
+        const k = closed ? '+' + key : key;
+        if (this.collapsed.has(k) !== closed) el.classList.add('collapsed');
         return () => {
             el.classList.toggle('collapsed');
-            el.classList.contains('collapsed') ? this.collapsed.add(key) : this.collapsed.delete(key);
+            el.classList.contains('collapsed') !== closed ? this.collapsed.add(k) : this.collapsed.delete(k);
             store.set('collapsed', [...this.collapsed]);
         };
     },
@@ -878,40 +881,72 @@ const app = {
         list.replaceChildren();
         this.order = [];
         this.hostHeads = [];
-        this.renderFolder(this.folderTree(), list, 0);
+        for (const s of this.sessions.values()) s.items = [];
+        this.renderTop(this.folderTree(), list);
         if (this.active && !this.sessions.has(this.active.id)) this.active = null;
         for (const h of this.hostHeads) this.renderBackup(h.name);
         this.renderMain();
     },
 
+    // heading adds a collapsible top heading (Hosts, Groups, Active,
+    // Inactive) to parent and returns its body. Right-click: the list menu.
+    heading(parent, key, label, count, title, closed = false) {
+        const folder = el('div', {className: `folder top-folder ${key}-folder`, style: '--depth: 0'});
+        const head = el('div', {className: 'folder-head', title},
+            el('span', {className: 'caret', textContent: '▾'}),
+            el('span', {className: 'label', textContent: label}),
+            el('span', {className: 'count', textContent: count}));
+        head.onclick = this.collapsible(folder, key, closed);
+        head.oncontextmenu = e => {
+            e.preventDefault();
+            listMenu(e.clientX, e.clientY);
+        };
+        const body = el('div', {className: 'folder-body'});
+        folder.append(head, body);
+        parent.append(folder);
+        return {head, body};
+    },
+
+    // renderTop fills the list (SPEC F5): the sessions in no folder by host
+    // (under the heading Hosts when there are folders; dropping a session
+    // there takes it out of its folder), the folders under Groups, then
+    // every active and every inactive session by name (Active, Inactive:
+    // collapsed at first, no numbers; their balloon adds host and folder).
+    // Empty headings are left out.
+    renderTop(root, list) {
+        const top = {...root, children: []};
+        if (!root.children.length) {
+            this.renderFolder(top, list, 0); // no folders: the hosts without a heading, as before
+        } else {
+            if (root.hosts.length) {
+                const n = root.hosts.reduce((a, g) => a + g.sessions.length, 0);
+                const {head, body} = this.heading(list, 'hosts', 'Hosts', n, 'Sessions that are in no folder, by host');
+                enableFolderDrop(head, '');
+                body.style.setProperty('--indent', '14px');
+                this.renderFolder(top, body, 1);
+            }
+            const n = root.count - root.hosts.reduce((a, g) => a + g.sessions.length, 0);
+            const {body} = this.heading(list, 'groups', 'Groups', n, 'Your folders');
+            this.renderFolder({...root, hosts: []}, body, 1);
+        }
+        const byName = (a, b) => a.data.name.localeCompare(b.data.name, undefined, {sensitivity: 'base', numeric: true});
+        for (const [key, label, inactive, title] of [
+            ['active', 'Active', false, 'Every active session, by name (also listed above)'],
+            ['inactive', 'Inactive', true, 'Every inactive session, by name (also listed above)'],
+        ]) {
+            const list2 = this.state.sessions.filter(d => !!d.inactive === inactive)
+                .map(d => this.sessions.get(d.id)).filter(Boolean).sort(byName);
+            if (!list2.length) continue;
+            const {body} = this.heading(list, key, label, list2.length, title, true);
+            const items = el('div', {className: 'sessions'});
+            for (const s of list2) items.append(this.sessionItem(s, 0, true));
+            body.append(items);
+        }
+    },
+
     // renderFolder adds folder f's sessions (by host) and then its
     // subfolders to parent; depth indents them.
     renderFolder(f, parent, depth) {
-        // With folders, the top's sessions (in no folder), by host, go under
-        // one "Hosts" heading above them; it collapses like a folder and
-        // takes dropped sessions out of their folder. The list only: nothing
-        // moves in config.toml. Without folders the whole list is hosts.
-        if (depth === 0 && f.hosts.length && f.children.length) {
-            const folder = el('div', {className: 'folder hosts-folder', style: '--depth: 0'});
-            const n = f.hosts.reduce((a, g) => a + g.sessions.length, 0);
-            const head = el('div', {className: 'folder-head', title: 'Sessions that are in no folder, by host'},
-                el('span', {className: 'caret', textContent: '▾'}),
-                el('span', {className: 'label', textContent: 'Hosts'}),
-                el('span', {className: 'count', textContent: n}));
-            const toggle = this.collapsible(folder, 'hosts');
-            head.onclick = toggle;
-            head.oncontextmenu = e => {
-                e.preventDefault();
-                listMenu(e.clientX, e.clientY);
-            };
-            enableFolderDrop(head, '');
-            const body = el('div', {className: 'folder-body', style: '--indent: 14px'});
-            folder.append(head, body);
-            parent.append(folder);
-            this.renderFolder({...f, children: []}, body, 1); // the host groups, one step in
-            this.renderFolder({...f, hosts: []}, parent, 0); // then the folders as before
-            return;
-        }
         for (const g of f.hosts) {
             const group = el('div', {className: 'host-group'});
             const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Host actions'});
@@ -1009,7 +1044,9 @@ const app = {
         }
     },
 
-    sessionItem(s, n) {
+    // sessionItem is a session's row: n is its number (Alt+1…9; 0 none);
+    // flat: in Active or Inactive, where the balloon adds host and folder.
+    sessionItem(s, n, flat = false) {
         const d = s.data;
         const more = el('button', {className: 'icon more', textContent: '⋯', title: 'Session actions'});
         const item = el('div', {className: 'session', draggable: true},
@@ -1026,12 +1063,13 @@ const app = {
             el('span', {className: 'repo-warn', textContent: '⚠', hidden: !s.repoWarn(),
                 title: 'Repository hooks or settings to review (see the Files tab)'}),
             el('span', {className: 'badge'}),
-            n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
+            n >= 1 && n <= 9 ? el('span', {className: 'num', textContent: n}) : '',
             more);
         // Name, path and description, after Settings → Appearance's delay.
         balloon(item, () => [
             el('div', {className: 'balloon-name', textContent: d.name}),
             el('div', {className: 'balloon-path', textContent: where(d)}),
+            flat ? el('div', {className: 'balloon-path', textContent: `Host ${d.host} · ${d.group ? 'folder ' + d.group : 'no folder'}`}) : '',
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
             d.inactive ? el('div', {className: 'balloon-text', textContent: '⏸ Inactive: nothing connects until you activate it.'}) : '',
             this.idleStopped?.has(d.id) ? el('div', {className: 'balloon-text', textContent: '💤 claude was stopped after waiting for input; it resumes when you open the session.'}) : '',
@@ -1054,7 +1092,9 @@ const app = {
             sessionMenu(s, e.clientX, e.clientY);
         };
         enableDrag(item);
-        s.item = item;
+        // A session can have a row in Hosts/Groups and one in Active/Inactive.
+        s.items = [...(s.items ?? []), item];
+        s.item = s.items[0];
         this.renderBadges(s);
         return item;
     },
@@ -1075,8 +1115,7 @@ const app = {
     },
 
     renderRepoWarn(s) {
-        const w = s.item?.querySelector('.repo-warn');
-        if (w) w.hidden = !s.repoWarn();
+        for (const it of s.items ?? []) it.querySelector('.repo-warn').hidden = !s.repoWarn();
         s.tab('files')?.view?.renderRepoBanner?.();
     },
 
@@ -1091,8 +1130,8 @@ const app = {
 
     setTodos(s, todos) {
         s.todos = todos;
-        const w = s.item?.querySelector('.todo-warn');
-        if (w) {
+        for (const it of s.items ?? []) {
+            const w = it.querySelector('.todo-warn');
             w.hidden = !s.todoCount();
             w.title = s.todoText();
         }
@@ -1108,8 +1147,7 @@ const app = {
     // is the active session, and the window title.
     renderBadges(s) {
         const b = s.badge();
-        const badgeEl = s.item?.querySelector(".badge");
-        if (badgeEl) badgeEl.className = 'badge' + (b ? ' ' + b : '');
+        for (const it of s.items ?? []) it.querySelector('.badge').className = 'badge' + (b ? ' ' + b : '');
         if (s === this.active) {
             $('#tabs').querySelectorAll('button').forEach(btn => {
                 const t = s.tab(btn.dataset.key);
@@ -1127,9 +1165,10 @@ const app = {
     // badge, the app name and the active session's name.
     renderTitle() {
         const n = [...this.sessions.values()].filter(x => x.badge()).length;
+        // The session first, so it shows where the title is cut short or
+        // the desktop adds the program's name: "(2) alpha — Session Workbench".
         const name = this.appName ?? 'Session Workbench';
-        let title = n ? `(${n}) ${name}` : name;
-        if (this.active) title += (name.includes(' — ') ? ' · ' : ' — ') + this.active.data.name;
+        const title = (n ? `(${n}) ` : '') + (this.active ? this.active.data.name + ' — ' : '') + name;
         if (title !== this.title) {
             this.title = title;
             WindowSetTitle(title);
@@ -1137,8 +1176,7 @@ const app = {
     },
 
     renderDot(s) {
-        const dot = s.item?.querySelector('.dot');
-        if (dot) dot.className = 'dot ' + s.dotClass();
+        for (const it of s.items ?? []) it.querySelector('.dot').className = 'dot ' + s.dotClass();
     },
 
     renderMain() {
@@ -1219,14 +1257,12 @@ const app = {
             };
             sync.append(prompts);
         }
+        // Only a problem of the session shows here; host, path and tmux
+        // session are in Edit… and the list balloon.
         const path = $('#session-path');
         path.classList.toggle('error', !!d.error);
-        const host = this.state.hosts.find(h => h.name === d.host);
-        const tmux = d.tmux ? `tmux ${d.tmux_name}` : 'no tmux';
-        path.textContent = d.error || (host.kind === 'container'
-            ? `container sw-${d.id}:${d.remote_path}  ·  ${tmux}`
-            : `${host.ssh_target}:${d.remote_path}  ·  ${tmux}`);
-        path.title = d.plain ? 'a plain ssh login (no local directory)' : `local: ${d.local_path}`;
+        path.textContent = d.error ?? '';
+        path.hidden = !d.error;
     },
 
     select(s) {

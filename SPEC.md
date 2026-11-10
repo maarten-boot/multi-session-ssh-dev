@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.24 (2026-11-10, app v1.1.15) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.25 (2026-11-10, app v1.1.16) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -17,7 +17,8 @@ exporting a session as an archive / importing it as a new session (F13), separat
 (F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
 next to a container session's dev container with Compose (C7), inactive sessions (F15), the
 Hosts heading above the folders (F5), one project on several agent hosts (F16), stopping
-claude (F17; also in containers and by hand) and what claude cost at API prices (F18).
+claude (F17; also in containers and by hand), what claude cost at API prices (F18) and the
+sidebar headings Groups, Active and Inactive (F5).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -159,14 +160,15 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   exit 3; [history env]; <start command>"'` (remote.PlainArgs; the same missing-directory exit
   and message as with tmux): it ends with the connection; Reconnect starts a new one; End
   remote session… is not offered, deleting the session does not offer ending tmux, and a new
-  start mode needs no restart offer. The path line says "no tmux". Any session can use it.
+  start mode needs no restart offer. Edit… shows it (no tmux session after the id). Any session can use it.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable; never for an inactive session, F15).
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal
   while the window is in the background) rings the bell, or produces output after 10 s idle (at
   least max(512 bytes, 2 × columns) within 2 s; redraws within 1.5 s of a resize don't count). The
-  tab that caused it is marked too; the window title counts sessions with badges and ends with
-  the active session's name (`(2) Session Workbench — alpha`). claude waiting for input → bell;
+  tab that caused it is marked too; the window title counts sessions with badges and then
+  names the active session before the app (`(2) alpha — Session Workbench`; first, so it shows
+  where a desktop cuts the title short or adds the program's name). claude waiting for input → bell;
   the user sets Claude Code's `preferredNotifChannel` to `terminal_bell`.
   A bell in such a terminal also shows a desktop notification (`notifications`, default on; Wails
   runtime notifications: freedesktop D-Bus on Linux, toasts on Windows, Notification Center on
@@ -180,9 +182,16 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   The sidebar shows ungrouped sessions first — when there are folders, under one heading
   *Hosts* (collapsible like a folder, with the count of its sessions; dropping a session on it
   takes the session out of its folder; right-click gives the list menu; nothing is stored) —
-  then each folder (collapsible, indented by depth,
+  then, under the heading *Groups* (collapsible, with the count of the sessions in folders),
+  each folder (collapsible, indented by depth,
   with a count that includes its subfolders), each with its own sessions split by host and
-  then its subfolders. Folders can be created (also as a subfolder, or as a path: missing
+  then its subfolders. Then *Active* and *Inactive* (F15) list every active and every inactive
+  session again, by name (case-insensitive, numbers in order), without host or folder: a row
+  there is the same session (opens it, same menu, dot and marks, can be dragged onto a
+  folder) but has no number (Ctrl+Alt+1…9, ⌘1…9, count Hosts and Groups) and its balloon adds "Host <name>
+  · folder <path>" (or "no folder"). Both start collapsed (opening one is remembered, like
+  every collapsed heading); a heading with no sessions is left out; right-click gives the list
+  menu. Folders can be created (also as a subfolder, or as a path: missing
   folders on the way are added), renamed (sessions and subfolders follow), reordered among
   their siblings, moved into another folder or the top ("Move folder to…", not into itself)
   and deleted together with their subfolders (their sessions stay, in the folder above).

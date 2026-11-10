@@ -48,3 +48,38 @@
   by the config test of the README example), and the packages missing from its list
   (savedcopy, handover, requirements, idle, cost).
 - CI on the push (run 42813698284): linux, windows, macOS passed (TestScript on macOS with BSD tools too); release skipped (no tag).
+
+## CI v1.1.15 (user: "pushed and tagged v1.1.15, check the CI build")
+- The tag points at ef63e47. Run 42819479822: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip).
+
+## v1.1.16: sidebar headings Groups, Active, Inactive (SPEC F5)
+- User: "ok we now have a Hosts tab on the left menue, next is to group all other groups the
+  user creates ins a Groups tab and add a Active Tab and a Disabled Tab. All sessions that are
+  disabled will also appear in the disabled tab (without the group path, we can show the group
+  path on mouse hover there ) all sessions not disabled show also under the Active tab".
+- Asked (unclear words): "tab" = headings in the one list like Hosts (chosen), not tabs that
+  switch the view; "Disabled" → "Inactive" (the app's word, chosen); order by name (chosen);
+  Active/Inactive collapsed at first, empty headings hidden (chosen).
+- Built: renderTop (Hosts, Groups, Active, Inactive), heading(), collapsible() with a
+  collapsed-at-first variant ("+key" remembered when opened), sessionItem(s, n, flat) (no
+  number; balloon "Host … · folder …"), s.items (every row of a session gets its dot, badge,
+  ▲ and ⚠). Without folders the hosts keep no heading, as before.
+- Test gui-smoke-lists.sh. A first run failed to open the session in Inactive: the heading's
+  tooltip window lay over the row when xdotool clicked (the test moves away first now).
+
+## Window title and the bar's path text (same version)
+- User (stopped the background run of the remaining GUI tests): "best add the name of the
+  current session to the window title we now have double Session Workbench -- session
+  workbench … and remove the long string (mboot@…:/net/…) before the cost we get the same info
+  via session edit".
+- Asked: the title bar shows "Session Workbench — session workbench" (no session name); the
+  path text: keep it only for errors (chosen).
+- Checked under Xvfb: the app does set "Session Workbench — my project" (_NET_WM_NAME and
+  WM_NAME), so the desktop seems to show its own part instead of the end. The title now starts
+  with the session: "(2) alpha — Session Workbench" (profile: "… — Session Workbench — name").
+- The bar shows host:path · tmux only as an error (red) now; the cost moves to the end itself.
+- Tests before the commit: npm test; GUI badges (title), profile, lists, folders (positions
+  under Groups), dockerwin (its window is 18 px shorter than when the test was written: failed
+  on v1.1.15 too, positions updated), and the first 14 of smoke-all. Not run yet: the other
+  31 GUI tests (the user chose to commit first).

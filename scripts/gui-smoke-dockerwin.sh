@@ -47,35 +47,35 @@ APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 
-# Centred at first: x 381–1019, y 170–730; the heading at y 198.
+# Centred at first: x 381–1019, y 179–721; the heading at y 207.
 open; shot 1-open
-crop 1-open head-1 '170x24+395+186'
-crop 1-open save-1 '64x34+938+683'
-drag 480 198 330 148                                  # by (-150, -50)
+crop 1-open head-1 '170x24+395+195'
+crop 1-open save-1 '64x34+938+674'
+drag 480 207 330 157                                  # by (-150, -50)
 shot 2-moved
-crop 2-moved head-2 '170x24+245+136'
+crop 2-moved head-2 '170x24+245+145'
 check "dragging the heading moves the window" same head-1 head-2
-drag 863 674 1063 794                                 # the corner, by (+200, +120)
+drag 863 665 1063 785                                 # the corner, by (+200, +120)
 shot 3-resized
-crop 3-resized save-3 '64x34+988+753'
+crop 3-resized save-3 '64x34+988+745'
 check "dragging the corner makes it larger (Save moved with the corner)" same save-1 save-3
 
 # The menu: copy the first line through it, paste it on a new line.
 xdotool mousemove 600 400 click 1; k ctrl+Home
 xdotool type --delay 15 '# menu-mark'; k Return; k Up; k shift+End
-xdotool mousemove 300 253 click 3; sleep 0.8; shot 4-menu   # on the selected text
+xdotool mousemove 300 262 click 3; sleep 0.8; shot 4-menu   # on the selected text
 k c; k Return                                         # Cut, Copy: "c" goes to Copy
-xdotool mousemove 259 267 click 3; sleep 0.8          # the caret goes to line 2's start; nothing selected: Paste has the focus
+xdotool mousemove 259 276 click 3; sleep 0.8          # the caret goes to line 2's start; nothing selected: Paste has the focus
 k Return; sleep 0.6
 shot 5-pasted
-xdotool mousemove 1020 770 click 1; sleep 1.5         # Save, where the corner took it
+xdotool mousemove 1020 761 click 1; sleep 1.5         # Save, where the corner took it
 DF=$XDG_DATA_HOME/session-workbench/containers/$ID/Dockerfile
 expect "Copy and Paste from the right-click menu" "# menu-mark|# menu-mark# The container" "$(head -2 $DF 2>&1 | cut -c1-26 | paste -sd'|')"
 
 # Opened again: where it was left, at the size it was given.
 open; shot 6-again
-crop 6-again head-6 '170x24+245+136'
-crop 6-again save-6 '64x34+988+753'
+crop 6-again head-6 '170x24+245+145'
+crop 6-again save-6 '64x34+988+745'
 check "opened again: same place" same head-1 head-6
 check "opened again: same size" same save-1 save-6
 k Escape
