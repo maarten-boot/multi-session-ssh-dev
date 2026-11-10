@@ -39,3 +39,12 @@
   commands 19, qa 30, spell 5, record 18, idle 29 checks, all passed.
 - Removed four state files (s-idb…, 2026-11-08) left by idle GUI runs from before that test
   cleaned up; today's runs left none, nor any folder in ~/.claude/projects.
+
+## Cross-check v1.1.15 (user: "pushed, do a crosscheck")
+- Code and SPEC F18 agree (reset keeps today and the sessions' own, timeouts, retry, folders,
+  shrunk transcripts, prices, "≥" per amount). Added to the docs: SPEC §4.7 names `[prices]`
+  in the config and `cost.json` in the data dir; F18 says nothing is read with show_cost off;
+  README: `cost.json` in the file table, a `[prices]` entry in the full config example (read
+  by the config test of the README example), and the packages missing from its list
+  (savedcopy, handover, requirements, idle, cost).
+- CI on the push (run 42813698284): linux, windows, macOS passed (TestScript on macOS with BSD tools too); release skipped (no tag).

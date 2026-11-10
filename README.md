@@ -981,6 +981,10 @@ name = "gemini"
 command = ["gemini", "--model", "{model}"] # the question (with the conversation) on its standard input
 models = ["gemini-2.5-pro", "gemini-2.5-flash"]
 
+[prices."claude-opus-5-5"]                # optional: API prices per million tokens (see What claude cost)
+input = 4
+output = 20
+
 [keys]
 next_session = "Ctrl+Tab"
 prev_session = "Ctrl+Shift+Tab"
@@ -1047,6 +1051,7 @@ env = { GIT_PAGER = "less -R" }           # optional: Local tab environment
 | saved agent copies (`working-copies/<session id>/`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window state | `~/.local/share/session-workbench/` | WebKit's default store | `%AppData%\session-workbench.exe\` |
 | Local tab shell history (`history/`; `<id>.remote`: an imported Remote history until the Remote tab connects) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | — (not used) |
+| what claude cost (`cost.json`: token counts, how far each transcript was read, the last reset) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 | window size and position (`window.json`) | `~/.local/share/session-workbench/` | `~/Library/Application Support/session-workbench/` | `%LocalAppData%\session-workbench\` |
 
 `$XDG_CONFIG_HOME` / `$XDG_DATA_HOME` move them on Linux; the lock and `notes/` follow
@@ -1086,6 +1091,11 @@ internal/gitstatus     git status markers and the repository check for the Files
 internal/syncer        working copies: send (rsync or built-in), git fetch back, full transfers
                        (save, take files, send all / restore)
 internal/autosave      saving the agent copies regularly and at quit (one save per session)
+internal/savedcopy     the dated saved copies of a working-copy session and which are kept
+internal/handover      Switch host…: a project's Claude Code state moved to another agent host
+internal/requirements  Requirements…: the software a project needs on an agent host, checked there
+internal/idle          stopping an idle claude: hooks, checks, stop and resume scripts
+internal/cost          what claude cost: reading transcripts on the agent host, prices, the ledger
 internal/share         live share: confined SFTP server + sshfs mount manager
 internal/backup        Claude backups: ~/.claude of the agent hosts (rsync or built-in), restore
 internal/xfer          built-in transfer without rsync: tar over ssh, confined unpacking

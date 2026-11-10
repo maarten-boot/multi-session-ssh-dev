@@ -464,7 +464,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   cost). `[ui] show_cost` (Settings → Terminals, on by default) shows it; `cost_per_session`
   (off by default) also puts "Cost: today … · total …" in each session's list balloon.
   Clicking the figure asks, then resets the total (it counts from then on; today and the
-  sessions' own stay). Updated every minute.
+  sessions' own stay). Updated every minute; with show_cost off nothing is read (turned on:
+  read at once).
   - Source: Claude Code's transcripts. Every reply has a line per content block with its
     message id, model, time and usage (input, cache writes 5 min / 1 h, cache reads, output,
     web searches, `speed`). Counted are all `*.jsonl` (subagents too) in each active session's
@@ -905,7 +906,8 @@ found), Containers (`container_engine`, with the one found), Keys.
   `%APPDATA%\session-workbench\config.toml` (Windows), `~/Library/Application Support/...` (macOS);
   `-config <file>` overrides. A relative `$XDG_CONFIG_HOME`/`$XDG_DATA_HOME` is ignored.
 - Contains: hosts, workspace roots, folders (`groups`), sessions (incl. links and the reviewed
-  repository fingerprint), UI prefs (also editable in a Settings dialog), keybindings, local shell.
+  repository fingerprint), UI prefs (also editable in a Settings dialog), keybindings, local shell,
+  API prices (`[prices]`, F18).
 - Written atomically (write temp + rename) on every change. Hand-editable while the app is not
   running (comments are not preserved); unknown keys are rejected. If the file cannot be read the
   app starts empty, shows the error and never overwrites it. Invalid setting values get their
@@ -930,7 +932,8 @@ found), Containers (`container_engine`, with the one found), Keys.
   `dictionaries/` (own spelling dictionaries, N1b) are there too.
 - Data that is not configuration lives in the data dir: `$XDG_DATA_HOME/session-workbench`
   (Linux, default `~/.local/share`), `%LocalAppData%\session-workbench` (Windows),
-  `~/Library/Application Support/session-workbench` (macOS): Claude backups, saved agent copies (F12), the window size
+  `~/Library/Application Support/session-workbench` (macOS): Claude backups, saved agent copies (F12), what claude
+  cost (`cost.json`, F18), the window size
   and position (`window.json`: width, height, pos (x, y known), x, y, maximised; written
   atomically when the window closes, also on SIGTERM/Ctrl+C, which close it the normal way (a
   second signal kills the app); a minimised or fullscreen window changes nothing (Windows
