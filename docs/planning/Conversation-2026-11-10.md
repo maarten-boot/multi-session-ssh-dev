@@ -214,3 +214,12 @@
   use the real local folder path.
 - The user's git remote still uses the old name (GitHub redirects); to change it:
   `git remote set-url origin git@github.com:maarten-boot/session-workbench.git`.
+
+## Cross-check (user: "pushed, do a crosscheck")
+- bd372fa is on GitHub's main; its CI run 42914509074 was queued. Since v1.1.18 only links,
+  test data and this log changed: SPEC, PLAN and Tests.md need nothing (they hold no repo URL),
+  versions agree at 1.1.18, and no file but the local-folder paths named under "Repo renamed"
+  still has the old name. No changes.
+
+## CI (user: "check the CI build")
+- Run 42914509074 on bd372fa: linux, windows, macOS passed; release skipped (no tag).
