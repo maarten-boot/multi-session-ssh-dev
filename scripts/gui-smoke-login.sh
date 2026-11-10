@@ -46,9 +46,8 @@ shot 1-login
 # A host without tmux (tmux = false): the Remote tab is a plain ssh login.
 k ctrl+alt+2; sleep 4                                   # "no tmux" (the second in the list)
 shot 0-no-tmux
-xdotool type --delay 10 'echo "tmux=[$TMUX] $(pwd)" > /tmp/sw-notmux.txt'; k Return; sleep 1.5
-expect "no tmux: a plain login in its folder" "tmux=[] /var/tmp" "$(cat /tmp/sw-notmux.txt 2>&1)"
-rm -f /tmp/sw-notmux.txt
+xdotool type --delay 10 'echo "tmux=[$TMUX] $(pwd)" > '"$SW_OUT/notmux.txt"; k Return; sleep 1.5
+expect "no tmux: a plain login in its folder" "tmux=[] /var/tmp" "$(cat $SW_OUT/notmux.txt 2>&1)"
 check "no tmux session for it" bash -c "! ssh -o BatchMode=yes localhost \"tmux has-session -t '=cw-s-nt'\" 2>/dev/null"
 k ctrl+alt+1; sleep 2                                   # back to "logs"
 # The first tab is Remote (no Local, no Files): it connects.
@@ -71,9 +70,8 @@ check "no local_path for logins" bash -c "! grep -q local_path $CFG"
 NEW=$(awk '/^\[\[sessions\]\]/{s=1} /^\[\[hosts\]\]/{s=0} s && /^ *id = "s-/{id=$3} s && /name = "jump"/{gsub(/"/,"",id); print id}' $CFG | head -1)
 sleep 3
 check "the new login's tmux session" ssh -o BatchMode=yes localhost "tmux has-session -t '=cw-$NEW'"
-xdotool type --delay 10 'pwd > /tmp/sw-login-pwd.txt'; k Return; sleep 1
-expect "the new login starts in the home folder" "$HOME" "$(cat /tmp/sw-login-pwd.txt 2>&1)"
-rm -f /tmp/sw-login-pwd.txt
+xdotool type --delay 10 "pwd > $SW_OUT/login-pwd.txt"; k Return; sleep 1
+expect "the new login starts in the home folder" "$HOME" "$(cat $SW_OUT/login-pwd.txt 2>&1)"
 # Add host…: Name, Kind, SSH target, then Sessions on this host (4th);
 # "are plain ssh logins" disables the file fields.
 xdotool mousemove 101 833 click 1; sleep 1             # Add host…

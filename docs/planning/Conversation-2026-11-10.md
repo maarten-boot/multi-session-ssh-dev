@@ -127,3 +127,16 @@
   passes with it. The debug line is removed.
 - Note: the background test run used build/bin while it was rebuilt for this (debug and
   unfixed builds); results of tests that started then may need a rerun.
+
+## Cross-check after the deactivate fix (user: "pushed, do a crosscheck")
+- GitHub main at 9b68356 (d7cdd35 and 9b68356 pushed). Code, SPEC F15, README and Tests.md
+  agree for the deactivate fix and the GUI test folder.
+- Under the new temp-file rule: gui-smoke-login still wrote /tmp/sw-notmux.txt and
+  /tmp/sw-login-pwd.txt (removed afterwards); they go to the test's own folder ($SW_OUT) now.
+  Passes. The Go tests only name /tmp paths as strings (nothing written there).
+- Removed this session's repro and login output from /tmp/multi-session-ssh-dev.
+- The background run of the last 21 GUI tests ended: 19 passed. inactive failed on "the
+  window did not scroll" (it ran on a build without the fix; passes now); sync-builtin failed
+  while build/bin was being rebuilt and passes on its own. With the earlier runs, every GUI
+  test has passed on v1.1.16. Removed ~/sw-guitest-748847 (left by the sync-builtin run cut off
+  when the previous session ended) and the test output folder.
