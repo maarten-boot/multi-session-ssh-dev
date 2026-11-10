@@ -223,3 +223,7 @@
 
 ## CI (user: "check the CI build")
 - Run 42914509074 on bd372fa: linux, windows, macOS passed; release skipped (no tag).
+
+## Cross-check (user: "pushed, do a crosscheck")
+- 7b85566 is on GitHub. Since the last cross-check only this log changed. No changes.
+- CI run 42915485735 on 7b85566: linux, windows, macOS passed; release skipped (no tag).
