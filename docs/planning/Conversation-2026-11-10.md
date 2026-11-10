@@ -94,3 +94,18 @@
 - GUI tests: the first loop over the remaining tests ran only one (the app read the loop's
   input); that one, subfolders, failed on the moved folders (Groups heading: +32 px) and
   passes with new positions. The other 25 run again with stdin closed.
+
+## Disk full: cleanup and a rule for temporary files
+- User: "the system ran out of space we need to cleanup; add a global rule that each session
+  cleans up files and directories they created in /tmp; perhaps create a subdir per project in
+  /tmp; so we avoid walking over other projects".
+- The disk (/ with /tmp) was full; the background run of the remaining GUI tests failed on it
+  (none of its results count). Removed only this session's own output: /tmp/sw-smoke-* and
+  /tmp/sw-title (12 GB) and the session scratchpad's old GUI test folders (35 GB; kept
+  poll.sh, the CI check script). Free: 46 GB. Left alone: the temp folders of other projects'
+  sessions under /tmp/claude-1000 (about 5 GB), the user's tmux sessions.
+- ~/.claude/CLAUDE.md: a "Temporary files" section (one folder per project: the scratchpad,
+  else /tmp/<project>/; clean up what the session made; never others' files; check free space
+  before large runs).
+- This project: the GUI tests write to /tmp/multi-session-ssh-dev/sw-smoke-* (Makefile
+  SMOKE_DIR/SMOKE_OUT, README); `make clean-smoke` removes that folder.

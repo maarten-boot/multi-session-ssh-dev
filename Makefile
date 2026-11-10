@@ -13,7 +13,7 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -X main.version=$(VERSION)
 
-.PHONY: check deps dev build build-windows packages run test test-ssh vet clean smoke smoke-sessions smoke-files smoke-ui smoke-container smoke-all
+.PHONY: check deps dev build build-windows packages run test test-ssh vet clean clean-smoke smoke smoke-sessions smoke-files smoke-ui smoke-container smoke-all
 
 check:
 	@scripts/deps.sh check
@@ -69,6 +69,9 @@ vet:
 clean:
 	rm -rf build/bin frontend/dist/assets dist build/pkgdocs
 
+clean-smoke:
+	rm -rf $(SMOKE_DIR)
+
 # Headless GUI tests (Linux; need xvfb, xdotool, imagemagick, and for most of
 # them `ssh localhost` without prompts, tmux, rsync (optional), sshfs, git, jq, dbus, python3-dbus,
 # python3-gi, gdbus; the history test needs bash as the login shell). Screenshots
@@ -91,7 +94,10 @@ clean:
 #   commands, private shell history, lists and spelling in the notes,
 #   activity badges (~2 minutes), stopping an idle claude (a fake claude, ~2 minutes),
 #   what claude cost (made-up transcripts), the sidebar's Hosts/Groups/Active/Inactive headings.
-SMOKE_OUT ?= /tmp/sw-smoke
+# GUI test output (screenshots, logs) goes into one folder for this project;
+# make clean-smoke removes it.
+SMOKE_DIR ?= /tmp/multi-session-ssh-dev
+SMOKE_OUT ?= $(SMOKE_DIR)/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
 	$(XVFB) scripts/gui-smoke.sh build/bin/session-workbench $(SMOKE_OUT)-terminal

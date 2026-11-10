@@ -103,14 +103,14 @@ docs/planning/Tests.md lists every test with the SPEC.md items it covers.
 binary): run `make build` once on a fresh clone.
 
 The GUI tests run the real app under Xvfb and save screenshots next to their results
-(`/tmp/sw-smoke-*`). They need (Debian/Ubuntu package names) `xvfb xdotool imagemagick tmux
+(`/tmp/multi-session-ssh-dev/sw-smoke-*`; `make clean-smoke` removes them). They need (Debian/Ubuntu package names) `xvfb xdotool imagemagick tmux
 sshfs git jq dbus python3-dbus python3-gi libglib2.0-bin` (for gdbus), `ssh localhost`
 without a password, and bash as your login shell (the history test reads bash's history file). rsync is optional: without it those runs use the built-in transfer, and
 the working-copy and backup tests run once more with `SW_NO_RSYNC=1` anyway. They use
 throwaway configs, never yours. One test on its own:
 
 ```
-xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-web.sh build/bin/session-workbench /tmp/sw-smoke-web
+xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-web.sh build/bin/session-workbench /tmp/multi-session-ssh-dev/sw-smoke-web
 ```
 
 ## Usage
