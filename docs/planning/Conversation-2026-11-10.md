@@ -140,3 +140,9 @@
   while build/bin was being rebuilt and passes on its own. With the earlier runs, every GUI
   test has passed on v1.1.16. Removed ~/sw-guitest-748847 (left by the sync-builtin run cut off
   when the previous session ended) and the test output folder.
+
+## v1.1.17
+- User: "tag 'v1.1.16' already exists": v1.1.16 was tagged at 40221f4 (release run
+  42838747692 passed). The deactivate fix, the GUI test folder and the login test came after
+  it, so they are v1.1.17 (wails.json, SPEC status, PLAN entry moved there). The GUI test
+  results above ("passed on v1.1.16") are of this code, i.e. v1.1.17.

@@ -176,6 +176,15 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.17 (2026-11-10): deactivating the session on screen no longer shifts the window.
+  (the user: "when i deactivate a session the message … is added in a box under the
+  current session and the content … partly moved offscreen"): deactivating the session on
+  screen redrew it before its terminals were dropped, so the notice went below the terminal and
+  focusing its button scrolled the window; the tab now drops its terminal first and the focus
+  does not scroll. gui-smoke-inactive checks that the window did not move. gui-smoke-listmenu
+  follows the Groups heading (the empty folder's line).
+  Also: the GUI tests write into /tmp/multi-session-ssh-dev (`make clean-smoke`), and
+  gui-smoke-login no longer writes into /tmp itself. Every GUI test passed on this version.
 - v1.1.16 (2026-11-10): sidebar headings Groups, Active and Inactive (SPEC F5; the user: "group
   all other groups the user creates ins a Groups tab and add a Active Tab and a Disabled Tab
   … without the group path, we can show the group path on mouse hover there"). Decided
@@ -192,12 +201,6 @@ implementation differs from the original plan.
   session's error (asked: errors kept). gui-smoke-badges expects the new title; dockerwin's
   positions updated (its window is 18 px shorter than when the test was written; it failed on
   v1.1.15 too).
-  Fixed (the user: "when i deactivate a session the message … is added in a box under the
-  current session and the content … partly moved offscreen"): deactivating the session on
-  screen redrew it before its terminals were dropped, so the notice went below the terminal and
-  focusing its button scrolled the window; the tab now drops its terminal first and the focus
-  does not scroll. gui-smoke-inactive checks that the window did not move. gui-smoke-listmenu
-  follows the Groups heading (the empty folder's line).
 - v1.1.15 (2026-11-10): what claude cost at API prices (SPEC F18; the user: "could we
   monitor the cost and show that at regular intervals", then: API dollars (a subscription now,
   an API key later), a total first and per session as an option, "today: xxx, total: yyy",
