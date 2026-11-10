@@ -65,6 +65,7 @@ type App struct {
 	closing        atomic.Bool      // the page was asked to save before quitting (beforeClose)
 	notify         notifier
 	idle           idleState // claude stopped for being idle (idlestop.go)
+	cost           costState // what claude cost (costs.go)
 	// running is set when another instance holds the config's lock: this
 	// one then only shows that (InstanceProblem) and starts nothing.
 	running error
@@ -88,6 +89,7 @@ func NewApp(sessions *session.Manager, notesDir, dataDir string) *App {
 		dictDir: filepath.Join(filepath.Dir(notesDir), "dictionaries")}
 	a.rec = &reclog.Recorder{Settings: a.recordSettings}
 	a.idle.stopped, a.idle.working, a.idle.left = map[string]idle.State{}, map[string]bool{}, map[string]time.Time{}
+	a.costInit()
 	return a
 }
 
@@ -178,6 +180,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.notify.start(ctx)
 	go a.idleLoop(ctx)
+	go a.costLoop(ctx)
 }
 
 // shutdown drops all connections; remote tmux sessions keep running.

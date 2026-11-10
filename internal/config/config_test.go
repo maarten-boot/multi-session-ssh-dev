@@ -407,3 +407,38 @@ func TestIdleStop(t *testing.T) {
 		t.Errorf("invalid global kept: %q", c.UI.IdleStop)
 	}
 }
+
+func TestPrices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	os.WriteFile(path, []byte(`[ui]
+cost_per_session = true
+
+[prices."claude-new-9"]
+input = 1.5
+output = 7.5
+cache_read = 0.15
+
+[prices."claude-bad"]
+input = 1
+output = -2
+
+[prices."claude-free"]
+output = 1
+`), 0o644)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, ok := c.Prices["claude-new-9"]; !ok || p.Input != 1.5 || p.Output != 7.5 || p.CacheRead != 0.15 {
+		t.Errorf("own price: %+v", c.Prices)
+	}
+	if _, ok := c.Prices["claude-bad"]; ok {
+		t.Error("negative price kept")
+	}
+	if _, ok := c.Prices["claude-free"]; ok {
+		t.Error("price without input kept")
+	}
+	if c.UI.ShowCost == nil || !*c.UI.ShowCost || !c.UI.CostPerSession {
+		t.Errorf("show cost %v, per session %v", c.UI.ShowCost, c.UI.CostPerSession)
+	}
+}

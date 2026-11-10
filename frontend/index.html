@@ -46,6 +46,7 @@
         <nav id="tabs"></nav>
         <span id="sync-actions"></span>
         <span id="session-path"></span>
+        <button id="cost" class="cost" hidden></button>
     </header>
     <div id="panes"></div>
     <div id="empty" hidden>
@@ -365,6 +366,8 @@
                 </label>
                 <p class="hint wide-hint">Frees its memory on the agent host; it resumes (<code>claude --resume</code>) when you open the session. Not the session on screen, not while it asks a question or runs a command. Edit… sets a session's own; the session menu has Stop claude now.</p>
                 <div class="checks">
+                    <label class="check"><input type="checkbox" name="show_cost"> Show what claude cost (today and total, at API prices) in the top bar</label>
+                    <label class="check"><input type="checkbox" name="cost_per_session"> Also each session's cost in its balloon in the list</label>
                     <label class="check"><input type="checkbox" name="auto_reconnect"> Reconnect dropped connections automatically</label>
                     <label class="check"><input type="checkbox" name="activity_badges"> Mark sessions with bell / new output</label>
                     <label class="check"><input type="checkbox" name="copy_on_select"> Copy terminal selection to the clipboard automatically</label>

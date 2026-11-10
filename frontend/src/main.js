@@ -19,6 +19,7 @@ import {TOOLCHAINS, addToolchain} from './dockerfile';
 import {SERVICES, addService, hasService} from './services';
 import {fmtSize} from './format';
 import {idleLabel, idleOptions} from './idle';
+import {costText, sessionCost} from './cost';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -29,7 +30,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
-    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude, CostSummary, ResetCost, CostNow,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -591,6 +592,18 @@ const app = {
             const s = this.sessions.get(id);
             if (s) toast(`claude resumes in “${s.data.name}”`);
         });
+        // What claude cost (SPEC F18): updated every minute.
+        this.cost = await CostSummary().catch(() => null);
+        EventsOn('cost', c => {
+            this.cost = c;
+            this.renderCost();
+        });
+        $('#cost').addEventListener('click', () => confirmDialog({
+            title: 'Reset the total cost',
+            text: 'The total counts again from now. Today\'s cost and each session\'s stay as they are.',
+            ok: 'Reset',
+            action: () => ResetCost(),
+        }));
         await this.reload();
         const last = this.sessions.get(store.get('active', ''));
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
@@ -849,6 +862,7 @@ const app = {
     },
 
     render() {
+        this.renderCost();
         const err = $('#config-error');
         const problems = [];
         if (this.state.config_error) problems.push(`Config not loaded — changes will not be saved:\n${this.state.config_error}`);
@@ -973,6 +987,16 @@ const app = {
         ClearNotification(s.id).catch(() => {});
     },
 
+    // renderCost shows today's and the total cost in the top bar (SPEC F18).
+    renderCost() {
+        const b = $('#cost');
+        b.hidden = this.state.ui.show_cost === false || !this.cost;
+        if (b.hidden) return;
+        const {text, title} = costText(this.cost);
+        b.textContent = text;
+        b.title = title;
+    },
+
     // renderBackup shows a host's Claude backup state in its header tooltip,
     // with a ⚠ when the last backup failed.
     renderBackup(host) {
@@ -1011,6 +1035,8 @@ const app = {
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
             d.inactive ? el('div', {className: 'balloon-text', textContent: '⏸ Inactive: nothing connects until you activate it.'}) : '',
             this.idleStopped?.has(d.id) ? el('div', {className: 'balloon-text', textContent: '💤 claude was stopped after waiting for input; it resumes when you open the session.'}) : '',
+            this.state.ui.show_cost !== false && this.state.ui.cost_per_session && sessionCost(this.cost?.sessions?.[d.id])
+                ? el('div', {className: 'balloon-text', textContent: sessionCost(this.cost.sessions[d.id])}) : '',
             s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
         item.dataset.id = d.id;
@@ -2050,6 +2076,8 @@ async function settingsDialog() {
     f.notifications.checked = ui.notifications !== false;
     f.ctrl_copy_paste.checked = ui.ctrl_copy_paste !== false;
     f.private_history.checked = ui.private_history !== false;
+    f.show_cost.checked = ui.show_cost !== false;
+    f.cost_per_session.checked = !!ui.cost_per_session;
     fillIdleChoices(f.idle_stop, ui.idle_stop ?? '', 'never');
     f.ctrl_copy_paste.closest('label').hidden = isMac; // Cmd+C/V there
     f.private_history.closest('label').title = navigator.platform.startsWith('Win')
@@ -2133,6 +2161,8 @@ async function settingsDialog() {
         description_delay: f.description_delay.value === '' ? 1 : Number(f.description_delay.value), // empty: the default
         connect_on_start: f.connect_on_start.value,
         idle_stop: f.idle_stop.value,
+        show_cost: f.show_cost.checked,
+        cost_per_session: f.cost_per_session.checked,
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
@@ -2163,6 +2193,7 @@ async function settingsDialog() {
         hidden_tabs: order.filter(k => hidden.has(k)),
     }), pages.find(p => !p.hidden)?.querySelector('input, select')); // the open page's first field
     if (ok) await app.reload();
+    if (ok && f.show_cost.checked && ui.show_cost === false) CostNow(); // turned on: count at once
 }
 
 // qaSettings fills the Q&A page of Settings: who answers by default, the

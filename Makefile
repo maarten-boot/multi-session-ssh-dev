@@ -89,7 +89,8 @@ clean:
 #   notification service, needs python3-dbus, python3-gi and gdbus), notes for all sessions and
 #   copy/paste, Remote tab recordings, command menu, prompts menu and start
 #   commands, private shell history, lists and spelling in the notes,
-#   activity badges (~2 minutes), stopping an idle claude (a fake claude, ~2 minutes).
+#   activity badges (~2 minutes), stopping an idle claude (a fake claude, ~2 minutes),
+#   what claude cost (made-up transcripts).
 SMOKE_OUT ?= /tmp/sw-smoke
 XVFB = xvfb-run -a -s "-screen 0 1400x900x24"
 smoke: build
@@ -141,6 +142,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-inactive.sh build/bin/session-workbench $(SMOKE_OUT)-inactive
 	$(XVFB) scripts/gui-smoke-switch.sh build/bin/session-workbench $(SMOKE_OUT)-switch
 	$(XVFB) scripts/gui-smoke-idle.sh build/bin/session-workbench $(SMOKE_OUT)-idle
+	$(XVFB) scripts/gui-smoke-cost.sh build/bin/session-workbench $(SMOKE_OUT)-cost
 
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first

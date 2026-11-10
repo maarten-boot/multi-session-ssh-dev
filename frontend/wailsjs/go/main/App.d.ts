@@ -3,6 +3,7 @@
 import {autosave} from '../models';
 import {backup} from '../models';
 import {main} from '../models';
+import {cost} from '../models';
 import {notes} from '../models';
 import {session} from '../models';
 import {gitstatus} from '../models';
@@ -44,6 +45,10 @@ export function ContainerRemove(arg1:string,arg2:boolean,arg3:boolean):Promise<v
 export function ContainerStop(arg1:string):Promise<void>;
 
 export function ContainerStopBuild(arg1:string):Promise<void>;
+
+export function CostNow():Promise<void>;
+
+export function CostSummary():Promise<cost.Summary>;
 
 export function CreatePage(arg1:string,arg2:string):Promise<notes.Note>;
 
@@ -132,6 +137,8 @@ export function RenamePage(arg1:string,arg2:string,arg3:string):Promise<void>;
 export function RepoCheck(arg1:string):Promise<gitstatus.Audit>;
 
 export function Requirements(arg1:string):Promise<main.RequirementsFile>;
+
+export function ResetCost():Promise<void>;
 
 export function RestoreBackup(arg1:string):Promise<void>;
 

@@ -197,14 +197,18 @@ type UI struct {
 	// session you are not looking at rings the bell (claude waiting).
 	Notifications     *bool  `toml:"notifications,omitempty" json:"notifications"`
 	ClaudeBackupEvery string `toml:"claude_backup_every,omitempty" json:"claude_backup_every"`
+	// IdleStop stops a session's claude that waited this long for input
+	// (a duration, 1m to 24h; "" = never) and resumes it when the session
+	// is opened (SPEC F17). Session.IdleStop overrides it.
+	IdleStop string `toml:"idle_stop,omitempty" json:"idle_stop"`
+	// ShowCost shows what claude cost today and in total at API prices
+	// (SPEC F18); CostPerSession also each session's in its balloon.
+	ShowCost       *bool `toml:"show_cost,omitempty" json:"show_cost"`
+	CostPerSession bool  `toml:"cost_per_session,omitempty" json:"cost_per_session"`
 	// RecordRemote records every session's Remote tab (input and output as
 	// readable text, see internal/reclog) unless the session says "off";
 	// RecordEvery (a Go duration, 5m to 24h) starts a new file per segment;
 	// RecordDir is where ("" = <data dir>/logs).
-	// IdleStop stops a session's claude that waited this long for input
-	// (a duration, 1m to 24h; "" = never) and resumes it when the session
-	// is opened (SPEC F17). Session.IdleStop overrides it.
-	IdleStop     string `toml:"idle_stop,omitempty" json:"idle_stop"`
 	RecordRemote bool   `toml:"record_remote,omitempty" json:"record_remote"`
 	RecordEvery  string `toml:"record_every,omitempty" json:"record_every"`
 	RecordDir    string `toml:"record_dir,omitempty" json:"record_dir"`
@@ -250,6 +254,29 @@ type UI struct {
 	// StartCommands the choices for a session's start mode.
 	Commands      []Command      `toml:"commands,omitempty" json:"commands"`
 	StartCommands []StartCommand `toml:"start_commands,omitempty" json:"start_commands"`
+}
+
+// Price is a model's API price in dollars per million tokens (SPEC F18).
+// Zero means: cache reads 1/10 of Input, cache writes 1.25× (5 minutes) and
+// 2× (1 hour) Input, web searches $10 per 1000, fast mode 2×. LongAbove:
+// a prompt above that many tokens costs LongInput and LongOutput.
+type Price struct {
+	Input        float64 `toml:"input" json:"input"`
+	Output       float64 `toml:"output" json:"output"`
+	CacheRead    float64 `toml:"cache_read,omitempty" json:"cache_read"`
+	CacheWrite5m float64 `toml:"cache_write_5m,omitempty" json:"cache_write_5m"`
+	CacheWrite1h float64 `toml:"cache_write_1h,omitempty" json:"cache_write_1h"`
+	WebSearch    float64 `toml:"web_search,omitempty" json:"web_search"` // per 1000 searches
+	Fast         float64 `toml:"fast,omitempty" json:"fast"`             // multiplier
+	LongAbove    int     `toml:"long_above,omitempty" json:"long_above"`
+	LongInput    float64 `toml:"long_input,omitempty" json:"long_input"`
+	LongOutput   float64 `toml:"long_output,omitempty" json:"long_output"`
+}
+
+// valid: positive prices, nothing negative.
+func (p Price) valid() bool {
+	return p.Input > 0 && p.Output > 0 && p.CacheRead >= 0 && p.CacheWrite5m >= 0 && p.CacheWrite1h >= 0 &&
+		p.WebSearch >= 0 && p.Fast >= 0 && p.LongAbove >= 0 && p.LongInput >= 0 && p.LongOutput >= 0
 }
 
 // QACommand is another program that answers in the Q&A tab (see
@@ -305,6 +332,9 @@ type Config struct {
 	// Keys overrides keyboard shortcuts: action name -> key, e.g.
 	// next_session = "Ctrl+Shift+PageDown". See the README for actions.
 	Keys map[string]string `toml:"keys,omitempty" json:"keys"`
+	// Prices add to and override the built-in API prices by model id
+	// (internal/cost Prices), e.g. [prices."claude-opus-5-5"].
+	Prices map[string]Price `toml:"prices,omitempty" json:"prices"`
 }
 
 // Default returns the configuration used when no file exists.
@@ -343,6 +373,14 @@ func (c *Config) applyDefaults() {
 	}
 	if c.UI.ClaudeBackup == nil {
 		c.UI.ClaudeBackup = ptr(true)
+	}
+	if c.UI.ShowCost == nil {
+		c.UI.ShowCost = ptr(true)
+	}
+	for m, p := range c.Prices {
+		if m == "" || !p.valid() {
+			delete(c.Prices, m) // a hand-edited price that cannot be right
+		}
 	}
 	if c.UI.Notifications == nil {
 		c.UI.Notifications = ptr(true)

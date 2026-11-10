@@ -34,3 +34,14 @@
   place of "both" (Disconnect, Deactivate) — now also Stop claude now / Resume claude, which an
   inactive session does not offer; the template Dockerfile's description (SPEC C2, README)
   lacked procps. Fixed; no code change.
+
+## CI v1.1.14 (user: "pushed and tagged v1.1.14, check the CI build")
+- The tag points at b4e2e65. Run 42667463974: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip).
+
+## Question: let the app run push/merge/tag for the remote side
+- Idea: the app watches for agreed messages from the remote side and runs preconfigured git
+  actions (push, merge, tag) locally. Assessment: low risk only with a request file (not pane
+  text), fixed action names, a one-click approval showing what goes out, and git run from a
+  local clone (a shared repo's `.git/config`/hooks can run commands locally). Tag = release.
+- Decision: skipped; the user stays with manual commands.

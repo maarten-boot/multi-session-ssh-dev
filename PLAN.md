@@ -176,6 +176,21 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.15 (2026-11-10): what claude cost at API prices (SPEC F18; the user: "could we
+  monitor the cost and show that at regular intervals", then: API dollars (a subscription now,
+  an API key later), a total first and per session as an option, "today: xxx, total: yyy",
+  a figure that keeps updating in the window; the total counts everything in the transcripts,
+  with a reset; claude runs the app did not start count too). Checked first on this machine's
+  transcripts: every reply line has model, time and usage (5 min / 1 h cache writes, speed);
+  a reply has a line per content block (the last one counts); copies of a reply in two
+  transcripts are rare (5 of 6,532), so they are not looked for. Tokens are kept, dollars
+  computed when shown. My choices: the figure at the end of the top bar, a click resets (after
+  a question), on by default, prices in config.toml, a host that fails waits 5 min, a
+  transcript that shrank keeps its counts. Verified: the script's total for this repo's 35
+  transcripts equals a separate Python count ($403.53, today $3.60; 0.6 s for the first full
+  read); with busybox tools only and with mawk. Tests: cost (TestDollars, TestParseReply,
+  TestScript), config TestPrices, cost.test.mjs, gui-smoke-cost.sh. Next perhaps: an alert
+  above a limit set in the app (the user: "later perhaps").
 - v1.1.14 (2026-11-09): *Stop claude now* and idle stop in containers (SPEC F17; the user:
   "start Stop claude now, ask the questions; also add the idle stop for containers").
   Decided (questions): hooks in every claude session (the idle time only decides the
@@ -365,7 +380,7 @@ implementation differs from the original plan.
 - Round trips against a real host (`make test-ssh`): ssh/tmux, working copies, live share,
   Claude backup and restore; working copies and backups also with the built-in transfer
   (`SW_NO_RSYNC=1`).
-- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 43
+- Headless GUI tests driving the real app under Xvfb with screenshots (`make smoke-all`, 44
   scripts): terminal fidelity; sessions/dialogs/restart, add host, start-mode restart, one
   instance per config, remembered window size and position, Claude backups; Files; colors, switcher, settings/keys, reconnect,
   terminal extras (find, unicode widths, copy on select), folders, git markers, repository

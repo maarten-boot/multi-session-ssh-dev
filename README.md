@@ -561,6 +561,26 @@ are), in sessions with tmux (on an ssh host or in a container) whose start comma
 `claude`; a claude started before v1.1.14 has none: end the remote session once. What is lost: text typed into claude but not sent, and choices made in that claude
 such as a permission mode switched with Shift+Tab (start options like `--model` stay).
 
+**What claude cost.** The top bar ends in **today $4.12 · total $87.30**: what claude's
+replies in your sessions cost at API prices (with a subscription: what they would have cost
+with an API key). It is counted from Claude Code's transcripts on each agent host (the
+sessions' project folders under `~/.claude/projects`, including claude runs the app did not
+start) and updated every minute; the tooltip says what is counted. Click it to reset the total
+(today stays). Settings → Terminals turns it off, or also shows each session's cost in its
+balloon in the list. Prices of the current models are built in; add or correct one in the
+config file:
+
+```toml
+[prices."claude-opus-5-5"]                # dollars per million tokens
+input = 4
+output = 20
+cache_read = 0.20                         # optional: left out = 1/10 of input
+# cache_write_5m, cache_write_1h (1.25× / 2× input), web_search (per 1000, $10),
+# fast (2), long_above / long_input / long_output (a dearer long prompt)
+```
+
+A model without a price is left out and the amount shows "≥".
+
 **Inactive sessions.** A session you keep only for later can be parked: session menu →
 **Deactivate session…** disconnects its tabs and marks it inactive (⏸, "inactive" after its
 path, in italics). From then on it connects nothing — not when the app starts (also with
@@ -905,6 +925,8 @@ ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pa
 notifications = true                      # desktop notification when claude waits (bell)
 private_history = true                    # each session's shells keep their own history
 # idle_stop = "5m"                        # stop a claude that waited this long for input (1m … 24h); resumed when opened
+# show_cost = true                        # today's and the total cost of claude at API prices in the top bar
+# cost_per_session = false                # also each session's in its balloon in the list
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
 save_agent_copies = true                  # save working copies' agent copies here (Full ▾ → Save)

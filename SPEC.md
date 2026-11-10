@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.23 (2026-11-09, app v1.1.14) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.24 (2026-11-10, app v1.1.15) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -16,8 +16,8 @@ exporting a session as an archive / importing it as a new session (F13), separat
 (`-profile`, F14), plain ssh logins without a local directory (F2a), sessions without tmux
 (F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
 next to a container session's dev container with Compose (C7), inactive sessions (F15), the
-Hosts heading above the folders (F5), one project on several agent hosts (F16) and stopping
-claude (F17; also in containers and by hand).
+Hosts heading above the folders (F5), one project on several agent hosts (F16), stopping
+claude (F17; also in containers and by hand) and what claude cost at API prices (F18).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -459,6 +459,37 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     start command again. Not when something runs in the pane's shell (taken over by hand: the
     mark goes, nothing is touched). A stale mark (its tmux session ended) is removed by the
     next check. A toast says "claude resumes in …".
+- F18. What claude cost (internal/cost, costs.go). The top bar ends in "today $4.12 · total
+  $87.30": what claude's replies cost at API prices (with a subscription: what they would have
+  cost). `[ui] show_cost` (Settings → Terminals, on by default) shows it; `cost_per_session`
+  (off by default) also puts "Cost: today … · total …" in each session's list balloon.
+  Clicking the figure asks, then resets the total (it counts from then on; today and the
+  sessions' own stay). Updated every minute.
+  - Source: Claude Code's transcripts. Every reply has a line per content block with its
+    message id, model, time and usage (input, cache writes 5 min / 1 h, cache reads, output,
+    web searches, `speed`). Counted are all `*.jsonl` (subagents too) in each active session's
+    project folder on its agent host (a container's while it runs): `~/.claude/projects/` plus
+    the session folder's path (logical and physical) with every other character than a–z, A–Z,
+    0–9 turned into `-` (above 200 characters: those 200 and a suffix), and the folder of the
+    transcript its hooks recorded (F17). So claude runs the app did not start count too. Two
+    sessions in the same folder count it once in the total.
+  - One ssh call per host per minute (2 min timeout; a host that fails is tried again after
+    5 min): a POSIX script (sh, awk, sed, find, tail, head, od; works with busybox) reads each
+    transcript only from where the last read stopped, up to the last complete line, and prints
+    only the head (up to `"content":`) and the tail (from the last `"usage":{`) of reply lines.
+    A later line of the same reply replaces the earlier one's counts. A transcript that shrank
+    keeps its counts and is read again from the start.
+  - Kept in `<data dir>/cost.json`: tokens per transcript, day (local date of the reply) and
+    model (`:fast` for fast mode, `:long` for a prompt above the price's `long_above`), the
+    offsets, each session's folders, and the tokens at the last reset. Dollars are computed
+    when shown, so a price changed later applies to the past too.
+  - Prices (dollars per million tokens): built in for the current models (internal/cost
+    Prices); `[prices."<model id>"]` in config.toml adds or overrides (`input`, `output`,
+    `cache_read`, `cache_write_5m`, `cache_write_1h`, `web_search` per 1000, `fast`
+    multiplier, `long_above`, `long_input`, `long_output`; left out: cache reads 1/10 of input,
+    writes 1.25× / 2× input, web search $10 per 1000, fast 2×). A model is priced by the
+    longest key it starts with. An invalid price is dropped when the config loads. A model
+    without a price is left out and the amount it is in shows "≥"; the tooltip names it.
 
 ### 4.2 Remote tab
 - R1. Implemented by spawning the system `ssh` client inside a local PTY (simplified; quoting

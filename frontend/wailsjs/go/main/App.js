@@ -62,6 +62,14 @@ export function ContainerStopBuild(arg1) {
   return window['go']['main']['App']['ContainerStopBuild'](arg1);
 }
 
+export function CostNow() {
+  return window['go']['main']['App']['CostNow']();
+}
+
+export function CostSummary() {
+  return window['go']['main']['App']['CostSummary']();
+}
+
 export function CreatePage(arg1, arg2) {
   return window['go']['main']['App']['CreatePage'](arg1, arg2);
 }
@@ -236,6 +244,10 @@ export function RepoCheck(arg1) {
 
 export function Requirements(arg1) {
   return window['go']['main']['App']['Requirements'](arg1);
+}
+
+export function ResetCost() {
+  return window['go']['main']['App']['ResetCost']();
 }
 
 export function RestoreBackup(arg1) {

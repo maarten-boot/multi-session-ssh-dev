@@ -406,6 +406,23 @@ button.link:hover {
     text-overflow: ellipsis;
 }
 
+/* What claude cost (SPEC F18): text-coloured, a button to reset the total. */
+#cost {
+    flex: none;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 8px;
+    color: var(--text-strong);
+    font-size: 0.923rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#cost:hover {
+    background: var(--panel-2);
+}
+
 #session-path.error {
     color: var(--danger);
 }
