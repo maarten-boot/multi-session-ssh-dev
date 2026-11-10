@@ -490,7 +490,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     reached limit marks its part of the figure "⚠ …" in the warning colour (a red border round
     the figure) and sends one desktop notification ("claude cost today", "claude 5-hour usage"
     …): today's once a day, a usage window once until it resets (remembered in the web view's
-    storage). Clicking the notification opens Settings → Cost.
+    storage); also when the bell notifications of F4 are off (that setting is about claude
+    waiting). Clicking the notification opens Settings → Cost.
   - Usage: Claude Code gives a status line command the 5-hour and 7-day usage
     (`rate_limits.five_hour` / `seven_day`: `used_percentage`, `resets_at`; Pro, Max and Ultra,
     after the session's first reply). With the cost shown, the app's `--settings` (F17) also

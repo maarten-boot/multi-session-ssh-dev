@@ -182,3 +182,11 @@
   x 629), qa (tab x 834), spell (Notes tab x 734; it had been clicking Containers), settings,
   commands, export: all pass. Go and frontend tests pass (72).
 - Removed the status line helper that GUI test runs (cost check against localhost) installed in the real ~/.local/state/session-workbench/claude (the running v1.1.17 does not use it; v1.1.18 installs it itself).
+
+## Cross-check v1.1.18 (user: "pushed, do a crosscheck")
+- GitHub main at d2ab09b. Code, SPEC F18, README agree (Cost page, warnings, usage, the
+  Deactivate tick); no "Settings → Terminals" left for the cost. Added to SPEC F18: the
+  warnings notify also when the bell notifications (F4) are off.
+- CI on the push (run 42877795459): linux, windows, macOS passed — including TestScript's
+  usage age on macOS, where `date -r <file>` fails and `stat -f %m` is used; release skipped
+  (no tag).
