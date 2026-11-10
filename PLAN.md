@@ -192,6 +192,12 @@ implementation differs from the original plan.
   session's error (asked: errors kept). gui-smoke-badges expects the new title; dockerwin's
   positions updated (its window is 18 px shorter than when the test was written; it failed on
   v1.1.15 too).
+  Fixed (the user: "when i deactivate a session the message … is added in a box under the
+  current session and the content … partly moved offscreen"): deactivating the session on
+  screen redrew it before its terminals were dropped, so the notice went below the terminal and
+  focusing its button scrolled the window; the tab now drops its terminal first and the focus
+  does not scroll. gui-smoke-inactive checks that the window did not move. gui-smoke-listmenu
+  follows the Groups heading (the empty folder's line).
 - v1.1.15 (2026-11-10): what claude cost at API prices (SPEC F18; the user: "could we
   monitor the cost and show that at regular intervals", then: API dollars (a subscription now,
   an API key later), a total first and per session as an option, "today: xxx, total: yyy",

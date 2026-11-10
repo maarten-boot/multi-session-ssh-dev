@@ -157,8 +157,11 @@ class Tab {
     }
 
     // showInactive puts a notice with an Activate button where the
-    // terminal would be.
+    // terminal would be. Deactivating the session on screen redraws it
+    // before dropTerminals runs: the terminal goes first, so the notice is
+    // not put below it (out of the window).
     showInactive() {
+        if (this.view) this.dropView();
         if (!this.inactiveNote) {
             const btn = el('button', {type: 'button', className: 'primary', textContent: 'Activate session'});
             btn.onclick = () => setSessionActive(this.session, true);
@@ -168,7 +171,8 @@ class Tab {
                 btn);
             this.pane.append(this.inactiveNote);
         }
-        this.inactiveNote.querySelector('button').focus();
+        // No scrolling: a notice placed out of view must not shift the window.
+        this.inactiveNote.querySelector('button').focus({preventScroll: true});
     }
 
     // dropView ends and removes the terminal (deactivating the session).

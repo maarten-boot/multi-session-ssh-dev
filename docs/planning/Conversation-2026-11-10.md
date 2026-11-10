@@ -109,3 +109,21 @@
   before large runs).
 - This project: the GUI tests write to /tmp/multi-session-ssh-dev/sw-smoke-* (Makefile
   SMOKE_DIR/SMOKE_OUT, README); `make clean-smoke` removes that folder.
+
+## Rest of the GUI tests; deactivating the session on screen (same version)
+- "continue; we now have 60G extra space": the earlier run had stopped with the session; it had
+  passed description, git, repocheck, sync; listmenu failed (its right-click on the empty
+  folder's line hit the folder's heading: the Groups heading moved it to y 224) → fixed,
+  passes. The last 20 tests run in the background.
+- User: "when i deactivate a session the message that the session has been deactivated is
+  added in a box under the current session and the content of the session is partly moved
+  offscreen, i have to restore the proper view by moving to another session".
+- Reproduced with gui-smoke-inactive (screenshot after Deactivate: page shifted up 120 px).
+  A temporary log of the session's DOM showed the cause: saving "inactive" reloads the state
+  and shows the tab again before deactivateSession drops the terminals, so the notice was put
+  below the 750 px terminal and its button's focus() scrolled the page; dropping the terminal
+  then fixed the DOM but not the scroll. Fix: showInactive drops the terminal first; focus
+  with preventScroll. Check added (the sidebar head is where it was); it failed without the fix,
+  passes with it. The debug line is removed.
+- Note: the background test run used build/bin while it was rebuilt for this (debug and
+  unfixed builds); results of tests that started then may need a rerun.

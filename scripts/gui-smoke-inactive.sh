@@ -63,6 +63,12 @@ xdotool mousemove 114 175 click 3; menu d d            # Disconnect, Deactivate 
 shot 5-deactivate-dialog
 k space; k Tab; k Return; sleep 3                      # tick: end its tmux session; Deactivate
 shot 6-deactivated
+# Deactivating the session on screen does not shift the window: the sidebar's
+# head stays where it was (the notice went below the terminal and was
+# scrolled into view).
+convert $OUT/4-activated.png -crop 240x34+60+50 +repage $OUT/head-4.png
+convert $OUT/6-deactivated.png -crop 240x34+60+50 +repage $OUT/head-6.png
+check "the window did not scroll" test "$(compare -metric AE $OUT/head-4.png $OUT/head-6.png null: 2>&1 | cut -d' ' -f1)" = 0
 check "Deactivate with the tick ended its tmux session" no_tmux $B
 check "config.toml marks it inactive" inactive_in_file $B
 check "the active one is untouched" has_tmux $A
