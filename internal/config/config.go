@@ -205,6 +205,12 @@ type UI struct {
 	// (SPEC F18); CostPerSession also each session's in its balloon.
 	ShowCost       *bool `toml:"show_cost,omitempty" json:"show_cost"`
 	CostPerSession bool  `toml:"cost_per_session,omitempty" json:"cost_per_session"`
+	// Warnings (Settings → Cost; 0 = none): today's cost above
+	// CostDailyLimit dollars, the 5-hour or 7-day subscription usage at or
+	// above Usage5hLimit / Usage7dLimit percent.
+	CostDailyLimit float64 `toml:"cost_daily_limit,omitempty" json:"cost_daily_limit"`
+	Usage5hLimit   int     `toml:"usage_5h_limit,omitempty" json:"usage_5h_limit"`
+	Usage7dLimit   int     `toml:"usage_7d_limit,omitempty" json:"usage_7d_limit"`
 	// RecordRemote records every session's Remote tab (input and output as
 	// readable text, see internal/reclog) unless the session says "off";
 	// RecordEvery (a Go duration, 5m to 24h) starts a new file per segment;
@@ -377,6 +383,9 @@ func (c *Config) applyDefaults() {
 	if c.UI.ShowCost == nil {
 		c.UI.ShowCost = ptr(true)
 	}
+	if CostLimits(c.UI) != nil { // a hand-edited limit that cannot be right: none
+		c.UI.CostDailyLimit, c.UI.Usage5hLimit, c.UI.Usage7dLimit = 0, 0, 0
+	}
 	for m, p := range c.Prices {
 		if m == "" || !p.valid() {
 			delete(c.Prices, m) // a hand-edited price that cannot be right
@@ -454,6 +463,20 @@ func RecordEvery(u UI) (time.Duration, error) {
 		return 0, fmt.Errorf("recording segment %q: use 5m to 24h, e.g. 1h", u.RecordEvery)
 	}
 	return d, nil
+}
+
+// CostLimits checks the warning limits: dollars 0 to 1,000,000, percent 0
+// to 100 (0 = no warning).
+func CostLimits(u UI) error {
+	switch {
+	case u.CostDailyLimit < 0 || u.CostDailyLimit > 1e6:
+		return fmt.Errorf("daily cost limit $%v: use 0 (none) to 1000000", u.CostDailyLimit)
+	case u.Usage5hLimit < 0 || u.Usage5hLimit > 100:
+		return fmt.Errorf("5-hour usage limit %d%%: use 0 (none) to 100", u.Usage5hLimit)
+	case u.Usage7dLimit < 0 || u.Usage7dLimit > 100:
+		return fmt.Errorf("7-day usage limit %d%%: use 0 (none) to 100", u.Usage7dLimit)
+	}
+	return nil
 }
 
 // ParseIdleStop reads an idle time: "" or "off" is 0 (never), else a
@@ -652,6 +675,9 @@ func ValidateUI(u UI) error {
 		return fmt.Errorf("unknown connect_on_start %q", u.ConnectOnStart)
 	}
 	if _, err := BackupEvery(u); err != nil {
+		return err
+	}
+	if err := CostLimits(u); err != nil {
 		return err
 	}
 	if _, err := RecordEvery(u); err != nil {

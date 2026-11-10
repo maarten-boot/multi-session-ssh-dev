@@ -2,10 +2,15 @@ package idle
 
 import (
 	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"session-workbench/internal/profile"
 	"session-workbench/internal/remote"
 )
 
@@ -16,7 +21,7 @@ func TestSettings(t *testing.T) {
 			Hooks   []struct{ Type, Command string }
 		} `json:"hooks"`
 	}
-	raw := Settings("s-abc")
+	raw := Settings("s-abc", true)
 	if err := json.Unmarshal([]byte(raw), &s); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +42,7 @@ func TestSettings(t *testing.T) {
 }
 
 func TestWithHooks(t *testing.T) {
-	arg := " --settings " + remote.Quote(Settings("s1"))
+	arg := " --settings " + remote.Quote(Settings("s1", false))
 	for _, c := range []struct {
 		in, want string
 		runs     bool
@@ -52,7 +57,7 @@ func TestWithHooks(t *testing.T) {
 		{"bash", "bash", false},
 		{`echo 'a; claude' && claude -p "x || y"`, `echo 'a; claude' && claude` + arg + ` -p "x || y"`, true},
 	} {
-		if got := WithHooks(c.in, "s1"); got != c.want {
+		if got := WithHooks(c.in, "s1", false); got != c.want {
 			t.Errorf("WithHooks(%q) = %q", c.in, got)
 		}
 		if Runs(c.in) != c.runs {
@@ -62,7 +67,7 @@ func TestWithHooks(t *testing.T) {
 }
 
 func TestResumeCommand(t *testing.T) {
-	arg := "--settings " + remote.Quote(Settings("s1"))
+	arg := "--settings " + remote.Quote(Settings("s1", false))
 	for _, c := range []struct{ in, want string }{
 		{"claude --continue || claude", "claude " + arg + " --resume 'abc-1'"},
 		{"claude -c --model opus", "claude " + arg + " --resume 'abc-1' --model opus"},
@@ -71,12 +76,12 @@ func TestResumeCommand(t *testing.T) {
 		{"claude --session-id 1234 --resume=x 'a b'", "claude " + arg + " --resume 'abc-1' 'a b'"},
 		{"~/bin/claude ; echo", "~/bin/claude " + arg + " --resume 'abc-1'"},
 	} {
-		if got := ResumeCommand(c.in, "s1", "abc-1"); got != c.want {
+		if got := ResumeCommand(c.in, "s1", "abc-1", false); got != c.want {
 			t.Errorf("ResumeCommand(%q)\n= %q\nwant %q", c.in, got, c.want)
 		}
 	}
 	// No conversation yet: the start command again.
-	if got := ResumeCommand("claude --continue || claude", "s1", ""); got != WithHooks("claude --continue || claude", "s1") {
+	if got := ResumeCommand("claude --continue || claude", "s1", "", false); got != WithHooks("claude --continue || claude", "s1", false) {
 		t.Error(got)
 	}
 }
@@ -142,5 +147,63 @@ func TestScripts(t *testing.T) {
 	}
 	if Human(5*time.Minute) != "5 min" || Human(2*time.Hour) != "2 h" || Human(90*time.Minute) != "1 h 30 min" {
 		t.Error("Human")
+	}
+}
+
+// TestStatusLine runs the status line of Settings(id, true) as Claude Code
+// would (sh, the data on stdin) with a fake home (SPEC F18): the usage is
+// saved only from data that has it, and the user's own status line runs
+// with the same data, else the usage is shown.
+func TestStatusLine(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the agent host runs sh")
+	}
+	var s struct {
+		StatusLine struct{ Type, Command string } `json:"statusLine"`
+	}
+	if err := json.Unmarshal([]byte(Settings("s1", true)), &s); err != nil || s.StatusLine.Type != "command" {
+		t.Fatalf("%v %+v", err, s)
+	}
+	if strings.Contains(Settings("s1", false), "statusLine") {
+		t.Error("a status line without usage")
+	}
+	home := t.TempDir()
+	dir := filepath.Join(home, ".local", "state", profile.Dir(), "claude")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "statusline"), []byte(StatusHelper), 0o755)
+	run := func(input string) string {
+		t.Helper()
+		cmd := exec.Command("sh", "-c", s.StatusLine.Command)
+		cmd.Env = append(os.Environ(), "HOME="+home)
+		cmd.Stdin = strings.NewReader(input)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %s", err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	with := `{"model":{"display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":1738425600},"seven_day":{"resets_at":1738857600,"used_percentage":41.2}}}`
+	if got := run(with); got != "5h 23% · 7d 41%" {
+		t.Errorf("usage shown: %q", got)
+	}
+	usage := filepath.Join(dir, UsageFile)
+	if b, _ := os.ReadFile(usage); string(b) != with {
+		t.Errorf("saved: %q", b)
+	}
+	if got := run(`{"model":{"display_name":"Opus"}}`); got != "" {
+		t.Errorf("no usage yet: %q", got)
+	}
+	if b, _ := os.ReadFile(usage); string(b) != with {
+		t.Error("data without the usage replaced it")
+	}
+	// The user's own status line, with the same data.
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o755)
+	os.WriteFile(filepath.Join(home, ".claude", "settings.json"),
+		[]byte(`{"statusLine": {"type": "command", "command": "grep -o '\"display_name\":\"[^\"]*\"'"}}`), 0o644)
+	if got := run(with); got != `"display_name":"Opus"` {
+		t.Errorf("own status line: %q", got)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 2 {
+		t.Errorf("left behind: %v", entries)
 	}
 }

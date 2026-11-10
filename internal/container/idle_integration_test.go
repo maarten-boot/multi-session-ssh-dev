@@ -95,7 +95,7 @@ func TestRealIdle(t *testing.T) {
 	}
 	tn := remote.TmuxName(s.ID)
 	start := fake + " --continue || " + fake
-	pane, _ := remote.PaneCommand(idle.WithHooks(start, s.ID))
+	pane, _ := remote.PaneCommand(idle.WithHooks(start, s.ID, false))
 	if _, code := run("tmux new-session -d -x 100 -y 30 -s " + tn + " -c " + remote.Quote(proj) + " " + remote.Quote(pane)); code != 0 {
 		t.Fatal("tmux in the container")
 	}
@@ -118,7 +118,7 @@ func TestRealIdle(t *testing.T) {
 	if out, _ := run(`ps -A -o pid=,ppid=,args= | grep '[b]in/claude' | grep -v ' tmux new-session '`); strings.TrimSpace(out) != "" {
 		t.Errorf("still running: %s", out)
 	}
-	p, _ := remote.PaneCommand(idle.ResumeCommand(start, s.ID, st.StoppedConv))
+	p, _ := remote.PaneCommand(idle.ResumeCommand(start, s.ID, st.StoppedConv, false))
 	rs, _ := idle.ResumeScript(st, tn, proj, p)
 	if _, code := run(rs); code != 0 {
 		t.Fatalf("resume: exit %d", code)

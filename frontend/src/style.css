@@ -424,6 +424,40 @@ button.link:hover {
     background: var(--panel-2);
 }
 
+/* A limit reached (Settings → Cost): that part in the warning colour. */
+#cost.warn {
+    border-color: var(--danger);
+}
+
+#cost .warn {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* Settings → Cost: each session's cost, black text, amounts right-aligned. */
+.cost-table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    min-width: 32em;
+}
+
+.cost-table th, .cost-table td {
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    text-align: left;
+    color: var(--text-strong);
+}
+
+.cost-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.cost-table tfoot .sum td {
+    font-weight: 600;
+    border-top: 2px solid var(--border-strong);
+}
+
 #session-path:not([hidden]) + #cost {
     margin-left: 0;
 }
@@ -1118,7 +1152,7 @@ dialog .grid {
 }
 
 .settings-tabs button {
-    padding: 6px 6px; /* eight pages fit on one line at the usual font size */
+    padding: 6px 3px; /* nine pages fit on one line at the usual font size, the open one in bold */
     border: 1px solid transparent;
     border-bottom: none;
     border-radius: 4px 4px 0 0;

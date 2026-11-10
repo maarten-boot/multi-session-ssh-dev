@@ -79,7 +79,7 @@ func TestSSHIdle(t *testing.T) {
 		t.Fatalf("waiting for %s: %+v", what, check())
 		return State{}
 	}
-	pane, err := remote.PaneCommand(WithHooks(start, id))
+	pane, err := remote.PaneCommand(WithHooks(start, id, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestSSHIdle(t *testing.T) {
 
 	resume := func(st State) int {
 		t.Helper()
-		p, err := remote.PaneCommand(ResumeCommand(start, id, st.StoppedConv))
+		p, err := remote.PaneCommand(ResumeCommand(start, id, st.StoppedConv, false))
 		if err != nil {
 			t.Fatal(err)
 		}

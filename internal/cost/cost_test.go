@@ -88,7 +88,7 @@ func TestParseReply(t *testing.T) {
 // runScript runs Script with home as $HOME.
 func runScript(t *testing.T, home string, items []Item, known map[string]int64) Result {
 	t.Helper()
-	sc, err := Script(items, known, "$HOME/state")
+	sc, err := Script(items, known, "$HOME/state", testHelper)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,6 +100,8 @@ func runScript(t *testing.T, home string, items []Item, known map[string]int64) 
 	}
 	return Parse(string(out))
 }
+
+const testHelper = "#!/bin/sh\necho test helper\n"
 
 func enc(p string) string { return regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(p, "-") }
 
@@ -223,6 +225,27 @@ func TestScript(t *testing.T) {
 	n, _ := Dollars(tb, "claude-opus-5-5", Tokens{Output: 1000})
 	if s := l.Summary(tb, now); archived != 1 || !near(s.Total, n) || !near(s.Today, before.Today+n) {
 		t.Fatalf("archived %d, %+v", archived, s)
+	}
+
+	// The status line's helper is installed (made executable), and the
+	// usage saved on the host comes back with its age.
+	helper := filepath.Join(home, "state", "statusline")
+	if b, err := os.ReadFile(helper); err != nil || string(b) != testHelper {
+		t.Fatalf("helper: %q %v", b, err)
+	}
+	if st, _ := os.Stat(helper); st.Mode()&0o100 == 0 {
+		t.Error("helper not executable")
+	}
+	if res.Usage != nil {
+		t.Errorf("usage without a file: %+v", res.Usage)
+	}
+	os.WriteFile(filepath.Join(home, "state", "usage.json"), []byte(`{"model":{"id":"x"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":1738425600},"seven_day":{"used_percentage":41.2,"resets_at":1738857600}}}`+"\n"), 0o644)
+	old := time.Now().Add(-10 * time.Minute)
+	os.Chtimes(filepath.Join(home, "state", "usage.json"), old, old)
+	res = runScript(t, home, items, l.Known("h"))
+	if u := res.Usage; u == nil || u.FiveHour == nil || u.FiveHour.Used != 23.5 || u.SevenDay.ResetsAt != 1738857600 ||
+		time.Since(time.Unix(u.At, 0)) < 9*time.Minute || time.Since(time.Unix(u.At, 0)) > 11*time.Minute {
+		t.Errorf("usage: %+v", res.Usage)
 	}
 
 	// Saved and read back.

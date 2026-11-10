@@ -186,6 +186,9 @@ export namespace config {
 	    idle_stop: string;
 	    show_cost?: boolean;
 	    cost_per_session: boolean;
+	    cost_daily_limit: number;
+	    usage_5h_limit: number;
+	    usage_7d_limit: number;
 	    record_remote: boolean;
 	    record_every: string;
 	    record_dir: string;
@@ -233,6 +236,9 @@ export namespace config {
 	        this.idle_stop = source["idle_stop"];
 	        this.show_cost = source["show_cost"];
 	        this.cost_per_session = source["cost_per_session"];
+	        this.cost_daily_limit = source["cost_daily_limit"];
+	        this.usage_5h_limit = source["usage_5h_limit"];
+	        this.usage_7d_limit = source["usage_7d_limit"];
 	        this.record_remote = source["record_remote"];
 	        this.record_every = source["record_every"];
 	        this.record_dir = source["record_dir"];
@@ -293,28 +299,36 @@ export namespace cost {
 	        this.total = source["total"];
 	    }
 	}
-	export class Summary {
-	    today: number;
-	    total: number;
-	    since: string;
-	    unpriced: string[];
-	    today_partial: boolean;
-	    total_partial: boolean;
-	    sessions: Record<string, Amount>;
+	export class Window {
+	    used: number;
+	    resets_at: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new Summary(source);
+	        return new Window(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.today = source["today"];
-	        this.total = source["total"];
-	        this.since = source["since"];
-	        this.unpriced = source["unpriced"];
-	        this.today_partial = source["today_partial"];
-	        this.total_partial = source["total_partial"];
-	        this.sessions = this.convertValues(source["sessions"], Amount, true);
+	        this.used = source["used"];
+	        this.resets_at = source["resets_at"];
+	    }
+	}
+	export class Usage {
+	    five_hour?: Window;
+	    seven_day?: Window;
+	    at: number;
+	    host: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Usage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.five_hour = this.convertValues(source["five_hour"], Window);
+	        this.seven_day = this.convertValues(source["seven_day"], Window);
+	        this.at = source["at"];
+	        this.host = source["host"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -335,6 +349,51 @@ export namespace cost {
 		    return a;
 		}
 	}
+	export class Summary {
+	    today: number;
+	    total: number;
+	    since: string;
+	    unpriced: string[];
+	    today_partial: boolean;
+	    total_partial: boolean;
+	    sessions: Record<string, Amount>;
+	    usage?: Usage;
+	
+	    static createFrom(source: any = {}) {
+	        return new Summary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.today = source["today"];
+	        this.total = source["total"];
+	        this.since = source["since"];
+	        this.unpriced = source["unpriced"];
+	        this.today_partial = source["today_partial"];
+	        this.total_partial = source["total_partial"];
+	        this.sessions = this.convertValues(source["sessions"], Amount, true);
+	        this.usage = this.convertValues(source["usage"], Usage);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 
 }
 

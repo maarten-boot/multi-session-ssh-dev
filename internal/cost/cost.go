@@ -14,6 +14,7 @@ package cost
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"path"
@@ -244,7 +245,12 @@ END { printf "E\t%d\n", last }`
 // "D <id> <folder>" for every folder of a session, then for every
 // transcript that grew "F <from> <size> <ends with newline 0|1> <path>",
 // its reply lines ("L <start> <head+tail>") and "E <start of the last line>".
-func Script(items []Item, known map[string]int64, stateDir string) (string, error) {
+//
+// With helper (the status line's program, internal/idle StatusHelper) it
+// is installed in stateDir as "statusline" when it differs, and the saved
+// usage (stateDir/usage.json) is printed: "U <host's time> <its time>
+// <the data>" (SPEC F18).
+func Script(items []Item, known map[string]int64, stateDir, helper string) (string, error) {
 	var b strings.Builder
 	b.WriteString(`LC_ALL=C; export LC_ALL
 P="$HOME/.claude/projects"; S="` + stateDir + `"
@@ -300,6 +306,21 @@ while IFS="$tab" read -r o s f; do
   tail -c +"$((o + 1))" "$f" | head -c "$((s - o))" | awk '` + awkProg + `'
 done < "$T/j"
 `)
+	if helper != "" {
+		if strings.Contains(helper, "\nSW_HELPER\n") {
+			return "", fmt.Errorf("status line helper: contains the end marker")
+		}
+		b.WriteString(`mkdir -p "$S"
+cat > "$T/h" <<'SW_HELPER'
+` + strings.TrimSuffix(helper, "\n") + `
+SW_HELPER
+cmp -s "$T/h" "$S/statusline" || { cp "$T/h" "$S/statusline.tmp" && chmod 755 "$S/statusline.tmp" && mv -f "$S/statusline.tmp" "$S/statusline"; }
+if [ -f "$S/usage.json" ]; then
+  m=$(date -r "$S/usage.json" +%s 2>/dev/null || stat -f %m "$S/usage.json" 2>/dev/null)
+  printf 'U\t%s\t%s\t' "$(date +%s)" "$m"; tr -d '\n\t' < "$S/usage.json"; echo
+fi
+`)
+	}
 	return b.String(), nil
 }
 
@@ -317,10 +338,66 @@ type Chunk struct {
 type Result struct {
 	Dirs   map[string][]string // session id → project folders
 	Chunks []Chunk
+	Usage  *Usage // the subscription usage saved on the host, if any
+}
+
+// Window is one usage window: the percentage used and when it resets.
+type Window struct {
+	Used     float64 `json:"used"`
+	ResetsAt int64   `json:"resets_at"` // Unix seconds
+}
+
+// Usage is the subscription usage claude last reported on a host (its
+// status line data): the 5-hour and 7-day windows; At is when it was saved
+// (this computer's time, Unix seconds), Host where.
+type Usage struct {
+	FiveHour *Window `json:"five_hour"`
+	SevenDay *Window `json:"seven_day"`
+	At       int64   `json:"at"`
+	Host     string  `json:"host"`
+}
+
+// parseUsage reads a "U" line's fields: the host's time, the file's time
+// and the status line data.
+func parseUsage(now, mtime, data string, local time.Time) *Usage {
+	var d struct {
+		RateLimits struct {
+			FiveHour *struct {
+				UsedPercentage float64 `json:"used_percentage"`
+				ResetsAt       int64   `json:"resets_at"`
+			} `json:"five_hour"`
+			SevenDay *struct {
+				UsedPercentage float64 `json:"used_percentage"`
+				ResetsAt       int64   `json:"resets_at"`
+			} `json:"seven_day"`
+		} `json:"rate_limits"`
+	}
+	if json.Unmarshal([]byte(data), &d) != nil {
+		return nil
+	}
+	u := &Usage{}
+	if w := d.RateLimits.FiveHour; w != nil {
+		u.FiveHour = &Window{w.UsedPercentage, w.ResetsAt}
+	}
+	if w := d.RateLimits.SevenDay; w != nil {
+		u.SevenDay = &Window{w.UsedPercentage, w.ResetsAt}
+	}
+	if u.FiveHour == nil && u.SevenDay == nil {
+		return nil
+	}
+	n, err1 := strconv.ParseInt(now, 10, 64)
+	m, err2 := strconv.ParseInt(mtime, 10, 64)
+	u.At = local.Unix()
+	if err1 == nil && err2 == nil && n >= m {
+		u.At = local.Unix() - (n - m) // its age on the host, whatever the host's clock says
+	}
+	return u
 }
 
 // Parse reads the script's output.
-func Parse(out string) Result {
+func Parse(out string) Result { return parseAt(out, time.Now()) }
+
+func parseAt(out string, local time.Time) Result {
 	res := Result{Dirs: map[string][]string{}}
 	type line struct {
 		start int64
@@ -334,6 +411,8 @@ func Parse(out string) Result {
 	for sc.Scan() {
 		f := strings.SplitN(sc.Text(), "\t", 5)
 		switch {
+		case f[0] == "U" && len(f) >= 4:
+			res.Usage = parseUsage(f[1], f[2], strings.Join(f[3:], "\t"), local)
 		case f[0] == "D" && len(f) == 3:
 			if !slices.Contains(res.Dirs[f[1]], path.Clean(f[2])) {
 				res.Dirs[f[1]] = append(res.Dirs[f[1]], path.Clean(f[2]))

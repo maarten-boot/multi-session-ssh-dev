@@ -55,7 +55,7 @@ type '```'; k Return; type "- in code"; k Return; type "next"; k Return; type '`
 sleep 1.5
 expect "no list in a code block" $'- plain line\n```\n- in code\nnext\n```' "$(tail -5 $N/Home.md 2>&1)"
 k ctrl+shift+comma; sleep 0.8
-click 810 109; shot 4-settings-notes            # the Notes page: the word is listed
+click 734 109; shot 4-settings-notes            # the Notes page: no own words (kubectl was removed again)
 alive
 kill $APP; wait $APP 2>/dev/null
 finish

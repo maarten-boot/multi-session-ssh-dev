@@ -377,7 +377,7 @@ func (a *App) resume(id string) error {
 	if conv == "-" || !st.StoppedTx {
 		conv = "" // no prompt was sent: the start command again
 	}
-	pane, err := remote.PaneCommand(idle.ResumeCommand(r.StartCommand, id, conv))
+	pane, err := remote.PaneCommand(idle.ResumeCommand(r.StartCommand, id, conv, a.usageOn()))
 	if err != nil {
 		return err
 	}

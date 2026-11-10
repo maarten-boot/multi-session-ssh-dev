@@ -211,6 +211,8 @@ type Summary struct {
 	TodayPartial bool              `json:"today_partial"`
 	TotalPartial bool              `json:"total_partial"`
 	Sessions     map[string]Amount `json:"sessions"`
+	// Usage is the subscription usage last reported (nil: none yet).
+	Usage *Usage `json:"usage"`
 }
 
 func price(table map[string]config.Price, sum map[string]Tokens, unpriced map[string]bool) float64 {

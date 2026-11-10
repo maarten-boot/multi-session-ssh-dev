@@ -316,6 +316,7 @@
             <button type="button" data-page="notes">Notes</button>
             <button type="button" data-page="qa">Q&amp;A</button>
             <button type="button" data-page="containers">Containers</button>
+            <button type="button" data-page="cost">Cost</button>
             <button type="button" data-page="keys">Keys</button>
         </div>
         <section class="settings-page" data-page="appearance">
@@ -366,8 +367,6 @@
                 </label>
                 <p class="hint wide-hint">Frees its memory on the agent host; it resumes (<code>claude --resume</code>) when you open the session. Not the session on screen, not while it asks a question or runs a command. Edit… sets a session's own; the session menu has Stop claude now.</p>
                 <div class="checks">
-                    <label class="check"><input type="checkbox" name="show_cost"> Show what claude cost (today and total, at API prices) in the top bar</label>
-                    <label class="check"><input type="checkbox" name="cost_per_session"> Also each session's cost in its balloon in the list</label>
                     <label class="check"><input type="checkbox" name="auto_reconnect"> Reconnect dropped connections automatically</label>
                     <label class="check"><input type="checkbox" name="activity_badges"> Mark sessions with bell / new output</label>
                     <label class="check"><input type="checkbox" name="copy_on_select"> Copy terminal selection to the clipboard automatically</label>
@@ -477,6 +476,31 @@
                     from the session's Dockerfile (session menu → Dockerfile…). The session directory is mounted at the same
                     path, you are the same user inside, and ssh is reachable only from this computer.</p>
             </div>
+        </section>
+        <section class="settings-page" data-page="cost">
+            <div class="checks">
+                <label class="check"><input type="checkbox" name="show_cost"> Show what claude cost (today and total, at API prices) and the subscription usage in the top bar</label>
+                <label class="check"><input type="checkbox" name="cost_per_session"> Also each session's cost in its balloon in the list</label>
+            </div>
+            <div class="grid">
+                <label>Warn when today's cost reaches ($; empty: never)
+                    <input name="cost_daily_limit" type="number" min="0" max="1000000" step="any" placeholder="never">
+                </label>
+                <label>Warn when the 5-hour usage reaches (%)
+                    <input name="usage_5h_limit" type="number" min="0" max="100" step="1" placeholder="never">
+                </label>
+                <label>Warn when the 7-day usage reaches (%)
+                    <input name="usage_7d_limit" type="number" min="0" max="100" step="1" placeholder="never">
+                </label>
+            </div>
+            <p class="hint usage-text"></p>
+            <table class="cost-table">
+                <thead><tr><th>Session</th><th>Host</th><th class="num">Today</th><th class="num">Total</th></tr></thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+            </table>
+            <p class="hint">A warning marks the figure in the top bar with ⚠ and shows one desktop notification (once a day, once per usage window). Two sessions in the same folder share its transcripts, so the sum can be more than the top bar's total; the reset only changes the top bar's total.</p>
+            <button type="button" name="reset_cost">Reset the total…</button>
         </section>
         <section class="settings-page shortcuts" data-page="keys">
             <table></table>

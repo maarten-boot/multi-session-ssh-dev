@@ -25,13 +25,15 @@ type costState struct {
 	mu     sync.Mutex
 	ledger *cost.Ledger
 	file   string
-	failed map[string]time.Time // host → when it last could not be read
-	round  sync.Mutex           // one round at a time
+	failed map[string]time.Time   // host → when it last could not be read
+	usage  map[string]*cost.Usage // host → the subscription usage saved there
+	round  sync.Mutex             // one round at a time
 }
 
 func (a *App) costInit() {
 	a.cost.file = filepath.Join(a.dataDir, "cost.json")
 	a.cost.failed = map[string]time.Time{}
+	a.cost.usage = map[string]*cost.Usage{}
 	l, err := cost.Load(a.cost.file)
 	if err != nil {
 		log.Printf("cost: %v (counting again)", err)
@@ -108,6 +110,10 @@ func (a *App) costRound(ctx context.Context) {
 				ids[i] = it.ID
 			}
 			a.cost.ledger.Apply(host, ids, res, table, time.Now())
+			if res.Usage != nil {
+				res.Usage.Host = host
+				a.cost.usage[host] = res.Usage
+			}
 		}()
 	}
 	wg.Wait()
@@ -122,7 +128,7 @@ func (a *App) costRound(ctx context.Context) {
 }
 
 func costRead(ctx context.Context, host string, items []cost.Item, known map[string]int64) (cost.Result, error) {
-	script, err := cost.Script(items, known, idle.Dir())
+	script, err := cost.Script(items, known, idle.Dir(), idle.StatusHelper)
 	if err != nil {
 		return cost.Result{}, err
 	}
@@ -145,7 +151,13 @@ func (a *App) CostSummary() cost.Summary {
 	table := cost.Table(a.sessions.Config().Prices)
 	a.cost.mu.Lock()
 	defer a.cost.mu.Unlock()
-	return a.cost.ledger.Summary(table, time.Now())
+	s := a.cost.ledger.Summary(table, time.Now())
+	for _, u := range a.cost.usage { // the freshest of the hosts
+		if s.Usage == nil || u.At > s.Usage.At {
+			s.Usage = u
+		}
+	}
+	return s
 }
 
 // ResetCost starts the total again from now (today stays).
@@ -156,6 +168,13 @@ func (a *App) ResetCost() error {
 	a.cost.mu.Unlock()
 	a.costChanged()
 	return err
+}
+
+// usageOn: claude gets the status line that saves the subscription usage
+// (with the cost shown, SPEC F18).
+func (a *App) usageOn() bool {
+	u := a.sessions.Config().UI.ShowCost
+	return u == nil || *u
 }
 
 // CostNow counts again at once (the settings turned the cost on).

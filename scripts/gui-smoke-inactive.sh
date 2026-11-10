@@ -3,8 +3,8 @@
 # = eager the active session connects and the inactive one does not; opening
 # the inactive one (Local and Remote tabs) starts nothing; its notice's
 # Activate button connects it; session menu → Deactivate session… with the
-# tmux tick ends its tmux session and marks it inactive in config.toml; after
-# a restart it still connects nothing; Deactivate without the tick leaves
+# tmux tick (ticked by default) ends its tmux session and marks it inactive in config.toml; after
+# a restart it still connects nothing; Deactivate with it unticked leaves
 # tmux running; Activate session from the menu.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-inactive.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
@@ -61,7 +61,7 @@ check "Activate session: it connects" has_tmux $B
 check "and config.toml no longer says inactive" active_in_file $B
 xdotool mousemove 114 175 click 3; menu d d            # Disconnect, Deactivate session…
 shot 5-deactivate-dialog
-k space; k Tab; k Return; sleep 3                      # tick: end its tmux session; Deactivate
+k Tab; k Return; sleep 3                               # ticked by default: end its tmux session; Deactivate
 shot 6-deactivated
 # Deactivating the session on screen does not shift the window: the sidebar's
 # head stays where it was (the notice went below the terminal and was
@@ -79,7 +79,7 @@ shot 7-restarted
 check "after a restart the inactive session connects nothing" no_tmux $B
 expect "not even its Local shell" 0 "$(shells_in $OUT/p2)"
 xdotool mousemove 114 131 click 3; menu d d; sleep 0.5 # "working": Deactivate session…
-k Tab; k Return; sleep 3                               # no tick; Deactivate
+k space; k Tab; k Return; sleep 3                      # untick (keep tmux running); Deactivate
 check "Deactivate without the tick leaves tmux running" has_tmux $A
 check "config.toml marks it inactive too" inactive_in_file $A
 expect "its Local shell has ended" 0 "$(shells_in $OUT/p1)"

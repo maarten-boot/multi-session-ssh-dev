@@ -176,6 +176,27 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.18 (2026-11-10): Settings → Cost, warnings and the subscription usage (SPEC F18), and
+  Deactivate ends tmux by default (F15). The user: "what happend with the configurable alert
+  for cost ? Additions: by default select switch off tmux on disconnect; add a extra Cost tab in
+  the settings where you see the cost for each session + a total (spreadsheet like …); can we
+  also add show the daily and weekly usage ? … possible option start a hidden short session …
+  every 5 to 10 minutes". Asked: "switch off tmux" = Deactivate's tick ticked by default;
+  warnings for dollars and usage %; the usage from Claude Code's status line data (documented
+  fields `rate_limits.five_hour` / `seven_day`; no hidden session: that would use tokens).
+  Checked first: the user's own status line here (a jq command) must keep showing, so the
+  app's status line saves the data and runs the user's command with it (helper installed by
+  the cost check; python3, else jq, reads ~/.claude/settings.json). My choices: the figure
+  opens Settings → Cost (the reset moved there); show_cost and cost_per_session moved from
+  Terminals to Cost; a Top bar row under the Sum (they differ for shared folders and after a
+  reset); the usage age shown after 2 minutes; settings tabs 3 px narrower so nine fit on one
+  line (also the open one in bold). Tests: idle TestStatusLine (data saved only with
+  rate_limits, the user's command with the same data, nothing left behind), cost TestScript
+  (helper installed, usage with its age; also with busybox), config TestPrices (limits),
+  cost.test.mjs, gui-smoke-cost (own -profile so the real usage file is untouched: usage in
+  the figure, Cost page, limits saved and ⚠ shown, reset from the page, turned off),
+  gui-smoke-inactive (tick by default); idle, record, qa and spell follow the moved Settings
+  positions (spell's Notes click had been landing on Containers).
 - v1.1.17 (2026-11-10): deactivating the session on screen no longer shifts the window.
   (the user: "when i deactivate a session the message … is added in a box under the
   current session and the content … partly moved offscreen"): deactivating the session on
@@ -215,7 +236,7 @@ implementation differs from the original plan.
   transcripts equals a separate Python count ($403.53, today $3.60; 0.6 s for the first full
   read); with busybox tools only and with mawk. Tests: cost (TestDollars, TestParseReply,
   TestScript), config TestPrices, cost.test.mjs, gui-smoke-cost.sh. Next perhaps: an alert
-  above a limit set in the app (the user: "later perhaps").
+  above a limit set in the app (the user: "later perhaps"; built in v1.1.18).
 - v1.1.14 (2026-11-09): *Stop claude now* and idle stop in containers (SPEC F17; the user:
   "start Stop claude now, ask the questions; also add the idle stop for containers").
   Decided (questions): hooks in every claude session (the idle time only decides the

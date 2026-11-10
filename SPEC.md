@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.25 (2026-11-10, app v1.1.17) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.26 (2026-11-10, app v1.1.18) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -17,8 +17,9 @@ exporting a session as an archive / importing it as a new session (F13), separat
 (F2b), per-host Claude backups with a fallback for agent hosts without rsync (F7) and services
 next to a container session's dev container with Compose (C7), inactive sessions (F15), the
 Hosts heading above the folders (F5), one project on several agent hosts (F16), stopping
-claude (F17; also in containers and by hand), what claude cost at API prices (F18) and the
-sidebar headings Groups, Active and Inactive (F5).
+claude (F17; also in containers and by hand), what claude cost at API prices with the
+subscription usage, warnings and a Cost page in Settings (F18), and the sidebar headings
+Groups, Active and Inactive (F5).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -420,8 +421,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   deactivating stops one), sends no notifications, and fetches nothing from its agent host
   (export lists its Remote history as missing; no requirements check; no *Switch host…*, no
   *Stop claude now*). Session menu: *Deactivate session…* (after *Disconnect* and, for a session
-  running claude, *Stop claude now* / *Resume claude*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
-  container session stop its container and services) and, for an inactive one, *Activate
+  running claude, *Stop claude now* / *Resume claude*; asks; ends the tabs' terminals; a tick, ticked by default (unticked:
+  they keep running): end its tmux session, or for a container session stop its container and services) and, for an inactive one, *Activate
   session* in place of those. The list marks it with ⏸ and "· inactive" after its path, in
   italics (black text), and lists it again under *Inactive* (F5); its balloon says so. Edit… keeps the setting; an import makes an
   active session.
@@ -438,7 +439,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - Detection: the app starts claude with hooks in every such session, whatever the idle time
     (`--settings '<json>'` added after every `claude` of the start command; the user's own
     settings are untouched; only when a new tmux session starts it, so from v1.1.14 on for
-    Stop claude now): SessionStart, UserPromptSubmit, Stop, Notification (permission or form
+    Stop claude now; with the cost shown also the status line of F18): SessionStart, UserPromptSubmit, Stop, Notification (permission or form
     questions only) and SessionEnd write `$HOME/.local/state/session-workbench/claude/<id>`
     ("<time> <event> <claude's pid> <tmux pane>", then the hook's JSON). At start one ssh call
     per host reads all such sessions (claudes stopped before); then every minute those with an
@@ -473,11 +474,34 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     next check. A toast says "claude resumes in …".
 - F18. What claude cost (internal/cost, costs.go). The top bar ends in "today $4.12 · total
   $87.30": what claude's replies cost at API prices (with a subscription: what they would have
-  cost). `[ui] show_cost` (Settings → Terminals, on by default) shows it; `cost_per_session`
+  cost), then the subscription usage "· 5h 23% · 7d 41%" (with "(12 min ago)" when older than
+  2 minutes). `[ui] show_cost` (Settings → Cost, on by default) shows it; `cost_per_session`
   (off by default) also puts "Cost: today … · total …" in each session's list balloon.
-  Clicking the figure asks, then resets the total (it counts from then on; today and the
-  sessions' own stay). Updated every minute; with show_cost off nothing is read (turned on:
-  read at once).
+  Clicking the figure opens Settings → Cost. Updated every minute; with show_cost off nothing
+  is read (turned on: read at once).
+  - Settings → Cost: the two settings, the warning limits, the usage in words ("5-hour 23%
+    (resets 20:15), 7-day 41% (resets Fri 19:15) — reported 2 min ago on <host>"), a table of
+    every session (name, host, today, total; amounts right-aligned) with a Sum row and a Top bar
+    row (the figure's today and total, since the reset), a note that the sum can be more (two
+    sessions in one folder share its transcripts) and *Reset the total…* (asks; the top bar's
+    total counts from then on; today and the sessions' own stay).
+  - Warnings: `cost_daily_limit` (dollars), `usage_5h_limit` and `usage_7d_limit` (percent);
+    0 or empty = none; out of range is refused by Save and reset when the config loads. A
+    reached limit marks its part of the figure "⚠ …" in the warning colour (a red border round
+    the figure) and sends one desktop notification ("claude cost today", "claude 5-hour usage"
+    …): today's once a day, a usage window once until it resets (remembered in the web view's
+    storage). Clicking the notification opens Settings → Cost.
+  - Usage: Claude Code gives a status line command the 5-hour and 7-day usage
+    (`rate_limits.five_hour` / `seven_day`: `used_percentage`, `resets_at`; Pro, Max and Ultra,
+    after the session's first reply). With the cost shown, the app's `--settings` (F17) also
+    has a `statusLine` whose command (no single quotes, no backslashes) saves the data to
+    `<state dir>/claude/usage.json` when it has `rate_limits` (a claude without a reply yet does
+    not overwrite it) and runs `<state dir>/claude/statusline` with it. That helper (installed
+    and updated by the cost check, only when it differs) runs the user's own status line
+    command from `~/.claude/settings.json` (read with python3, else jq) with the same data, else
+    prints "5h 23% · 7d 41%". The cost check also prints the file with its age; the freshest
+    host's usage is shown. A window past its `resets_at` shows 0%. No tokens are used: the data
+    comes with replies claude gets anyway, so it is as fresh as the last reply of any claude.
   - Source: Claude Code's transcripts. Every reply has a line per content block with its
     message id, model, time and usage (input, cache writes 5 min / 1 h, cache reads, output,
     web searches, `speed`). Counted are all `*.jsonl` (subagents too) in each active session's
@@ -911,7 +935,8 @@ badges, copy/paste, notifications, private shell history), Commands (command men
 recordings, Notes (spelling on/off, language, own words), Q&A (default engine `qa_engine`: automatic,
 Claude API, Claude Code or an own command; Claude API model `qa_model` with the API's models as
 suggestions; Claude Code model `qa_claude_model`; Claude Code program `qa_claude`, with where it is
-found), Containers (`container_engine`, with the one found), Keys.
+found), Containers (`container_engine`, with the one found), Cost (F18), Keys. The tabs fit on
+one line, the open one in bold.
 
 ### 4.7 Configuration
 - Single TOML file: `$XDG_CONFIG_HOME` (default `~/.config`)`/session-workbench/config.toml` (Linux),

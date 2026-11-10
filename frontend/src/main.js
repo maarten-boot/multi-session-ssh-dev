@@ -19,7 +19,7 @@ import {TOOLCHAINS, addToolchain} from './dockerfile';
 import {SERVICES, addService, hasService} from './services';
 import {fmtSize} from './format';
 import {idleLabel, idleOptions} from './idle';
-import {costText, sessionCost} from './cost';
+import {costParts, costRows, dollars, sessionCost, usageText, warnings} from './cost';
 import {
     BackupNow, BackupStatus, OpenBackupFolder, RestoreBackup, Notify, ClearNotification,
     BrowseDirectory, CreateSession, DeleteHost, DeleteSession, InstanceProblem, KillRemote, MoveSession,
@@ -602,12 +602,7 @@ const app = {
             this.cost = c;
             this.renderCost();
         });
-        $('#cost').addEventListener('click', () => confirmDialog({
-            title: 'Reset the total cost',
-            text: 'The total counts again from now. Today\'s cost and each session\'s stay as they are.',
-            ok: 'Reset',
-            action: () => ResetCost(),
-        }));
+        $('#cost').addEventListener('click', () => settingsDialog('cost'));
         await this.reload();
         const last = this.sessions.get(store.get('active', ''));
         if (this.state.ui.connect_on_start === 'eager') this.order.forEach(s => s.connectRemote());
@@ -636,6 +631,7 @@ const app = {
         // A click on a desktop notification opens the session's tab that
         // rang (Remote when that is not known).
         EventsOn('notification:open', id => {
+            if (id === 'cost') return settingsDialog('cost'); // a cost or usage warning
             const s = this.sessions.get(id);
             if (!s) return;
             const tab = s.notifiedTab || 'remote';
@@ -1027,13 +1023,40 @@ const app = {
     },
 
     // renderCost shows today's and the total cost in the top bar (SPEC F18).
+    // Parts at or above a limit (Settings → Cost) are marked ⚠, and a
+    // desktop notification says so once (per day, per usage window).
     renderCost() {
         const b = $('#cost');
         b.hidden = this.state.ui.show_cost === false || !this.cost;
         if (b.hidden) return;
-        const {text, title} = costText(this.cost);
-        b.textContent = text;
+        const now = Date.now() / 1000;
+        const {parts, title} = costParts(this.cost, this.state.ui, now);
+        b.replaceChildren(...parts.flatMap((p, i) => [i ? ' · ' : '',
+            p.warn ? el('span', {className: 'warn', textContent: '⚠ ' + p.text}) : p.text]));
         b.title = title;
+        b.classList.toggle('warn', parts.some(p => p.warn));
+        this.costWarn(now);
+    },
+
+    // costWarn notifies a limit reached: today's cost once a day, a usage
+    // window once until it resets.
+    costWarn(now) {
+        const ui = this.state.ui, s = this.cost;
+        const w = warnings(s, ui, now);
+        const once = (key, title, body) => {
+            if (store.get(key, false)) return;
+            store.set(key, true);
+            Notify('cost', title, body).catch(() => {});
+        };
+        if (w.daily) {
+            once(`costWarn:${new Date().toDateString()}`, 'claude cost today',
+                `${dollars(s.today)} at API prices, above your limit of ${dollars(ui.cost_daily_limit)}`);
+        }
+        for (const [on, key, name, limit] of [[w.five, 'five_hour', '5-hour', ui.usage_5h_limit], [w.seven, 'seven_day', '7-day', ui.usage_7d_limit]]) {
+            const win = s.usage?.[key];
+            if (on) once(`usageWarn:${key}:${win.resets_at}`, `claude ${name} usage`,
+                `${Math.floor(win.used)}% used (your limit: ${limit}%)`);
+        }
     },
 
     // renderBackup shows a host's Claude backup state in its header tooltip,
@@ -1772,7 +1795,7 @@ function runDialog(dlg, submit, focus = null, opened = null) {
 // confirmDialog asks before action. check: a checkbox label (action gets
 // whether it is ticked) or a list of them (action gets a list of booleans);
 // they start unticked.
-async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, action}) {
+async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, checked = false, action}) {
     const dlg = $('#dlg-confirm');
     dlg.querySelector('h2').textContent = title;
     dlg.querySelector('.text').textContent = text;
@@ -1781,7 +1804,7 @@ async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, 
     okBtn.textContent = ok || '';
     dlg.querySelector('button[value=cancel]').textContent = ok ? cancel : 'Close';
     const labels = check === undefined || check === null ? [] : Array.isArray(check) ? check : [check];
-    const boxes = labels.map(() => el('input', {type: 'checkbox'}));
+    const boxes = labels.map((_, i) => el('input', {type: 'checkbox', checked: Array.isArray(checked) ? !!checked[i] : checked}));
     dlg.querySelector('.checks').replaceChildren(...labels.map((l, i) => el('label', {className: 'check'}, boxes[i], ' ' + l)));
     const ticked = () => Array.isArray(check) ? boxes.map(b => b.checked) : !!boxes[0]?.checked;
     return runDialog(dlg, async () => action && action(ticked()));
@@ -2077,7 +2100,7 @@ const ACTION_LABELS = {
     toggle_sidebar: 'Narrow / wide sidebar', app_notes: 'Notes for all sessions',
 };
 
-async function settingsDialog() {
+async function settingsDialog(page) {
     const dlg = $('#dlg-settings');
     if (dlg.open) return;
     const f = dlg.querySelector('form').elements;
@@ -2095,7 +2118,8 @@ async function settingsDialog() {
         store.set('settingsPage', name);
     };
     tabs.forEach(t => t.onclick = () => showPage(t.dataset.page));
-    showPage(store.get('settingsPage', 'appearance'));
+    showPage(page ?? store.get('settingsPage', 'appearance'));
+    costPage(dlg, f, ui);
     qaSettings(dlg, f, ui);
     f.container_engine.value = ui.container_engine ?? '';
     const found = dlg.querySelector('.container-found');
@@ -2203,6 +2227,9 @@ async function settingsDialog() {
         idle_stop: f.idle_stop.value,
         show_cost: f.show_cost.checked,
         cost_per_session: f.cost_per_session.checked,
+        cost_daily_limit: f.cost_daily_limit.value === '' ? 0 : Number(f.cost_daily_limit.value),
+        usage_5h_limit: f.usage_5h_limit.value === '' ? 0 : Number(f.usage_5h_limit.value),
+        usage_7d_limit: f.usage_7d_limit.value === '' ? 0 : Number(f.usage_7d_limit.value),
         auto_reconnect: f.auto_reconnect.checked,
         activity_badges: f.activity_badges.checked,
         copy_on_select: f.copy_on_select.checked,
@@ -2871,6 +2898,40 @@ async function resumeClaude(s) {
     await ResumeClaude(s.id).catch(err => toast(err?.message ?? String(err), true));
 }
 
+// costPage fills Settings → Cost (SPEC F18): the settings, the warning
+// limits (empty = none), the subscription usage and a table of each
+// session's cost with their sum and the top bar's figures.
+function costPage(dlg, f, ui) {
+    const page = dlg.querySelector('.settings-page[data-page="cost"]');
+    f.cost_daily_limit.value = ui.cost_daily_limit || '';
+    f.usage_5h_limit.value = ui.usage_5h_limit || '';
+    f.usage_7d_limit.value = ui.usage_7d_limit || '';
+    const fill = () => {
+        const s = app.cost;
+        const now = Date.now() / 1000;
+        page.querySelector('.usage-text').textContent = usageText(s?.usage, now);
+        const {rows, sum} = costRows(app.state.sessions, s);
+        const td = (text, className = '') => el('td', {textContent: text, className});
+        const row = (cells, className = '') => el('tr', {className}, ...cells);
+        page.querySelector('.cost-table tbody').replaceChildren(...rows.map(r =>
+            row([td(r.name), td(r.host), td(dollars(r.today), 'num'), td(dollars(r.total), 'num')])));
+        page.querySelector('.cost-table tfoot').replaceChildren(
+            row([td('Sum'), td(''), td(dollars(sum.today), 'num'), td(dollars(sum.total), 'num')], 'sum'),
+            row([td('Top bar'), td(s?.since ? `total since ${s.since}` : ''), td(dollars(s?.today), 'num'), td(dollars(s?.total), 'num')], 'top'));
+    };
+    fill();
+    page.querySelector('button[name=reset_cost]').onclick = () => confirmDialog({
+        title: 'Reset the total cost',
+        text: 'The top bar\'s total counts again from now. Today\'s cost and each session\'s stay as they are.',
+        ok: 'Reset',
+        action: async () => {
+            await ResetCost();
+            app.cost = await CostSummary().catch(() => app.cost);
+            fill();
+        },
+    });
+}
+
 // fillIdleChoices fills an idle time select (SPEC F17; see idle.js).
 function fillIdleChoices(sel, value, first) {
     sel.replaceChildren(...idleOptions(value, first, first !== 'never').map(o => el('option', {value: o.value, textContent: o.text})));
@@ -2905,6 +2966,7 @@ async function deactivateSession(s) {
             (check.length ? ' What runs for it keeps running unless you tick below.' : ''),
         ok: 'Deactivate',
         check,
+        checked: true, // ending tmux (and claude) frees the agent host; untick to keep them
         action: async ticks => {
             await SetSessionActive(s.id, false);
             s.dropTerminals();

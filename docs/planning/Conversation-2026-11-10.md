@@ -146,3 +146,39 @@
   42838747692 passed). The deactivate fix, the GUI test folder and the login test came after
   it, so they are v1.1.17 (wails.json, SPEC status, PLAN entry moved there). The GUI test
   results above ("passed on v1.1.16") are of this code, i.e. v1.1.17.
+
+## CI v1.1.17 (user: "pushed and tagged v1.1.17, check the CI build")
+- The tag points at 8290235. Run 42845667328: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip), all 1.1.17.
+  An earlier run for the tag on 9df032b (42845406693, wails.json still 1.1.16) was cancelled
+  by the user before it built anything.
+
+## v1.1.18: Cost page, warnings, subscription usage; Deactivate ends tmux by default
+- User: "what happend with the onfigurable alert for cost ? Additions: by default select switch
+  off tmux on disconnect; add a extra Cost tab in the settings where you see the cost for each
+  session + a total (spreadsheet like: session name , today, total and at the end a sum row );
+  can we also add shoehow the dayly and weekly usage ? or is that complicated: possible option
+  start a hidden short session to a remote or local claude session just to get the usage ever
+  5 to 10 minutes (onfiguravle within reason ) what do you think ?"
+- Answered: the alert was noted as "later" (not built). Checked Claude Code's status line docs:
+  `rate_limits.five_hour` / `seven_day` (used_percentage, resets_at) for Pro/Max/Ultra after
+  the first reply; recommended that over a hidden session (which would use tokens).
+- Asked: "switch off tmux on disconnect" = Deactivate's tick ticked by default (chosen);
+  alert: dollars and usage % (chosen); usage from the status line data (chosen).
+- Found here: the user has an own status line (jq); python3 and jq present; Claude Code 2.1.322.
+- Built: idle.Settings(id, usage) with a statusLine (saves usage.json only with rate_limits,
+  runs the helper); idle.StatusHelper (runs the user's own status line, else prints the usage);
+  cost.Script installs the helper when it differs and prints the usage with its age; the
+  freshest host's usage in the summary; config limits (cost_daily_limit, usage_5h_limit,
+  usage_7d_limit); Settings → Cost (settings moved there, limits, usage text, table with Sum
+  and Top bar rows, Reset the total…); the figure with "· 5h 23% · 7d 41%", ⚠ parts in red and
+  one notification per day / usage window; the figure and the notification open the Cost page;
+  confirmDialog's ticks can start ticked (Deactivate).
+- Mishap: a Python edit reopened main.js for writing before reading it and emptied it; restored
+  from git (no other uncommitted change in it) and the edits redone.
+- Settings tabs: nine did not fit on one line (Keys wrapped, moving every page's buttons); the
+  tab padding is 3 px now (fits with the open tab in bold).
+- GUI tests: cost (9 checks, own -profile), inactive, idle (Save back at y 574), record (tab
+  x 629), qa (tab x 834), spell (Notes tab x 734; it had been clicking Containers), settings,
+  commands, export: all pass. Go and frontend tests pass (72).
+- Removed the status line helper that GUI test runs (cost check against localhost) installed in the real ~/.local/state/session-workbench/claude (the running v1.1.17 does not use it; v1.1.18 installs it itself).

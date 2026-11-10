@@ -441,4 +441,17 @@ output = 1
 	if c.UI.ShowCost == nil || !*c.UI.ShowCost || !c.UI.CostPerSession {
 		t.Errorf("show cost %v, per session %v", c.UI.ShowCost, c.UI.CostPerSession)
 	}
+	for _, bad := range []UI{{CostDailyLimit: -1}, {Usage5hLimit: 101}, {Usage7dLimit: -5}} {
+		if CostLimits(bad) == nil {
+			t.Errorf("accepted %+v", bad)
+		}
+	}
+	if CostLimits(UI{CostDailyLimit: 12.5, Usage5hLimit: 80, Usage7dLimit: 90}) != nil {
+		t.Error("good limits refused")
+	}
+	c2 := &Config{UI: UI{CostDailyLimit: 5, Usage5hLimit: 150}}
+	c2.applyDefaults()
+	if c2.UI.CostDailyLimit != 0 || c2.UI.Usage5hLimit != 0 {
+		t.Errorf("invalid limits kept: %+v", c2.UI)
+	}
 }

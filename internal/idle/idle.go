@@ -45,8 +45,52 @@ func hookCommand(id, event string) string {
 		id + `.tmp" && mv -f "$d/` + id + `.tmp" "$d/` + id + `"`
 }
 
-// Settings is the --settings JSON with the session's hooks.
-func Settings(id string) string {
+// UsageFile keeps the status line data of the claude that answered last
+// on this agent host (in Dir): its subscription usage (SPEC F18).
+const UsageFile = "usage.json"
+
+// StatusHelper is the program the status line runs after saving the data
+// (installed in Dir as "statusline" by the cost check, see internal/cost):
+// the user's own status line command from ~/.claude/settings.json with the
+// same data, else the usage ("5h 23% · 7d 41%").
+const StatusHelper = `#!/bin/sh
+# Session Workbench: the status line of the claudes it starts. The data is
+# saved for the app (usage.json); then your own status line runs, as set in
+# ~/.claude/settings.json, else this shows the subscription usage.
+in=$1
+u="$HOME/.claude/settings.json"
+cmd=
+if [ -f "$u" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    cmd=$(python3 -c 'import json, sys
+try: print(json.load(open(sys.argv[1])).get("statusLine", {}).get("command", ""))
+except Exception: pass' "$u" 2>/dev/null)
+  elif command -v jq >/dev/null 2>&1; then
+    cmd=$(jq -r '.statusLine.command // empty' "$u" 2>/dev/null)
+  fi
+fi
+if [ -n "$cmd" ]; then exec sh -c "$cmd" < "$in"; fi
+pct() { tr -d '\n' < "$in" | sed -n 's/.*"'"$1"'":{[^}]*"used_percentage":\([0-9.]*\).*/\1/p' | cut -d. -f1; }
+f=$(pct five_hour); w=$(pct seven_day)
+line=
+[ -n "$f" ] && line="5h $f%"
+[ -n "$w" ] && line="${line:+$line · }7d $w%"
+[ -n "$line" ] && echo "$line"
+exit 0
+`
+
+// statusCommand is the status line command: it saves the data claude
+// passes (when it has the usage; a claude without a reply yet has none)
+// and runs StatusHelper. Like the hooks: no single quotes, no backslashes.
+func statusCommand() string {
+	return `d="` + Dir() + `"; mkdir -p "$d"; t="$d/sl.$$"; cat > "$t"; ` +
+		`if grep -q rate_limits "$t"; then cp "$t" "$t.u" && mv -f "$t.u" "$d/` + UsageFile + `"; fi; ` +
+		`[ -x "$d/statusline" ] && "$d/statusline" "$t"; rm -f "$t"`
+}
+
+// Settings is the --settings JSON with the session's hooks; with usage
+// also the status line that saves the subscription usage (SPEC F18).
+func Settings(id string, usage bool) string {
 	type hook struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`
@@ -59,10 +103,14 @@ func Settings(id string) string {
 	for _, e := range events {
 		hooks[e.name] = []entry{{Matcher: e.matcher, Hooks: []hook{{"command", hookCommand(id, e.name)}}}}
 	}
+	all := map[string]any{"hooks": hooks}
+	if usage {
+		all["statusLine"] = map[string]any{"type": "command", "command": statusCommand()}
+	}
 	var b strings.Builder
 	e := json.NewEncoder(&b)
 	e.SetEscapeHTML(false) // && and > as they are
-	e.Encode(map[string]any{"hooks": hooks})
+	e.Encode(all)
 	return strings.TrimSpace(b.String())
 }
 
@@ -157,9 +205,10 @@ func claudes(ts []token) []int {
 // Runs reports whether a start command runs claude.
 func Runs(cmd string) bool { return len(claudes(tokens(cmd))) > 0 }
 
-// WithHooks gives every claude in cmd the session's hooks.
-func WithHooks(cmd, id string) string {
-	arg := " --settings " + remote.Quote(Settings(id))
+// WithHooks gives every claude in cmd the session's hooks (usage: and the
+// status line, see Settings).
+func WithHooks(cmd, id string, usage bool) string {
+	arg := " --settings " + remote.Quote(Settings(id, usage))
 	ts := tokens(cmd)
 	var b strings.Builder
 	last := 0
@@ -177,13 +226,13 @@ func WithHooks(cmd, id string) string {
 // conversation (--continue, --resume, --session-id, --fork-session)
 // replaced by --resume conv. Without conv (no prompt was sent: nothing to
 // resume) it is the start command with hooks.
-func ResumeCommand(cmd, id, conv string) string {
+func ResumeCommand(cmd, id, conv string, usage bool) string {
 	ts := tokens(cmd)
 	cs := claudes(ts)
 	if conv == "" || len(cs) == 0 {
-		return WithHooks(cmd, id)
+		return WithHooks(cmd, id, usage)
 	}
-	words := []string{ts[cs[0]].text, "--settings", remote.Quote(Settings(id)), "--resume", remote.Quote(conv)}
+	words := []string{ts[cs[0]].text, "--settings", remote.Quote(Settings(id, usage)), "--resume", remote.Quote(conv)}
 	for i := cs[0] + 1; i < len(ts) && !ts[i].op; i++ {
 		w := ts[i].text
 		switch {

@@ -10,11 +10,13 @@
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
 A=s-ca$$; B=s-cb$$
+PROF=swcost$$                      # own state folder for the usage (not the real one)
+ST=$HOME/.local/state/$PROF/claude
 mkdir -p $OUT/p1 $OUT/p2
 PROJ=$HOME/.claude/projects/$(cd $OUT/p1 && pwd -P | sed 's/[^a-zA-Z0-9]/-/g')
 cleanup() {
-	tmux kill-session -t "=cw-$A" 2>/dev/null; tmux kill-session -t "=cw-$B" 2>/dev/null
-	rm -rf "$PROJ"
+	tmux kill-session -t "=cw-$PROF-$A" 2>/dev/null; tmux kill-session -t "=cw-$PROF-$B" 2>/dev/null
+	rm -rf "$PROJ" "$HOME/.local/state/$PROF"
 }
 trap cleanup EXIT
 mkdir -p "$PROJ/conv-a/subagents"
@@ -48,12 +50,17 @@ start_mode = "shell"
 TOML
 k() { xdotool key "$@"; sleep 0.6; }
 shot() { import -window root $OUT/$1.png; }
-SW_IDLE_TICK=3s $BIN -config $CFG >>$OUT/app.log 2>&1 &
+# The subscription usage a claude's status line saved (5h 23%, 7d 41%).
+mkdir -p $ST
+printf '{"model":{"id":"claude-opus-5-5"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":%s},"seven_day":{"used_percentage":41.2,"resets_at":%s}}}' \
+	$(( $(date +%s) + 3600 )) $(( $(date +%s) + 3*86400 )) >$ST/usage.json
+SW_IDLE_TICK=3s $BIN -config $CFG -profile $PROF >>$OUT/app.log 2>&1 &
 APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null; sleep 5
 shot 1-start
-LEDGER=$XDG_DATA_HOME/session-workbench/cost.json
+LEDGER=$XDG_DATA_HOME/$PROF/cost.json
+check "the status line's helper is installed" test -x $ST/statusline
 check "the counts are kept" grep -q '"claude-opus-5-5"' $LEDGER
 check "the subagent's transcript is counted" grep -q '"claude-haiku-5-5:long"' $LEDGER
 xdotool mousemove 150 140; sleep 2.5
@@ -68,17 +75,26 @@ check "the new reply is counted" grep -q '"claude-sonnet-5-5"' $LEDGER
 reply msg_3 claude-new-9 1000 1000 >>"$PROJ/conv-a.jsonl"
 sleep 6
 shot 4-unpriced
-# Reset: click the figure, confirm.
-xdotool mousemove 1254 66 click 1; sleep 1
-shot 5-reset-question
-k Return; sleep 1
-shot 6-reset
+# The figure opens Settings → Cost: the table, the usage; limits set there.
+cost_page() { xdotool mousemove 1300 66 click 1; sleep 1; xdotool mousemove 700 860; sleep 1; }
+cost_page
+shot 5-cost-page
+xdotool mousemove 520 276 click 1; xdotool type --delay 20 '10'      # today: warn at $10
+xdotool mousemove 850 276 click 1; xdotool type --delay 20 '20'      # 5-hour: warn at 20%
+xdotool mousemove 990 664 click 1; sleep 2                          # Save
+shot 6-warnings
+check "the daily limit is saved" grep -q 'cost_daily_limit = 10' $CFG
+check "the 5-hour limit is saved" grep -q 'usage_5h_limit = 20' $CFG
+# Reset the total from the page: the Top bar row's total goes to $0.00.
+cost_page
+xdotool mousemove 443 612 click 1; sleep 1; k Return; sleep 1.5
+shot 7-reset
 check "the reset is kept" grep -q '"reset_at"' $LEDGER
-k ctrl+shift+comma; sleep 1
-xdotool mousemove 510 159 click 1; sleep 1                # → Terminals
-shot 7-settings
-xdotool mousemove 388 391 click 1; sleep 0.3              # Show what claude cost: off
-xdotool mousemove 990 626 click 1; sleep 2                # Save
+k Escape; sleep 0.5
+# Turned off: the figure goes.
+cost_page
+xdotool mousemove 388 196 click 1; sleep 0.3                        # Show what claude cost: off
+xdotool mousemove 990 664 click 1; sleep 2                          # Save
 shot 8-hidden
 check "Settings saves it off" grep -q 'show_cost = false' $CFG
 alive

@@ -457,10 +457,10 @@ Off: Settings → Terminals (`private_history = false`), or per session in *Edit
 - History files may hold secrets you typed on a command line; they are as private as your
   shell's usual history.
 
-**Settings** (Ctrl+Shift+, or *Settings…*) has eight pages: Appearance (theme, colors, fonts,
+**Settings** (Ctrl+Shift+, or *Settings…*) has nine pages: Appearance (theme, colors, fonts,
 the delay before a session's description shows, tab order), Terminals, Commands, Backups and recordings, Notes (spelling), Q&A (who answers by default, the Claude API and
 Claude Code models, the Claude Code program with where it is found), Containers (Podman or Docker for
-container hosts, with the one found) and Keys (the current shortcuts).
+container hosts, with the one found), Cost (see *What claude cost*) and Keys (the current shortcuts).
 
 | Keys (Linux/Windows) | macOS | Action | `[keys]` name |
 |---|---|---|---|
@@ -565,9 +565,19 @@ such as a permission mode switched with Shift+Tab (start options like `--model` 
 replies in your sessions cost at API prices (with a subscription: what they would have cost
 with an API key). It is counted from Claude Code's transcripts on each agent host (the
 sessions' project folders under `~/.claude/projects`, including claude runs the app did not
-start) and updated every minute; the tooltip says what is counted. Click it to reset the total
-(today stays). Settings → Terminals turns it off, or also shows each session's cost in its
-balloon in the list. Prices of the current models are built in; add or correct one in the
+start) and updated every minute; the tooltip says what is counted. With a Pro, Max or Ultra
+subscription the figure also shows its usage, **5h 23% · 7d 41%**: Claude Code reports it to a
+status line, so the app gives the claudes it starts a small status line command that saves it
+(your own status line from `~/.claude/settings.json` still shows; without one you see the
+usage there). It uses no tokens, and it is as fresh as the last reply of any of your claudes
+(older than two minutes: "(12 min ago)").
+
+Click the figure for **Settings → Cost**: each session's cost today and in total, with the sum
+and the top bar's own numbers, the usage with its reset times, *Reset the total…* (today
+stays), the settings (turn it off, or show each session's cost in its balloon in the list) and
+warnings: a daily dollar limit and percentages for the 5-hour and 7-day usage. A reached limit
+shows "⚠" in the figure, in red, and one desktop notification (once a day, once per usage
+window). Prices of the current models are built in; add or correct one in the
 config file:
 
 ```toml
@@ -589,7 +599,7 @@ with an **Activate session** button instead. Its Notes, Files, Web and Q&A tabs 
 no live share is mounted, no notifications come, and it offers no *Switch host…* or
 requirements check. The dialog can also end its tmux session on
 the agent host (which stops claude there) or, for a container session, stop its container and
-services; unticked, they keep running. Session menu → **Activate session** (or the button)
+services; that box is ticked, untick it to keep them running. Session menu → **Activate session** (or the button)
 connects it again. In `config.toml` it is `inactive = true` on the session.
 
 **Folders.** Group sessions into folders such as *Work* and *Private*: "+" →
@@ -931,6 +941,9 @@ private_history = true                    # each session's shells keep their own
 # idle_stop = "5m"                        # stop a claude that waited this long for input (1m … 24h); resumed when opened
 # show_cost = true                        # today's and the total cost of claude at API prices in the top bar
 # cost_per_session = false                # also each session's in its balloon in the list
+# cost_daily_limit = 20                   # warn when today's cost reaches $20 (0: never)
+# usage_5h_limit = 80                     # warn at 80% of the 5-hour subscription usage (0: never)
+# usage_7d_limit = 90                     # the same for the 7-day usage
 claude_backup = true                      # back up ~/.claude of the agent hosts
 claude_backup_every = "1h"                # 5m … 168h
 save_agent_copies = true                  # save working copies' agent copies here (Full ▾ → Save)

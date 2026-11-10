@@ -69,7 +69,7 @@ check "off like the global setting: no override saved" test -z "$(grep '^record'
 
 # The global setting (Settings): records every session from that moment.
 k ctrl+shift+comma; sleep 1
-click 691 109; sleep 0.5                          # the "Backups and recordings" page
+click 629 109; sleep 0.5                          # the "Backups and recordings" page
 click 328 389                                    # "Record the Remote tabs of all sessions"
 shot 2-settings
 click 475 464; k Return; sleep 1.5               # Enter in the folder field saves
