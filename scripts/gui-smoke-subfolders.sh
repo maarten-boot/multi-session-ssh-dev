@@ -42,19 +42,19 @@ APP=$!
 wait_window
 sleep 3; xdotool windowactivate --sync $W 2>/dev/null
 shot 1-tree
-click 100 55 3; menu n                         # Work: New subfolder…
+click 100 87 3; menu n                         # Work: New subfolder…
 xdotool type --delay 20 "Beta"; k Return; sleep 0.8
-click 100 115 3; menu m m m                    # session "work": Move to folder…
+click 100 147 3; menu m m m                    # session "work": Move to folder…
 menu b                                         # -> Beta (in Work)
 shot 2-beta
-click 100 89 3; menu m m                       # Acme: Move folder to… (Move folder up is off)
+click 100 121 3; menu m m                       # Acme: Move folder to… (Move folder up is off)
 menu p                                         # -> Private
 shot 3-acme-moved
 if [ -n "$MEASURE" ]; then kill $APP; exit 0; fi
-# Headers now: Work y=55, Beta 89, Private 199, Acme (in Private) 309.
-click 100 89 3; menu r                         # Beta: Rename folder… (just its own name)
+# Headers now (under Groups): Work y=87, Beta 121, Private 231, Acme (in Private) 341.
+click 100 121 3; menu r                         # Beta: Rename folder… (just its own name)
 k ctrl+a; xdotool type --delay 20 "Gamma"; k Return; sleep 0.8
-click 100 199 3; menu d; k Return; sleep 1     # Private: Delete folder… (Acme goes too)
+click 100 231 3; menu d; k Return; sleep 1     # Private: Delete folder… (Acme goes too)
 shot 4-renamed-deleted
 alive
 kill $APP; wait $APP 2>/dev/null

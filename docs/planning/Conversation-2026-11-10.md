@@ -83,3 +83,14 @@
   under Groups), dockerwin (its window is 18 px shorter than when the test was written: failed
   on v1.1.15 too, positions updated), and the first 14 of smoke-all. Not run yet: the other
   31 GUI tests (the user chose to commit first).
+
+## Cross-check v1.1.16 (user: "do a crosscheck")
+- Code and SPEC F5 agree (headings, order, collapsed at first, no numbers, balloon, drag from
+  the flat rows onto a folder, right-click). Docs filled in: SPEC F1 says what the bar shows
+  (the session's error only, in red); F2b: no tmux shows in Edit… (the path line is gone);
+  F14: the window title ends with the profile name ("alpha — Session Workbench — NAME");
+  F15: an inactive session is listed again under Inactive; PLAN v1.1.16 names the title and
+  path-text change and the GUI test fixes.
+- GUI tests: the first loop over the remaining tests ran only one (the app read the loop's
+  input); that one, subfolders, failed on the moved folders (Groups heading: +32 px) and
+  passes with new positions. The other 25 run again with stdin closed.

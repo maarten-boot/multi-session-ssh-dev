@@ -184,7 +184,14 @@ implementation differs from the original plan.
   hidden. My choices: without folders the hosts keep no heading (as before; the GUI tests'
   positions stay); the rows below have no numbers, the balloon adds host and folder; every
   row of a session is updated (dot, badges, marks). Tests: gui-smoke-lists.sh; all GUI tests
-  run again (the Groups heading moves folders down one row).
+  run again (the Groups heading moves folders down one row: folders and subfolders follow).
+  Also (the user: "add the name of the current session to the window title … remove the long
+  string … before the cost"): the title starts with the session, `(2) alpha — Session
+  Workbench` (the app already ended it with the session, but the user's desktop showed
+  "Session Workbench — session workbench"); the bar's host:path · tmux text shows only a
+  session's error (asked: errors kept). gui-smoke-badges expects the new title; dockerwin's
+  positions updated (its window is 18 px shorter than when the test was written; it failed on
+  v1.1.15 too).
 - v1.1.15 (2026-11-10): what claude cost at API prices (SPEC F18; the user: "could we
   monitor the cost and show that at regular intervals", then: API dollars (a subscription now,
   an API key later), a total first and per session as an option, "today: xxx, total: yyy",

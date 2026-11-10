@@ -120,6 +120,9 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   rename, folder, start mode, colors, own commands (T5), recording (F10), shell history (L4)), export (F13), disconnect, deactivate / activate (F15), end remote session, delete (optionally ending
   the tmux session and, when there is one, deleting the saved agent copy of F12; both unticked).
   A red ▲ marks a session whose notes have TODO lines (N1c).
+  The bar above the open session (name, tabs, Commands ▾, Prompts ▾, the cost of F18) shows
+  where it runs only when it cannot work: why, in red before the cost (e.g. `host "x" is not
+  configured`); host, path and tmux session are in Edit… and the balloon.
   Resting the mouse on a session shows a balloon with its name, local path and description
   (optional, set in the New session / Edit dialog; at most 2000 characters, line ends kept,
   trimmed; a longer hand-edited one is shown and reported) after `description_delay` seconds (0–10, default 1, Settings → Appearance); it goes
@@ -160,7 +163,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   exit 3; [history env]; <start command>"'` (remote.PlainArgs; the same missing-directory exit
   and message as with tmux): it ends with the connection; Reconnect starts a new one; End
   remote session… is not offered, deleting the session does not offer ending tmux, and a new
-  start mode needs no restart offer. Edit… shows it (no tmux session after the id). Any session can use it.
+  start mode needs no restart offer. Edit… shows it (Tmux: no; the id names no tmux session). Any session can use it.
 - F3. Sessions persist in config; on app start all sessions are restored (terminals re-attach lazily
   on first view, or eagerly — configurable; never for an inactive session, F15).
 - F4. Activity indicator: a session gets a badge when a non-visible terminal (or any terminal
@@ -378,7 +381,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   `cw-NAME-<id>` and the private histories `~/.local/state/NAME/history/<id>` (fish:
   `session_NAME_<id>`); containers `sw-NAME-<id>` (own login volume `sw-claude-NAME-<id>`; the
   shared `sw-claude` stays shared); the browser storage's keys `sw:NAME:` (the storage itself
-  is shared); the window title and About say "Session Workbench — NAME"; the Linux WM_CLASS is
+  is shared); About says "Session Workbench — NAME", the window title ends with it ("alpha — Session Workbench — NAME"); the Linux WM_CLASS is
   NAME. The container helper gets `-profile NAME`. Without a profile every name stays as before.
 - F16. One project on several agent hosts (internal/handover, internal/requirements, switch.go).
   `hosts` on a session lists the other agent hosts it worked on, the most recent first (`host`
@@ -420,7 +423,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   running claude, *Stop claude now* / *Resume claude*; asks; ends the tabs' terminals; ticks, unticked: end its tmux session, or for a
   container session stop its container and services) and, for an inactive one, *Activate
   session* in place of those. The list marks it with ⏸ and "· inactive" after its path, in
-  italics (black text); its balloon says so. Edit… keeps the setting; an import makes an
+  italics (black text), and lists it again under *Inactive* (F5); its balloon says so. Edit… keeps the setting; an import makes an
   active session.
 - F17. Stopping claude (internal/idle, idlestop.go). `[ui] idle_stop` (Settings →
   Terminals: never, 5 min … 2 h; any duration 1m–24h in config.toml; default never) and a
