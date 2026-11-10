@@ -10,9 +10,9 @@ printf '#!/bin/sh\necho "$1" >>%s\n' "$LOG" >$FAKE/xdg-open
 cat >$FAKE/gh <<'GH'
 #!/bin/sh
 cat <<'JSON'
-[{"databaseId":8,"workflowName":"build","displayTitle":"Tabs in the order Local, Files, Remote, Notes","headBranch":"main","event":"push","status":"in_progress","conclusion":"","createdAt":"2026-10-16T14:00:00Z","url":"https://github.com/maarten-boot/multi-session-ssh-dev/actions/runs/8"},
- {"databaseId":7,"workflowName":"build","displayTitle":"v0.8.4","headBranch":"v0.8.4","event":"push","status":"completed","conclusion":"success","createdAt":"2026-10-16T12:00:00Z","url":"https://github.com/maarten-boot/multi-session-ssh-dev/actions/runs/7"},
- {"databaseId":6,"workflowName":"build","displayTitle":"v0.8.3","headBranch":"v0.8.3","event":"push","status":"completed","conclusion":"failure","createdAt":"2026-10-16T10:00:00Z","url":"https://github.com/maarten-boot/multi-session-ssh-dev/actions/runs/6"}]
+[{"databaseId":8,"workflowName":"build","displayTitle":"Tabs in the order Local, Files, Remote, Notes","headBranch":"main","event":"push","status":"in_progress","conclusion":"","createdAt":"2026-10-16T14:00:00Z","url":"https://github.com/maarten-boot/session-workbench/actions/runs/8"},
+ {"databaseId":7,"workflowName":"build","displayTitle":"v0.8.4","headBranch":"v0.8.4","event":"push","status":"completed","conclusion":"success","createdAt":"2026-10-16T12:00:00Z","url":"https://github.com/maarten-boot/session-workbench/actions/runs/7"},
+ {"databaseId":6,"workflowName":"build","displayTitle":"v0.8.3","headBranch":"v0.8.3","event":"push","status":"completed","conclusion":"failure","createdAt":"2026-10-16T10:00:00Z","url":"https://github.com/maarten-boot/session-workbench/actions/runs/6"}]
 JSON
 GH
 chmod +x $FAKE/*
@@ -61,7 +61,7 @@ k ctrl+alt+2; sleep 1
 shot 4-other-session                            # highlight moves to the other session
 alive
 kill $APP; wait $APP 2>/dev/null
-GH=https://github.com/maarten-boot/multi-session-ssh-dev
+GH=https://github.com/maarten-boot/session-workbench
 expect "opened in the browser: Actions page, second run" "$GH/actions|$GH/actions/runs/7|" "$(tr '\n' '|' <$LOG)"
 expect "own link saved, javascript: refused" 'name = "Staging"|url = "https://staging.example.com/app"|' \
 	"$(grep -A2 '\[\[sessions.links\]\]' $CFG | grep -E 'name|url' | sed 's/^ *//' | tr '\n' '|')"

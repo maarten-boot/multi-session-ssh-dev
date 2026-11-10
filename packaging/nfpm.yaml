@@ -23,7 +23,7 @@ description: |
   history per session, notes (with lists, check lists and spelling), and the repository's
   build runs and web links. Claude Code's data on the agent hosts is backed up regularly.
 vendor: Maarten Boot
-homepage: https://github.com/maarten-boot/multi-session-ssh-dev
+homepage: https://github.com/maarten-boot/session-workbench
 license: MIT
 
 contents:

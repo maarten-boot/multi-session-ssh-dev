@@ -190,3 +190,27 @@
 - CI on the push (run 42877795459): linux, windows, macOS passed — including TestScript's
   usage age on macOS, where `date -r <file>` fails and `stat -f %m` is used; release skipped
   (no tag).
+
+## CI v1.1.18 (user: "pushed and tagged v1.1.18, check the CI build", then "status ?")
+- The tag points at 3f6153c. Run 42879070472: linux, windows, macOS and release passed; the
+  release has the five assets (rpm, deb, linux tar.gz, macOS zip, Windows zip), all 1.1.18.
+
+## Cross-check (user: "do a crosscheck")
+- Nothing changed since the cross-check of v1.1.18 (3f6153c): only this log. Versions agree
+  (wails.json 1.1.18, SPEC status app v1.1.18, PLAN entry v1.1.18). No changes.
+
+## Background status (user: "status what is still running in the background ?")
+- The CI watcher for v1.1.18 had kept polling for hours: GitHub answers the old repo name with
+  "Moved Permanently" (the repo was renamed to maarten-boot/session-workbench) and curl did not
+  follow it. Stopped; the scratch script now uses the new name and `curl -L`. An Xvfb :93 not
+  started by this session was left alone; the tmux sessions are the user's own.
+
+## Repo renamed (user: "yes renamed on purpose, update the docs")
+- The links now point at github.com/maarten-boot/session-workbench: packaging/copyright,
+  nfpm.yaml (homepage), gen-docs.sh (changelog), the man page, and the test data of
+  forge_test.go and gui-smoke-web.sh.
+- Kept: /tmp/multi-session-ssh-dev (the GUI test output folder is named after the local
+  project folder, which is unchanged), the README's example local_path and the GUI tests that
+  use the real local folder path.
+- The user's git remote still uses the old name (GitHub redirects); to change it:
+  `git remote set-url origin git@github.com:maarten-boot/session-workbench.git`.

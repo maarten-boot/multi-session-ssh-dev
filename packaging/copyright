@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: session-workbench
 Upstream-Contact: Maarten Boot <11140490+maarten-boot@users.noreply.github.com>
-Source: https://github.com/maarten-boot/multi-session-ssh-dev
+Source: https://github.com/maarten-boot/session-workbench
 
 Files: *
 Copyright: 2026 Maarten Boot

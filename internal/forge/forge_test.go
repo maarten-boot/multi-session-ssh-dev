@@ -12,13 +12,13 @@ import (
 
 func TestParse(t *testing.T) {
 	for in, want := range map[string]string{
-		"git@github.com:maarten-boot/multi-session-ssh-dev.git": "github https://github.com/maarten-boot/multi-session-ssh-dev",
-		"https://github.com/maarten-boot/multi-session-ssh-dev": "github https://github.com/maarten-boot/multi-session-ssh-dev",
-		"https://me:ghp_secret@github.com/o/r.git":              "github https://github.com/o/r",
-		"ssh://git@github.com:22/o/r.git":                       "github https://github.com/o/r",
-		"git@gitlab.example.com:group/sub/proj.git":             "gitlab https://gitlab.example.com/group/sub/proj",
-		"https://git.example.org/team/tool":                     "generic https://git.example.org/team/tool",
-		"  git@GitHub.com:Owner/Repo.git/ ":                     "github https://github.com/Owner/Repo",
+		"git@github.com:maarten-boot/session-workbench.git": "github https://github.com/maarten-boot/session-workbench",
+		"https://github.com/maarten-boot/session-workbench": "github https://github.com/maarten-boot/session-workbench",
+		"https://me:ghp_secret@github.com/o/r.git":          "github https://github.com/o/r",
+		"ssh://git@github.com:22/o/r.git":                   "github https://github.com/o/r",
+		"git@gitlab.example.com:group/sub/proj.git":         "gitlab https://gitlab.example.com/group/sub/proj",
+		"https://git.example.org/team/tool":                 "generic https://git.example.org/team/tool",
+		"  git@GitHub.com:Owner/Repo.git/ ":                 "github https://github.com/Owner/Repo",
 	} {
 		r, ok := Parse(in)
 		if got := r.Kind + " " + r.Web; !ok || got != want {

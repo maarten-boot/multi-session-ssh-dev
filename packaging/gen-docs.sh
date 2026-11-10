@@ -28,7 +28,7 @@ RANGE=${PREV:+$PREV..}HEAD
 			printf '%s\n' "$subject" | fold -s -w 74 | sed '1s/^/  * /; 2,$s/^/    /'
 		done
 	echo "  * Release notes:"
-	echo "    https://github.com/maarten-boot/multi-session-ssh-dev/releases"
+	echo "    https://github.com/maarten-boot/session-workbench/releases"
 	echo
 	echo " -- Maarten Boot <11140490+maarten-boot@users.noreply.github.com>  $RFC"
 } | gzip -9n >"$OUT/changelog.gz"
