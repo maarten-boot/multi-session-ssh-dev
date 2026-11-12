@@ -9,6 +9,9 @@ agent host), **Notes** and **Web** (build runs and links). See [SPEC.md](SPEC.md
 security — is described in [docs/CONNECTIVITY.md](docs/CONNECTIVITY.md).** Please
 read its security section if the agent host can write to your repositories.
 
+New here? **[docs/TUTORIAL.md](docs/TUTORIAL.md)** takes you from the download to your first
+claude session, with screenshots (`make tutorial-pdf` makes a PDF of it).
+
 Status: v1.1.14: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
@@ -574,10 +577,11 @@ usage there). It uses no tokens, and it is as fresh as the last reply of any of 
 
 Click the figure for **Settings → Cost**: each session's cost today and in total, with the sum
 and the top bar's own numbers, the usage with its reset times, *Reset the total…* (today
-stays), the settings (turn it off, or show each session's cost in its balloon in the list) and
+stays), the settings (hide the figure, or show each session's cost in its balloon in the list) and
 warnings: a daily dollar limit and percentages for the 5-hour and 7-day usage. A reached limit
 shows "⚠" in the figure, in red, and one desktop notification (once a day, once per usage
-window). Prices of the current models are built in; add or correct one in the
+window). The cost is counted also while the figure is hidden: this page, the balloons and the
+warnings stay up to date. Prices of the current models are built in; add or correct one in the
 config file:
 
 ```toml
@@ -939,7 +943,7 @@ ctrl_copy_paste = true                    # Ctrl+C copies a selection, Ctrl+V pa
 notifications = true                      # desktop notification when claude waits (bell)
 private_history = true                    # each session's shells keep their own history
 # idle_stop = "5m"                        # stop a claude that waited this long for input (1m … 24h); resumed when opened
-# show_cost = true                        # today's and the total cost of claude at API prices in the top bar
+# show_cost = true                        # today's and the total cost of claude at API prices in the top bar (counted also when false)
 # cost_per_session = false                # also each session's in its balloon in the list
 # cost_daily_limit = 20                   # warn when today's cost reaches $20 (0: never)
 # usage_5h_limit = 80                     # warn at 80% of the 5-hour subscription usage (0: never)

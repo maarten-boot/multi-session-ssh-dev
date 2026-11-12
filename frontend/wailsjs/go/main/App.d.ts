@@ -46,8 +46,6 @@ export function ContainerStop(arg1:string):Promise<void>;
 
 export function ContainerStopBuild(arg1:string):Promise<void>;
 
-export function CostNow():Promise<void>;
-
 export function CostSummary():Promise<cost.Summary>;
 
 export function CreatePage(arg1:string,arg2:string):Promise<notes.Note>;

@@ -62,10 +62,6 @@ export function ContainerStopBuild(arg1) {
   return window['go']['main']['App']['ContainerStopBuild'](arg1);
 }
 
-export function CostNow() {
-  return window['go']['main']['App']['CostNow']();
-}
-
 export function CostSummary() {
   return window['go']['main']['App']['CostSummary']();
 }

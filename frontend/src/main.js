@@ -30,7 +30,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
-    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude, CostSummary, ResetCost, CostNow,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude, CostSummary, ResetCost,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -1027,9 +1027,13 @@ const app = {
     // desktop notification says so once (per day, per usage window).
     renderCost() {
         const b = $('#cost');
+        // Hidden, it is still counted: Settings → Cost and the warnings.
         b.hidden = this.state.ui.show_cost === false || !this.cost;
-        if (b.hidden) return;
         const now = Date.now() / 1000;
+        if (b.hidden) {
+            if (this.cost) this.costWarn(now);
+            return;
+        }
         const {parts, title} = costParts(this.cost, this.state.ui, now);
         b.replaceChildren(...parts.flatMap((p, i) => [i ? ' · ' : '',
             p.warn ? el('span', {className: 'warn', textContent: '⚠ ' + p.text}) : p.text]));
@@ -1100,7 +1104,7 @@ const app = {
             d.description ? el('div', {className: 'balloon-text', textContent: d.description}) : '',
             d.inactive ? el('div', {className: 'balloon-text', textContent: '⏸ Inactive: nothing connects until you activate it.'}) : '',
             this.idleStopped?.has(d.id) ? el('div', {className: 'balloon-text', textContent: '💤 claude was stopped after waiting for input; it resumes when you open the session.'}) : '',
-            this.state.ui.show_cost !== false && this.state.ui.cost_per_session && sessionCost(this.cost?.sessions?.[d.id])
+            this.state.ui.cost_per_session && sessionCost(this.cost?.sessions?.[d.id])
                 ? el('div', {className: 'balloon-text', textContent: sessionCost(this.cost.sessions[d.id])}) : '',
             s.todoCount() ? el('div', {className: 'balloon-todo'}, el('span', {className: 'todo-mark', textContent: '▲ '}), s.todoText()) : '',
         ], () => 1000 * (this.state.ui.description_delay ?? 1));
@@ -2260,7 +2264,6 @@ async function settingsDialog(page) {
         hidden_tabs: order.filter(k => hidden.has(k)),
     }), pages.find(p => !p.hidden)?.querySelector('input, select')); // the open page's first field
     if (ok) await app.reload();
-    if (ok && f.show_cost.checked && ui.show_cost === false) CostNow(); // turned on: count at once
 }
 
 // qaSettings fills the Q&A page of Settings: who answers by default, the

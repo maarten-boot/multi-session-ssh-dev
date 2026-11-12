@@ -1,0 +1,112 @@
+[ui]
+  font_size = 14
+  scrollback = 10000
+  connect_on_start = "lazy"
+  theme = "light"
+  color_mode = "full"
+  min_contrast = 12.5
+  auto_reconnect = true
+  activity_badges = true
+  copy_on_select = true
+  ctrl_copy_paste = true
+  tab_order = ["remote", "local", "files", "notes", "web", "qa"]
+  claude_backup = true
+  notifications = true
+  claude_backup_every = "15m"
+  idle_stop = "30m"
+  show_cost = false
+  cost_per_session = true
+  cost_daily_limit = 100.0
+  usage_5h_limit = 50
+  usage_7d_limit = 50
+  record_remote = true
+  record_every = "2h"
+  private_history = true
+  save_agent_copies = true
+  save_agent_copies_every = "1h"
+  save_agent_copies_at_quit = true
+  saved_copies_hours = 24
+  saved_copies_days = 14
+  spell_check = true
+  spell_language = "en_US"
+  spell_words = ["basename", "github", "modus", "operandi"]
+  qa_claude_model = "haiku"
+  description_delay = 1.0
+
+  [[ui.commands]]
+    name = "claude-compact"
+    command = "/compact"
+    group = "Claude"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "claude-continue"
+    command = "claude --continue"
+    group = "Claude"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "claude-exit"
+    command = "/exit"
+    group = "Claude"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "git-push"
+    command = "git push"
+    group = "Git"
+    where = "local"
+
+  [[ui.commands]]
+    name = "git-status-tags"
+    command = "git status; git tag"
+    group = "Git"
+    where = "local"
+
+  [[ui.commands]]
+    name = "git-tags-show"
+    command = "git tag"
+    group = "Git"
+    where = "local"
+
+  [[ui.commands]]
+    name = "continue"
+    command = "you can continue"
+    group = "Text"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "do a cross check"
+    command = "yes do a crosscheck now."
+    group = "Text"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "i pushed"
+    command = "i pushed"
+    group = "Text"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "status?"
+    command = "status?"
+    group = "Text"
+    where = "remote"
+
+  [[ui.commands]]
+    name = "what is next ?"
+    command = "What is next ?"
+    group = "Text"
+    where = "remote"
+
+  [[ui.start_commands]]
+    name = "claude"
+    command = "claude"
+
+  [[ui.start_commands]]
+    name = "claude-continue"
+    command = "claude --continue || claude"
+
+  [[ui.start_commands]]
+    name = "shell"
+    command = ""

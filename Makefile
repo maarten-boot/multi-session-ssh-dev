@@ -13,7 +13,7 @@ endif
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -X main.version=$(VERSION)
 
-.PHONY: check deps dev build build-windows packages run test test-ssh vet clean clean-smoke smoke smoke-sessions smoke-files smoke-ui smoke-container smoke-all
+.PHONY: check deps dev build build-windows packages run test test-ssh vet clean clean-smoke smoke smoke-sessions smoke-files smoke-ui smoke-container smoke-all tutorial-shots tutorial-pdf
 
 check:
 	@scripts/deps.sh check
@@ -162,3 +162,13 @@ smoke-container: build
 	$(XVFB) scripts/gui-smoke-compose.sh build/bin/session-workbench $(SMOKE_OUT)-compose
 
 smoke-all: smoke smoke-sessions smoke-files smoke-ui smoke-container
+
+# tutorial-shots: the screenshots of docs/TUTORIAL.md (docs/tutorial/*.png), taken like the
+#   GUI tests with made-up sessions on localhost and the profile "tutorial".
+# tutorial-pdf: docs/TUTORIAL.md as build/session-workbench-tutorial.pdf, with weasyprint
+#   in a venv under $(SMOKE_DIR) (the first run downloads it).
+tutorial-shots: build
+	$(XVFB) scripts/tutorial-shots.sh build/bin/session-workbench $(SMOKE_DIR)/tutorial
+
+tutorial-pdf:
+	scripts/tutorial-pdf.sh build/session-workbench-tutorial.pdf $(VERSION) $(SMOKE_DIR)/pdf-venv

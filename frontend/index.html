@@ -480,7 +480,7 @@
         <section class="settings-page" data-page="cost">
             <div class="checks">
                 <label class="check"><input type="checkbox" name="show_cost"> Show what claude cost (today and total, at API prices) and the subscription usage in the top bar</label>
-                <label class="check"><input type="checkbox" name="cost_per_session"> Also each session's cost in its balloon in the list</label>
+                <label class="check"><input type="checkbox" name="cost_per_session"> Each session's cost in its balloon in the list</label>
             </div>
             <div class="grid">
                 <label>Warn when today's cost reaches ($; empty: never)
@@ -499,7 +499,7 @@
                 <tbody></tbody>
                 <tfoot></tfoot>
             </table>
-            <p class="hint">A warning marks the figure in the top bar with ⚠ and shows one desktop notification (once a day, once per usage window). Two sessions in the same folder share its transcripts, so the sum can be more than the top bar's total; the reset only changes the top bar's total.</p>
+            <p class="hint">The cost is counted also when the top bar does not show it: this page, the balloons and the warnings stay up to date. A warning marks the figure in the top bar with ⚠ and shows one desktop notification (once a day, once per usage window). Two sessions in the same folder share its transcripts, so the sum can be more than the top bar's total; the reset only changes the top bar's total.</p>
             <button type="button" name="reset_cost">Reset the total…</button>
         </section>
         <section class="settings-page shortcuts" data-page="keys">

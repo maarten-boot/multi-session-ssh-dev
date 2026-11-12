@@ -45,3 +45,6 @@ build/pkgdocs
 
 # go build . in the repository root
 /session-workbench
+
+# The tutorial as a PDF (make tutorial-pdf)
+build/*.pdf

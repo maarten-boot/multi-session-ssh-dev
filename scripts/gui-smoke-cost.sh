@@ -5,7 +5,7 @@
 # (SW_IDLE_TICK): the top bar shows today and the total at API prices, the
 # list balloon the session's own; a new reply adds to it; a model without
 # a price makes the amounts a lower bound (≥); clicking the figure resets
-# the total (today stays); Settings hides it.
+# the total (today stays); Settings hides it, and it is still counted.
 # usage: xvfb-run -a -s "-screen 0 1400x900x24" scripts/gui-smoke-cost.sh <binary> <outdir>
 BIN=$1; OUT=$2; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
@@ -81,22 +81,29 @@ cost_page
 shot 5-cost-page
 xdotool mousemove 520 276 click 1; xdotool type --delay 20 '10'      # today: warn at $10
 xdotool mousemove 850 276 click 1; xdotool type --delay 20 '20'      # 5-hour: warn at 20%
-xdotool mousemove 990 664 click 1; sleep 2                          # Save
+xdotool mousemove 990 680 click 1; sleep 2                          # Save
 shot 6-warnings
 check "the daily limit is saved" grep -q 'cost_daily_limit = 10' $CFG
 check "the 5-hour limit is saved" grep -q 'usage_5h_limit = 20' $CFG
 # Reset the total from the page: the Top bar row's total goes to $0.00.
 cost_page
-xdotool mousemove 443 612 click 1; sleep 1; k Return; sleep 1.5
+xdotool mousemove 443 630 click 1; sleep 1; k Return; sleep 1.5
 shot 7-reset
 check "the reset is kept" grep -q '"reset_at"' $LEDGER
 k Escape; sleep 0.5
 # Turned off: the figure goes.
 cost_page
 xdotool mousemove 388 196 click 1; sleep 0.3                        # Show what claude cost: off
-xdotool mousemove 990 664 click 1; sleep 2                          # Save
+xdotool mousemove 990 680 click 1; sleep 2                          # Save
 shot 8-hidden
 check "Settings saves it off" grep -q 'show_cost = false' $CFG
+# Hidden, it is still counted: a new reply reaches the ledger and the Cost page.
+reply msg_4 claude-sonnet-5-5 0 100000 >>"$PROJ/conv-a.jsonl"     # $1.50
+sleep 6
+check "counted while the figure is hidden" grep -q '"msg_4"' $LEDGER
+k ctrl+shift+comma; sleep 1; xdotool mousemove 998 159 click 1; sleep 1   # Settings → Cost
+shot 9-hidden-cost-page
+k Escape
 alive
 kill $APP; wait $APP 2>/dev/null
 finish

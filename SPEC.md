@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.26 (2026-11-10, app v1.1.18) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.27 (2026-11-12, app v1.1.19) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -19,7 +19,7 @@ next to a container session's dev container with Compose (C7), inactive sessions
 Hosts heading above the folders (F5), one project on several agent hosts (F16), stopping
 claude (F17; also in containers and by hand), what claude cost at API prices with the
 subscription usage, warnings and a Cost page in Settings (F18), and the sidebar headings
-Groups, Active and Inactive (F5).
+Groups, Active and Inactive (F5), and a tutorial (docs/TUTORIAL.md, also as PDF).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -476,9 +476,10 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   $87.30": what claude's replies cost at API prices (with a subscription: what they would have
   cost), then the subscription usage "· 5h 23% · 7d 41%" (with "(12 min ago)" when older than
   2 minutes). `[ui] show_cost` (Settings → Cost, on by default) shows it; `cost_per_session`
-  (off by default) also puts "Cost: today … · total …" in each session's list balloon.
-  Clicking the figure opens Settings → Cost. Updated every minute; with show_cost off nothing
-  is read (turned on: read at once).
+  (off by default) puts "Cost: today … · total …" in each session's list balloon.
+  Clicking the figure opens Settings → Cost. Updated every minute, also with show_cost off: it
+  only hides the figure, while Settings → Cost, the balloons (cost_per_session) and the
+  warnings (with their notifications) stay current, and claude still gets the usage status line.
   - Settings → Cost: the two settings, the warning limits, the usage in words ("5-hour 23%
     (resets 20:15), 7-day 41% (resets Fri 19:15) — reported 2 min ago on <host>"), a table of
     every session (name, host, today, total; amounts right-aligned) with a Sum row and a Top bar
@@ -494,7 +495,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
     waiting). Clicking the notification opens Settings → Cost.
   - Usage: Claude Code gives a status line command the 5-hour and 7-day usage
     (`rate_limits.five_hour` / `seven_day`: `used_percentage`, `resets_at`; Pro, Max and Ultra,
-    after the session's first reply). With the cost shown, the app's `--settings` (F17) also
+    after the session's first reply). The app's `--settings` (F17) also
     has a `statusLine` whose command (no single quotes, no backslashes) saves the data to
     `<state dir>/claude/usage.json` when it has `rate_limits` (a claude without a reply yet does
     not overwrite it) and runs `<state dir>/claude/statusline` with it. That helper (installed
@@ -863,7 +864,8 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   theme is black text on a white background (the primary user's preference); all ordinary app text
   is black, secondary text too (no grey text: grey on grey is hard to read; hierarchy comes from
   size and weight, dimmed entries are shown in italics); color only marks status (errors,
-  warnings, git letters, directory names). It must stay readable with programs that
+  warnings, git letters, directory names). A primary button is white on blue everywhere,
+  also the one of the empty window (*Add host…*, *New session…*). It must stay readable with programs that
   assume a dark background:
   - `color_mode = "full"` — ANSI colors as sent, but with a minimum contrast against the
     background (xterm.js `minimumContrastRatio`, default ~4.5), so yellow/light green on white

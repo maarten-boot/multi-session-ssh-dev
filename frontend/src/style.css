@@ -729,6 +729,17 @@ button.primary:hover {
     background: #1177bb;
 }
 
+/* "#empty button" outranks button.primary: without these the empty
+   window's Add host… / New session… was white text on light grey. */
+#empty button.primary {
+    background: #0e639c;
+    border-color: #0e639c;
+}
+
+#empty button.primary:hover {
+    background: #1177bb;
+}
+
 button.primary:disabled, button.primary:disabled:hover {
     background: var(--btn-bg);
     border-color: #0e639c;

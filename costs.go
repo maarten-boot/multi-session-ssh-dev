@@ -61,10 +61,9 @@ const costRetry = 5 * time.Minute
 // costRound reads the transcripts of the active sessions, a host at a time
 // in parallel; a container session only while its container runs.
 func (a *App) costRound(ctx context.Context) {
+	// Counted also while the top bar hides the figure: Settings → Cost, the
+	// balloons and the warnings stay current.
 	cfg := a.sessions.Config()
-	if cfg.UI.ShowCost != nil && !*cfg.UI.ShowCost {
-		return
-	}
 	a.cost.round.Lock()
 	defer a.cost.round.Unlock()
 	byHost := map[string][]cost.Item{}
@@ -169,13 +168,3 @@ func (a *App) ResetCost() error {
 	a.costChanged()
 	return err
 }
-
-// usageOn: claude gets the status line that saves the subscription usage
-// (with the cost shown, SPEC F18).
-func (a *App) usageOn() bool {
-	u := a.sessions.Config().UI.ShowCost
-	return u == nil || *u
-}
-
-// CostNow counts again at once (the settings turned the cost on).
-func (a *App) CostNow() { go a.costRound(a.ctx) }

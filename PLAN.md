@@ -176,6 +176,36 @@ implementation differs from the original plan.
 - v0.9.7: Settings → Q&A: the defaults — who answers (`qa_engine`), the Claude API model
   (`qa_model`, the API's models suggested), the Claude Code model (new `qa_claude_model`) and
   program (`qa_claude`, with where it is found). Tested in gui-smoke-qa.sh.
+- v1.1.19 (2026-11-12): a tutorial, docs/TUTORIAL.md, with screenshots and a PDF export.
+  The user: "start working on a Tutorial: download the app; prepare your shared data (when using
+  nfs/cifs), how to prepare kvm virtio sharing, how docker sharing works; start the first time
+  … settings …; how you create new hosts …; how you create a new session and your first claude
+  start (… only support claude …, re-affirm your licence authentication); … the remote has no
+  access to github writing …; gh installed on the remote but with a limited token …; Explain
+  the Tabs … Web and the Notes (with the automatic alert on todo), … the global commands and
+  prompts …; did i miss someting important ?". Added after asking: agent host requirements,
+  live share and working copies, the review step and the repository check, Files and Q&A tabs,
+  cost and idle stop, the session list, notifications, backups, switch host, export, keys,
+  contrast, profiles, troubleshooting. The user: "yes add all, one file with screenshots,
+  read-only token, … also a pdf export … as a final goal". Markdown: one sentence per line,
+  long ones broken after , ; : with a 2-space indent (the user's preference). Screenshots by
+  scripts/tutorial-shots.sh (`make tutorial-shots`): made-up host and sessions on localhost,
+  the profile "tutorial", a fake gh, made-up cost data (removed afterwards), tmux's status line
+  off (it showed the real host name), the dialogs with the default start commands. PDF by
+  scripts/tutorial-pdf.sh (`make tutorial-pdf`): markdown-it-py (CommonMark, as on GitHub) and
+  weasyprint in a venv, A4, one chapter per page, black on white. Fixed on the way (found in
+  the first screenshot): the empty window's *Add host…* / *New session…* button was white text
+  on light grey ("#empty button" outranked button.primary); tutorial-shots checks its color
+  (fails without the fix). The user's own commands and prompts as the examples
+  (docs/tutorial/examples/, used by the screenshots). Not yet: the PDF as a release asset (the
+  user: "as we near a release").
+  Also: the cost is counted while the top bar hides it. The user: "also add that the cost in
+  the settings menu is always updated even if we dont show it anywhere else" — it was not:
+  show_cost = false stopped the counting and the usage status line. Now show_cost only hides
+  the figure; Settings → Cost, the balloons (cost_per_session on its own) and the warnings
+  (with their notifications) stay current, and claude always gets the usage status line
+  (CostNow, only used to count at once after turning it on, is gone). gui-smoke-cost: a reply
+  after hiding is counted; its Save and Reset clicks moved with the Cost page's longer note.
 - v1.1.18 (2026-11-10): Settings → Cost, warnings and the subscription usage (SPEC F18), and
   Deactivate ends tmux by default (F15). The user: "what happend with the configurable alert
   for cost ? Additions: by default select switch off tmux on disconnect; add a extra Cost tab in
@@ -398,6 +428,10 @@ implementation differs from the original plan.
   Settings name a Claude Code model.
 
 ## Next (ideas, not started)
+- Ship example commands and prompts with the release (the user: "we could even consider
+  adding them to the default release (after we correct spelling and accuracy)"):
+  docs/tutorial/examples/ after a review; how (defaults for a new config, or files to copy)
+  still to decide.
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
   between interactive prompts.
   - Frontend: hook into `frontend/src/terminal.js`. Explore xterm.js markers

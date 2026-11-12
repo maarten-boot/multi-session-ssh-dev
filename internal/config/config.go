@@ -201,8 +201,9 @@ type UI struct {
 	// (a duration, 1m to 24h; "" = never) and resumes it when the session
 	// is opened (SPEC F17). Session.IdleStop overrides it.
 	IdleStop string `toml:"idle_stop,omitempty" json:"idle_stop"`
-	// ShowCost shows what claude cost today and in total at API prices
-	// (SPEC F18); CostPerSession also each session's in its balloon.
+	// ShowCost shows what claude cost today and in total at API prices in
+	// the top bar (SPEC F18; counted also when off); CostPerSession each
+	// session's in its balloon.
 	ShowCost       *bool `toml:"show_cost,omitempty" json:"show_cost"`
 	CostPerSession bool  `toml:"cost_per_session,omitempty" json:"cost_per_session"`
 	// Warnings (Settings → Cost; 0 = none): today's cost above

@@ -1030,7 +1030,7 @@ func (a *App) StartRemote(id string, cols, rows int) (string, error) {
 	if idleApplies(r) {
 		// Hooks tell when claude waits for input, for stopping it (only
 		// used when a new tmux session starts it).
-		r.StartCommand = idle.WithHooks(r.StartCommand, r.ID, a.usageOn())
+		r.StartCommand = idle.WithHooks(r.StartCommand, r.ID, true)
 	}
 	if session.FilesMode(r.Host) == session.FilesSSHFS && !r.Plain {
 		if err := a.ensureShare(id, 25*time.Second); err != nil {
