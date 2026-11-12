@@ -10,7 +10,8 @@ let lists = 0; // numbers the group suggestion lists
 // Add button. opts: run (show the tick), group (show the group, suggesting
 // the groups in the list and those of groups()), where (show which tab it
 // goes to: the tab it is chosen in, Local or Remote), emptyCommand (an
-// empty command is allowed), placeholder {name, command}.
+// empty command is allowed), placeholder {name, command}, extra (returns an
+// element shown next to Add, e.g. a button that calls add()).
 export class CommandList {
     constructor(container, items, opts = {}) {
         this.container = container;
@@ -32,6 +33,13 @@ export class CommandList {
             if (this.opts.run) it.run = row.querySelector('.cmd-run').checked;
             if (this.opts.where) it.where = row.querySelector('.cmd-where').value;
         });
+    }
+
+    // add appends entries after the ones being edited.
+    add(items) {
+        this.read();
+        this.items.push(...items.map(c => ({...c})));
+        this.render();
     }
 
     // value is the list as edited, without rows left completely empty.
@@ -101,7 +109,8 @@ export class CommandList {
         const groups = this.opts.group ? [el('datalist', {id: this.listId},
             ...[...new Set([...this.items.map(c => c.group?.trim()), ...(this.opts.groups?.() ?? [])].filter(Boolean))]
                 .sort().map(g => el('option', {value: g})))] : [];
-        this.container.replaceChildren(...empty, ...rows, el('div', {className: 'command-add'}, add), ...groups);
+        const extra = this.opts.extra ? [this.opts.extra(this)] : [];
+        this.container.replaceChildren(...empty, ...rows, el('div', {className: 'command-add'}, add, ...extra), ...groups);
     }
 
     // move swaps two rows; the same arrow of the moved row keeps the focus.

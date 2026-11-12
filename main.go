@@ -77,6 +77,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "warning: no data directory, Claude backups are off:", err)
 	}
 	app := NewApp(sessions, filepath.Join(filepath.Dir(*cfgPath), "notes"), dataDir)
+	if sessions.Fresh() && lockErr == nil {
+		app.examplePrompts()
+	}
 	if lockErr != nil {
 		if !errors.Is(lockErr, instance.ErrRunning) {
 			fmt.Fprintln(os.Stderr, "warning: instance lock:", lockErr) // e.g. read-only dir: run anyway

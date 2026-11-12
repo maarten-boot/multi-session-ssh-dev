@@ -6,10 +6,10 @@ import {main} from '../models';
 import {cost} from '../models';
 import {notes} from '../models';
 import {session} from '../models';
+import {config} from '../models';
 import {gitstatus} from '../models';
 import {fsbrowse} from '../models';
 import {qa} from '../models';
-import {config} from '../models';
 import {share} from '../models';
 import {spell} from '../models';
 import {handover} from '../models';
@@ -59,6 +59,10 @@ export function DeleteHost(arg1:string):Promise<void>;
 export function DeletePage(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteSession(arg1:string):Promise<void>;
+
+export function ExampleCommands():Promise<Array<config.Command>>;
+
+export function ExamplePrompts():Promise<string>;
 
 export function ExportParts(arg1:string):Promise<Array<main.ExportPart>>;
 

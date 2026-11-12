@@ -1,3 +1,5 @@
+# A real configuration's [ui] section (the example commands are in
+# internal/examples/commands.toml).
 [ui]
   font_size = 14
   scrollback = 10000
@@ -32,72 +34,6 @@
   spell_words = ["basename", "github", "modus", "operandi"]
   qa_claude_model = "haiku"
   description_delay = 1.0
-
-  [[ui.commands]]
-    name = "claude-compact"
-    command = "/compact"
-    group = "Claude"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "claude-continue"
-    command = "claude --continue"
-    group = "Claude"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "claude-exit"
-    command = "/exit"
-    group = "Claude"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "git-push"
-    command = "git push"
-    group = "Git"
-    where = "local"
-
-  [[ui.commands]]
-    name = "git-status-tags"
-    command = "git status; git tag"
-    group = "Git"
-    where = "local"
-
-  [[ui.commands]]
-    name = "git-tags-show"
-    command = "git tag"
-    group = "Git"
-    where = "local"
-
-  [[ui.commands]]
-    name = "continue"
-    command = "you can continue"
-    group = "Text"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "do a cross check"
-    command = "yes do a crosscheck now."
-    group = "Text"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "i pushed"
-    command = "i pushed"
-    group = "Text"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "status?"
-    command = "status?"
-    group = "Text"
-    where = "remote"
-
-  [[ui.commands]]
-    name = "what is next ?"
-    command = "What is next ?"
-    group = "Text"
-    where = "remote"
 
   [[ui.start_commands]]
     name = "claude"

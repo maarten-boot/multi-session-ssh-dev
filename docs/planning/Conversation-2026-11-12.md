@@ -67,3 +67,35 @@
 - Checked against the code and README: no remaining show_cost-stops-counting text, no
   CostNow/usageOn left; the tutorial's shortcuts, defaults (backups hourly, idle stop off,
   start commands) and menus match; the PDF builds.
+
+## CI (user: "pushed, check the CI build")
+- Run 43299227017 on 4bd8b06 and run 43300216443 on 6ecc9e8: linux, windows, macOS passed;
+  release skipped (no tag).
+
+## Built-in commands and prompts (user: "if the user already has settings and propmts what does a reinstall do now that we have commands and prompts built in ?")
+- Answered: nothing is built in yet (examples only in docs); a reinstall or upgrade never
+  touches the config folder; only the start commands have defaults, replaced by a list in
+  the config. Proposed: examples only on a first start without a config, plus a button for
+  existing users that adds only missing names; no merging at upgrade time.
+- User: "yes, first start only plus the button". Recorded in PLAN Next; waits for the
+  examples' spelling and accuracy review.
+
+## Example commands and prompts built in (user: "yes, first start only plus the button", then "apply all spelling fixes, keep both, keep architecture")
+- Spelling fixes applied to the examples (I/i, an architecture, an explicit, up to date, If,
+  GitHub Actions, commit hash, a looser more creative mode, double space, 4.5:1, GUI/TUI,
+  "What is next?" also as the command's name); Correct my text first and New Scenario both
+  kept; the architecture folder kept.
+- The examples moved to internal/examples (commands.toml, prompts.md; embedded); the real
+  [ui] section stays in docs/tutorial/examples/settings.toml without the commands.
+- A first start (no config file): the example commands in the config (saved with the first
+  change), and the Prompts page for all sessions when there is none (only when this instance
+  holds the lock). An existing config, also with no commands, and an existing page are never
+  added to.
+- Add example commands… (next to + Add in Settings → Commands) and Add example prompts…
+  (under the prompts list): a confirm with the missing names (group and name, or name,
+  ignoring case), then only those are added. Their OK is blue: confirmDialog got `safe`
+  (red stays for removing or ending things).
+- SPEC T7 (SPEC v1.28), README paragraph, tutorial sections 5 and 11, PLAN v1.1.19 entry
+  (moved from Next), Tests.md row, Makefile smoke.
+- Tests: go test (examples, session first start only), npm test 74 pass, gui-smoke-examples
+  pass (11 checks), and again commands, appnotes, profile, settings and tutorial-shots pass.

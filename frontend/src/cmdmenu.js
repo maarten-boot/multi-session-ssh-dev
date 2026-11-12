@@ -66,3 +66,14 @@ function menuOf(list, run, disabled) {
     const subs = [...groups].map(([label, submenu]) => ({label, submenu}));
     return [...top, ...(top.length && subs.length ? ['-'] : []), ...subs];
 }
+
+// missingCommands are the examples not in have: same group and name,
+// ignoring case and spaces at the ends (as Settings compares them).
+export function missingCommands(have, examples) {
+    const key = c => `${(c.group ?? '').trim().toLowerCase()}\n${(c.name ?? '').trim().toLowerCase()}`;
+    const own = new Set((have ?? []).map(key));
+    return (examples ?? []).filter(c => !own.has(key(c)));
+}
+
+// commandLabel names a command with its group: "Git › git-push".
+export const commandLabel = c => c.group ? `${c.group} › ${c.name}` : c.name;

@@ -72,3 +72,14 @@ test('local and remote commands: the other tab\'s in their own section, sent the
     assert.deepEqual(commandItems(null, cmds, () => {}).map(i => i === '-' ? '-' : i.label),
         ['status  ⏎', 'push  ⏎', 'top  ⏎', '-', 'git']);
 });
+
+test('example commands: only those the user lacks', async () => {
+    const {missingCommands, commandLabel} = await import('./cmdmenu.js');
+    const have = [{name: 'git-push', group: 'Git', command: 'git push --force'}, {name: 'Status?', group: 'text', command: 'x'}];
+    const ex = [{name: 'git-push', group: 'Git', command: 'git push'}, {name: 'status?', group: 'Text', command: 'status?'},
+        {name: 'git-push', group: '', command: 'git push'}, {name: 'continue', group: 'Text', command: 'you can continue'}];
+    // Same group and name (ignoring case) is the user's own: kept, not added.
+    assert.deepEqual(missingCommands(have, ex).map(commandLabel), ['git-push', 'Text › continue']);
+    assert.deepEqual(missingCommands([], ex), ex);
+    assert.deepEqual(missingCommands(ex, ex), []);
+});

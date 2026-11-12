@@ -6,7 +6,7 @@
 BIN=$1; OUT=$2; STEP=${3:-all}; mkdir -p $OUT
 . "$(dirname "$0")/smoke-lib.sh"
 DOCS=$(cd "$(dirname "$0")/.." && pwd)/docs/tutorial; mkdir -p $DOCS
-EX=$DOCS/examples
+EX=$(cd "$(dirname "$0")/.." && pwd)/internal/examples   # the examples the app ships
 PROF=tutorial
 cleanup() {
 	for s in $(tmux ls -F '#S' 2>/dev/null | grep "^cw-$PROF-"); do tmux kill-session -t "=$s"; done
@@ -90,7 +90,7 @@ Working on the checkout.
 - [ ] TODO: totals with tax
 - [ ] update the README
 MD
-	# The prompts and commands are the examples in docs/tutorial/examples.
+	# The prompts and commands are the examples the app ships.
 	cp $EX/prompts.md $OUT/notes/_app/Prompts.md
 	cat >$OUT/config.toml <<TOML
 groups = ["Work", "Private"]
@@ -99,7 +99,7 @@ groups = ["Work", "Private"]
 cost_per_session = true
 cost_daily_limit = 20
 
-$(sed -n '/\[\[ui.commands\]\]/,/\[\[ui.start_commands\]\]/p' $EX/settings.toml | sed '$d')
+$(grep -v '^#' $EX/commands.toml)
 
 [[ui.start_commands]]
 name = "claude"

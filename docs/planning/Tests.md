@@ -110,6 +110,7 @@ README.md "Development" lists the make targets.
 | gui-smoke-settings.sh     | §4.6, §4.7 | configurable keys, settings dialog                           |
 | gui-smoke-switcher.sh     | §4.6       | quick switcher: MRU, fuzzy filter, descriptions, resize      |
 | gui-smoke-commands.sh     | T5, T6     | command menu (groups), start commands, prompts menu; a `where = "local"` command chosen on the Remote tab runs in the Local shell (started again after `exit`) and the Remote tab keeps the keys; a `where = "remote"` one chosen on the Local tab runs in the Remote shell and the Local tab keeps the keys; Settings → Commands (with Where); Local: Back to the session directory after `cd /` |
+| gui-smoke-examples.sh     | T7         | a first start (no config file) writes the example Prompts page and saves the example commands; an existing config (one own git-push) and Prompts page (own crosscheck) are untouched at start; Add example commands… lists the 10 missing ones (git-push left out) and Save keeps them with the own git-push; Add example prompts… adds the 6 missing ones, crosscheck not twice (names ignore case), the own text kept |
 | tutorial-shots.sh         | T3, docs   | the screenshots of docs/TUTORIAL.md (made-up host and sessions on localhost, profile "tutorial", nothing left behind); the empty window's *Add host…* button is blue (white text on light grey before v1.1.19) |
 
 When a feature is added, add or extend a test here and name the SPEC item it covers.

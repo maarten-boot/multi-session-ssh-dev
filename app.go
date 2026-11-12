@@ -23,6 +23,7 @@ import (
 	"session-workbench/internal/backup"
 	"session-workbench/internal/config"
 	"session-workbench/internal/container"
+	"session-workbench/internal/examples"
 	"session-workbench/internal/forge"
 	"session-workbench/internal/fsbrowse"
 	"session-workbench/internal/gitstatus"
@@ -1184,3 +1185,21 @@ func onWayland() bool {
 	b := os.Getenv("GDK_BACKEND")
 	return b == "" || strings.HasPrefix(b, "wayland")
 }
+
+// examplePrompts gives a first start the example Prompts page for all
+// sessions, unless one is there (SPEC T6).
+func (a *App) examplePrompts() {
+	if n, err := a.notes.Load(notes.AppID, "Prompts"); err != nil || n.Mtime != 0 {
+		return
+	}
+	if _, err := a.notes.Save(notes.AppID, "Prompts", examples.Prompts()); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: example prompts:", err)
+	}
+}
+
+// ExampleCommands are the example commands, for Settings → Commands → Add
+// example commands… (the frontend adds those the user lacks).
+func (a *App) ExampleCommands() ([]config.Command, error) { return examples.Commands() }
+
+// ExamplePrompts is the example Prompts page, for Add example prompts….
+func (a *App) ExamplePrompts() string { return examples.Prompts() }

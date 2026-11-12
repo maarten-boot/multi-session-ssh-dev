@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"session-workbench/internal/config"
+	"session-workbench/internal/examples"
 	"session-workbench/internal/forge"
 	"session-workbench/internal/idle"
 	"session-workbench/internal/pathmap"
@@ -178,6 +179,7 @@ type Manager struct {
 	path    string
 	cfg     *config.Config
 	loadErr error
+	fresh   bool // there was no config file: a first start
 }
 
 // Open loads the config at path. If the file exists but cannot be read the
@@ -189,10 +191,21 @@ func Open(path string) *Manager {
 	if m.loadErr != nil {
 		m.cfg = config.Default()
 	}
+	// A first start gets the example commands (saved with the first
+	// change). An existing file is never added to, also not an empty list.
+	if _, err := os.Stat(path); m.loadErr == nil && errors.Is(err, os.ErrNotExist) {
+		m.fresh = true
+		if cs, err := examples.Commands(); err == nil {
+			m.cfg.UI.Commands = cs
+		}
+	}
 	return m
 }
 
 func (m *Manager) LoadError() error { return m.loadErr }
+
+// Fresh: the app started without a config file (a first start).
+func (m *Manager) Fresh() bool { return m.fresh }
 
 // Config returns a copy of the current configuration.
 func (m *Manager) Config() config.Config {

@@ -416,6 +416,14 @@ one submenu (the session's first); names need to be unique within a group only. 
 config: `[[ui.commands]]` with `name`, `command`, `run` (default true), `group` and `where`,
 and `commands = [{ name = …, command = …, run = false, group = "git" }]` on a session.
 
+**Example commands and prompts.** The app comes with examples (`internal/examples/`): commands
+in the groups *Claude* (`/compact`, `/exit`, `claude --continue` for the Remote tab), *Git*
+(`git push` and friends, always in the Local tab) and *Text* (replies you give claude often,
+such as `you can continue`), and prompts on the *Prompts* page for all sessions. A first start
+— no config file yet — gets them all. Later, **Add example commands…** (Settings → Commands)
+and **Add example prompts…** (under the prompts list) show the ones you don't have — by group
+and name, or by name — and add them; yours stay as they are, and an upgrade never changes them.
+
 **Local and Remote commands.** A command's *Where* (Settings → Commands, Edit…; `where` in the
 config) says which terminal it is typed into: *this tab* (the default: the tab you choose it
 in), or always **Local** or **Remote**. The other tab's commands are in their own section of

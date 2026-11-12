@@ -90,6 +90,14 @@ export function DeleteSession(arg1) {
   return window['go']['main']['App']['DeleteSession'](arg1);
 }
 
+export function ExampleCommands() {
+  return window['go']['main']['App']['ExampleCommands']();
+}
+
+export function ExamplePrompts() {
+  return window['go']['main']['App']['ExamplePrompts']();
+}
+
 export function ExportParts(arg1) {
   return window['go']['main']['App']['ExportParts'](arg1);
 }

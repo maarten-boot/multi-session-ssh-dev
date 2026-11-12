@@ -1275,3 +1275,21 @@ func TestUpdateIdleStop(t *testing.T) {
 		t.Errorf("idle_stop %q", r.IdleStop)
 	}
 }
+
+// A first start (no config file) gets the example commands; an existing
+// file never does, not even with no commands at all (SPEC T5).
+func TestExampleCommandsFirstStartOnly(t *testing.T) {
+	dir := t.TempDir()
+	m := Open(filepath.Join(dir, "config.toml"))
+	if !m.Fresh() || len(m.Config().UI.Commands) == 0 {
+		t.Fatalf("first start: fresh %v, %d commands", m.Fresh(), len(m.Config().UI.Commands))
+	}
+	empty := filepath.Join(dir, "empty.toml")
+	if err := os.WriteFile(empty, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m = Open(empty)
+	if m.Fresh() || len(m.Config().UI.Commands) != 0 {
+		t.Fatalf("existing file: fresh %v, %d commands", m.Fresh(), len(m.Config().UI.Commands))
+	}
+}

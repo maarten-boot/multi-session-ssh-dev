@@ -83,3 +83,16 @@ test('the Prompts section of the right-click menu', () => {
         ['Prompts (this session)', 'Tests', '-', 'Prompts (all sessions)', 'Review']);
     assert.deepEqual(promptMenu([], [], () => {}, true), []);   // no prompts: no section
 });
+
+test('example prompts: only missing names, appended as headings', async () => {
+    const {missingPrompts, appendPrompts} = await import('./prompts.js');
+    const ex = parsePrompts('## Review\nReview it.\n\n## CrossCheck\nCheck it\nall.\n');
+    const have = parsePrompts('# Prompts\n\n## review\nMy own review.\n');
+    const add = missingPrompts(have, ex);
+    assert.deepEqual(add.map(p => p.name), ['CrossCheck']);
+    const page = appendPrompts('# Prompts\n\n## review\nMy own review.\n\n\n', add);
+    assert.equal(page, '# Prompts\n\n## review\nMy own review.\n\n## CrossCheck\nCheck it\nall.\n');
+    // The page now has both, the user's own unchanged.
+    assert.deepEqual(parsePrompts(page).map(p => p.text), ['My own review.', 'Check it\nall.']);
+    assert.equal(appendPrompts('', ex), '## Review\nReview it.\n\n## CrossCheck\nCheck it\nall.\n');
+});

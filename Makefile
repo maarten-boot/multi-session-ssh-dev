@@ -93,7 +93,8 @@ clean-smoke:
 #   copy/paste, Remote tab recordings, command menu, prompts menu and start
 #   commands, private shell history, lists and spelling in the notes,
 #   activity badges (~2 minutes), stopping an idle claude (a fake claude, ~2 minutes),
-#   what claude cost (made-up transcripts), the sidebar's Hosts/Groups/Active/Inactive headings.
+#   what claude cost (made-up transcripts), the sidebar's Hosts/Groups/Active/Inactive headings,
+#   the example commands and prompts (first start, Add example …).
 # GUI test output (screenshots, logs) goes into one folder for this project;
 # make clean-smoke removes it.
 SMOKE_DIR ?= /tmp/multi-session-ssh-dev
@@ -150,6 +151,7 @@ smoke-ui: build
 	$(XVFB) scripts/gui-smoke-idle.sh build/bin/session-workbench $(SMOKE_OUT)-idle
 	$(XVFB) scripts/gui-smoke-cost.sh build/bin/session-workbench $(SMOKE_OUT)-cost
 	$(XVFB) scripts/gui-smoke-lists.sh build/bin/session-workbench $(SMOKE_OUT)-lists
+	$(XVFB) scripts/gui-smoke-examples.sh build/bin/session-workbench $(SMOKE_OUT)-examples
 
 # smoke-container: a container host with a real engine (Podman, else Docker; skipped
 #   without either): build, connect, Dockerfile window, rebuild, stop, delete. The first

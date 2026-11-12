@@ -1,7 +1,7 @@
-import {CreatePage, LoadPage, NotesTree} from '../wailsjs/go/main/App';
+import {CreatePage, ExamplePrompts, LoadPage, NotesTree, SavePage} from '../wailsjs/go/main/App';
 import {ClipboardSetText} from '../wailsjs/runtime/runtime';
 import {NotesView, PAGE} from './notes';
-import {parsePrompts} from './prompts';
+import {appendPrompts, missingPrompts, parsePrompts} from './prompts';
 import {el, toast} from './ui';
 
 export const PROMPTS = 'Prompts';
@@ -51,6 +51,7 @@ const PLACEHOLDERS = {
 export class AppNotesPage {
     constructor(host, {paste, label, canPaste, keyHint, dialogs}) {
         this.paste = paste;
+        this.dialogs = dialogs;
         this.label = label;
         this.canPaste = canPaste ?? (() => null);
         this.list = el('div', {className: 'prompt-list'});
@@ -137,6 +138,39 @@ export class AppNotesPage {
         await this.view.open(page);
     }
 
+    // addExamples appends the example prompts whose name the Prompts pages
+    // lack to the Prompts page (made when there is none), after asking.
+    async addExamples() {
+        let missing;
+        try {
+            missing = missingPrompts(this.prompts, parsePrompts(await ExamplePrompts()));
+        } catch (err) {
+            return toast(err?.message ?? String(err), true);
+        }
+        if (!missing.length) return toast('You have all the example prompts.');
+        const ok = await this.dialogs.confirm({
+            title: 'Add example prompts',
+            text: `These ${missing.length} prompts are added at the end of the Prompts page. Yours stay as they are.\n\n` +
+                missing.map(p => p.name).join('\n'),
+            ok: `Add ${missing.length}`, safe: true,
+        });
+        if (!ok) return;
+        try {
+            await this.view.loaded;
+            await this.view.save();
+            if (!this.view.find(PROMPTS)) await CreatePage('_app', PROMPTS);
+            const open = this.view.page === PROMPTS;
+            const text = open ? this.view.editor.text : (await LoadPage('_app', PROMPTS)).text;
+            const n = await SavePage('_app', PROMPTS, appendPrompts(text, missing));
+            await this.view.loadTree();
+            if (open) this.view.show(PROMPTS, n);
+            else await this.view.open(PROMPTS);
+            toast(`Added ${missing.length} example prompts`);
+        } catch (err) {
+            toast(err?.message ?? String(err), true);
+        }
+    }
+
     render() {
         const target = this.label();
         const problem = target ? this.canPaste() : 'No session';
@@ -155,14 +189,17 @@ export class AppNotesPage {
                 el('div', {className: 'prompt-text', textContent: p.text}),
                 el('div', {className: 'prompt-actions'}, copy, paste));
         }));
-        if (prompts.length) return;
-        if (this.hasPromptsPage) {
+        if (!prompts.length && this.hasPromptsPage) {
             this.list.append(el('p', {className: 'prompt-empty', textContent: 'No prompts yet: start one with a "## name" line on the Prompts page.'}));
-            return;
+        } else if (!prompts.length) {
+            const make = el('button', {type: 'button', textContent: 'Create the Prompts page'});
+            make.onclick = () => this.openPage(PROMPTS);
+            this.list.append(el('p', {className: 'prompt-empty', textContent: 'Prompts come from a page named “Prompts” and its subpages.'}),
+                el('div', {className: 'prompt-actions'}, make));
         }
-        const make = el('button', {type: 'button', textContent: 'Create the Prompts page'});
-        make.onclick = () => this.openPage(PROMPTS);
-        this.list.append(el('p', {className: 'prompt-empty', textContent: 'Prompts come from a page named “Prompts” and its subpages.'}),
-            el('div', {className: 'prompt-actions'}, make));
+        const examples = el('button', {type: 'button', textContent: 'Add example prompts…',
+            title: 'The prompts the app comes with that you don\'t have yet (by name)'});
+        examples.onclick = () => this.addExamples();
+        this.list.append(el('div', {className: 'prompt-actions prompt-examples'}, examples));
     }
 }

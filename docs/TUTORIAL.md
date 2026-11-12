@@ -262,6 +262,9 @@ The first time there are no hosts yet:
 After that, **New session…** takes its place.
 **Settings…** at the bottom left is always there.
 
+A first start also gives you the example commands and prompts of section 11,
+  to keep, change or delete.
+
 ## 6. Settings
 
 Open Settings with **Settings…** at the bottom of the session list,
@@ -492,10 +495,15 @@ Each session keeps its conversation, and every question and answer is logged.
 ## 11. Commands and prompts for every session
 
 Commands and prompts you set up once are available in **every** session.
-The screenshots show a real set, used daily while developing this app:
-  [examples/settings.toml](tutorial/examples/settings.toml) (with the commands)
-  and [examples/prompts.md](tutorial/examples/prompts.md).
-Copy what you like.
+The app comes with a set of examples, used daily while developing it:
+  [the commands](../internal/examples/commands.toml)
+  and [the prompts](../internal/examples/prompts.md).
+A first start, without a config yet, gets them all.
+Later, **Add example commands…** in Settings → Commands
+  and **Add example prompts…** under the prompts list add the ones you don't have;
+  yours stay as they are, also when a name is the same.
+An upgrade never changes your commands or prompts.
+A whole real `[ui]` section is in [examples/settings.toml](tutorial/examples/settings.toml).
 
 ### The command menu
 
@@ -515,7 +523,7 @@ Make them in Settings → Commands; each session can add its own in *Edit…*.
 Commands are not only for the shell.
 The *Claude* group types claude's own commands (`/compact`, `/exit`) into the Remote tab;
   the *Text* group holds replies you give claude again and again:
-  `you can continue`, `i pushed`, `status?`, `What is next ?`.
+  `you can continue`, `i pushed`, `status?`, `What is next?`.
 
 ![Settings → Commands](tutorial/31-settings-commands.png)
 

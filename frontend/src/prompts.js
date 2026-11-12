@@ -34,6 +34,21 @@ export function parsePrompts(notes) {
     return out;
 }
 
+// missingPrompts are the example prompts whose name is not among have's,
+// ignoring case.
+export function missingPrompts(have, examples) {
+    const own = new Set((have ?? []).map(p => p.name.trim().toLowerCase()));
+    return (examples ?? []).filter(p => !own.has(p.name.trim().toLowerCase()));
+}
+
+// appendPrompts adds prompts to the end of a page's text, each as a
+// "## name" heading with its text, a blank line apart.
+export function appendPrompts(page, prompts) {
+    const add = prompts.map(p => `## ${p.name}\n${p.text}\n`).join('\n');
+    const head = String(page ?? '').replace(/\s+$/, '');
+    return head ? `${head}\n\n${add}` : add;
+}
+
 // promptMenu returns the entries of the Prompts menu (Local and Remote
 // tabs): the session's own prompts, then those for all sessions; paste(text)
 // puts one into the terminal (no Enter). section: for the terminal's

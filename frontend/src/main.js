@@ -12,7 +12,7 @@ import {promptMenu} from './prompts';
 import {WebView} from './web';
 import {QAView} from './qa';
 import {CommandList} from './commands';
-import {commandItems, homeItem} from './cmdmenu';
+import {commandItems, commandLabel, homeItem, missingCommands} from './cmdmenu';
 import {$, balloon, el, hideBalloon, hideMenu, movable, showMenu, store, textMenu, toast} from './ui';
 import {EventsOff, EventsOn, WindowSetTitle} from '../wailsjs/runtime/runtime';
 import {TOOLCHAINS, addToolchain} from './dockerfile';
@@ -30,7 +30,7 @@ import {
     AutosaveStatus, QuitSaving, QuitNow, NotesTodos, QAModels, QAFindClaude,
     ContainerDockerfile, SaveContainerDockerfile, ContainerRebuild, ContainerStopBuild, ContainerStop, ContainerRemove,
     ContainerCompose, SaveContainerCompose, ContainerComposeApply, SetSessionActive,
-    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude, CostSummary, ResetCost,
+    SwitchTargets, SwitchHost, Requirements, SaveRequirements, CheckRequirements, IdleStopped, SessionShown, StopClaude, ResumeClaude, CostSummary, ResetCost, ExampleCommands,
     ContainerEngineInfo, ExportParts, ExportSession, ImportOpen, ImportSession, Profile,
 } from '../wailsjs/go/main/App';
 
@@ -1799,13 +1799,14 @@ function runDialog(dlg, submit, focus = null, opened = null) {
 // confirmDialog asks before action. check: a checkbox label (action gets
 // whether it is ticked) or a list of them (action gets a list of booleans);
 // they start unticked.
-async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, checked = false, action}) {
+async function confirmDialog({title, text, ok = 'OK', cancel = 'Cancel', check, checked = false, action, safe = false}) {
     const dlg = $('#dlg-confirm');
     dlg.querySelector('h2').textContent = title;
     dlg.querySelector('.text').textContent = text;
     const okBtn = dlg.querySelector('button[value=ok]');
     okBtn.hidden = !ok;
     okBtn.textContent = ok || '';
+    okBtn.className = safe ? 'primary' : 'danger'; // red only for what removes or ends something
     dlg.querySelector('button[value=cancel]').textContent = ok ? cancel : 'Close';
     const labels = check === undefined || check === null ? [] : Array.isArray(check) ? check : [check];
     const boxes = labels.map((_, i) => el('input', {type: 'checkbox', checked: Array.isArray(checked) ? !!checked[i] : checked}));
@@ -2133,7 +2134,13 @@ async function settingsDialog(page) {
     f.container_engine.onchange = lookEngine;
     lookEngine();
     const commands = new CommandList(dlg.querySelector('[data-list=commands]'), ui.commands ?? [], {run: true, group: true, where: true,
-        groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group))});
+        groups: () => app.state.sessions.flatMap(d => (d.commands ?? []).map(c => c.group)),
+        extra: list => {
+            const b = el('button', {type: 'button', textContent: 'Add example commands…',
+                title: 'The commands the app comes with that you don\'t have yet (same group and name)'});
+            b.onclick = () => addExampleCommands(list);
+            return b;
+        }});
     const starts = new CommandList(dlg.querySelector('[data-list=start_commands]'), ui.start_commands ?? [],
         {emptyCommand: true, placeholder: {name: 'Name (start mode)'}});
     for (const k of ['theme', 'color_mode', 'min_contrast', 'scrollback', 'font_family', 'font_size', 'connect_on_start', 'description_delay']) f[k].value = ui[k] ?? '';
@@ -2932,6 +2939,25 @@ function costPage(dlg, f, ui) {
             app.cost = await CostSummary().catch(() => app.cost);
             fill();
         },
+    });
+}
+
+// addExampleCommands offers the example commands the list lacks (same
+// group and name); they are added to the rows, saved with Settings' Save.
+async function addExampleCommands(list) {
+    let missing;
+    try {
+        missing = missingCommands(list.value, await ExampleCommands());
+    } catch (err) {
+        return toast(err?.message ?? String(err), true);
+    }
+    if (!missing.length) return toast('You have all the example commands.');
+    await confirmDialog({
+        title: 'Add example commands',
+        text: `These ${missing.length} commands are added below; Save keeps them. Yours stay as they are.\n\n` +
+            missing.map(c => `${commandLabel(c)}:  ${c.command}`).join('\n'),
+        ok: `Add ${missing.length}`, safe: true,
+        action: () => list.add(missing),
     });
 }
 

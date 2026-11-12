@@ -206,6 +206,19 @@ implementation differs from the original plan.
   (with their notifications) stay current, and claude always gets the usage status line
   (CostNow, only used to count at once after turning it on, is gone). gui-smoke-cost: a reply
   after hiding is counted; its Save and Reset clicks moved with the Cost page's longer note.
+  Also: example commands and prompts ship with the app (SPEC T7). The user: "we could even
+  consider adding them to the default release (after we correct spelling and accuracy)", then
+  "yes, first start only plus the button" and "apply all spelling fixes, keep both, keep
+  architecture". internal/examples embeds commands.toml and prompts.md (the user's own, with
+  the spelling fixes); a first start without a config file gets the commands (in memory, saved
+  with the first change) and, without a Prompts page for all sessions, that page; an existing
+  config or page is never added to. *Add example commands…* (Settings → Commands) and *Add
+  example prompts…* (prompts list) ask with the list of missing names (group and name, or
+  name, ignoring case) and add only those; confirmDialog got `safe` for a blue OK. Tests:
+  examples (commands pass ValidateCommands, prompts unique), session TestExampleCommands
+  FirstStartOnly, cmdmenu/prompts tests (missing entries, appending), gui-smoke-examples (first
+  start; an existing config and page untouched at start; both buttons add only what is missing,
+  the user's git-push and crosscheck prompt kept).
 - v1.1.18 (2026-11-10): Settings → Cost, warnings and the subscription usage (SPEC F18), and
   Deactivate ends tmux by default (F15). The user: "what happend with the configurable alert
   for cost ? Additions: by default select switch off tmux on disconnect; add a extra Cost tab in
@@ -428,10 +441,6 @@ implementation differs from the original plan.
   Settings name a Claude Code model.
 
 ## Next (ideas, not started)
-- Ship example commands and prompts with the release (the user: "we could even consider
-  adding them to the default release (after we correct spelling and accuracy)"):
-  docs/tutorial/examples/ after a review; how (defaults for a new config, or files to copy)
-  still to decide.
 - **Output folding in the Remote tab.** Collapse long output blocks (large code blocks) and jump
   between interactive prompts.
   - Frontend: hook into `frontend/src/terminal.js`. Explore xterm.js markers

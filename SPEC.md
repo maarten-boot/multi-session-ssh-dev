@@ -1,6 +1,6 @@
 # Session Workbench — Specification
 
-Status: v1.27 (2026-11-12, app v1.1.19) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
+Status: v1.28 (2026-11-12, app v1.1.19) — SPEC v1.0 was implemented in app v0.6.0. Since then: session folders (F5),
 narrow and resizable sidebar (F6), Claude backups (F7), one instance per config (F8), working
 copies and backups without rsync (F9), desktop notifications (F4), git status and the
 repository check in the Files tab (B5, B6), Notes and Web tabs (N1, W1), notes for all sessions
@@ -19,7 +19,8 @@ next to a container session's dev container with Compose (C7), inactive sessions
 Hosts heading above the folders (F5), one project on several agent hosts (F16), stopping
 claude (F17; also in containers and by hand), what claude cost at API prices with the
 subscription usage, warnings and a Cost page in Settings (F18), and the sidebar headings
-Groups, Active and Inactive (F5), and a tutorial (docs/TUTORIAL.md, also as PDF).
+Groups, Active and Inactive (F5), a tutorial (docs/TUTORIAL.md, also as PDF), and example
+commands and prompts (T7).
 Sections describe the implemented behaviour.
 
 ## 1. Problem
@@ -885,6 +886,16 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   The terminal's right-click menu has the same entries after its *Commands* section, under
   *Prompts (this session)* / *Prompts (all sessions)* (no section without prompts); the menu
   opens once the session's prompts are read.
+- T7. Example commands and prompts (internal/examples, embedded: commands.toml, prompts.md). A
+  first start — no config file — gets the example commands in its config (saved with the first
+  change) and, when the notes for all sessions have no *Prompts* page, that page with the
+  example prompts. An existing config (also one with no commands) and an existing *Prompts*
+  page are never added to, also not by an upgrade. *Add example commands…* (next to *+ Add* in
+  Settings → Commands) lists the examples whose group and name (ignoring case) the list lacks
+  and adds them as rows (Save keeps them); *Add example prompts…* (under the prompts list of the
+  notes for all sessions) lists the examples whose name (ignoring case) none of the Prompts
+  pages has and appends them to the *Prompts* page (made when there is none). Both ask first,
+  with a blue OK; the user's own entries stay as they are.
 - T5. Command menu in the Local and Remote tabs: a *Commands* section at the end of the
   right-click menu and a *Commands ▾* button next to the tabs (shown when there are commands;
   always on the Local tab). The Local tab's menu starts with *Back to the session directory*:
