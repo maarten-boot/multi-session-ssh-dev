@@ -12,13 +12,14 @@ read its security section if the agent host can write to your repositories.
 New here? **[docs/TUTORIAL.md](docs/TUTORIAL.md)** takes you from the download to your first
 claude session, with screenshots (`make tutorial-pdf` makes a PDF of it).
 
-Status: v1.1.14: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
+Status: v1.1.19: sessions with Local, Files (sizes, dates, sort by name or date), Remote,
 Notes (page trees with formatting, lists and check lists, spelling), Web and Q&A tabs, Remote tab recordings, session folders,
 themes and color modes, quick switcher, a command menu and a prompts menu in the Local and Remote tabs, editable
 start commands, private shell history per session, activity badges, desktop notifications,
 auto-reconnect, containers on this computer as agent hosts (Podman or Docker, a Dockerfile per session, services such as PostgreSQL next to it with Compose), live share and working copies for hosts without a shared file system (Get
 lists and takes over every agent branch; full save, take, send and restore, also without git),
-Claude backups, remembered window size and position, settings in pages; builds for Linux, Windows
+Claude backups, remembered window size and position, settings in pages, what claude cost at API
+prices with the subscription usage, a [tutorial](docs/TUTORIAL.md); builds for Linux, Windows
 and macOS.
 
 ## Download

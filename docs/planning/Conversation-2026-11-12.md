@@ -57,3 +57,13 @@
 - User: "yes commit, i push; use architecture/Crosscheck-YYYY-MM-DD-nn.md." The CrossCheck
   example prompt now names its file once, in that form. The spelling proposals wait for the
   user's OK.
+
+## Cross-check (user: "pushed, do a crosscheck")
+- 4bd8b06 is on GitHub; its CI run 43299227017 was queued.
+- Versions agree: wails.json 1.1.19, SPEC status app v1.1.19, PLAN entry v1.1.19.
+- Fixed: SPEC F17 still said the usage status line comes "with the cost shown" (now always);
+  README's status line said v1.1.14 (now v1.1.19, with the cost and the tutorial); the
+  tutorial's keys section gave Linux keys only (now says macOS uses ⇧⌘, see the README table).
+- Checked against the code and README: no remaining show_cost-stops-counting text, no
+  CostNow/usageOn left; the tutorial's shortcuts, defaults (backups hourly, idle stop off,
+  start commands) and menus match; the PDF builds.

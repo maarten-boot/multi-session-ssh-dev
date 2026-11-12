@@ -439,7 +439,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
   - Detection: the app starts claude with hooks in every such session, whatever the idle time
     (`--settings '<json>'` added after every `claude` of the start command; the user's own
     settings are untouched; only when a new tmux session starts it, so from v1.1.14 on for
-    Stop claude now; with the cost shown also the status line of F18): SessionStart, UserPromptSubmit, Stop, Notification (permission or form
+    Stop claude now; also the status line of F18): SessionStart, UserPromptSubmit, Stop, Notification (permission or form
     questions only) and SessionEnd write `$HOME/.local/state/session-workbench/claude/<id>`
     ("<time> <event> <claude's pid> <tmux pane>", then the hook's JSON). At start one ssh call
     per host reads all such sessions (claudes stopped before); then every minute those with an

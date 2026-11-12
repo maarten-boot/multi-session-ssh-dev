@@ -674,6 +674,8 @@ Keys, logins and Claude backups never go in.
 - **Keys**: Ctrl+Shift+N new session, Ctrl+Shift+P quick switcher,
   Ctrl+Shift+1…6 the tabs, Ctrl+Shift+M notes for all sessions, Ctrl+Shift+F find in a terminal,
   Ctrl+Shift+PgDn / PgUp the next or previous session.
+  On macOS most use ⇧⌘ instead (⇧⌘N, ⇧⌘P, ⇧⌘1…);
+  the README's key table lists them all.
   Settings → Keys changes them.
 - **Contrast**: all text is black on white (or bright on dark).
   Settings → Appearance sets a minimum contrast for terminal colors:
