@@ -889,7 +889,7 @@ host's `local_prefix`), e.g. `~/share-local/workspace`.
 - T7. Example commands and prompts (internal/examples, embedded: commands.toml, prompts.md). A
   first start — no config file — gets the example commands in its config (saved with the first
   change) and, when the notes for all sessions have no *Prompts* page, that page with the
-  example prompts. An existing config (also one with no commands) and an existing *Prompts*
+  example prompts (not by a second instance, which only brings the first one forward). An existing config (also one with no commands) and an existing *Prompts*
   page are never added to, also not by an upgrade. *Add example commands…* (next to *+ Add* in
   Settings → Commands) lists the examples whose group and name (ignoring case) the list lacks
   and adds them as rows (Save keeps them); *Add example prompts…* (under the prompts list of the

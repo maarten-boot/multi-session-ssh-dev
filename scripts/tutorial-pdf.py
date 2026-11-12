@@ -35,8 +35,9 @@ def main():
     src, out = Path(sys.argv[1]), Path(sys.argv[2])
     version = sys.argv[3] if len(sys.argv) > 3 else ""
     text = src.read_text(encoding="utf-8")
-    # Links between files make no sense on paper: keep their text.
-    text = re.sub(r"\[([^\]]+)\]\((?!#|https?:)[^)]+\.md[^)]*\)", r"\1", text)
+    # Links to other files make no sense on paper: keep their text (not
+    # pictures, nor links within the tutorial or to the web).
+    text = re.sub(r"(?<!!)\[([^\]]+)\]\((?!#|https?:)[^)]+\)", r"\1", text)
     # CommonMark as on GitHub, with tables and heading anchors (#3-prepare-the-agent-host).
     md = MarkdownIt("commonmark").enable("table").enable("strikethrough")
     md.use(anchors_plugin, min_level=1, max_level=3)

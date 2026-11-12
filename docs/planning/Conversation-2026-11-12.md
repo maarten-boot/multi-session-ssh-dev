@@ -99,3 +99,11 @@
   (moved from Next), Tests.md row, Makefile smoke.
 - Tests: go test (examples, session first start only), npm test 74 pass, gui-smoke-examples
   pass (11 checks), and again commands, appnotes, profile, settings and tutorial-shots pass.
+
+## Cross-check (user: "pushed, do a crosscheck")
+- a7a7ad0 is on GitHub; its CI run 43305003879 was in progress.
+- No stale paths to the moved examples; SPEC T7, README, tutorial, Tests.md and PLAN agree
+  with the code (first start only, buttons add missing names, blue OK).
+- Fixed: SPEC T7 now says a second instance writes no Prompts page (the code only seeds when
+  it holds the lock); the PDF kept the new link to commands.toml as a dead file link — now
+  every relative link but pictures and in-page links becomes its text (20 pictures still in).
